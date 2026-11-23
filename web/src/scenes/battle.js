@@ -361,12 +361,15 @@ export class NavalBattle {
   viewOrigin() {
     for (let k = 0; k < 4; k++) {
       const E = 0x97e0 + 8 * k;
-      if (this.u16(E + 4) !== this.heroFleet) continue;
-      const [x, y] = this.pos(this.u16(E));
-      this.set8(0x9bf0, 0); this.set8(0x9bef, 0);
-      if (x > 6) { this.set8(0x9bef, x - 6); if (this.u8(0x9bef) > 0x27) this.set8(0x9bef, 0x27); }
-      if (y > 6) { this.set8(0x9bf0, y - 6); if (this.u8(0x9bf0) > 0x24) this.set8(0x9bf0, 0x24); }
+      if (this.u16(E + 4) === this.heroFleet) this.viewFor(this.u16(E));
     }
+  }
+  // f7e3 以船 B 為準的視窗左上: 欄 − 6 (0..0x27)、列 − 6 (0..0x24)
+  viewFor(B) {
+    const [x, y] = this.pos(B);
+    this.set8(0x9bf0, 0); this.set8(0x9bef, 0);
+    if (x > 6) { this.set8(0x9bef, x - 6); if (this.u8(0x9bef) > 0x27) this.set8(0x9bef, 0x27); }
+    if (y > 6) { this.set8(0x9bf0, y - 6); if (this.u8(0x9bf0) > 0x24) this.set8(0x9bf0, 0x24); }
   }
 
   // ================= 畫面 =================
@@ -688,8 +691,8 @@ export class NavalBattle {
   }
   async command(r) {
     switch (r) {
-      case 0: btTodo("海戰 指令 移動 (ad20)"); return 0;
-      case 1: btTodo("海戰 指令 攻擊 (ad38)"); return 0;
+      case 0: return this.cmdMove();                                    // ad20
+      case 1: return this.attack();                                     // ad38 = ac7d
       case 2: btTodo("海戰 指令 情報 (b258)"); return 0;
       case 3: btTodo("海戰 指令 信號 (b30f)"); return 0;
       case 4: btTodo("海戰 指令 作戰 (b6db)"); return 0;
@@ -699,6 +702,290 @@ export class NavalBattle {
     }
     return 0;
   }
+  // ================= ad20 移動 (RE_NOTES 30.6) =================
+  // [97d4] 遠端緩衝 0x34 × 0x30 (不在 DS): 移動 bit4 可到達 / bit7 第一步可到達; 轉向 / 攻擊 bit6 目標、bit1 射界內、bit0 相鄰
+  //   原版以 [97d4] + 位置 存取 (位置可能超出 0..0x9bf), 移植版在 64K 陣列的 0x2000 處
+  get mv() { return (this.c.battleMv ??= new Uint8Array(0x10000)); }
+  mvAt(p) { return (0x2000 + btS16(p)) & 0xffff; }
+  mvFill(v) { this.mv.fill(v & 0xff, 0x2000, 0x2000 + 0x9c0); }       // d3f7(0x9c0, v, [97d4])
+  // DS:9c06 方向表 (6 × 3 word: dx、偶數欄 dy、奇數欄 dy): 位置 p 往方向 d 的鄰格 (欄, 列)
+  nb(p, d) {
+    p = btS16(p); const x = btImod(p, 0x34), y = btIdiv(p, 0x34);
+    return [x + this.s16(0x9c06 + 6 * d), y + this.s16(0x9c06 + 2 * (3 * d + (btImod(x, 2) === 0 ? 1 : 2)))];
+  }
+  abil(B, k) { return this.u8(this.u16(B) + 0x1c + k); }               // d419: 船長 +1c + k
+  // d745 慣性: s = (轉向 × 船長 +1d) / 200 (有號), min(100, s + (船長 +24 × s) / 15)
+  inertia(B) {
+    const S = this.u16(B + 2), si = btIdiv(btS16((this.u8(S + 4) * this.abil(B, 1)) & 0xffff), 200) & 0xffff;
+    return btUmin(0x64, (Math.floor(((this.u8(this.u16(B) + 0x24) * si) & 0xffff) / 15) + si) & 0xffff);
+  }
+  // d792 移動力: s = ((推進 × 風力) << 3) / 150 + 20, s = s × 船長 +1d / 100, max(10, min(25, s + (船長 +24 × s) / 15))
+  movePts(B) {
+    const S = this.u16(B + 2);
+    let si = Math.floor((((this.u8(S + 5) * this.u8(0x9bf9)) << 3) & 0xffff) / 0x96) + 0x14;
+    si = Math.floor(((si * this.abil(B, 1)) & 0xffff) / 0x64);
+    const a = btUmin(0x19, (Math.floor(((this.u8(this.u16(B) + 0x24) * si) & 0xffff) / 15) + si) & 0xffff);
+    return (a >= 0x0a ? a : 0x0a) & 0xff;
+  }
+  // d6f6 一步的消耗 (新方向 nd, 原方向 dir)
+  stepCost(B, nd, dir) {
+    const S = this.u16(B + 2), w = this.u8(0x9bf2 + (nd & 0xff));
+    if ((nd & 0xff) === (dir & 0xff)) return (Math.floor((this.u8(S + 5) * w) / 0x64) + 5) & 0xff;
+    if (w < 3) return 5;
+    return (0x0a - Math.floor((5 * this.u8(S + 4)) / 0x64)) & 0xff;
+  }
+  // dc3c 可到達範圍
+  reach(B, p, dir, pts, mom) {
+    this.mvFill(0x0f);
+    this.mv[this.mvAt(p)] |= 0x10;
+    this.reachRec(B, p, dir, pts, mom);                                 // db20
+    for (let d = 5; d < 8; d++) {
+      const [nx, ny] = this.nb(p, (d + dir) % 6), q = this.mvAt((ny * 0x34 + nx) & 0xffff);
+      if (this.mv[q] & 0x10) this.mv[q] |= 0x80;
+    }
+  }
+  // db20 遞迴: 慣性' < 50 時只看正前 (方向 + 6)
+  reachRec(B, p, dir, pts, mom) {
+    const m = btUmin(0x64, (this.inertia(B) + mom) & 0xffff) & 0xff;
+    for (let d = 5; d < 8; d++) {
+      if (m < 0x32 && d !== 6) continue;                                // d786
+      const nd = (d + dir) % 6, [nx, ny] = this.nb(p, nd), cost = this.stepCost(B, nd, dir), q = (ny * 0x34 + nx) & 0xffff;
+      if (!this.inMap(nx, ny) || (this.u8(this.mapAt(nx, ny)) & 0xe0) || cost > pts) continue;
+      this.mv[this.mvAt(q)] |= 0x10;
+      this.reachRec(B, q, nd, (pts - cost) & 0xff, d === 6 ? m : 0);
+    }
+  }
+  // bd3f 標記圖 (063e 模式 0x400 | 色, 4 × 0x20, 奇數欄下移 16)
+  mark(x, y, t) {
+    const { scr, gfx } = this.c;
+    const X = ((x - this.u8(0x9bef)) << 2), Y = ((y - this.u8(0x9bf0)) << 5) + (btImod(x, 2) === 0 ? 0 : 0x10);
+    let di = 4, si = 0x68c0;
+    if (t === 1) { di = 2; si = 0x3820; } else if (t === 2) si = 0x3820; else if (t === 3) { di = 6; si = 0x38a0; } else if (t === 4) { di = 3; si = 0x3920; }
+    else if (t >= 0x80 && t <= 0x85) si = (0x68c0 + ((t & 0x0f) << 7) + 0x280) & 0xffff;
+    scr.glyphMode(X, Y, 4, 0x20, (t && !(t & 0x80) ? gfx : this.hd).subarray(si), 0x400 | di);
+  }
+  // a6f2 標出可到達的格、已走的路徑、可攻擊的船; 回傳有沒有第一步可到達 (bit7) 的格
+  showReach() {
+    const idx = this.u8(0x9bee), p = this.s16(0x9bd0 + 2 * idx), cx = btImod(p, 0x34), cy = btIdiv(p, 0x34);
+    let any = 0;
+    for (let y = this.u8(0x9bf0); this.u8(0x9bf0) + 0x0c > y; y++) for (let x = this.u8(0x9bef); this.u8(0x9bef) + 0x0d > x; x++) {
+      const d = this.dist(cx, cy, x, y) & 0xff, v = this.mv[this.mvAt((y * 0x34 + x) & 0xffff)];
+      if (!(v & 0x10) || !d) continue;
+      if (v & 0x80) { this.mark(x, y, 1); any = 1; } else this.mark(x, y, 2);
+    }
+    for (let i = 1; i <= this.u8(0x9bee); i++) {
+      const q = this.s16(0x9bd0 + 2 * i);
+      this.mark(btImod(q, 0x34), btIdiv(q, 0x34), this.u8(0x9be4 + i) | 0x80);
+    }
+    this.markTargets();                                                 // a40a
+    return any;
+  }
+  // a40a 兩個敵方的活船: 射界內 → 標記 3、緩衝 |= 0x42; 相鄰 → 標記 4、|= 0x41
+  markTargets() {
+    const idx = this.u8(0x9bee), p = this.s16(0x9bd0 + 2 * idx), x = btImod(p, 0x34), y = btIdiv(p, 0x34), dir = this.u8(0x9be4 + idx);
+    const cur = this.u16(0x9bc2);
+    let E = this.enemySide(cur), r = 0;
+    for (let k = 0; k < 2; k++, E += 0x10) for (let si = this.u16(E); si; si = this.u16(si + 8)) {
+      if (!this.alive(si) || (this.u8(si + 0x0c) & 0x40)) continue;
+      const [ex, ey] = this.pos(si), q = this.mvAt(this.s16(si + 4));
+      if (this.inRange(cur, x, y, ex, ey, dir)) { if (this.inView(ex, ey)) this.mark(ex, ey, 3); this.mv[q] |= 0x42; r = 1; }
+      if ((this.dist(x, y, ex, ey) & 0xff) === 1) { if (this.inView(ex, ey)) this.mark(ex, ey, 4); this.mv[q] |= 0x41; r = 1; }
+    }
+    return r;
+  }
+  // b916 選格用的矩形 (DS:bdcc): 13 × 12 格 + 整個戰場
+  cellRects() {
+    const R = this.c.menu.rects; let di = 0;
+    for (let dy = 0; dy < 0x0c; dy++) for (let si = 0; si < 0x0d; si++, di++) {
+      const y0 = (((this.u8(0x9bef) + si) % 2) ? 0x10 : 0) + (dy << 5);
+      R[di] = { x0: si << 5, x1: (si << 5) + 0x20, y0, y1: y0 + 0x20 };
+    }
+    R[di] = { x0: 0, x1: 0x1a0, y0: 0, y1: 0x190 };
+  }
+  // b99c 選一格: [a160] = 目前位置 → 0fea:4684 (156 項、13 欄、可取消且保留游標); 回傳位置, 取消 → −1
+  async pickCell() {
+    const menu = this.c.menu, p = this.s16(0x9bd0 + 2 * this.u8(0x9bee));
+    menu.cur = (btImod(p, 0x34) + (btIdiv(p, 0x34) - this.u8(0x9bf0)) * 0x0d - this.u8(0x9bef)) & 0xffff;
+    menu.hexX = this.u8(0x9bef);                                       // 13e0e 的斜向鍵讀 DS:9bef
+    const r = (await menu.customMenu(0x9c, 0x0d, 3)) & 0xff;
+    if (r === 0xff) return -1;
+    return btS16(((Math.floor(r / 0x0d) + this.u8(0x9bf0)) * 0x34 + r % 0x0d + this.u8(0x9bef)) & 0xffff);
+  }
+  // ba28 選方向: 目前位置 → 0x80, 左前 / 正前 / 右前中緩衝 bit7 的格 → 該方向, 取消 → 0xff
+  async pickDir() {
+    const idx = this.u8(0x9bee), p = this.s16(0x9bd0 + 2 * idx), dir = this.u8(0x9be4 + idx);
+    this.cellRects();
+    for (;;) {
+      const c = await this.pickCell();
+      if (c === -1) return 0xff;
+      if (this.s16(0x9bd0 + 2 * this.u8(0x9bee)) === c) return 0x80;
+      for (let d = 5; d < 8; d++) {
+        const nd = (dir + d) % 6, [nx, ny] = this.nb(p, nd), q = btS16((ny * 0x34 + nx) & 0xffff);
+        if (q === c && (this.mv[this.mvAt(q)] & 0x80)) return nd;
+      }
+    }
+  }
+  redraw() { this.drawField(); this.drawShips(); }                     // c608 = c5ff + c0ad
+  // ad20 移動: a899 逐步移動 → 有移動時 ac7d; 否則 aaac 原地轉向 → 有轉向時 ac7d
+  async cmdMove() {
+    if (!(await this.moveSteps())) { if (!(await this.turnInPlace())) return 0; }
+    await this.attack();
+    return 1;
+  }
+  // a899 逐步移動 (區域變數: 慣性[i] = bp−22 + 2i、移動力[i] = bp−0e + i、選到的方向 bp−1; 以 L 模擬堆疊框)
+  async moveSteps() {
+    const L = new Uint8Array(0x30), F = k => 0x30 - k;
+    const mom = i => L[F(0x22) + 2 * i] | (L[F(0x22) + 2 * i + 1] << 8), setMom = (i, v) => { L[F(0x22) + 2 * i] = v & 0xff; L[F(0x22) + 2 * i + 1] = (v >> 8) & 0xff; };
+    const pts = i => L[F(0x0e) + i], setPts = (i, v) => { L[F(0x0e) + i] = v & 0xff; };
+    for (;;) {
+      for (let i = 0; i < 0x0a; i++) this.set8(0x9bc6 + i, 0x0f);       // 4c39
+      this.set8(0x9bee, 0);
+      let B = this.u16(0x9bc2);
+      this.set16(0x9bd0, this.u16(B + 4)); this.set8(0x9be4, this.u8(B + 0x0a));
+      setMom(0, this.u8(B + 0x0b));
+      setPts(0, this.movePts(B));                                       // d792
+      for (;;) {
+        let idx = this.u8(0x9bee);
+        this.reach(this.u16(0x9bc2), this.s16(0x9bd0 + 2 * idx), this.u8(0x9be4 + idx), pts(idx), mom(idx));   // dc3c
+        if (!this.showReach()) break;                                   // a6f2
+        this.msgArea(); this.c.message(0x2ff);
+        L[F(1)] = await this.pickDir();                                 // ba28
+        if (L[F(1)] === 0xff) { this.msgArea(); this.redraw(); break; }
+        this.msgArea(); this.redraw();
+        if (L[F(1)] === 0x80) {
+          this.set8(0x9bc6 + this.u8(0x9bee), 0x0f);
+          this.set8(0x9bee, this.u8(0x9bee) - btUmin(1, this.u8(0x9bee)));
+          continue;
+        }
+        idx = this.u8(0x9bee);
+        const r = L[F(1)], [nx, ny] = this.nb(this.s16(0x9bd0 + 2 * idx), r);
+        this.set16(0x9bd2 + 2 * idx, (ny * 0x34 + nx) & 0xffff);         // 步 = 9 時蓋到 9be4 / 9be5
+        this.set8(0x9be5 + idx, L[F(1)]);                               // 步 = 9 時就是 [9bee]
+        if (this.u8(0x9be4 + idx) !== L[F(1)]) setMom(this.u8(0x9bee) + 1, 0);
+        else { const s = this.u8(0x9bee); B = this.u16(0x9bc2); setMom(s + 1, btUmin(0x64, (this.inertia(B) + mom(s)) & 0xffff) & 0xff); }
+        const s = this.u8(0x9bee);
+        setPts(s + 1, pts(s) - this.stepCost(this.u16(0x9bc2), L[F(1)], this.u8(0x9be4 + s)));
+        this.set8(0x9bc6 + this.u8(0x9bee), L[F(1)]);
+        const old = this.u8(0x9bee); L[F(2)] = old; this.set8(0x9bee, old + 1);
+        if (old >= 9) break;
+      }
+      if (!this.u8(0x9bee)) return 0;
+      this.showReach();
+      this.msgArea(); this.c.message(0x300);
+      const ok = await this.confirm();                                  // bca4
+      this.msgArea(); this.redraw();
+      if (ok) {
+        this.set16(0x9bc4, this.u16(0x9bd0 + 2 * this.u8(0x9bee)));
+        await this.runPath();                                           // a2d5
+        await this.scrollTo();                                          // a80a
+        return this.u8(0x9bee);
+      }
+    }
+  }
+  // a2d5 照 9bc6 的路徑移動 (起點 ≠ 終點才真的移動)
+  async runPath() {
+    const di = this.s16(this.u16(0x9bc2) + 4) !== this.s16(0x9bc4) ? 1 : 0;
+    for (let si = 0x9bc6, n = 0; this.u8(si) < 6 && n < 0x0a; si++, n++) {
+      const B = this.u16(0x9bc2), old = this.u8(B + 0x0a);
+      this.set8(B + 0x0a, this.u8(si));
+      if (old !== this.u8(si) && di) this.set8(B + 0x0b, 0);
+      else this.set8(B + 0x0b, btUmin(0x64, (this.inertia(B) + this.u8(B + 0x0b)) & 0xffff));
+      await this.stepShip(di);                                          // c611
+    }
+  }
+  // c611 目前的船往 +0a 方向移一格 (moved = 0 時原地重畫)
+  async stepShip(moved) {
+    const B = this.u16(0x9bc2), p = this.s16(B + 4), si = btImod(p, 0x34), di = btIdiv(p, 0x34);
+    let [nx, ny] = moved ? this.nb(p, this.u8(B + 0x0a)) : [si, di];
+    this.set16(B + 4, (0x34 * ny + nx) & 0xffff);
+    if (this.inView(si, di)) this.tile(si, di);                         // c2a4
+    this.miniDot(si, di, 0x405);                                        // be49(色 5)
+    this.drawShip(this.u16(0x9bc2));                                    // c05d
+    this.miniShip(this.u16(0x9bc2));                                    // beb7
+    await this.c.sys.waitTicks(8);
+    const o = this.mapAt(si, di), a = this.u8(o) & 0xe0;
+    this.and8(o, 0x1f);
+    const n = (0x8e14 + ((0x34 * ny) & 0xffff) + nx) & 0xffff;
+    this.and8(n, 0x1f); this.or8(n, a);
+  }
+  // a80a 視窗每次各軸移 1 格捲到以目前的船為準的位置
+  async scrollTo() {
+    const ox = this.u8(0x9bef), oy = this.u8(0x9bf0);
+    this.viewFor(this.u16(0x9bc2));                                     // f7e3
+    const tx = this.u8(0x9bef), ty = this.u8(0x9bf0);
+    this.set8(0x9bef, ox); this.set8(0x9bf0, oy);
+    while (this.u8(0x9bef) !== tx || this.u8(0x9bf0) !== ty) {
+      if (this.u8(0x9bef) !== tx) this.set8(0x9bef, this.u8(0x9bef) < tx ? this.u8(0x9bef) + 1 : this.u8(0x9bef) - 1);
+      if (this.u8(0x9bf0) !== ty) this.set8(0x9bf0, this.u8(0x9bf0) < ty ? this.u8(0x9bf0) + 1 : this.u8(0x9bf0) - 1);
+      await this.c.sys.waitTicks(4);
+      this.redraw();
+    }
+  }
+  // aaac 原地轉向: 左前 / 右前 (+5 / +7) 的鄰格 |= 0x90 → 0x301 → ba28
+  async turnInPlace() {
+    let B = this.u16(0x9bc2);
+    this.set8(0x9bee, 0); this.set16(0x9bd0, this.u16(B + 4)); this.set8(0x9be4, this.u8(B + 0x0a));
+    this.mvFill(0);
+    const p = this.s16(B + 4), dir = this.u8(B + 0x0a);
+    for (let d = 5; d < 8; d += 2) {
+      const [nx, ny] = this.nb(p, (dir + d) % 6);
+      if (this.inMap(nx, ny)) this.mv[this.mvAt((ny * 0x34 + nx) & 0xffff)] |= 0x90;
+    }
+    this.showReach();
+    this.msgArea(); this.c.message(0x301);
+    const r = await this.pickDir();
+    if (r & 0x80) { this.msgArea(); this.redraw(); return 0; }
+    B = this.u16(0x9bc2); this.set8(B + 0x0a, r); this.set8(B + 0x0b, 0);
+    this.msgArea(); this.redraw();
+    await this.stepShip(0);
+    await this.scrollTo();
+    return 1;
+  }
+  // ac7d 攻擊 (指令 攻擊 ad38 也是它): 沒有目標 → 0; 0x304 → bb0b 選目標 → 射界內 e8cc 砲擊, 否則 abef (一騎打) / e95e 接舷
+  async attack() {
+    this.mvFill(0);
+    this.set8(0x9bee, 0);
+    const B = this.u16(0x9bc2);
+    this.set16(0x9bd0, this.u16(B + 4)); this.set8(0x9be4, this.u8(B + 0x0a));
+    if (!this.markTargets()) return 0;
+    this.msgArea(); this.c.message(0x304);
+    const T = await this.pickTarget();                                  // bb0b
+    if (!T) { this.msgArea(); this.redraw(); return 0; }
+    this.msgArea(); this.redraw();
+    if (this.mv[this.mvAt(this.s16(T + 4))] & 2) await this.gunnery(T); // e8cc
+    else if (!(await this.duelOffer(T))) await this.board(T);           // abef / e95e
+    return 1;
+  }
+  // bb0b 選目標: 緩衝 & 0x43 且有敵方活船的格
+  async pickTarget() {
+    this.cellRects();
+    for (;;) {
+      const c = await this.pickCell();
+      if (c === -1) return 0;
+      if (!(this.mv[this.mvAt(c)] & 0x43)) continue;
+      let E = this.enemySide(this.u16(0x9bc2));
+      for (let k = 0; k < 2; k++, E += 0x10) for (let si = this.u16(E); si; si = this.u16(si + 8)) if (this.alive(si) && this.s16(si + 4) === c) return si;
+    }
+  }
+  // abef 目標是敵方旗艦: 0x302 是否 → 是: random(主角 +23) + 本船水手 ≥ 目標水手 → 0fea:2d1a(1, 目標) 一騎打 (回傳 1); 否則 0x303
+  async duelOffer(T) {
+    const E = this.enemySide(this.u16(0x9bc2));
+    if (this.u16(E) !== T && this.u16(E + 0x10) !== T) return 0;
+    this.msgArea(); this.c.message(0x302);
+    if (await this.confirm()) {
+      this.msgArea();
+      const a = (this.rnd(this.st.u8(this.heroRec + 0x23)) + this.u16(this.u16(this.u16(0x9bc2) + 2))) & 0xffff;
+      if (a >= this.u16(this.u16(T + 2))) { await this.duel(1, T); return 1; }
+      this.c.message(0x303); await this.c.menu.waitPrompt();
+      this.msgArea();
+    }
+    this.msgArea();
+    return 0;
+  }
+  async gunnery(T) { btTodo("海戰 砲擊 (e8cc)"); }
+  async board(T) { btTodo("海戰 接舷 (e95e)"); }
+  async duel(ax, T) { btTodo("一騎打 (0fea:2d1a = 12bba)"); }
+
   // b6f2 停船: c2ee → 0x307 → bca4 是否 → c2ee; 是 → 回傳 1 (本回合結束)
   async cmdStop() {
     this.msgArea(); this.c.message(0x307);

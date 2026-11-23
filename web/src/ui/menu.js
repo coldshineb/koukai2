@@ -8,6 +8,7 @@
 const HL_SOLID = 0x0000;      // 外框圖形 [0c86] 偏移 0: 640 bytes 全 FF, 用作高亮反白位圖
 const GREY_PATTERN = 0x0280;  // AA 55 交錯點陣, 用於不可選項目
 const WAIT_ICON = 0x20b0;     // 等待按鍵的閃爍游標 (2 欄 x 16 行)
+const btImodM = (a, b) => a - Math.trunc(a / b) * b;               // 有號餘數 (idiv)
 export const CURSOR_MENU = 0x2570, CURSOR_CROSS = 0x2840;
 
 function strlen(s) { let n = 0; while (n < s.length && s[n]) n++; return n; }
@@ -164,7 +165,37 @@ export class MenuSystem {
     this.sys.flush();
     return k;
   }
-  navigateGrid(k) { /* TODO: 13e0e 姓名輸入鍵盤 (13 欄) 專用導覽 */ this.sys.flush(); return k; }
+  // 13e0e C = 13 的六角格導覽 (海戰選格, 跳躍表 0fea:3f86): 斜向鍵 1 / 3 / 7 / 9 依 DS:9bef (海戰視窗左上欄, 呼叫端放在 hexX) 與欄的奇偶決定; 沒有範圍檢查
+  navigateGrid(k, C, step) {
+    const n = this.count, ev = !((this.hexX ?? 0) & 1), col = c => btImodM(btImodM(c, 0x0d), 2);
+    let c = this.cur;
+    switch (k) {
+      case 0x1c: case 0x36: if (btImodM(c + 1, C) !== 0 && c + 1 < n) c += step; else c -= C - 1; break;
+      case 0x1d: case 0x34: if (btImodM(c, C) !== 0) c -= step; else if (c - n + 1 !== 0) c += C - 1; else c -= step; break;
+      case 0x1e: case 0x38: if (C <= c) c -= C; else c += n - C; break;
+      case 0x1f: case 0x32: if (C + c < n) c += C; else c += C - n; break;
+      case 0x31:                                                        // 左下
+        if (btImodM(c, C) === 0 || (c < 0x9c && c >= 0x8f && btImodM(c, 2) === (ev ? 0 : 1))) c = 0x8f;
+        else c += (col(c) !== 0) === ev ? 0x0c : -1;
+        break;
+      case 0x33:                                                        // 右下
+        if (btImodM(Math.abs(c - 0x0c), C) === 0 || (c < 0x9c && c >= 0x8f && btImodM(c, 2) === (ev ? 0 : 1))) c = 0x9b;
+        else c += (col(c) === 0) === ev ? 1 : 0x0e;
+        break;
+      case 0x37:                                                        // 左上
+        if (btImodM(c, C) === 0 || (c < 0x0d && btImodM(c, 2) === (ev ? 0 : 1))) c = 0;
+        else c -= (col(c) === 0) === ev ? 0x0e : 1;
+        break;
+      case 0x39:                                                        // 右上
+        if (btImodM(Math.abs(c - 0x0c), C) === 0 || (c < 0x0d && btImodM(c, 2) === (ev ? 0 : 1))) c = 0x0c;
+        else c += (col(c) === 0) === ev ? -0x0c : 1;
+        break;
+    }
+    this.cur = c;
+    if ([0x32, 0x38, 0x1c, 0x1d, 0x34, 0x36, 0x1e, 0x1f, 0x37, 0x31, 0x39, 0x33].includes(k)) this.moveHighlight();
+    this.sys.flush();
+    return k;
+  }
   // 142cd 選擇迴圈: 回傳項目編號, 取消回傳 0xff
   async select(C) {
     this.sys.mouseShow();
