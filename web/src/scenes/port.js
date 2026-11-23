@@ -7,11 +7,11 @@
 // 畫面: 地圖視窗 24×24 格 (每格 16×16) 位於 x=96, y=8; 精靈 = 2×2 格 (32×32)
 //
 // 與原版的差異 (尚未移植, 見 docs/RE_NOTES.md 第 15 節):
-//   - 建築內部: 見 scenes/buildings.js (部分移植); 4 個指令按鈕 (DS:a622 表) 尚未移植
+//   - 建築內部: 見 scenes/buildings.js (部分移植); 4 個指令按鈕見 scenes/commands.js
 //   - 劇本事件 (2e09:5481/53f0/55c2/5546): 目前視為「沒有事件」
-//   - 聲望不足時的入場檢查 (1b5c1 / 909b)
 import { loadBinary, loadJSON } from "../core/assets.js";
 import { Buildings } from "./buildings.js";
+import { Commands } from "./commands.js";
 import { Scenario, ENV_COMMON, ENV_HERO } from "../game/scenario.js";
 
 const pHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
@@ -28,7 +28,9 @@ export async function loadPortAssets(ctx) {
   const transit = await loadBinary(A + "/gfx/transit.bin");          // TRANSIT.DAT 船首像
   const colony = await loadJSON(A + "/text/colony.json"), itemMes = await loadJSON(A + "/text/item_mes.json");   // 發現物 / 隨身物說明
   const gamble = await loadBinary(A + "/gfx/gamble.bin");             // DATA1 #9 賭博圖形
-  return { za, chip, map, chr, compass, data, wind, chipNo, transit, colony, itemMes, gamble };
+  data.bld2 = await loadJSON(A + "/data/buildings2.json");            // 王宮/事務所/住宅/銀行/道具店 (tools/extract_buildings2.py)
+  const commands = await loadJSON(A + "/data/commands.json");         // 指令按鈕常數 (tools/extract_commands.py)
+  return { za, chip, map, chr, compass, data, wind, chipNo, transit, colony, itemMes, gamble, commands };
 }
 
 export class PortScene {
@@ -467,11 +469,11 @@ export class PortScene {
     const st = this.st, H = 0x125a + st.hero * 0x0e, nation = st.u8(0x5f54 + this.port * 0x16 + 0x15) & 7;
     if (![5, 7, 3, 10].includes(k) && nation !== 6 && st.u8(H + 6 + nation) < 0x50) {
       if (sys.rng.random(3) === 0 && sys.rng.random(100) > st.u8(H + 6 + nation) + 0x14) {
-        console.warn("尚未移植: 入場被拒 (1b5c1)");
+        await this.refused(nation, H);                                 // 1b5c1
         if (this.port !== 0xff) { this.portBgm(); this.redraw(); }
         sys.mouseShow(); return cost;
       }
-      console.warn("尚未移植: 聲望警告視窗 (909b)");
+      (this.buildings ??= new Buildings(this)).crewSpeaks();          // 909b 船員: 「這是%s的港口, 留點神」
       this.c.message(0x346, this.nations[nation]);
       await this.c.menu.waitPrompt(); await this.c.win.close();
     }
@@ -479,6 +481,27 @@ export class PortScene {
     if (this.port !== 0xff) { this.portBgm(); this.redraw(); }
     sys.mouseShow();
     return cost;
+  }
+  // 1b5c1 入場被拒: 可疑的人靠近 → 被包圍; (主角 +21) + (主角 +25) × (+21) / 100 ≥ random(150) 時逃脫,
+  //   否則沒收 3/4 現金, 而且對該國聲望 **加** 20 (原版寫 add byte [H+6+國], 14h; 照搬); 現金改變後不重畫面板 (之後的 1b1a3 才重畫)
+  async refused(nation, H) {
+    const b = (this.buildings ??= new Buildings(this)), { sys, message, menu, win } = this.c, st = this.st, P = b.hero;
+    b.crewSpeaks(); message(0x347); await menu.waitPrompt(); await win.close();
+    b.greet(0x348, b.dstr(P + 0x0d)); await menu.waitPrompt();
+    let si = st.u8(P + 0x21);
+    b.talkPerson(st.hero);
+    const r = sys.rng.random(0x96);
+    si = (si + Math.trunc((st.u8(P + 0x25) * si) / 100)) & 0xffff;
+    if (si < r) {
+      message(0x349); await menu.waitPrompt();
+      b.greet(0x34d); await menu.waitPrompt();
+      b.money = (b.money - Math.trunc(Math.imul(b.money, 3) / 4)) | 0;         // _ldiv(現金 × 3, 4)
+      st.set8(H + 6 + nation, (st.u8(H + 6 + nation) + 0x14) & 0xff);
+    } else {
+      message(0x34a); await menu.waitPrompt(); await win.close();
+      b.crewSpeaks(); message(0x34b); await menu.waitPrompt();
+    }
+    await win.close();
   }
   // 建築內部 (1fd9 段, DS:a612[k]) — scenes/buildings.js
   async building(k) { return (this.buildings ??= new Buildings(this)).enter(k); }
@@ -503,7 +526,7 @@ export class PortScene {
     switch (k) { case 0x2d: case 0x02: return 0x2b; case 0x14: return 0x2a; case 0x16: return 0x2f; case 0x19: case 0x2b: return 0x3d; }
     return k;
   }
-  // 1b8c8 畫面按鈕: 0..3 / 4..7 = 方向 1..4; 8..11 = 指令 (尚未移植) 回傳 FF
+  // 1b8c8 畫面按鈕: 0..3 / 4..7 = 方向 1..4; 8..11 = 指令按鈕 (scenes/commands.js), 回傳 FF
   async buttons(key) {
     const { x, y } = this.c.sys.mousePos(), B = this.P.data.buttons;
     for (let i = 0; i < 12; i++) {
@@ -511,7 +534,8 @@ export class PortScene {
       if (k !== key && !(x >= x0 && x1 >= x && y0 <= y && y1 >= y)) continue;
       if (key === 0) return 0;
       if (i < 8) return i >= 4 ? i - 3 : i + 1;
-      return 0xff;                                                    // DS:a622[i]: 情報/經營/命令/航海術 — 尚未移植
+      await (this.commands ??= new Commands(this)).button(i - 8);    // DS:[a622 + i×4]: 情報/經營/命令/航海術
+      return 0xff;
     }
     return 0xff;
   }
@@ -530,6 +554,7 @@ export class PortScene {
       const b = await this.buttons(key);
       if (b !== 0xff) di = b;
       if (this.port === 0xff) return 0;
+      if (this.timeAbort()) return 0;                                 // 1b39a (讀檔後)
       const shape = P_CURSORS[di];
       if (shape !== this.cursor) { this.cursor = shape; sys.setCursorShape(shape); }
       sys.timer.set(this.c.state.options & 1 ? 8 : 4);
@@ -550,12 +575,14 @@ export class PortScene {
       while (sys.timer.get()) await sys.poll();
     }
   }
+  // 1b39a 時間迴圈中止旗標 (月/日/時刻 >= F0; 讀檔時設定)
+  timeAbort() { const r = this.c.rt; return r.month >= 0xf0 || r.day >= 0xf0 || r.time >= 0xf0; }
   // 1bb07 港口行動: 回傳消耗的時間
   async action() {
     const { palette, menu } = this.c;
     this.panels();
     for (;;) {
-      if (palette.ending || this.port === 0xff) return 0;
+      if (palette.ending || this.port === 0xff || this.timeAbort()) return 0;
       await menu.waitRelease();
       const r = await this.walk();
       await menu.waitRelease();

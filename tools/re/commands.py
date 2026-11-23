@@ -6,6 +6,19 @@ WORKSPACE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(HERE))).replace(
 exec(open(os.path.join(HERE, "..", "re_env.py"), encoding="utf-8").read())
 exec(open(os.path.join(HERE, "..", "re_tools.py"), encoding="utf-8").read())
 exec(open(os.path.join(HERE, "..", "re_walk.py"), encoding="utf-8").read())
+
+
+# re_walk.py 的 _lin 把遠程呼叫 1fd9:off 當成線性 0x20000+off, 實際是 0x1fd90+off (差 0x270; 例: 1fd9:227c = 2200c 才是函式開頭)。
+# 本腳本改用正確的 seg*16+off; 段內近呼叫也一律以所在段 *16 為基底回繞。
+def _lin(seg, off):
+    return seg * 16 + off
+
+
+def _near(i):
+    bs = next(s for s in SEGS if s * 16 <= i.addr)
+    return bs * 16 + ((i.target - bs * 16) & 0xffff)
+
+
 try:
     DEPTH
 except NameError:

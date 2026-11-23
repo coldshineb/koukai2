@@ -5,6 +5,7 @@
 // 尚未移植 (見 docs/RE_NOTES.md 第 15 節; 目前以 console.warn 標出, 不改狀態):
 //   1ac19 艦隊 AI   19717 後半的每日處理 (195d2 / 19648 / 196ef / 8067)   18ff5 月末   16126 年末   海上 (851f / 6cfc / 2e09:2f3d)
 import { PortScene, loadPortAssets } from "../scenes/port.js";
+import { Title } from "./title.js";
 
 const clockWarned = new Set();
 const clockTodo = name => { if (!clockWarned.has(name)) { clockWarned.add(name); console.warn("尚未移植: " + name); } };
@@ -128,11 +129,37 @@ export class GameClock {
     const { sys, palette, bgm } = this.c, st = this.st;
     this.c.portAssets ??= await loadPortAssets(this.c);
     this.portScene = new PortScene(this.c, this.c.portAssets);
-    if (st.port !== 0xff) await this.portScene.enter();                              // 8c53
-    else { clockTodo("出海 (851f)"); return; }
-    if (!(st.options & 4)) bgm.fadeOut();
-    sys.mouseShow();
-    await palette.fadeToTarget();
+    for (;;) {
+      if (st.port !== 0xff) await this.portScene.enter();                            // 8c53
+      else { clockTodo("出海 (851f)"); return; }
+      if (!(st.options & 4)) bgm.fadeOut();
+      sys.mouseShow();
+      await palette.fadeToTarget();
+      await this.mainLoop();
+      // 162c8: [03ea] ≠ 0 → 隱藏游標、淡出 (此時 99f2 因 [03ea] ≠ 0 不動作) → 1764f 結束處理 → 1757d 回到標題
+      sys.mouseHide(); await palette.fadeBlack();
+      if (!await this.ending(palette.ending)) return;
+      // 1757d: 98f8 屬性暫存器恆等, [03d6] = 0 (游標顯示計數歸零) → 171a2(0) 標題 (重新載入初始狀態) → 1721f 進港
+      sys.mouse.visible = 0;
+      const r = await new Title(this.c).run(true);
+      if (r !== 1 || this.c.halted) return;
+      this.portScene = new PortScene(this.c, this.c.portAssets);
+    }
+  }
+  // 1764f 結束處理 (只移植了 0x88 = 功能「結束遊戲」: 9888, 99f2, 清畫面, 游標 (0,0), ESC C7 ESC B0, [03ea] = 0, 清畫面 → 回到標題)
+  async ending(code) {
+    const { scr, con } = this.c;
+    if (code !== 0x88) { clockTodo("結束處理 1764f(" + code.toString(16) + ")"); return false; }
+    await this.c.palette.fadeBlack();
+    scr.clear(0);
+    con.setCursor(0, 0); con.puts(Uint8Array.of(0x1b, 0x43, 0x37, 0x1b, 0x42, 0x30, 0));   // DS:a3d0
+    this.c.palette.ending = 0;
+    scr.clear(0);
+    return true;
+  }
+  // 1623a 主迴圈
+  async mainLoop() {
+    const { palette } = this.c, st = this.st;
     for (;;) {
       // 16173
       if (this.abort()) Object.assign(this.rt, { year: st.year, month: st.month, day: st.day, time: st.time });

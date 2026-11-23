@@ -6,12 +6,18 @@
 //   0fea:b6bc = 1b55c table() GRAPH.DAT #0x16 於 (0x68,0x88), 文字區 0x0e..0x3a
 //   seg0:7dac/7f06/7e15/7e35/7f6e 人物對話視窗 (頭像於 0x16, 0xd0)   seg0:909b 船員發言
 // 已移植: 0 交易所 (market.js) / 2 造船廠 (造新船、交船、買舊船、修理、賣船、改造、工業投資、折抵舊船剩餘貨物重新分配) / 3 碼頭 (補給、出航前檢查、船塢、補給港命名; 實際出航未移植) / 1 酒館 (全部; 賭博在 gamble.js) / 4 旅館 (全部) / 10 教會 / 11 占卜師 (全部)
-// 其他建築與子功能: 尚未移植, 進入後只顯示主控台警告
+// 5 王宮 (palace.js) / 6 事務所 (office.js) / 7 住宅 (house.js) / 8 銀行 (bank.js) / 9 道具店 (itemshop.js): 見 RE_NOTES 25
+// 其他子功能: 尚未移植的在進入時顯示主控台警告
 import { NumPad } from "../ui/numpad.js";
 import { ListSelect } from "../ui/listsel.js";
 import { NameInput } from "../ui/nameinput.js";
 import { Gamble } from "./gamble.js";
 import { Market } from "./market.js";
+import { Palace } from "./palace.js";
+import { Office } from "./office.js";
+import { House } from "./house.js";
+import { Bank } from "./bank.js";
+import { ItemShop } from "./itemshop.js";
 
 const bHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const B_SPEECH = Uint8Array.of(0x1b, 0x43, 0x30, 0x01, 0x1b, 0x42, 0x37, 0);   // DS:8c12
@@ -132,6 +138,11 @@ export class Buildings {
       case 2: return this.shipyard();
       case 3: return this.wharf();
       case 4: return this.inn();
+      case 5: return (this.palaceM ??= new Palace(this)).run();            // palace.js
+      case 6: return (this.officeM ??= new Office(this)).run();            // office.js
+      case 7: return (this.houseM ??= new House(this)).run();              // house.js
+      case 8: return (this.bankM ??= new Bank(this)).run();                // bank.js (夏洛克銀行)
+      case 9: return (this.itemM ??= new ItemShop(this)).run();            // itemshop.js
       case 10: return this.church();
       case 11: return this.fortune();
       default: bTodo(["交易所", "酒館", "造船廠", "碼頭", "旅館", "王宮", "事務所", "住宅", "銀行?", "道具店", "教會", "占卜師"][k] + " (1fd9 段建築 " + k + ")");

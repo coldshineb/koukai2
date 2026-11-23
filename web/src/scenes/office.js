@@ -1,0 +1,139 @@
+// office.js — 事務所 (MAIN.EXE 1fd9:d40f = 線性 2d19f, 處理函式表 DS:a612[6]); 見 RE_NOTES 25
+// MENU #1 (工作介紹/各國情報), 子功能 DS:b48a = 2ce01 / 2d0b1
+// 共用劇本 SNR0 的工作狀態 (存檔內): [0d5e] 章 (≠0 = 正在執行工作), [0d5f] 節, [0d62] 旗標, [0d68 + 2i] 三件工作的種類 (位元組), [0d6e + 2i] 三件工作的參數字,
+//   [0d74] 目前工作的種類字, [0d78] 選中工作的參數, [0d88] 目標港 (字), [0d8a] 目標人物 (字), [0d8c] 目標道具, [0d96] 亂數範圍
+import { Scenario, ENV_COMMON } from "../game/scenario.js";
+const ofHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
+const ofS16 = v => (v << 16) >> 16;
+
+export class Office {
+  constructor(b) {
+    this.b = b; const D = b.p.P.data.bld2;
+    this.F = Object.fromEntries(Object.entries(D.fmt).map(([k, v]) => [k, ofHex(v)]));
+    this.jobs = D.jobs.map(ofHex); this.nations = D.nations.map(ofHex);
+  }
+  get c() { return this.b.c; }
+  get st() { return this.b.st; }
+  portName(q) { return this.b.dstr(0x5f54 + (q & 0xff) * 0x16 + 4); }
+  nationRec(n) { return 0x117a + (n & 0xff) * 0x20; }                            // seg0:5bde
+
+  // ================= 入口 2d19f =================
+  async run() {
+    const b = this.b;
+    if (b.noEvent()) b.greet(0x55);
+    let sel;
+    do {
+      sel = await b.menu(this.c.menuItems(1).slice(0, 2));
+      if (sel !== 0xff) await [() => this.jobsMenu(), () => this.nationInfo()][sel]();
+      b.after();
+    } while (sel !== 0xff);
+  }
+  // 劇本 2e09:5481 / 53f0 (共用 SNR0)
+  async event(building) {
+    if (this.c.noEvents) return 0;
+    const sc = (this.c.events ??= new Scenario(this.c)); sc.scene = this.b.p;
+    if (!(await sc.check(ENV_COMMON, this.b.port, building))) return 0;
+    await sc.run(ENV_COMMON);
+    return 1;
+  }
+  // 2ce01 工作介紹
+  async jobsMenu() {
+    const b = this.b, st = this.st;
+    if (st.u8(0x0d5e)) {                                                         // 正在執行工作
+      if (ofS16(st.u16(0x0d74)) < 6) {
+        if (st.u8(0x0d88) === b.port) b.greet(0x3a3); else b.greet(0x152, this.portName(st.u8(0x0d88)));
+        await b.wait(); return;
+      }
+      return this.jobHint();
+    }
+    if ((st.u8(0x0d62) & 3) === 3) {
+      b.greet(0x19a + (st.u8(b.hero + 0x31) & 0x0f)); this.c.message(0x3a4);    // 「某國王好像正在找你」
+      await b.wait(); return;
+    }
+    const kind = [], items = [];
+    for (let i = 0; i < 3; i++) { kind[i] = st.u8(0x0d68 + i * 2); items[i] = this.jobs[kind[i]]; }
+    let sel;
+    do {
+      sel = await b.menu(items);
+      if (sel === 0xff) break;
+      st.set8(0x0d5f, (kind[sel] + 1) & 0xff);
+      st.set16(0x0d78, st.u16(0x0d6e + sel * 2));
+      if (await this.event(6)) st.set8(0x0d5e, st.u8(0x0d74));
+      st.set8(0x0d5f, 0);
+    } while (!st.u8(0x0d5e));
+  }
+  // 2ccb8 執行工作中的提示 (只有工作種類 0x0b 且還沒拿到目標道具時)
+  async jobHint() {
+    const b = this.b, st = this.st, { sys } = this.c;
+    let dx = 1;
+    if (st.u16(0x0d74) === 0x0b) {
+      for (let i = 0; i < 0x14; i++) { const v = st.u8(0x2e57 + i), t = st.u8(0x0d8c); if (((v - t) & 0xff) === 0xf6 || v === t) { dx = 0; break; } }
+    }
+    if (!dx || st.u16(0x0d74) !== 0x0b) { b.greet(0x253); await b.wait(); return; }
+    if (st.u16(0x0d88) === 0xff) st.set16(0x0d88, sys.rng.random(0x2a));
+    const item = b.dstr(0x8248 + st.u8(0x0d8c) * 0x14);
+    if (st.u8(0x0d88) === b.port) {
+      if (st.u16(0x0d8a) === 0xff) {
+        const far = sys.rng.random(st.u16(0x0d96) + 1) !== 0;                    // 0 = 歐洲港 (< 0x2a) 的人物
+        for (;;) {
+          st.set16(0x0d8a, sys.rng.random(0x29) + 0x4f);
+          const q = st.u8(st.personRecord(st.u8(0x0d8a)) + 0x2d);
+          if (q === 0xff) continue;
+          if (far ? q >= 0x2a : q < 0x2a) break;
+        }
+      }
+      const P = st.personRecord(st.u8(0x0d8a));
+      b.greet(0x254, item, st.cstr(P), st.cstr(P + 0x0d)); await b.wait();
+      b.greet(0x255); await b.wait(); return;
+    }
+    const q = st.u8(0x0d88), P = 0x5f54 + q * 0x16;
+    b.greet(0x256, item, this.portName(q)); await b.wait();
+    b.greet(0x258, this.portName(q));
+    b.latLong(st.u16(P), st.u16(P + 2));                                        // 253b4
+    this.c.message(0x259);
+    await b.wait();
+  }
+  // 2d0b1 各國情報 (100 枚金幣)
+  async nationInfo() {
+    const b = this.b, st = this.st;
+    b.greet(0xa2);
+    const n = await b.menu(this.nations.slice(0, 6));
+    if (n === 0xff) return;
+    const N = this.nationRec(n);
+    b.greet(0x56);
+    if (!(await this.c.menu.yesNo())) { b.greet(0x57); await b.wait(); return; }
+    if (b.money < 100) { b.greet(0xa3); await b.wait(); return; }
+    b.money = (b.money - 100) | 0;
+    b.p.panels();                                                                // 8894
+    b.table();                                                                   // 0fea:b6bc
+    this.nationTable(n);
+    if (st.u8(N + 2) < 7) b.greet(0x58, this.nations[n], this.nations[st.u8(N + 2)]);
+    else b.greet(0x355, this.nations[n]);
+    await b.wait();
+    b.greet(0x59, this.portName(st.u8(N + 4)));
+    await b.wait();
+  }
+  // 2cf1e 國家表: 收益、主角對該國的貢獻度 (100 − 聲望, 不足 100 時以色 2 顯示)、對其他 5 國的友好關係 (30 − 值) 與同盟/封鎖
+  nationTable(n) {
+    const st = this.st, { con, printf } = this.c, F = this.F, N = this.nationRec(n), H = this.b.heroData;
+    con.puts(F.nColor);
+    con.setCursor(0x15, 0x90);
+    printf(F.income, st.u16(N));
+    if (st.u8(H + 6 + n) < 100) con.puts(F.minus);
+    printf(F.num4, Math.abs(ofS16(100 - st.u8(H + 6 + n))));
+    con.setCursor(0x15, 0xa0); con.puts(F.friendHdr);
+    con.setCursor(0x28, 0xb0); con.puts(F.allyHdr);
+    let row = 0;
+    for (let i = 0; i < 6; i++) {
+      if (i === n) continue;
+      const y = (row + 12) << 4;
+      con.setCursor(0x15, y);
+      printf(F.nation14, this.nations[i]);
+      if (st.u8(N + 0x0b + i) < 0x1e) con.puts(F.minus2);
+      printf(F.num4b, Math.abs(ofS16(0x1e - st.u8(N + 0x0b + i))));
+      if (st.u8(N + 0x12 + i) & 0x20) { con.setCursor(0x29, y); con.puts(F.ally); }
+      if (st.u8(N + 0x12 + i) & 0x10) { con.setCursor(0x2e, y); con.puts(F.block); }
+      row++;
+    }
+  }
+}

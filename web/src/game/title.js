@@ -25,12 +25,13 @@ export class Title {
     this.c.sys.setMousePos(0x27f, 0x18f);
     this.c.con.f29 = 1;                   // [8a29] = 1
   }
-  // 171a2(1)
-  async run() {
-    await this.init();
+  // 171a2(1); restart = 171a2(0) (1757d: 功能「結束遊戲」後回到標題: 不做 1752c, 以 DATA1 #15 重新載入初始狀態代替 162fd)
+  async run(restart = false) {
+    if (!restart) await this.init();
     await this.c.palette.fadeToTarget();
     this.c.bgm.playSong(SONG_TITLE);
-    this.c.palette.invert = 0;            // 162fd: [c2d6] = 0
+    if (restart) this.c.state.b.set(this.c.initState.subarray(0, this.c.state.b.length));
+    else { this.c.palette.invert = 0; this.c.barColors = [2, 1]; }   // 162fd: [c2d6] = 0, seg0:9376(2, 1) 百分比條顏色 DS:bafa / bafc
     // 171f5: 期間 [03d8] = GRAPH2.DAT (是/否框也取自它; 與 GRAPH.DAT 第 0 張相同)
     this.c.graph.useFile("GRAPH2.DAT");
     this.c.saveFile ??= await SaveFile.open(this.c.ASSETS, this.c.initState);   // 170dc
