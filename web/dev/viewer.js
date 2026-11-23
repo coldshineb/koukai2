@@ -71,6 +71,21 @@ async function draw() {
     decodeGraph(scr.fb, dat, 0, 0, is16, offs[n]);
     scr.dirty = true;
     $("ginfo").textContent = `${fn} #${n}/${offs.length - 1}  ${w}x${h}  ${is16 ? "16色" : "8色"}`;
+  } else if (mode === "event") {        // 劇情插圖: 和遊戲一樣畫在大框 (視窗 3) 裡的 (112, 24); EVENT{主角+1}.DAT 由劇本命令 CB 使用
+    const fn = $("efile").value, k = +fn[5];
+    gfiles["event/" + fn] ??= await loadBinary(`${A}/gfx/event/${fn}`);
+    const dat = gfiles["event/" + fn], offs = graphOffsets(dat), n = Math.min(idx, offs.length - 1);
+    const next = n + 1 < offs.length ? offs[n + 1] : dat.length;
+    scr.clear(1);
+    win.frame(0x0d, 0x10, 0x1a, 0xa0, 0);
+    const end = decodeGraph(scr.fb, dat, 112, 24, true, offs[n]);
+    scr.dirty = true;
+    texts["snrdoc" + k] ??= k ? await loadJSON(`${A}/scenario/snr${k}.json`) : { chapters: [] };
+    const uses = [];
+    texts["snrdoc" + k].chapters.forEach((ch, ci) => ch && ch.sections.forEach((sec, si) => sec && sec.code.forEach(i => { if (i.k === "picture" && i.pic === n) uses.push(`章${ci}節${si} PC${i.at}`); })));
+    const { w, h } = graphSize(dat, offs[n]);
+    $("ginfo").textContent = `${fn} #${n}/${offs.length - 1}  ${w}x${h}  資料 ${end === next ? "剛好用完" : "長度不符 " + end + "/" + next}  ` +
+      (k ? `SNR${k} 使用: ${uses.join(", ") || "無"}` : "(沒有劇本使用 EVENT0)");
   } else if (mode === "text") {
     const f = $("tfile").value;
     texts[f] ??= await loadJSON(`${A}/text/${f}.json`);
@@ -87,7 +102,7 @@ async function draw() {
   }
   scr.present();
 }
-for (const id of ["mode", "idx", "pal", "tfile", "gfile"]) $(id).onchange = draw;
+for (const id of ["mode", "idx", "pal", "tfile", "gfile", "efile"]) $(id).onchange = draw;
 addEventListener("keydown", e => {
   const s = 16;
   if (e.code === "ArrowLeft") camX = Math.max(0, camX - s);

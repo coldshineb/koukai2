@@ -144,6 +144,7 @@ export class Title {
     this.c.rt = { year: st.year, month: st.month, day: st.day, time: st.time };
     // 1681a → 1667a: 風向表的季節; seg0:5022 滑鼠速度
     this.c.windOffset = st.month >= 3 && st.month < 9 ? 0 : 0x1c2;
+    this.c.eventFile = `EVENT${st.hero + 1}.DAT`;                         // 1681a 結尾: [0a89] = '1' + 主角 (劇情插圖檔)
     { const r = (st.u8(0x0ca8) + 2) * 2; this.c.sys.mickeyRatio = [r, r]; }
   }
   // 16c99..16cd9

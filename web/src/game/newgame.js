@@ -122,6 +122,7 @@ export class NewGame {
     this.c.rt = { year: st.year, month: st.month, day: st.day, time: st.time };   // 1681a: [0532..0535]
     // 1681a 其餘: 2e09:4978 載入 SNR(主角+1).DAT, 1667a 讀 DATA1.LZW 世界地圖資料, seg0:5022 滑鼠速度, [0a89] 檔名字元
     this.c.scenario = st.hero + 1;
+    this.c.eventFile = `EVENT${st.hero + 1}.DAT`;                       // 1681a 結尾: [0a89] = '1' + 主角 (劇情插圖檔, scenario.js CB)
     // 1667a: WINDCUR.DAT 風向表 (4..9 月用前 450 bytes, 其他月份用第二組) → [0400]; 海流 (+0x384) → [0404]
     this.c.windOffset = st.month >= 3 && st.month < 9 ? 0 : 0x1c2;
     // seg0:5022 (INT 33h fn 0Fh) 滑鼠速度: 每 8 像素的 mickey = ([0ca8]+2)*2

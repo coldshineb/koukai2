@@ -181,3 +181,5 @@ if __name__ == "__main__":
     extract_battle.main(sea2, out)
     import extract_duel                     # 一騎打: DATA1 / IAP / IAE 動畫檔、DS 常數 (scenes/duel.js)
     extract_duel.main(sea2, out)
+    import extract_event                    # 劇情插圖: EVENT0..6.DAT 原樣 (劇本命令 CB, game/scenario.js)
+    extract_event.main(sea2, out)

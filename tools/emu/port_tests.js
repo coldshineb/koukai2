@@ -4,7 +4,7 @@
 (async function () {
 const fs = require("fs"), S = session, U = S.UI, f = S.files, L = 0x110 * 16;
 const K = { down: [0x50, 0], up: [0x48, 0], left: [0x4b, 0], right: [0x4d, 0], enter: [0x1c, 0x0d], esc: [0x01, 0x1b], sp: [0x39, 0x20] };
-const NEWGAME = [K.down, K.enter, K.enter, K.enter, K.left, K.left, K.enter, K.left, K.left, K.enter, K.enter];
+const NEWGAME = S.NEWGAME || [K.down, K.enter, K.enter, K.enter, K.left, K.left, K.enter, K.left, K.left, K.enter, K.enter];   // S.NEWGAME: 改選其他主角 (event_route.js 的 S.EVENT_HERO)
 const KEYS = NEWGAME.concat(S.PORT_KEYS || [K.left, K.left, K.left, K.right, K.right, K.down, K.up, K.up, K.enter, K.left, K.down, K.down, K.right]);
 const TAIL = 30;                    // 最後一鍵之後再等多少次輸入查詢才截最終狀態
 // S.EXTRA_DS = [[起, 迄], ...]: 另外比對存檔區以外的 DS 範圍 (移植版為 ctx.battleDS 等 DS 鏡像, 例: 海戰工作區)
@@ -91,6 +91,7 @@ async function runJS(rng0) {
   const con = new U.TextConsole(scr, font, { wait: n => sys.waitSpeed(n) });
   const win = new U.WindowSystem(scr, con, S.D1[14], { wait: n => sys.waitTicks(n), options: ctx.options, sys });
   const graph = new U.Graph(scr); graph.files = { "GRAPH.DAT": new U.GraphDat(f["GRAPH.DAT"]), "GRAPH2.DAT": new U.GraphDat(f["GRAPH2.DAT"]) }; graph.g = graph.files["GRAPH.DAT"];
+  for (let i = 0; i < 7; i++) graph.files[`EVENT${i}.DAT`] = new U.GraphDat(rdb(`gfx/event/EVENT${i}.DAT`));   // 劇情插圖 (graph.ensure 不再載入)
   const menu = new U.MenuSystem({ sys, scr, con, win, gfx: S.D1[14], graph });
   const message = (n, ...a) => { const off = (msg[n * 2] << 8) | msg[n * 2 + 1]; U.cprintf(msg.subarray(off, off + 256), a, ch => con.putc(ch)); };
   const printf = (fmt, ...a) => U.cprintf(typeof fmt === "string" ? font.encode(fmt + "\0") : fmt, a, ch => con.putc(ch));

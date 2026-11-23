@@ -430,6 +430,13 @@ export class Scenario {
     if (this.c.battleDS) return this.c.battleDS[0x9c2a];
     const h = (this.scene?.P ?? {}).battle?.ds?.["9bfe"]; return h ? parseInt(h.substr((0x9c2a - 0x9bfe) * 2, 2), 16) : 0;
   }
-  async op_picture() { scTodo("劇本命令 CB (EVENT*.DAT 插圖)"); }
+  // 331e4 CB w1 w2 b → 31e81: 關閉 [03d8], 開 DS:0a82「EVENT*.DAT」(* = [0a89], 1681a 設為 '1' + 主角), seg0:5b5d 畫第 b 張於 (w1, w2), 關閉, [03d8] = GRAPH.DAT
+  //   (第 31 節; 不動調色盤, 畫在前一條 C0 3 開的大框裡)
+  async op_picture({ x, y, pic }) {
+    const { graph } = this.c, name = this.c.eventFile ?? `EVENT${this.st.hero + 1}.DAT`;
+    const g = await graph.ensure(this.c.ASSETS, name, "event/" + name);
+    g.draw(this.c.scr.fb, pic, x, y); this.c.scr.dirty = true;
+    graph.useFile("GRAPH.DAT");
+  }
   async op_ending() { scTodo("劇本命令 F4 (結局 0fea:77af)"); return false; }
 }

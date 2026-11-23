@@ -9,6 +9,8 @@ export class Graph {
     this.g = this.files[names[0]]; return this;
   }
   useFile(name) { this.g = this.files[name]; }
+  // 第一次用到才載入 (劇情插圖 EVENT*.DAT: path = "event/EVENT1.DAT"); 已有 (測試時直接提供) 就不再載入
+  async ensure(base, name, path = name) { this.files[name] ??= new GraphDat(await loadBinary(`${base}/gfx/${path}`)); return this.files[name]; }
   draw(n, x, y) { const r = this.g.draw(this.scr.fb, n, x, y); this.scr.dirty = true; return r; }
   draw8(n, x, y) { const r = this.g.draw8(this.scr.fb, n, x, y); this.scr.dirty = true; return r; }
 }
