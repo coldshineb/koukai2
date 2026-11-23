@@ -6,6 +6,18 @@ const mS16 = v => (v << 16) >> 16;
 const mUmin = (a, b) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);   // seg0:4d7c
 const mUmax = (a, b) => ((b & 0xffff) >= (a & 0xffff) ? b & 0xffff : a & 0xffff);  // seg0:4d87
 
+// 0fea:e3e5 = 1e285 → 1e1ff 交易記錄: 緩衝 [0c8e] 0x30 筆 × 0x10 bytes (存檔時接在遊戲資料後, 本移植版在狀態的 0x8a18); 滿了就整體前移、寫在最後一筆
+//   引數 (AX 種類, DX, BX, 堆疊 2 個): +0 日期 ((12×年 + 月) × 31 + 日)  +2 種類 (AX)  +4 DX  +6 BX  +8 / +a 堆疊的兩個值
+//   交易所買進 = 種類 0x0c (+4 商品, +6 0, +8 價格, +a 數量); 出港 = 1 (+4 補給天數, +6 港口); 發現港口 = 9 (+4 港口)
+export function marketTradeLog(st, rt, kind, g, price, amount, a6 = 0) {
+  const B = 0x8a18;
+  let i = 0; while (i < 0x30 && st.u16(B + i * 0x10) !== 0xffff) i++;
+  if (i === 0x30) { st.b.copyWithin(B - 0x0ca4, B - 0x0ca4 + 0x10, B - 0x0ca4 + 0x300); i = 0x2f; }
+  const a = B + i * 0x10;
+  st.set16(a, (((((12 * rt.year) & 0xffff) + rt.month) * 0x1f) & 0xffff) + rt.day);
+  st.set16(a + 2, kind); st.set16(a + 4, g); st.set16(a + 6, a6); st.set16(a + 8, price); st.set16(a + 10, amount);
+}
+
 export class Market {
   constructor(b) {
     this.b = b;
@@ -55,16 +67,8 @@ export class Market {
     for (let j = 0; j < 5; j++) if (st.u8(M + 0x16 + j) === 0xff) { r |= 2; break; }
     return r;
   }
-  // 0fea:e3e5 交易記錄: 緩衝 [0c8e] 0x30 筆 × 0x10 bytes (存檔時接在遊戲資料後, 本移植版在狀態的 0x8a18); 滿了就整體前移
-  //   +0 日期 ((12×年 + 月) × 31 + 日)  +2 種類  +4 商品  +6 0  +8 價格  +a 數量
-  tradeLog(kind, g, price, amount) {
-    const st = this.st, B = 0x8a18, rt = this.c.rt;
-    let i = 0; while (i < 0x30 && st.u16(B + i * 0x10) !== 0xffff) i++;
-    if (i === 0x30) { st.b.copyWithin(B - 0x0ca4, B - 0x0ca4 + 0x10, B - 0x0ca4 + 0x300); i = 0x2f; }
-    const a = B + i * 0x10;
-    st.set16(a, (((((12 * rt.year) & 0xffff) + rt.month) * 0x1f) & 0xffff) + rt.day);
-    st.set16(a + 2, kind); st.set16(a + 4, g); st.set16(a + 6, 0); st.set16(a + 8, price); st.set16(a + 10, amount);
-  }
+  // 0fea:e3e5 交易記錄 (見 marketTradeLog)
+  tradeLog(kind, g, price, amount) { marketTradeLog(this.st, this.c.rt, kind, g, price, amount); }
 
   // ================= 入口 252f9 =================
   async run() {

@@ -3,8 +3,11 @@
 // 每個時刻: 1a011 風向/天候 → 1b1d2 (港口: 調色盤 + 港口行動, 回傳消耗的時刻) → 艦隊 AI (每格處理一支艦隊, 1ac19)
 //
 // 尚未移植 (見 docs/RE_NOTES.md 第 15 節; 目前以 console.warn 標出, 不改狀態):
-//   1ac19 艦隊 AI   19717 後半的每日處理 (195d2 / 19648 / 196ef / 8067)   18ff5 月末   16126 年末   海上 (851f / 6cfc / 2e09:2f3d)
-import { PortScene, loadPortAssets } from "../scenes/port.js";
+//   1ac19 艦隊 AI   18ff5 月末   16126 年末
+// 海上部分 (出海 851f、海上時刻 1fd9:13c1 / 1afe8 / 2e09:38ec、海上移動 6cfc / 2e09:2f3d、每日 195b6、天候 19a99 / 19f48、劇本 2e09:55c2) → scenes/sea.js
+import { loadPortAssets } from "../scenes/port.js";
+import { SeaScene } from "../scenes/sea.js";
+import { Scenario, ENV_HERO } from "./scenario.js";
 import { Title } from "./title.js";
 
 const clockWarned = new Set();
@@ -29,7 +32,7 @@ export class GameClock {
     return [W[(off + k) & 0xffff] ?? 0, W[0x384 + k] ?? 0];
   }
   // 1a011 風向與天候
-  weather() {
+  async weather() {
     const st = this.st, rng = this.c.sys.rng;
     const F = 0x2e76 + st.u8(st.personRecord(st.hero) + 0x2c) * 0x85;
     const [w0, w2] = this.windAt(F);
@@ -45,8 +48,12 @@ export class GameClock {
     }
     st.set8(0x0cb1, v); st.set8(0x0cb2, w2);
     // 19ba1: 只做計算, 不改狀態
-    if (st.port === 0xff) { clockTodo("海上天候 (1976e/19f48/19a99)"); }
-    else st.set8(0x0cb3, st.u8(0x0cb3) & 0xf0);
+    if (st.port === 0xff) {
+      const sea = this.portScene;
+      if (st.u8(0x0cb3) & 15) { this.c.palette.selectTimePalette(this.rt.time, true, st.u8(0x0cb3)); this.c.palette.fadeState = 1; }   // 1976e, [a4aa] = 1
+      if (st.u8(0x0cb3) & 15) await sea.weatherOngoing();                         // 19f48
+      if (!(st.u8(0x0cb3) & 15)) await sea.weatherStart();                        // 19a99
+    } else st.set8(0x0cb3, st.u8(0x0cb3) & 0xf0);
   }
   // 1b1d2 一個時刻 (港口)
   async slot() {
@@ -56,7 +63,18 @@ export class GameClock {
       case 1: palette.fadeState = await palette.fadeStepTarget(); break;
       case 2: palette.fadeState = 0; await palette.fadeToTarget(); break;
     }
-    if (st.port === 0xff) { clockTodo("海上時刻 (1fd9:13c1 / 1afe8 / 2e09:38ec)"); this.rt.time = 0x48; return; }
+    if (st.port === 0xff) {                                                          // 1b284 海上
+      const sea = this.portScene, sys = this.c.sys;
+      await sea.seaInput();                                                          // 1fd9:13c1 = 21151
+      if (this.abort()) return;
+      sys.timer.set(1);                                                              // 16a8(1)
+      await sea.fleetsMove();                                                        // 1afe8
+      if (palette.ending) return;
+      await sea.heroMove();                                                          // 2e09:38ec = 3197c
+      this.rt.time = (this.rt.time + 1) & 0xff;
+      while (sys.timer.get()) await sys.poll();                                      // 16b5
+      return;
+    }
     if (!palette.invert) palette.setTarget(palette.T[["night", "dawn", "day", "dusk", "overcast"][palette.constructor.timeSlot(this.rt.time)]]);
     await palette.fadeToTarget();
     this.rt.time = (this.rt.time + await this.portScene.action()) & 0xff;            // 1bb07
@@ -71,36 +89,39 @@ export class GameClock {
   }
   // 1b2ba 一天
   async day() {
-    const st = this.st;
-    if (st.port === 0xff) clockTodo("海上每日事件 (2e09:55c2)");
+    const st = this.st, { sys, palette } = this.c;
+    if (st.port === 0xff && !this.c.noEvents) {                                      // 2e09:55c2(0xa0, 出港天數) → 2e09:5546
+      const sc = (this.c.events ??= new Scenario(this.c)); sc.scene = this.portScene;
+      if (await sc.check(ENV_HERO, 0xa0, st.u8(0x2e18))) { sys.mouseHide(); await sc.run(ENV_HERO); sys.mouseShow(); await palette.fadeToTarget(); }
+    }
     let t = st.u8(0x0cad);
     while (!this.c.palette.ending) {
       this.rt.time = t;
       if (t >= 0x48) break;
-      if (st.u8(0x0cad) !== 0 || t % 12 === 0) this.weather();
+      if (st.u8(0x0cad) !== 0 || t % 12 === 0) await this.weather();
       await this.slot();
       if (this.abort()) return;
       for (; t < this.rt.time; t++) if (t < 0x46) clockTodo("艦隊 AI (1ac19)");
-      if (!this.c.palette.ending && st.port === 0xff) clockTodo("海上移動 (6cfc / 2e09:2f3d)");
+      if (!this.c.palette.ending && st.port === 0xff) { await this.portScene.seaTick(); await this.portScene.discover(); }   // 6cfc / 2e09:2f3d
     }
     if (this.c.palette.ending) return;
-    this.dayEnd();                                                                   // 19717
+    await this.dayEnd();                                                             // 19717
     for (t = 0; t < st.u8(0x0cad); t++) if (t < 0x46) clockTodo("艦隊 AI (1ac19)");
   }
-  // 19717 一天結束 (前半)
-  dayEnd() {
+  // 19717 一天結束
+  async dayEnd() {
     const st = this.st;
     st.set8(0x0cad, st.u8(0x0cb0) & 0x80 ? 0x18 : 0);
     st.set8(0x0cb3, st.u8(0x0cb3) & 0x7f);
     st.set8(0x0cb0, 0);
     st.set8(0x2e18, st.u8(0x2e18) + 1);
-    if (st.port === 0xff) clockTodo("海上每日處理 (195b6)");                          // 195d2: 只在海上
+    await this.portScene.seaDaily();                                                 // 195d2 → 195b6 (只在海上)
     this.portsDaily();                                                               // 19648
     for (let i = 0; i < 0x1e; i++) {                                                 // 196ef 酒吧女郎
       const a = 0x2bde + i * 0x13 + 0x11, v = st.u8(a); if (v !== 0xff && v !== 0) st.set8(a, v - 1);
     }
     if (st.u8(0x10a6)) st.set8(0x10a6, st.u8(0x10a6) - 1);
-    if (st.port === 0xff) clockTodo("海上每日處理 (8067)");                          // 8067: 在港時不做任何事
+    this.portScene.seaPanel();                                                       // 8067 (在港時不做任何事)
   }
   // 19648 各港每日: 支持度 >= 75 的國家取得該港; 所屬國支持度 < 75 時變成無所屬 (6);
   //   bit3 (待開發) 的港在商業價值 >= 150 時清除 bit3 並使 10 項物價各增加 min(random(5)+10, 100-值); [港+23] 倒數
@@ -128,10 +149,10 @@ export class GameClock {
   async run() {
     const { sys, palette, bgm } = this.c, st = this.st;
     this.c.portAssets ??= await loadPortAssets(this.c);
-    this.portScene = new PortScene(this.c, this.c.portAssets);
+    this.portScene = new SeaScene(this.c, this.c.portAssets); this.portScene.clock = this;
     for (;;) {
-      if (st.port !== 0xff) await this.portScene.enter();                            // 8c53
-      else { clockTodo("出海 (851f)"); return; }
+      if (st.port !== 0xff) await this.portScene.enter();                            // 1721f: 8c53 進港
+      else await this.portScene.enterSea();                                          //        851f 出海
       if (!(st.options & 4)) bgm.fadeOut();
       sys.mouseShow();
       await palette.fadeToTarget();
@@ -143,7 +164,7 @@ export class GameClock {
       sys.mouse.visible = 0;
       const r = await new Title(this.c).run(true);
       if (r !== 1 || this.c.halted) return;
-      this.portScene = new PortScene(this.c, this.c.portAssets);
+      this.portScene = new SeaScene(this.c, this.c.portAssets); this.portScene.clock = this;
     }
   }
   // 1764f 結束處理 (只移植了 0x88 = 功能「結束遊戲」: 9888, 99f2, 清畫面, 游標 (0,0), ESC C7 ESC B0, [03ea] = 0, 清畫面 → 回到標題)

@@ -23,6 +23,8 @@ function runEmu() {
   c.mem[L + 0x1ac19] = 0xcb;
   // 劇本事件檢查 (2e09:5481 / 2e09:55c2) 尚未移植: 測試建築時以 S.NO_EVENTS 讓原版一律回傳「沒有事件」
   if (S.NO_EVENTS) for (const o of [0x33511, 0x33652]) { c.mem[L + o] = 0x31; c.mem[L + o + 1] = 0xc0; c.mem[L + o + 2] = 0xcb; }                       // 艦隊 AI (1ac19) 尚未移植: 兩邊都略過, 以便單獨驗證港口與建築
+  // 他艦隊 (艦隊 AI) 尚未移植: S.NO_FLEETS 時原版的 6aae (區域內他艦隊) 直接返回, 1afe8 不處理任何他艦隊 (1b048 jne → nop), 移植版同樣略過
+  if (S.NO_FLEETS) { c.mem[L + 0x6aae] = 0xcb; c.mem[L + 0x1b048] = 0x90; c.mem[L + 0x1b049] = 0x90; }
   let setupDone = !S.PORT_SETUP;
   // S.WATCH = DS 位址: 該位元組改變時記錄當時的指令位置 (之前已執行的那條指令) 與按鍵序號, 結果在 S.watchLog
   const W8 = S.WATCH, WF = S.WATCH_FROM || 0, WD = c.s[3] * 16, wlog = S.watchLog = []; let wv = -1, wip = 0;   // WD: 遊戲的 DS (標題時)
@@ -52,6 +54,7 @@ const menuText = rdj("text/menu.json"), palJson = rdj("data/palettes.json"), ngD
 const portAssets = { za: rdb("data/za_dat.bin"), chip: rdb("gfx/portchip.bin"), map: rdb("gfx/portmap.bin"), chr: rdb("gfx/char.bin"), compass: rdb("gfx/compass.bin"),
   data: rdj("data/port.json"), wind: rdb("data/windcur.bin"), chipNo: rdj("data/portchip.json").chipNo, transit: rdb("gfx/transit.bin"), colony: rdj("text/colony.json"), itemMes: rdj("text/item_mes.json"), gamble: rdb("gfx/gamble.bin"), commands: rdj("data/commands.json") };
 portAssets.data.bld2 = rdj("data/buildings2.json");                 // 王宮/事務所/住宅/銀行/道具店 (port.js loadPortAssets 同一項)
+Object.assign(portAssets, { worldmap: rdb("gfx/worldmap.bin"), seachip: rdb("gfx/seachip.bin"), seacompass: rdb("gfx/seacompass.bin"), sea: rdj("data/sea.json") });   // 海上 (loadPortAssets 同一組)
 const msg = f["MESSAGE.DAT"], initState = new Uint8Array(fs.readFileSync(S.W + "/uw2_remake/tools/work/newgame.bin"));
 async function runJS(rng0) {
   const scr = new U.Screen(); let polls = 0;
@@ -60,7 +63,7 @@ async function runJS(rng0) {
   const state = new U.GameState(initState);
   const ctx = { scr, sys, state, initState, font, ASSETS: "", options: { get animate() { return !!(state.options & 1); } } };
   // 劇本: S.NO_EVENTS 時原版的事件檢查被改成直接返回, 移植版也略過; 其餘情況兩邊都執行劇本 VM
-  ctx.noEvents = !!S.NO_EVENTS;
+  ctx.noEvents = !!S.NO_EVENTS; ctx.noFleets = !!S.NO_FLEETS;
   const lazy = dir => new Proxy({}, { get: (o, k) => (o[k] ??= rdj(`${dir}${k}.json`)) });
   ctx.scenarioData = { vm: rdj("scenario/vm.json"), snr: lazy("scenario/snr"), mes: lazy("text/snr") };
   ctx.palette = new U.Palette(scr, sys, U.paletteTables(palJson));

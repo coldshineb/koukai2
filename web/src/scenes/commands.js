@@ -86,7 +86,7 @@ export class Commands {
   }
   // 1721f 依目前位置重新進入港口 (8c53) 或海上 (851f)
   async reenter() {
-    if (this.st.port !== 0xff) await this.p.enter(); else cmTodo("出海畫面 (851f)");
+    if (this.st.port !== 0xff) await this.p.enter(); else await this.p.enterSea();
   }
   // 1b39a 時間迴圈中止旗標
   abort() { const r = this.rt; return r.month >= 0xf0 || r.day >= 0xf0 || r.time >= 0xf0; }

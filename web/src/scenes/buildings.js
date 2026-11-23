@@ -5,14 +5,14 @@
 //   0fea:b6e0 = 1b580 after() 以點陣重畫地圖區下半 (1b496)
 //   0fea:b6bc = 1b55c table() GRAPH.DAT #0x16 於 (0x68,0x88), 文字區 0x0e..0x3a
 //   seg0:7dac/7f06/7e15/7e35/7f6e 人物對話視窗 (頭像於 0x16, 0xd0)   seg0:909b 船員發言
-// 已移植: 0 交易所 (market.js) / 2 造船廠 (造新船、交船、買舊船、修理、賣船、改造、工業投資、折抵舊船剩餘貨物重新分配) / 3 碼頭 (補給、出航前檢查、船塢、補給港命名; 實際出航未移植) / 1 酒館 (全部; 賭博在 gamble.js) / 4 旅館 (全部) / 10 教會 / 11 占卜師 (全部)
+// 已移植: 0 交易所 (market.js) / 2 造船廠 (造新船、交船、買舊船、修理、賣船、改造、工業投資、折抵舊船剩餘貨物重新分配) / 3 碼頭 (補給、出航前檢查、船塢、補給港命名、出航 → scenes/sea.js) / 1 酒館 (全部; 賭博在 gamble.js) / 4 旅館 (全部) / 10 教會 / 11 占卜師 (全部)
 // 5 王宮 (palace.js) / 6 事務所 (office.js) / 7 住宅 (house.js) / 8 銀行 (bank.js) / 9 道具店 (itemshop.js): 見 RE_NOTES 25
 // 其他子功能: 尚未移植的在進入時顯示主控台警告
 import { NumPad } from "../ui/numpad.js";
 import { ListSelect } from "../ui/listsel.js";
 import { NameInput } from "../ui/nameinput.js";
 import { Gamble } from "./gamble.js";
-import { Market } from "./market.js";
+import { Market, marketTradeLog } from "./market.js";
 import { Palace } from "./palace.js";
 import { Office } from "./office.js";
 import { House } from "./house.js";
@@ -2057,8 +2057,18 @@ export class Buildings {
     const ok = await menu.yesNo();
     await this.closeTalk();
     if (!ok) return 0;
-    bTodo("出航 (0fea:e3e5 進入海上; 目前留在港內)");
-    return 0;
+    // 27a0c 出港: 0fea:e3e5 記錄 (種類 1, +4 天數, +6 港口) → [2e18] = 0 (出港天數), 方位 = 8 (停船) → 4fe3 清滑鼠移動量 → [1005] &= DF
+    //   → 0fea:9348 / 9401 (扣一天的糧食與水) → 851f 進入海上 → [0caf] = FF, 回傳 1 (碼頭選單結束)
+    marketTradeLog(st, this.c.rt, 1, days, 0, 0, this.port);
+    st.set8(0x2e18, 0);
+    const sea = this.p;
+    st.set8(sea.fleet + 0x1a, 8);
+    this.c.sys.mickeys();
+    st.set8(0x1005, st.u8(0x1005) & 0xdf);
+    sea.foodDaily(); sea.waterDaily();
+    await sea.enterSea();
+    st.set8(0x0caf, 0xff);
+    return 1;
   }
   // 27e31 補給
   async supply() {
