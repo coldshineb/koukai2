@@ -5,6 +5,7 @@
 // 記憶體: 劇本以 DS 位址讀寫遊戲資料 (D0/DC 取得記錄位址後間接存取); 0x0ca4..0x8d18 對應 GameState, 其他位址見 rd8/wr8。
 import { loadJSON } from "../core/assets.js";
 import { STATE_BASE, STATE_END } from "./state.js";
+import { faFleet } from "./fleetai.js";
 
 const scS16 = v => (v << 16) >> 16;
 const scUmin = (a, b) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);   // seg0:4d7c
@@ -399,7 +400,8 @@ export class Scenario {
     }
     st.set8(0x6a80 + st.u8(0x0cae) * 0x25 + 0x23, 0xff);
     for (let i = 0; ; i++) { st.set8(S + i, this.str[i]); if (!this.str[i]) break; }
-    scTodo("劇本新船命名後的 0fea:83f9 (艦隊重算)");
+    const F = 0x2e76 + st.u8(st.personRecord(st.hero) + 0x2c) * 0x85;                                       // [c2d4]
+    if (this.scene?.ai) this.scene.ai.strength(F); else scTodo("劇本新船命名後的 0fea:83f9 (艦隊重算)");   // 0fea:83f9 = 18299
   }
   // 0fea:2f43 = 12de3: 主角沒有擔任任何船的船長時列入主角, 再列入職務 > 2 的船員 → [0538]; 名單為空時 [0538] 不變
   captainCandidate() {
@@ -418,7 +420,8 @@ export class Scenario {
     st.set8(P + 0x2e, 6); st.set8(P + 0x2c, st.u8(H + 0x2c)); st.set8(P + 0x2d, st.u8(H + 0x2d));
   }
   async op_barmaid_love({ girl, amount }) { const g = 0x2bde + 0x13 * girl; this.st.set8(g + 0x0f, scUmin(this.st.u8(g + 0x0f) + amount, 100)); }   // 32790
-  async op_d1() { scTodo("劇本命令 D1 (艦隊移動 33aaf)"); }
+  // 320ba D1 v: 變數的低位元組 = 艦隊編號 → 33aaf 依任務恢復目的地 (game/fleetai.js resume)
+  async op_d1({ var: v }) { const k = this.getVar(v) & 0xff; if (this.scene?.ai) this.scene.ai.resume(faFleet(k)); else scTodo("劇本命令 D1 (艦隊移動 33aaf)"); }
   async op_duel() { scTodo("劇本命令 E8 (一騎打 0fea:2ca9)"); }
   async op_picture() { scTodo("劇本命令 CB (EVENT*.DAT 插圖)"); }
   async op_ending() { scTodo("劇本命令 F4 (結局 0fea:77af)"); return false; }

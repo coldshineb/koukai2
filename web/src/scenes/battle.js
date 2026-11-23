@@ -72,8 +72,7 @@ export class NavalBattle {
     if (this.u8(0x9bfb) === 0) await this.mainLoop();                  // fe9a
     const other = hero === al ? dl : al;
     await this.after(si, other);                                       // 10bdf
-    // bd26 / ff5c / 19ba1 / 851f
-    if (!this.c.palette.ending) await this.backToSea();
+    await this.backToSea();                                            // bd26 / ff5c / 19ba1 / 851f
   }
 
   // 10e68 援軍: 主角不是海盜 (+31 & 0f ≠ 6) 時, 附近 (12fea(2)) 的艦隊中, 不是雙方指揮者、+2c % 10 ≥ 5 (護衛艦隊) 且與某方同國的加入
@@ -694,11 +693,51 @@ export class NavalBattle {
       case 2: btTodo("海戰 指令 情報 (b258)"); return 0;
       case 3: btTodo("海戰 指令 信號 (b30f)"); return 0;
       case 4: btTodo("海戰 指令 作戰 (b6db)"); return 0;
-      case 5: btTodo("海戰 指令 停船 (b6f2)"); return 0;
-      case 6: btTodo("海戰 指令 隨身物 (b71b)"); return 0;
-      case 7: btTodo("海戰 指令 撤離 (b723)"); return 0;
+      case 5: return this.cmdStop();                                    // b6f2
+      case 6: await this.sea.commandsObj().belongings(); return 0;     // b71b: 1fd9:9cbc = 29a4c 隨身物 (commands.js), 回傳 0
+      case 7: return this.cmdRetreat();                                 // b723
     }
     return 0;
+  }
+  // b6f2 停船: c2ee → 0x307 → bca4 是否 → c2ee; 是 → 回傳 1 (本回合結束)
+  async cmdStop() {
+    this.msgArea(); this.c.message(0x307);
+    const r = await this.confirm();
+    this.msgArea();
+    return r ? 1 : 0;
+  }
+  // b723 撤離: c2ee → 0x308 → bca4 是否 → c2ee; 是 → e5fc (這艘船離開戰場) 回傳 1
+  async cmdRetreat() {
+    this.msgArea(); this.c.message(0x308);
+    const r = await this.confirm();
+    this.msgArea();
+    if (!r) return 0;
+    this.leaveField(this.u16(0x9bc2));                                  // e5fc
+    return 1;
+  }
+  // bca4 是否: 暫時把文字範圍設成 0..0x4f、游標 (0, 0xc8) 後 0fea:47fc, 再還原
+  async confirm() {
+    const con = this.c.con, l = con.left, r = con.right, x = con.x, y = con.y;
+    con.right = 0x4f; con.left = 0; con.x = 0; con.y = 0xc8;
+    const v = await this.c.menu.yesNo();
+    con.left = l; con.right = r; con.x = x; con.y = y;
+    return v;
+  }
+  // e5fc: c6fa 從戰場擦掉 (視窗內重畫該格、小地圖色 5、地圖格 &= 1f) → e5b1 對方兩方以它為目標 (+0c bit7、+6) 的船解除 → +0c |= 0x40
+  leaveField(B) {
+    this.erase(B);                                                      // c6fa
+    let E = this.enemySide(B);                                          // e5b1
+    for (let k = 0; k < 2; k++, E += 0x10)
+      for (let bx = this.u16(E); bx; bx = this.u16(bx + 8))
+        if ((this.u8(bx + 0x0c) & 0x80) && this.u16(bx + 6) === B) { this.set16(bx + 6, 0); this.and8(bx + 0x0c, 0x7f); }
+    this.or8(B + 0x0c, 0x40);
+  }
+  // c6fa 擦掉一艘船
+  erase(B) {
+    const [x, y] = this.pos(B);
+    if (this.inView(x, y)) this.tile(x, y);                             // c2a4 → c14e
+    this.miniDot(x, y, 0x405);                                          // be49(色 5)
+    this.and8(this.mapAt(x, y), 0x1f);
   }
   // b751 選單的不可選項 ([a14c]): bit1 攻擊 (沒有可攻擊的敵船: 射程內 d931 或相鄰 d54a = 1)、bit3 信號 (本方沒有其他活著的船)、
   //   bit4 作戰 (其他船都不在視窗內)、bit6 隨身物 (沒有)、bit7 撤離 (不在地圖邊緣的海格)
@@ -777,6 +816,14 @@ export class NavalBattle {
 
   // ================= 10bdf 戰後處理 =================
   async after(si, other) { btTodo("海戰 戰後處理 (10bdf)"); }
-  // bd26 / ff5c (84de) / 19ba1 / 0000:851f 回到海上畫面
-  async backToSea() { btTodo("海戰結束後回到海上 (bd26 / ff5c / 19ba1 / 851f)"); }
+  // bd26: [03ea] = 0 且未反色 → 停止調色盤循環 (1743); 淡出 (99f2)
+  // ff5c = 84de: 把 DS:09e4 的檔案第 0xb 項重新解壓到 [03ee] (被 HDAT.PUT 蓋掉的緩衝; 移植版各資源各自保存, 不需要)
+  // 19ba1: 主角艦隊在的船各呼叫一次 5d8b (只計算, 不寫回) → 0000:851f 回到海上畫面
+  async backToSea() {
+    const { palette } = this.c;
+    if (!palette.ending && !palette.invert) palette.stopCycle();
+    await palette.fadeBlack();
+    if (palette.ending) return;
+    await this.sea.enterSea();
+  }
 }

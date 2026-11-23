@@ -6,6 +6,8 @@
 //   "seamonth" 由 sea_depart_route 出港 (3 月 31 日時刻 0x3a 進港), 船員 8 (薪水 5) → 海上跨月 (薪水訊息 0x23e) → 繼續航行
 //   "launch"  同 "month", 另寫入: 艦隊 2 不在海上 (+29 = 0) 且有 5 艘船 (範本 0x28)、人物 110..119 的記錄釋放 (+31 = 0)
 //             → 月末 1897e / 18824 / 18772 派提督出港、18aee / 185a7 產生新人物 (NAME.TBL)
+//   "pirate"  由 sea_depart_route 出港 (時刻 0x20), 出海後 (第 15 張) 把海盜艦隊 65 放在主角艦隊的位置 (118, 358)、任務 4 (獵捕)
+//             → 1afe8 / 1ab8b 碰到主角 → 任務 5 → 1a7a8: 主角爵位 0 → 不開戰, 33921 回母港
 // 執行順序: 本檔 → (seamonth 時) sea_depart_route.js → port_tests.js。都會設 S.FLEET_AI = 1 (兩邊都執行艦隊 AI)。
 // S.FLEET_SLEEPS 覆寫就寢次數; S.FLEET_POKE 額外寫入
 "use strict";
@@ -36,5 +38,11 @@ if (mode === "month" || mode === "year" || mode === "launch") {
   for (const [a, v] of S.FLEET_POKE || []) b(a, v);
   S.SEA_POKE = poke; S.SEA_TIME = 0x3a;
   S.SEA_KEYS = S.FLEET_KEYS || [...idle(60), K.enter, K.enter, ...idle(40)];
+} else if (mode === "pirate") {
+  for (const [a, v] of S.FLEET_POKE || []) b(a, v);
+  S.SEA_POKE = poke; S.SEA_TIME = 0x20;
+  const F = 0x2e76 + 0x85 * 65;
+  S.TELEPORT = { 15: [[F, 118], [F + 1, 0], [F + 2, 358 & 255], [F + 3, 358 >> 8], [F + 0x18, 0], [F + 0x19, 0], [F + 0x1b, 4], [F + 0x29, 1]] };
+  S.SEA_KEYS = S.FLEET_KEYS || idle(30);
 }
 })();
