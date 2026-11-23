@@ -98,6 +98,7 @@ class CPU {
     this.icount = 0; this.halted = false; this.segov = -1;
     this.pendingIRQ = [];
     this.trace = null;
+    this.cyc = null;                  // DOSBox 週期計數器 (tools/emu/cycles.js 安裝; null = 關閉, 不影響其他測試)
   }
   // ---- 記憶體 ----
   rb(a) { a &= 0xfffff; if (a >= 0xa0000 && a < 0xb0000) return this.vga.read(a - 0xa0000); return this.mem[a]; }
@@ -186,17 +187,19 @@ class CPU {
     this.flags &= ~(IF | TF);
     this.ip = this.rw(n * 4); this.s[1] = this.rw(n * 4 + 2);
   }
-  in8(p) { if (p >= 0x3c0 && p <= 0x3df) return this.vga.portIn(p); const h = this.ports[p]; return h ? h.in(p) & 255 : 0xff; }
-  out8(p, v) { v &= 255; if (p >= 0x3c0 && p <= 0x3df) return this.vga.portOut(p, v); const h = this.ports[p]; if (h) h.out(p, v); }
-  out16(p, v) { this.out8(p, v & 255); this.out8(p + 1, v >> 8); }
-  in16(p) { return this.in8(p) | (this.in8(p + 1) << 8); }
+  in8(p) { if (this.cyc && !this.io16) this.cyc.io(this, 0); if (p >= 0x3c0 && p <= 0x3df) return this.vga.portIn(p); const h = this.ports[p]; return h ? h.in(p) & 255 : 0xff; }
+  out8(p, v) { if (this.cyc && !this.io16) this.cyc.io(this, 1); v &= 255; if (p >= 0x3c0 && p <= 0x3df) return this.vga.portOut(p, v); const h = this.ports[p]; if (h) h.out(p, v); }
+  out16(p, v) { if (this.cyc) this.cyc.io(this, 1); this.io16 = true; this.out8(p, v & 255); this.out8(p + 1, v >> 8); this.io16 = false; }
+  in16(p) { if (this.cyc) this.cyc.io(this, 0); this.io16 = true; const v = this.in8(p) | (this.in8(p + 1) << 8); this.io16 = false; return v; }
   // 依 SI/DI 方向推進
   dstep(w) { return (this.flags & DF) ? -(w ? 2 : 1) : (w ? 2 : 1); }
   string(op, rep) {
     const r = this.r, w = op & 1, srcSeg = this.segov >= 0 ? this.segov : 3, d = this.dstep(w);
     const base = op & 0xfe;
-    if (rep && r[1] === 0) return;
+    if (rep && r[1] === 0) { if (this.cyc) this.cyc.rep(this, base, 0); return; }
+    let it = 0;
     for (;;) {
+      it++;
       switch (base) {
         case 0xa4: { const sa = this.lin(srcSeg, r[6]), da = this.lin(0, r[7]);
           if (w) this.ww(da, this.rw(sa)); else this.wb(da, this.rb(sa)); r[6] += d; r[7] += d; break; }
@@ -210,14 +213,14 @@ class CPU {
       }
       if (!rep) return;
       r[1]--;
-      if (r[1] === 0) return;
-      if (base === 0xa6 || base === 0xae) { const z = !!(this.flags & ZF); if (rep === 3 && !z) return; if (rep === 2 && z) return; }
+      if (r[1] === 0) { if (this.cyc) this.cyc.rep(this, base, it); return; }
+      if (base === 0xa6 || base === 0xae) { const z = !!(this.flags & ZF); if ((rep === 3 && !z) || (rep === 2 && z)) { if (this.cyc) this.cyc.rep(this, base, it); return; } }
     }
   }
   run(maxIns) {
     const end = this.icount + maxIns;
     while (!this.halted && this.icount < end) {
-      if (this.pendingIRQ.length && (this.flags & IF)) this.interrupt(this.pendingIRQ.shift());
+      if (this.pendingIRQ.length && (this.flags & IF)) { const ret = [this.s[1], this.ip, this.r[4], this.s[2]]; this.interrupt(this.pendingIRQ.shift()); if (this.cyc) this.cyc.irqEnter(this, ret); }
       if (this.onTick) this.onTick(this);
       this.step(); this.icount++;
     }
@@ -225,6 +228,7 @@ class CPU {
   step() {
     this.segov = -1; let rep = 0, op;
     this.opCS = this.s[1]; this.opIP = this.ip;
+    if (this.cyc) this.cyc.begin(this);
     for (;;) {
       op = this.f8();
       if (op === 0x26) { this.segov = 0; continue; } if (op === 0x2e) { this.segov = 1; continue; }

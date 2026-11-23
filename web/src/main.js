@@ -35,6 +35,7 @@ const ctx = {
   font: await new Font().load(ASSETS),
   bgm: await new BGM(ASSETS).init(),
   options: { get animate() { return !!(state.options & 1); } },   // 環境設定「動畫效果」 [0ca4] bit0
+  portMove: new URLSearchParams(location.search).get("portmove") !== "0",   // 擴充功能 (非原版): 航海術「港內移動」, ?portmove=0 關閉
 };
 ctx.palettes = (await loadJSON(ASSETS + "/data/palettes.json")).palettes;
 ctx.newgameData = await loadJSON(ASSETS + "/data/newgame.json");     // 開始新航海用常數表 (tools/extract_newgame.py)

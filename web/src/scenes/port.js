@@ -14,6 +14,7 @@ import { Buildings } from "./buildings.js";
 import { Commands } from "./commands.js";
 import { Scenario, ENV_COMMON, ENV_HERO } from "../game/scenario.js";
 import { loadDuelAssets } from "./duel.js";
+import { PortMove } from "./portmove.js";
 
 const pHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const P_MAP_W = 96, P_VIEW = 24, P_VIEW_X = 96, P_VIEW_Y = 8;
@@ -559,6 +560,13 @@ export class PortScene {
         if (Math.abs(mk.v) < Math.abs(mk.h)) di = mk.h >= 0 ? 2 : 4; else di = mk.v >= 0 ? 3 : 1;
       }
       const b = await this.buttons(key);
+      if (this.pmTarget !== undefined) {                              // 擴充功能 (非原版): 港內移動 — 瞬移到門口後照原版進門 (RE_NOTES 33.5)
+        const k = this.pmTarget; this.pmTarget = undefined;
+        sys.mouseHide(); PortMove.teleport(this, k); sys.mouseShow();
+        const r = await this.tryEnter();
+        if (r) return r;
+        continue;
+      }
       if (b !== 0xff) di = b;
       if (this.port === 0xff) return 0;
       if (this.timeAbort()) return 0;                                 // 1b39a (讀檔後)

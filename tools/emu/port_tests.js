@@ -45,8 +45,10 @@ function runEmu() {
   // S.PROBES = [{ name, ip }]: 原版執行到 ip (映像內的線性位址) 時另取一份快照 (狀態 / DS 工作區 / 亂數 / 畫面), 與移植版 ctx.probe(name) 的快照依序比對
   //   (兩次等待輸入之間的處理, 例: 海戰一次砲擊的亂數、損傷與動畫結束後的畫面)
   const PR = S.PROBES || [], prE = S.probeE = [];
+  const ET = S.EMU_TICK;                                               // S.EMU_TICK(cpu, 映像內線性位址): 每條指令前呼叫 (測試設定用, 例: portmove_route.js)
   c.onTick = cpu => {
     const lin = cpu.s[1] * 16 + cpu.ip;
+    if (ET) ET(cpu, lin - L);
     if (PR.length) for (const p of PR) if (lin === L + p.ip && prE.length < 200) { const g = grabEmu(cpu); prE.push({ name: p.name, ...g, fb: S.emuFb480().slice(), mouse: { x: env.mouse.x, y: env.mouse.y }, shot: shots.length }); }
     if (W8 !== undefined) { const v = cpu.mem[WD + W8]; if (wv >= 0 && v !== wv && shots.length >= WF && wlog.length < 50) wlog.push({ ip: (wip - L).toString(16), from: wv, to: v, shot: shots.length }); wv = v; wip = lin; }
     if (!synced && lin === L + 0x4d92) { synced = true; sc.calls = 0; }

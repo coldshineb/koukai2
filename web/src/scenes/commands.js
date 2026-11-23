@@ -9,6 +9,7 @@
 //   20b40   結束時重畫地圖視窗 (2103 + 1fac, 主角不重畫) → 99e8 淡入 → 清鍵盤緩衝
 import { Buildings } from "./buildings.js";
 import { Title } from "../game/title.js";
+import { PortMove } from "./portmove.js";
 
 const cmHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const cmStrlen = s => { let n = 0; while (n < s.length && s[n]) n++; return n; };
@@ -978,13 +979,16 @@ export class Commands {
   async nav() {
     const st = this.st, { menu, palette } = this.c;
     const items = this.c.menuItems(st.u8(0x1005) & 0x20 ? 0x2e : 0x1d).slice(0, 6);
+    const pm = PortMove.enabled(this.c);                               // 擴充功能 (非原版): 第 7 項「港內移動」, 選單上移一行 (RE_NOTES 33.1)
+    if (pm) items.push(PortMove.label(this.c));
     let si = 0;
     while (!palette.ending) {                                          // 20fd9: [03ea] == 0
       if (si) break;
       if (st.u8(0x1005) & 0x18) menu.disabled |= 7;
       if (st.port !== 0xff) menu.disabled |= 0x0f;
       if (!this.itemList()) menu.disabled |= 0x10;
-      const r = await this.popMenu(0xe0, items);
+      if (pm && st.port === 0xff) menu.disabled |= 0x40;
+      const r = await this.popMenu(pm ? 0xc8 : 0xe0, items);
       switch (r) {
         case 0: await this.p.delegate(); si = 1; break;                // 2e09:3223 委任 (以下 4 項在港時停用; scenes/sea.js)
         case 1: await this.p.stopToggle(); si = 1; break;              // 20ee3 停船 / 出航
@@ -992,6 +996,7 @@ export class Commands {
         case 3: await this.p.land(); si = 1; break;                    // 2e09:6e37 = 34ec7 登陸
         case 4: await this.belongings(); break;                         // 29a4c (不結束)
         case 5: si = await this.functions(); break;                     // 215bd
+        case 6: si = await PortMove.choose(this); break;                 // 擴充功能: 港內移動 (scenes/portmove.js)
         default: si = 1;
       }
     }
