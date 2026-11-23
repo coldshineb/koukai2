@@ -4,6 +4,7 @@
 //                聖香油 使用 (用後消失, random(6)) / 王冠 使用 (用不了) / 王冠 佩戴 (不能裝備) / 私掠許可書 使用 (種類 8 編號外) → Esc → Esc
 //   S.CMD_MODE = "func": F4 → 功能 → 環境設定 (表示效果 OFF, BGM OFF, 滑鼠 −/+ +, 海上移動值 +, 海上速度 +) → 儲存檔案 第 1 格 →
 //                取出存檔 第 1 格 (讀檔後重新進港, 時間迴圈中止並從存檔日期重新開始) → F4 → 功能 → 結束遊戲 → 標題
+//   S.CMD_MODE = "mouse": 滑鼠點四個指令按鈕
 "use strict";
 (function () {
 const S = session;
@@ -27,6 +28,9 @@ const FUNC = [K.f4, ...D(5), E,
   K.down, K.down, E, E, E,                                                    // 取出存檔 → 第 1 格 → 是
   K.f4, ...D(5), E, K.down, K.down, K.down, E, E,                            // 功能 → 結束遊戲 → 是
   K.down];
-S.PORT_KEYS = S.CMD_KEYS || (S.CMD_MODE === "func" ? FUNC : ITEMS);
+// "mouse": 以滑鼠依序點 航海術 / 情報 / 經營 / 命令 四個按鈕 (y 座標加 40 = 驅動座標), 各自 Esc 關閉
+const M = (x, y, b) => ({ mouse: { x, y, b } }), click = y => [M(0x272, y + 40, 0), M(0x272, y + 40, 1), M(0x272, y + 40, 0), K.esc];
+const MOUSE = [...click(0x160), ...click(0x70), ...click(0xc0), ...click(0x110)];
+S.PORT_KEYS = S.CMD_KEYS || (S.CMD_MODE === "func" ? FUNC : S.CMD_MODE === "mouse" ? MOUSE : ITEMS);
 S.NO_EVENTS = 1;
 })();

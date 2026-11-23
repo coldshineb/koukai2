@@ -1,6 +1,6 @@
 # extract_commands.py — 港口指令按鈕 (情報 / 經營 / 命令 / 航海術, 1b8c8 → DS:a642 表) 用到的 MAIN.EXE 常數 → web/assets/data/commands.json
 #   字串一律存原版位元組的十六進位 (不含結尾 0), 由 scenes/commands.js 以 cmHex() 轉回。可重複執行。
-#   分析腳本: tools/re/commands.py → tools/work/re_cmd_*.txt; 結論: docs/RE_NOTES.md 第 25 節
+#   分析腳本: tools/re/commands.py → tools/work/re_cmd_*.txt; 結論: docs/RE_NOTES.md 第 26 節
 # 用法: python tools/extract_commands.py <sea2 目錄> <web/assets 目錄>   (或 exec 後呼叫 main(sea2, assets))
 import json, os, struct, sys
 

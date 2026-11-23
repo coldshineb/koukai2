@@ -2,7 +2,7 @@
 //   按鈕 8..11: 情報 1fd9:0e33 (線性 20bc3) / 經營 1fd9:0fdc (20d6c) / 命令 1fd9:10a8 (20e38) / 航海術 1fd9:119e (20f2e)
 //   (1b8c8 以 DS:[a622 + di×4] 取函式, di = 8..11, 所以表其實在 DS:a642; a622 起是建築處理表 a612 的第 4 項)
 //   分析: tools/re/commands.py → tools/work/re_cmd_*.txt; 常數: tools/extract_commands.py → assets/data/commands.json
-//   結論與未移植部分: docs/RE_NOTES.md 第 25 節
+//   結論與未移植部分: docs/RE_NOTES.md 第 26 節
 // 共用:
 //   1b8c8   按下按鈕: 隱藏游標 → seg0:9396(n) 按鈕凹下圖 → 處理函式 → seg0:937e(n) 還原 → 顯示游標
 //   20b0c   右側選單: 0fea:44c4 = 14364 帶陰影直式選單, x = 0x4a − 最長項目字數, 可取消; [a158] = 項目數

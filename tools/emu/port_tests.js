@@ -73,7 +73,7 @@ async function runJS(rng0) {
   const printf = (fmt, ...a) => U.cprintf(typeof fmt === "string" ? font.encode(fmt + "\0") : fmt, a, ch => con.putc(ch));
   const menuItems = n => menuText[n].replace(/^(?:\{[0-9A-F]{2}\}|[^{]){2}/, "").split("{00}").slice(0, -1).map(s => font.encode(s + "{00}"));
   Object.assign(ctx, { con, win, graph, menu, message, printf, menuItems, gfx: S.D1[14], kao: new U.Kao(f["KAO.LZW"]), newgameData: ngData, mapNodes: nodes, portAssets });
-  ctx.saveFile = new U.SaveFile(new Uint8Array(f["KOUKAI2.DAT"])); ctx.saveFile.flush = () => {};
+  ctx.saveFile = new U.SaveFile(new Uint8Array(save0)); ctx.saveFile.flush = () => {};   // 原版執行時會寫入 f["KOUKAI2.DAT"] (模擬磁碟), 移植版用執行前的副本
   const sc = S.makeScript(KEYS.concat([{ mouse: {} }])), shots = [];
   let synced = false;
   const r0 = sys.rng.rand.bind(sys.rng);
@@ -97,6 +97,8 @@ async function runJS(rng0) {
 // 原版的亂數初值 (標題選單第一次 random 時) 由 newgame_tests 的方法取得: 先跑原版, 從第一張截圖前的狀態回推不可行, 改為直接讀
 S.restoreTitle(); const c0 = S.titleEnv.cpu, d0 = c0.s[3] * 16;
 const rngTitle = (c0.mem[d0 + 0xbd88] | (c0.mem[d0 + 0xbd89] << 8) | (c0.mem[d0 + 0xbd8a] << 16) | (c0.mem[d0 + 0xbd8b] << 24)) >>> 0;
+const save0 = new Uint8Array(fs.readFileSync(S.W + "/uw2_remake/tools/work/sea2/KOUKAI2.DAT"));   // 原始存檔 (模擬磁碟上的 f["KOUKAI2.DAT"] 會被存檔路線改寫)
+if (f["KOUKAI2.DAT"].length === save0.length) f["KOUKAI2.DAT"].set(save0);   // 兩邊都從原始存檔開始 (上一次測試的存檔路線改寫過模擬磁碟)
 const E = runEmu();
 const J = await runJS(rngTitle);
 S.lastRun = { E, J };                                             // 供測試後檢查 (例: 最終狀態 E.shots.at(-1).st)
