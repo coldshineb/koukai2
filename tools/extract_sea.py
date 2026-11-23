@@ -31,6 +31,9 @@ STR = {
     "captain": 0xb758, "foundPort": 0xb75f, "foundVillage": 0xb76b,   # 30b34 發現
     "assistant": 0xa652, "captainT": 0xa657, "levelUp": 0xa65c, "listSep": 0xa672, "rise": 0xa677,   # 1bc14 升級
     "move": 0xa9c9, "stop": 0xa9d0,                                    # 20ee3 停船 / 出航
+    # 1feae 偵察 (艦隊資料: 名•姓 / 國名+種類 / 速度 / 航向 / 船名「%-14s」/ 換行)、1fd9c 港口、3119b 指定目的地
+    "scName": 0xa93b, "scNation": 0xa943, "scSpeed": 0xa949, "scHead": 0xa95b, "scShip": 0xa96b, "nl": 0xa971,
+    "scPort": 0xa92a, "destPrompt": 0xb7be,
 }
 PTRS = {"months": (0x8af0, 12), "statNames": (0x08f6, 4)}               # 71c6 月份字串 / 1bc14 能力名
 

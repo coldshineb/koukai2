@@ -132,10 +132,19 @@ export class Screen {
     this.dirty = true;
   }
   // 1fd9:1fed XOR 矩形外框: 與 1f9d 相同的 4 條線, 逐點 XOR (seg0:0b33) — 四個角各被畫兩次而抵消
-  xorRect(x0, y0, x1, y1, color) {
+  //   每條線先經 1fd9:171e 以剪裁矩形 DS:aaac (clip = [x0, y0, x1, y1], 預設全畫面) 裁切; 水平 / 垂直線的裁切等於夾限端點 (線在矩形外則不畫)
+  xorRect(x0, y0, x1, y1, color, clip = null) {
     const p = (x, y) => { if (x >= 0 && x < SCREEN_W && y >= 0 && y < SCREEN_H) this.fb[y * SCREEN_W + x] ^= color & 15; };
     const save = this.pset; this.pset = p;
-    try { this.rectOutline(x0, y0, x1, y1, color); } finally { this.pset = save; }
+    try {
+      if (!clip) this.rectOutline(x0, y0, x1, y1, color);
+      else {
+        const [cx0, cy0, cx1, cy1] = clip;
+        const v = (x, ya, yb) => { if (x < cx0 || x > cx1) return; const a = Math.max(Math.min(ya, yb), cy0), b = Math.min(Math.max(ya, yb), cy1); if (a <= b) this.line(x, a, x, b, color); };
+        const h = (y, xa, xb) => { if (y < cy0 || y > cy1) return; const a = Math.max(Math.min(xa, xb), cx0), b = Math.min(Math.max(xa, xb), cx1); if (a <= b) this.line(a, y, b, y, color); };
+        v(x0, y0, y1); h(y1, x0, x1); v(x1, y0, y1); h(y0, x0, x1);
+      }
+    } finally { this.pset = save; }
     this.dirty = true;
   }
   // seg0:063e / 0572 — 1bpp 點陣以「模式字」繪製: bit15 每行畫兩次, 高位元組=模式 (0 黑底, 1 XOR, 2 AND, 3 OR, 4 透明), 低位元組=顏色

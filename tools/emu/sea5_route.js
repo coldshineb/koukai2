@@ -23,6 +23,22 @@ if (mode === "navi" || mode === "navi2") {
     ? [...idle(2), K.f4, ...idle(2), ...D(4), E, E, K.down, E, E, E, E, X, E, E, K.down, E, K.down, E, E, K.down, E, E, X, X, ...idle(2)]
     : [...idle(2), K.f4, ...idle(2), ...D(4), E, E, K.down, E, E, X, X, ...idle(2)];
 }
+//   "scout"  命令 偵察 (1feae): 艦隊 65 / 66 (指揮者 64 / 65, 艦隊編號 66 → 61..69 的額外發言) 移到 (120, 356), 船員 9 的 +1e = 100 (發言必定出現)
+//            游標 → 里斯本港 (港名訊息) → 艦隊 5 (單一艦隊) → 兩支艦隊的格 (清單 0x8c 選第 2 個 → 資料 → 0x2fe) → Esc;
+//            再以滑鼠點艦隊 5 → 資料 → 點地圖視窗外 (= Esc)
+if (mode === "scout") {
+  mates([[8, 2], [9, 3]]); b(P(9) + 0x1e, 100);
+  for (const k of [65, 66]) { const F = 0x2e76 + 0x85 * k; w16(F, 120); w16(F + 2, 356); }
+  const R = K.right, L = K.left, U = K.up, M = (x, y, bt) => ({ mouse: { x, y, b: bt } });
+  const click = (x, y) => [M(x, y + 40, 0), M(x, y + 40, 1), M(x, y + 40, 0)];
+  keys = [...idle(2), K.f3, ...idle(2), E,
+    R, R, E, E,                                   // 里斯本港
+    ...Array(9).fill(L), ...Array(7).fill(U), E, E,   // 艦隊 5
+    R, R, U, U, E, K.down, E, E, E,               // 兩支艦隊 → 第 2 個 → 資料 → 0x2fe
+    X, X, ...idle(2),
+    K.f3, ...idle(2), E, ...click(0x60 + 3 * 16 + 8, 8 + 5 * 16 + 8), E,   // 滑鼠點艦隊 5
+    ...click(600, 300), X, ...idle(2)];
+}
 for (const [a, v] of S.SEA5_POKE || []) b(a, v);
 S.SEA_POKE = poke; S.SEA_KEYS = S.SEA5_KEYS || keys;
 })();

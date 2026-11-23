@@ -13,6 +13,7 @@ import { Buildings } from "./buildings.js";
 import { Commands } from "./commands.js";
 import { marketTradeLog } from "./market.js";
 import { WorldMap } from "../gfx/worldmap.js";
+import { CellSelect } from "../ui/cellsel.js";
 
 const seaHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const seaS16 = v => (v << 16) >> 16;
@@ -376,8 +377,31 @@ export class SeaScene extends PortScene {
     this.c.scr.putPlanar(col, y, 4, 0x20, this.P.seacompass, off);
     this.c.scr.putPlanar(col, y, 4, 0x20, this.P.seacompass, off);
   }
-  // 2e09:310b = 3119b 指定目的地 (委任航行) — 尚未移植
-  async chooseDest() { seaTodo("指定目的地 (2e09:310b = 3119b)"); }
+  cellSel() { return (this.c.cellSel ??= new CellSelect(this.c)); }
+  // 2e09:310b = 3119b 指定目的地 (舵輪中央 '5' / 委任到達後未進港): [1005] |= 20 (停船), 游標 = 十字 0x2840 ([06d6]);
+  //   還沒委任時以 seg0:7925 標籤框 (0x1b, 0xc8, 0x12, 0x20) 印「請指定目的地」([8a24] = FFFF 期間印出; 沒有其他地方讀它);
+  //   0fea:5f74 地圖視窗 24 × 24 格 (2 × 2 游標, 起點 = 主角) 選格 → 取消回傳 0; 選定 → +4/+6 = 該格,
+  //   該格是港口 (1bb4a) → 23e19 換成附近可到達的海面; +0c = 0x6000, [1005] = (&DF) | 0x80, 回傳 1
+  async chooseDest() {
+    const st = this.st, { sys, win, con, printf } = this.c, F = this.fleet;
+    st.set8(0x1005, st.u8(0x1005) | 0x20);
+    sys.mouseHide();
+    this.cursor = 0x2840; sys.setCursorShape(0x2840);                 // [06d6] = 0x2840, seg0:5050
+    const deleg = st.u8(0x1005) & 0x80;
+    if (!deleg) { win.labelBox(0x1b, 0xc8, 0x12, 0x20); printf(this.SS.destPrompt); con.right = 0x50; }
+    await this.c.menu.waitRelease();                                   // 0fea:3343 = 131e3
+    const init = (Math.imul(0x18, seaS16(st.u16(F + 2) - this.vy1008)) - this.vx1006 + st.u16(F)) & 0xffff;
+    const si = await this.cellSel().select(0x60, 8, 0x18, 0x10, 0x10, 0x18, seaS16(init));
+    if (!deleg) await win.close();
+    sys.mouseShow();
+    if (si === -1) return 0;
+    const x = (si % 0x18) + this.vx1006, y = Math.trunc(si / 0x18) + this.vy1008;
+    st.set16(F + 4, x); st.set16(F + 6, y);
+    if (this.portIdAt(x, y) !== 0xffff) { const W = this.ptLocal(x, y); this.nearSea(F, W); st.set16(F + 4, W.x); st.set16(F + 6, W.y); }
+    st.set16(F + 0x0c, 0x6000);
+    st.set8(0x1005, (st.u8(0x1005) & 0xdf) | 0x80);
+    return 1;
+  }
 
   // ================= 1afe8 他艦隊的海上移動 (艦隊 AI) =================
   // 每支艦隊先查一次滑鼠右鍵 (按下 → [a9c8] |= 1 暫停); 主角與未出航 (+29 bit0 = 0) 的略過; 其他的移動屬於艦隊 AI, 尚未移植
@@ -393,12 +417,217 @@ export class SeaScene extends PortScene {
   }
 
   // ================= 2e09:38ec = 3197c 主角艦隊移動 =================
-  // 316b3 本時刻航向: 委任 ([1005]&0xc0) → 自動; 停船 (0x20) → 8; 否則 +1a
-  heading() {
-    const st = this.st, F = this.fleet, f = st.u8(0x1005);
-    if (f & 0xc0) { seaTodo("委任航行 (316b3: 1fd9:33d4 / 0fea:c0d9 / 313b1)"); st.set8(0x1005, f & 0x7f); return 8; }
-    if (f & 0x20) return 8;
+  // 316b3 本時刻航向: 委任 ([1005]&0xc0) → 自動航行; 停船 (0x20) → 8; 否則 +1a
+  //   委任中到達目的地 (+0/+2 = +4/+6, 1fd9:33d4) → 0fea:c0d9 靠港 (隱藏游標), [1005] &= 7F; 進了港 → 回傳 0;
+  //   沒進港 → 3119b 再指定目的地 (此時 [1005] bit7 已清, 會顯示「請指定目的地」); 之後 313b1 求方向 (−1 或 > 7 → [1005] &= 7F, 停船)
+  async heading() {
+    const st = this.st, F = this.fleet, f = st.u8(0x1005), { sys } = this.c;
+    if (!(f & 0xc0)) return f & 0x20 ? 8 : st.u8(F + 0x1a);
+    if (st.u16(F) === st.u16(F + 4) && st.u16(F + 2) === st.u16(F + 6)) {
+      sys.mouseHide(); await this.dock(); sys.mouseShow();
+      st.set8(0x1005, st.u8(0x1005) & 0x7f);
+      if (st.u8(0x0cae) !== 0xff) return 0;
+      await this.chooseDest();
+    }
+    const si = this.autoSteer(F);
+    if (si === 0xffff || si > 7) { st.set8(0x1005, st.u8(0x1005) & 0x7f); return 8; }
+    st.set8(F + 0x1a, si);
     return st.u8(F + 0x1a);
+  }
+
+  // ================= 委任航行的路線 (1fd9 段 231c7..241c2, 艦隊 AI 共用) =================
+  // 艦隊記錄: +4/+6 目的地  +8/+a 中途點  +0c 字: 低 3 位元 = 目前的路線格 (0..3), 字遮罩 DS:ae30 = 8000/4000/2000/1000 = 路線格 0..3 已填;
+  //   +0d 另作旗標: 80 中途點有效, 40 需重新搜尋路線, 20 直接駛向目的地, 08 路線已到目的地的地點, 02 重設誤差 +0e  (與路線格遮罩重疊, 原版如此)
+  //   +0e 直線步進的誤差累計  +10..+17 路線格 0..3 的地點編號  +1b 種類 (委任時 0)
+  // 地點表 [0c96] (DATA1 #4, 每筆 16 bytes: +0 x (bit15 = 已探索, enterSea 設定), +2 y, +4..+0b 4 個鄰點 (FFFF = 無), +0c..+0f 4 個距離)
+  pt(a) { const st = this.st; return { get x() { return st.u16(a); }, set x(v) { st.set16(a, v); }, get y() { return st.u16(a + 2); }, set y(v) { st.set16(a + 2, v); } }; }
+  ptLocal(x, y) { const o = { _x: x & 0xffff, _y: y & 0xffff, get x() { return this._x; }, set x(v) { this._x = v & 0xffff; }, get y() { return this._y; }, set y(v) { this._y = v & 0xffff; } }; return o; }
+  nodeW(n, off) { const N = this.c.nodesRT, o = ((n << 4) + off) & 0xffff; return ((N?.[o] ?? 0) | ((N?.[o + 1] ?? 0) << 8)) & 0xffff; }
+  // 313b1 自動航行的方向: 到達目的地 → 8; 241c2 失敗 → −1 (0xffff); 目標 = 中途點 (+0d&80) / 目的地 (&20) / 目前路線格的地點;
+  //   以 Bresenham 式誤差 (+0e) 在長軸上每步前進、短軸依誤差前進 → DS:b7da[3 dy + dx + 4] (與 ae38 相同的表)
+  autoSteer(F) {
+    const st = this.st;
+    if (st.u16(F) === st.u16(F + 4) && st.u16(F + 2) === st.u16(F + 6)) return 8;
+    if (!this.route(F)) return 0xffff;
+    let tx, ty;
+    const fd = st.u8(F + 0x0d);
+    if (fd & 0x80) { tx = st.u16(F + 8); ty = st.u16(F + 0x0a); }
+    else if (fd & 0x20) { tx = st.u16(F + 4); ty = st.u16(F + 6); }
+    else { const n = st.u16(F + 0x10 + 2 * (st.u8(F + 0x0c) & 7)); tx = this.nodeW(n, 0) & 0x7fff; ty = this.nodeW(n, 2); }
+    const fx = st.u16(F), fy = st.u16(F + 2);
+    const di = Math.abs(seaS16(fx - tx)) & 0xffff, dy = Math.abs(seaS16(fy - ty)) & 0xffff;   // seg0:4d76
+    let ex, ey;
+    if (st.u8(F + 0x0d) & 2) { st.set16(F + 0x0e, -Math.trunc(seaS16(di) / 2)); st.set8(F + 0x0d, st.u8(F + 0x0d) & 0xfd); }
+    if (seaS16(dy) < seaS16(di)) {
+      ex = seaSgn(seaS16(tx - fx));
+      const e = seaS16(st.u16(F + 0x0e) + dy); st.set16(F + 0x0e, e);
+      if (e < 0) ey = 0; else { st.set16(F + 0x0e, e - di); ey = seaSgn(seaS16(ty - fy)); }
+    } else {
+      ey = seaSgn(seaS16(ty - fy));
+      const e = seaS16(st.u16(F + 0x0e) + di); st.set16(F + 0x0e, e);
+      if (e < 0) ex = 0; else { st.set16(F + 0x0e, e - dy); ex = seaSgn(seaS16(tx - fx)); }
+    }
+    return this.SJ.tab.dir3[3 * ey + ex + 4];
+  }
+  // 1fd9:4432 = 241c2: 已到達目前路線格的地點 → 下一格 (24206); 艦隊在區域內 → 240a7; 否則 (只有艦隊 AI 會走到) 清中途點, 需搜尋時 232a6
+  route(F) {
+    const st = this.st, di = st.u8(F + 0x0c) & 7, n = st.u16(F + 0x10 + 2 * di);
+    if ((this.nodeW(n, 0) & 0x7fff) === st.u16(F) && this.nodeW(n, 2) === st.u16(F + 2)) this.nextNode(F, di);
+    if (this.inRegion(st.u16(F), st.u16(F + 2))) return this.regionRoute(F);
+    st.set8(F + 0x0d, st.u8(F + 0x0d) & 0x7f);
+    if (!(st.u8(F + 0x0d) & 0x40)) return 1;
+    if (st.u8(F + 0x0d) & 8) { st.set8(F + 0x0d, st.u8(F + 0x0d) | 0x20); return 1; }
+    return this.routeSearch(F);
+  }
+  // 24206 / 24112: 清掉路線格 di 的遮罩, 目前格 = (di + 1) & 3, +0d |= 2; +0c 低位元組 & F0 = 0 時 +0d |= 40 (原版以低位元組判斷, 與遮罩所在的高位元組不同)
+  nextNode(F, di) {
+    const st = this.st, AE = [0x8000, 0x4000, 0x2000, 0x1000];
+    let c = st.u16(F + 0x0c) & ~AE[di] & 0xffff;
+    c = (c & 0xfff8) | ((di + 1) & 3) | 0x200;
+    st.set16(F + 0x0c, c);
+    if (!(c & 0xf0)) st.set8(F + 0x0d, st.u8(F + 0x0d) | 0x40);
+  }
+  // 2317c 點在目前區域 (72 × 72) 內
+  inRegion(x, y) {
+    const left = (this.item * 0x2d0 + this.bda6) & 0xffff;
+    return ((x - left) & 0xffff) < 0x48 && ((y - this.bdaa) & 0xffff) < 0x48 ? 1 : 0;
+  }
+  // 240a7 區域內的路線: 中途點無效 → 設 +0d |= 82; 已到達中途點 → (到了路線格的地點就換下一格) 重求; 否則沿用 (回傳 1)
+  //   需搜尋 (+0d&40): 已到目的地的地點 (&8) → 直接駛向目的地 (|= 20), 否則 232a6; 之後 23e53 取目標 → 區域內就以 23a97(模式 1) 求中途點;
+  //   失敗時 24008 (項的左右 / 南北邊界), 再失敗 23ef7 把目標投影到區域邊上後 23a97
+  regionRoute(F) {
+    const st = this.st, W = this.pt(F + 8);
+    if (!(st.u8(F + 0x0d) & 0x80)) st.set8(F + 0x0d, st.u8(F + 0x0d) | 0x82);
+    else {
+      if (W.x !== st.u16(F) || W.y !== st.u16(F + 2)) return 1;
+      const di = st.u8(F + 0x0c) & 7, n = st.u16(F + 0x10 + 2 * di);
+      if ((this.nodeW(n, 0) & 0x7fff) === st.u16(F) && this.nodeW(n, 2) === st.u16(F + 2)) this.nextNode(F, di);
+    }
+    if (st.u8(F + 0x0d) & 0x40) { if (st.u8(F + 0x0d) & 8) st.set8(F + 0x0d, st.u8(F + 0x0d) | 0x20); else this.routeSearch(F); }
+    if (this.wayTarget(F, W) && this.pathStep(F, W, 1)) return 1;
+    if (this.edgeTarget(F, W)) return 1;
+    if (this.clipTarget(F, W)) return this.pathStep(F, W, 1);
+    return 0;
+  }
+  // 23e53 目標: 直接駛向目的地 (+0d&20) 時 = +4/+6 (+1b 為 0..3 或 9、目的地在區域內且是陸地 → 23e19 換成附近可到達的海面並寫回 +4/+6);
+  //   否則 = 目前路線格的地點。回傳 目標在區域內
+  wayTarget(F, W) {
+    const st = this.st;
+    if (st.u8(F + 0x0d) & 0x20) {
+      const b = st.u8(F + 0x1b);
+      if ((b <= 3 || b === 9) && this.inRegion(st.u16(F + 4), st.u16(F + 6)) && this.landAt(st.u16(F + 4), st.u16(F + 6))) {
+        this.nearSea(F, W); st.set16(F + 4, W.x); st.set16(F + 6, W.y);
+      }
+      W.x = st.u16(F + 4); W.y = st.u16(F + 6);
+    } else { const n = st.u16(F + 0x10 + 2 * (st.u8(F + 0x0c) & 7)); W.x = this.nodeW(n, 0) & 0x7fff; W.y = this.nodeW(n, 2); }
+    return this.inRegion(W.x, W.y);
+  }
+  // 艦隊在第 0 項而目標在第 2 項 (或相反) 時把目標 x 換到相鄰的一圈 (±0x870)
+  wrapX(fx, si) {
+    if (fx < 0x2d0) { if (si >= 0x5a0) si -= 0x870; } else if (fx >= 0x5a0) { if (si < 0x2d0) si += 0x870; }
+    return si;
+  }
+  // 24008 艦隊在項的左右邊緣 (x mod 720 = 0 / 0x2ce) 或南北邊緣 (y = 0 / 0x436) 而目標在外側 → 目標 = 艦隊位置外 2 格, 回傳 1
+  edgeTarget(F, W) {
+    const st = this.st, fx = seaS16(st.u16(F)), fy = seaS16(st.u16(F + 2)), fm = fx % 0x2d0;
+    const si = this.wrapX(fx, seaS16(W.x));
+    if (fm === 0 && fx > si) { W.x = fx - 2; return 1; }
+    if (fm === 0x2ce && si > fx) { W.x = fx + 2; return 1; }
+    if (fy === 0 && seaS16(W.y) < fy) { W.y = fy - 2; return 1; }
+    if (fy === 0x436 && seaS16(W.y) > fy) { W.y = fy + 2; return 1; }
+    return 0;
+  }
+  // 23ef7 目標在區域外: 沿艦隊 → 目標的直線投影到區域的左 / 右 (left / left + 0x46)、上 / 下 (top / top + 0x46) 邊; 乘積只取低 16 位元 (imul 後 cwd)
+  clipTarget(F, W) {
+    const st = this.st, left = seaS16(this.item * 0x2d0 + this.bda6), top = seaS16(this.bdaa);
+    const fx = seaS16(st.u16(F)), fy = seaS16(st.u16(F + 2));
+    let si = this.wrapX(fx, seaS16(W.x)), di = seaS16(W.y);
+    const q = (a, b, c) => Math.trunc(seaS16(Math.imul(a, b)) / seaS16(c));
+    if (left > si) { di = seaS16(di + q(fy - di, left - si, fx - si)); si = left; }
+    else if (left + 0x48 <= si) { di = seaS16(di + q(fy - di, left - si + 0x46, fx - si)); si = left + 0x46; }
+    if (top > di) { si = seaS16(si + q(fx - si, top - di, fy - di)); di = top; }
+    else if (top + 0x48 <= di) { si = seaS16(si + q(fx - si, top - di + 0x46, fy - di)); di = top + 0x46; }
+    W.x = si; W.y = di;
+    return this.inRegion(W.x, W.y);
+  }
+  // 1fd9:4089 = 23e19: 目的地 (+4/+6) 周圍 12 個位置 (23d7b 堆疊上的表) 中第一個 在區域內、不是陸地、且 23872 可到達 的 → W (都不行時 W = 最後一個)
+  nearSea(F, W) {
+    const st = this.st, D = [0, -2, 0, 2, 2, 0, -2, 0, -1, -2, 1, -2, 2, -1, 2, 1, -1, 2, 1, 2, -2, -1, -2, 1];
+    for (let i = 0; i < 12; i++) {
+      W.x = st.u16(F + 4) + D[2 * i]; W.y = st.u16(F + 6) + D[2 * i + 1];
+      if (!this.inRegion(W.x, W.y) || this.landAt(W.x, W.y)) continue;
+      if (this.pathField(F, W)) return 1;
+    }
+    return 0;
+  }
+  // 231c7 最近的地點 (由最後一筆往前, 距離平方, x 差依世界一圈 0x870 取近的一邊; 找到距離 0 即停): 回傳編號 | (距離 0 ? 0x8000 : 0)
+  nearestNode(px, py) {
+    const N = this.SJ.nodeCount;
+    let best = 0xffffffff, bi = 0xffff;
+    for (let i = N - 1; i >= 0 && best !== 0; i--) {
+      const dx = seaS16((this.nodeW(i, 0) & 0x7fff) - px), dy = seaS16(this.nodeW(i, 2) - py);
+      let si = dx;
+      if (dx > 0x438) si = seaS16(si - 0x870); else if (si < -0x438) si = seaS16(si + 0x870);
+      const d = (dy * dy + si * si) >>> 0;                             // seg0:37bc 長整數乘法
+      if (d < best) { best = d; bi = i; }
+    }
+    return (best === 0 ? 0x8000 : 0) | bi;
+  }
+  // 232a6 地點路線搜尋: 由目的地最近的地點往外做廣度優先 (5 bytes 的佇列項 {由哪個方向來的位元, 地點, 距離}; 已訪問的只放寬距離, 不重排),
+  //   主角艦隊只走已探索 (+1 bit7) 的地點; 擴展到起點後由起點沿「距離 + 邊長 = 本點距離」的鄰點走回, 最多 4 個 (起點本身距離 0 時不算)
+  //   → 從目前路線格起找第一個空格 (DS:ae30 遮罩), 依序填入, 遇到目的地的地點時 +0d |= 8; 最後 +0d &= BF。起點 = 目的地的地點且距離 0 → +0d |= 28
+  routeSearch(F) {
+    const st = this.st, N = this.c.nodesRT, AE = [0x8000, 0x4000, 0x2000, 0x1000];
+    const link = (n, k) => this.nodeW(n, 4 + 2 * k), cost = (n, k) => N?.[((n << 4) + 0x0c + k) & 0xffff] ?? 0;
+    const s0 = this.nearestNode(st.u16(F), st.u16(F + 2)), start = s0 & 0x7fff;
+    const goal = this.nearestNode(st.u16(F + 4), st.u16(F + 6)) & 0x7fff;
+    if ((s0 & 0x8000) && start === goal) { st.set8(F + 0x0d, st.u8(F + 0x0d) | 0x28); return 1; }
+    const E = [{ flags: 0, node: goal, cost: 0 }], vis = new Int16Array(0x300).fill(-1);
+    vis[goal] = 0;
+    const hero = F === this.fleet;
+    let head = 0, found = 0;
+    while (!found && head < E.length) {
+      const h = E[head];
+      if (h.node === start) break;
+      for (let k = 0, mask = 8; k < 4; k++, mask >>= 1) {
+        if (h.flags & mask) continue;
+        const nb = link(h.node, k); if (nb === 0xffff) continue;
+        const c = (cost(h.node, k) + h.cost) & 0xffff;
+        if (hero && !((N?.[((nb << 4) + 1) & 0xffff] ?? 0) & 0x80)) continue;
+        h.flags |= mask;
+        let rm = 8; for (let j = 0; j < 64 && link(nb, j) !== h.node; j++) rm = (rm >> 1) & 0xff;   // 2333d: 鄰點的哪一個鄰點是本點 (原版不限次數)
+        if (vis[nb] < 0) {
+          vis[nb] = E.length; E.push({ flags: rm, node: nb, cost: c });
+          if (nb === start) { found = 1; break; }
+        } else { const e = E[vis[nb]]; e.flags |= rm; if (seaS16(e.cost) > seaS16(c)) e.cost = c; }
+      }
+      head++;
+    }
+    const path = [];
+    if (!(s0 & 0x8000)) path.push(start);
+    let cur = start;
+    while (cur !== goal && path.length < 4) {
+      if (vis[cur] < 0) { seaTodo("232a6 路線搜尋失敗 (原版讀到堆疊上的殘值)"); break; }
+      const e = E[vis[cur]];
+      let k = 0;
+      for (let mask = 8; k < 4; k++, mask >>= 1) {
+        if (!(e.flags & mask)) continue;
+        const nb = link(e.node, k), v = vis[nb];
+        if (v >= 0 && ((cost(e.node, k) + E[v].cost) & 0xffff) === e.cost) break;
+      }
+      cur = link(e.node, k);                                           // k = 4 (都不符) 時讀到距離欄位, 原版如此
+      path.push(cur);
+    }
+    let slot = st.u8(F + 0x0c) & 7;
+    for (let g = 0; g < 4 && (AE[slot & 3] & st.u16(F + 0x0c)); g++) slot = (slot + 1) & 3;
+    for (let i = 0; i < path.length; i++, slot = (slot + 1) & 3) {
+      if ((st.u8(F + 0x0c) & 0xf0) === 0xf0) break;
+      st.set16(F + 0x0c, st.u16(F + 0x0c) | AE[slot & 3]);
+      st.set16(F + 0x10 + 2 * slot, path[i]);
+      if (path[i] === goal) { st.set8(F + 0x0d, st.u8(F + 0x0d) | 8); break; }
+    }
+    st.set8(F + 0x0d, st.u8(F + 0x0d) & 0xbf);
+    return 1;
   }
   // 314eb 船速 (各船取最小): 風向差 k = |風向 − 航向| → DS:06d8 表第 k 列的帆種係數 × 推進力 × 風力 (縱帆船 (+10 bit4 = 0) 風力至少 3) / 150
   //   × min(100, 駕駛% × 水手 / 船型 +5) / 100 × min(150, 180 − min(180, 載重%)) / 100 → 加上航海術 (+24) 10%/點 (上限 30) → × 技能 (+1d) / 75 (上限 40)
@@ -464,7 +693,7 @@ export class SeaScene extends PortScene {
   }
   async heroMove() {
     const st = this.st, F = this.fleet;
-    let si = this.heading();
+    let si = await this.heading();
     if (this.port !== 0xff) return;
     if (si !== 8) {
       const a = st.u8(0x0cb1), b = st.u8(0x0cb2);
@@ -491,7 +720,7 @@ export class SeaScene extends PortScene {
     this.scroll();
   }
   // 1fd9:44d8 = 24268: 三個方向都被擋住 → 23a97(目標 = 艦隊 +8, 艦隊, 0): 以 +8/+a 為目標重求中途點寫回 +8/+a
-  blocked() { this.pathStep(this.fleet, this.fleet + 8, 0); }
+  blocked() { this.pathStep(this.fleet, this.pt(this.fleet + 8), 0); }
   // 237fb + 23872 區域距離場 (緩衝 [0c88] = 視窗保存區, 72 × 72 字): 0x800 = 未到, 0x801 = 陸地 (圖塊 >= 0x34); 由目標往外做帶權最短路
   //   (DS:ae18: 8 方向 dx, dy, 成本 2 / 3; 佇列 = 堆疊上 72×72 字的環狀緩衝, 插入排序); 船身 2×2: 該格與 東、南、東南 都不能是陸地
   //   回傳 1 = 由目標擴展到了起點 (起點 = 艦隊 F, 座標以區域左上為原點的 8 位元值); 目標在陸地上或到不了 → 0
@@ -499,7 +728,7 @@ export class SeaScene extends PortScene {
     const st = this.st, D = this.SJ.tab.path8, N = 72 * 72, Q = new Int32Array(N);
     const buf = (this.pathBuf ??= new Uint16Array(0x8000)); buf.fill(0);
     const left = (this.item * 0x2d0 + this.bda6) & 0xffff, top = this.bdaa & 0xffff;
-    const sx = (st.u16(F) - left) & 0xff, sy = (st.u16(F + 2) - top) & 0xff, tx = (st.u16(T) - left) & 0xff, ty = (st.u16(T + 2) - top) & 0xff;
+    const sx = (st.u16(F) - left) & 0xff, sy = (st.u16(F + 2) - top) & 0xff, tx = (T.x - left) & 0xff, ty = (T.y - top) & 0xff;
     for (let y = 0; y < 72; y++) for (let x = 0; x < 72; x++) buf[y * 72 + x] = this.seaBuf[y * 0x60 + x] >= 0x34 ? 0x801 : 0x800;
     const ti = ty * 72 + tx;
     if (buf[ti] > 0x800) return 0;
@@ -537,9 +766,9 @@ export class SeaScene extends PortScene {
     if (!this.pathField(F, T)) return 0;
     const buf = this.pathBuf;
     const left = (this.item * 0x2d0 + this.bda6) & 0xffff, top = this.bdaa & 0xffff;
-    const fx = seaS16(st.u16(F) - left), fy = seaS16(st.u16(F + 2) - top), tx = seaS16(st.u16(T) - left), ty = seaS16(st.u16(T + 2) - top);
+    const fx = seaS16(st.u16(F) - left), fy = seaS16(st.u16(F + 2) - top), tx = seaS16(T.x - left), ty = seaS16(T.y - top);
     const ti = seaS16(ty * 72 + tx); let cur = seaS16(fy * 72 + fx);
-    if (cur === ti) { st.set16(T, left); st.set16(T + 2, top); return 1; }
+    if (cur === ti) { T.x = left; T.y = top; return 1; }
     const path = []; let x = fx, y = fy;
     while (cur !== ti && path.length < 0x100) {
       let best = buf[cur & 0x7fff], bd = 0;
@@ -551,14 +780,25 @@ export class SeaScene extends PortScene {
       }
       cur = seaS16(cur + D[bd * 3] + 72 * D[bd * 3 + 1]); path.push(cur); x += D[bd * 3]; y += D[bd * 3 + 1];
     }
-    let y0 = Math.trunc(path[0] / 72), x0 = path[0] % 72;
-    const d = this.SJ.tab.dir3[(y0 - fy) * 3 + (x0 - fx) + 4], X = this.SJ.tab.dirX, Y = this.SJ.tab.dirY;
-    for (let si = 1; si < path.length; si++) {
-      if (path[si] !== (x0 + X[d]) + (y0 + Y[d]) * 72) break;
+    let y0 = Math.trunc(path[0] / 72), x0 = path[0] % 72, run = 0, si = 1;
+    let d = this.SJ.tab.dir3[(y0 - fy) * 3 + (x0 - fx) + 4];
+    const X = this.SJ.tab.dirX, Y = this.SJ.tab.dirY, next = k => (x0 + X[k]) + (y0 + Y[k]) * 72;   // DS:ae42 / ae4a (與 0718 / 0720 相同)
+    for (; si < path.length; si++, run++) {
+      if (path[si] !== next(d)) break;
       x0 += X[d]; y0 += Y[d];
     }
-    if (mode) seaTodo("23a97 轉向嘗試 (艦隊 AI)");
-    st.set16(T, x0 + left); st.set16(T + 2, y0 + top);
+    // 23c9c 第 3 引數 ≠ 0 (委任 / 艦隊 AI 的 240a7): 路線轉彎處先試 方向 +1、再試 −1 走一格; 轉成功且直線段長度 ≠ 0 時沿新方向繼續延伸
+    if (mode && path.length > si) {
+      d = (d + 1) & 7;
+      let ok = path[si] === next(d);
+      if (!ok) { d = (d - 2) & 7; ok = path[si] === next(d); }
+      if (!ok) run = 0;
+      else for (;;) {
+        x0 += X[d]; y0 += Y[d]; si++;
+        if (!run || path.length <= si || path[si] !== next(d)) break;
+      }
+    }
+    T.x = x0 + left; T.y = y0 + top;
     return 1;
   }
   // 31b73 地圖視窗捲動: 主角離視窗左上 < 11 − [0ca9] 或 > 11 + [0ca9] 時移動一格 (x 限 項內 0..0x2b8, y 0..0x420)
@@ -1030,7 +1270,8 @@ export class SeaScene extends PortScene {
   }
 
   // 2e09:3223 = 312b3 委任: 職務 3 的第一個船員 (seg0:5cee) 沒有或 +30 bit4 (技能) = 0 → 船員 0x357/0x358 (+2f bit3), 回傳 0;
-  //   否則 0fea:321a 已發現港口清單 (清單 0x85) 選目的地 → 艦隊 +4/+6 = 港口座標, +0c = 0x4000, +1b = 0, [1005] = (&DF) | 0x80 — 清單之後尚未移植
+  //   否則 0fea:321a 已發現港口清單 (清單 0x85 = 種類 5 港名) → 艦隊 +4/+6 = 港口座標 (陸地上, 之後 23e53 換成附近的海), +0c = 0x4000, +1b = 0,
+  //   [1005] = (&DF) | 0x80 (之後每個時刻由 316b3 / 313b1 自動航行); 取消 → 0
   async delegate() {
     const st = this.st;
     let ok = 0;
@@ -1039,8 +1280,19 @@ export class SeaScene extends PortScene {
       if (st.u8(st.personRecord(n) + 0x2e) === 3) { if (st.u8(st.personRecord(n) + 0x30) & 0x10) ok = 1; break; }
     }
     if (!ok) { await this.crewSay(0x358, 0x357); return 0; }
-    seaTodo("委任 目的地清單與自動航行 (0fea:321a / 清單 0x85 / 316b3 / 313b1)");
-    return 0;
+    const si = await this.b.listSel().select(0x85, this.knownPorts());
+    if (si < 0) return 0;
+    const R = 0x5f54 + (((this.c.persons[si] & 0xff) * 0x16) & 0xffff), F = this.fleet;   // seg0:5c9a
+    st.set16(F + 4, st.u16(R)); st.set16(F + 6, st.u16(R + 2));
+    st.set16(F + 0x0c, 0x4000); st.set8(F + 0x1b, 0);
+    st.set8(0x1005, (st.u8(0x1005) & 0xdf) | 0x80);
+    return 1;
+  }
+  // 0fea:321a = 130ba 已發現 (+15 bit4) 的港口編號 → [0538], 回傳個數
+  knownPorts() {
+    const st = this.st, P = this.c.persons; let n = 0;
+    for (let i = 0; i < 0x82; i++) if (st.u8(0x5f54 + i * 0x16 + 0x15) & 0x10) P[n++] = i;
+    return n;
   }
   // ================= 停船 / 出航 20ee3 =================
   async stopToggle() {
@@ -1168,6 +1420,106 @@ export class SeaScene extends PortScene {
       if (await this.c.menu.yesNo()) return this.c.persons[si];
     }
   }
-  // 1feae 偵察: 0fea:5f74 = 15e14 地圖格游標選擇 → 港口 (「船長，那是%s港．」) / 艦隊情報 — 尚未移植
-  async scout() { seaTodo("偵察 (1feae / 15e14 地圖游標)"); }
+  // 1feae 偵察: 1fd9c 選格 → 港口 (已顯示訊息) / 沒有 → 再選; 艦隊 → 指揮者的資料視窗 7849(0x0f, 0x20, 0x21, 0xd8, 1):
+  //   「名•姓」、國名 (DS:08de; 國籍 6 時 = 指揮者編號 mod 6) + 艦隊種類 (MENU #0x27: 艦隊編號 mod 10 = 0 → 0, 1..4 → 1, 5..9 → 2)、
+  //   速度 (1acbf / 2, 呼叫端把風力 / 風向、海流方向 / 強度對調傳入, 原版如此)、航向 (MENU #0x28[+1a])、各船名 (兩欄, 行高 [8a1e] = 0x10)
+  //   艦隊編號 61..69 (除 60) 時, 船員中最高的 +1e > random(90) → 船員 0x2fe「國名 + 種類」
+  async scout() {
+    const st = this.st, { win, con, printf, message, menu } = this.c, S = this.SS, rng = this.c.sys.rng;
+    const types = (this.fleetTypes ??= this.c.menuItems(0x27)), heads = (this.headNames ??= this.c.menuItems(0x28));   // 2e09:57aa
+    const nations = (this.nationNames ??= this.P.data.nations.map(seaHex));
+    for (;;) {
+      const al = await this.scoutPick();                               // 1fd9c
+      if (al === 0xff) return;
+      if (al === 0x80) continue;
+      const P = st.personRecord(al), F = 0x2e76 + ((0x85 * st.u8(P + 0x2c)) & 0xffff);   // seg0:5c28
+      let nat = st.u8(P + 0x31) & 0x0f; if (nat === 6) nat = al % 6;
+      let ty = st.u8(P + 0x2c) % 10; ty = ty ? Math.trunc(ty / 5) + 1 : 0;
+      win.shadowedSaved(0x0f, 0x20, 0x21, 0xd8, 1);                    // 7849
+      con.left = 0x11; con.right = 0x2e;
+      con.setCursor(-1, 0x30);                                         // seg0:4434
+      printf(S.scName, st.cstr(P), st.cstr(P + 0x0d));
+      printf(S.scNation, nations[nat], types[ty]);
+      const a = st.u8(0x0cb1), b = st.u8(0x0cb2);
+      const spd = this.fleetSpeed(F, a & 7, a >> 3, b >> 3, b & 7);    // 0fea:ae1f = 1acbf
+      printf(S.scSpeed, Math.trunc(seaS16(spd) / 2));
+      printf(S.scHead, heads[st.u8(F + 0x1a)] ?? Uint8Array.of(0));
+      con.setCursor(-1, 0x98);
+      con.lineH = 0x10;                                                // [8a1e]
+      let col = 0;
+      for (let i = 0; i < 10; i++) {
+        const Sl = F + 0x2b + 9 * i;
+        if ((st.u8(Sl + 8) & 0x30) !== 0x10) continue;
+        con.setCursor(col ? 0x20 : 0x11, -1);                          // seg0:442c
+        printf(S.scShip, st.cstr(this.shipRec(st.u8(Sl + 7))));
+        if (col) printf(S.nl);
+        col ^= 1;
+      }
+      await menu.waitPrompt(); await win.close();
+      con.lineH = 0x18;
+      if (Math.trunc(st.u8(P + 0x2c) / 10) !== 6 || st.u8(P + 0x2c) === 0x3c) continue;
+      const n = this.b.crewCount(); let mx = 0;
+      for (let i = 0; i < n; i++) { const v = st.u8(st.personRecord(this.c.persons[i] & 0xff) + 0x1e); if (v > mx) mx = v; }
+      if (rng.random(0x5a) < mx) { this.b.crewSpeaks(); message(0x2fe, nations[nat], types[ty]); await menu.waitPrompt(); await win.close(); }
+    }
+  }
+  // 1fd9c 偵察的選格: 0fea:5f74 地圖視窗 24 × 24 格 (起點 = 主角) → 取消 0xff; 已發現港口 (+15 bit4) 的座標 = 視窗左上 + 格 → 「船長，那是%s港．」0x80;
+  //   0fea:31a8 該格的他艦隊: 0 → 0xd7「那兒什麼也沒有」0x80; 1 → 指揮者; 多個 → 清單 0x8c (種類 12) 選 (取消 0x80)
+  async scoutPick() {
+    const st = this.st, F = this.fleet, { win, printf, message, menu } = this.c;
+    const init = seaS16(Math.imul(seaS16(st.u16(F + 2) - this.vy1008), 0x18) + seaS16(st.u16(F) - this.vx1006));
+    const c = await this.cellSel().select(0x60, 8, 0x18, 0x10, 0x10, 0x18, init);
+    if (c < 0) return 0xff;
+    for (let di = 0; di < 0x82; di++) {
+      const R = 0x5f54 + di * 0x16;
+      if (((st.u16(R) - (c % 0x18)) & 0xffff) !== st.u16(0x1006) || ((st.u16(R + 2) - Math.trunc(c / 0x18)) & 0xffff) !== st.u16(0x1008)) continue;
+      if (!(st.u8(R + 0x15) & 0x10)) continue;
+      win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0);
+      printf(this.SS.scPort, st.cstr(R + 4));
+      await menu.waitPrompt(); await win.close();
+      return 0x80;
+    }
+    const n = this.fleetsAt(c);
+    if (!n) { win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0); message(0xd7); await menu.waitPrompt(); await win.close(); return 0x80; }
+    if (n === 1) return this.c.persons[0] & 0xff;
+    const si = await this.b.listSel().select(0x8c, n);
+    if (si === -1) return 0x80;
+    return this.c.persons[si] & 0xff;
+  }
+  // 0fea:31a8 = 13048 格 c (視窗內) 上的他艦隊 (出航中、非 +29 bit4、指揮者不是主角) 的指揮者 → [0538]
+  fleetsAt(c) {
+    const st = this.st, P = this.c.persons; let n = 0;
+    for (let k = 0; k < 0x46; k++) {
+      const F = 0x2e76 + k * 0x85;
+      if (!(st.u8(F + 0x29) & 1) || (st.u8(F + 0x29) & 0x10) || st.u8(F + 0x2a) === st.u8(0x12b5)) continue;
+      if (((st.u16(F) - (c % 0x18)) & 0xffff) === st.u16(0x1006) && ((st.u16(F + 2) - Math.trunc(c / 0x18)) & 0xffff) === st.u16(0x1008)) P[n++] = st.u8(F + 0x2a);
+    }
+    return n;
+  }
+  // 0fea:ae1f = 1acbf 艦隊 F 的速度 (艦隊 AI 共用): AX = wDir, DX = wStr, [bp+6] = cB, [bp+8] = cA
+  //   各船: 風向差 k = |wDir − 航向| 的帆種係數 × 推進力 × wStr / 150 → + 指揮者 +24 × v / 10 (上限 30) → × 指揮者 +1d / 75 (上限 40),
+  //   k = 3..5 再 × 轉向力 / 100; 取最小 (至少 2); 再依 |cA − 航向|: 0..1 或 ≥ 7 → + min(40 − v, cB), 3..5 → − min(v − 1, cB);
+  //   wStr = 0 且沒有縱帆船 → 0 (與 314eb 不同: 沒有水手與載重項, 也沒有縱帆船至少 3 的風力)
+  fleetSpeed(F, wDir, wStr, cB, cA) {
+    const st = this.st, T = this.SJ.tab.windSpeed, P = st.personRecord(st.u8(F + 0x2a));
+    const lv = st.u8(P + 0x24), sk = st.u8(P + 0x1d), hd = st.u8(F + 0x1a);
+    let best = 0xff, fore = 0;
+    const k = Math.abs(seaS16(wDir - hd)) & 0xff, k2 = Math.abs(seaS16(cA - hd)) & 0xff, beat = k >= 3 && k <= 5;
+    for (let i = 0; i < 10; i++) {
+      const S = F + 0x2b + 9 * i;
+      if ((st.u8(S + 8) & 0x30) !== 0x10) continue;
+      const ship = this.shipRec(st.u8(S + 7));
+      if (!(st.u8(ship + 0x10) & 0x10)) fore = (fore - 1) & 0xff;
+      const t = this.typeOf(st.u8(ship + 0x0f));
+      let v = Math.trunc(seaS16(Math.imul((T[((k * 8) & 0xffff) + st.u8(t + 9)] ?? 0) * st.u8(S + 5), wStr)) / 0x96) & 0xff;
+      v = seaUmin(0x1e, (Math.trunc(seaS16(Math.imul(v, lv)) / 10) + v) & 0xffff) & 0xff;
+      v = seaUmin(0x28, Math.trunc(seaS16(Math.imul(v, sk)) / 0x4b) & 0xffff) & 0xff;
+      if (beat) v = Math.trunc((st.u8(S + 4) * v) / 100) & 0xff;
+      if (v < best) best = v;
+    }
+    if (best < 2) best = 2;
+    if (k2 === 0 || k2 === 1 || k2 >= 7) best = (best + seaUmin(0x28 - best, cB)) & 0xff;
+    else if (k2 >= 3 && k2 <= 5) best = (best - seaUmin(best - 1, cB)) & 0xff;
+    return !wStr && !fore ? 0 : best;
+  }
 }
