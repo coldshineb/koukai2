@@ -1,0 +1,478 @@
+{
+ "stateBase": 3236,
+ "stateEnd": 36120,
+ "loadSize": 32116,
+ "globals": [
+  {
+   "name": "options",
+   "ds": 3236,
+   "type": "u8",
+   "evidence": "環境設定位元 (1 動畫效果, 4 背景音樂, …); 0FEA:16c5e 讀檔修正"
+  },
+  {
+   "name": "year",
+   "ds": 3242,
+   "type": "u8",
+   "evidence": "0FEA:1681a 複製到 [0532]"
+  },
+  {
+   "name": "month",
+   "ds": 3243,
+   "type": "u8",
+   "evidence": "→ [0533], main 以它為月迴圈起點"
+  },
+  {
+   "name": "day",
+   "ds": 3244,
+   "type": "u8",
+   "evidence": "→ [0534]"
+  },
+  {
+   "name": "time",
+   "ds": 3245,
+   "type": "u8",
+   "evidence": "→ [0535]; 調色盤時段 (0FEA:1975a)"
+  },
+  {
+   "name": "port",
+   "ds": 3246,
+   "type": "u8",
+   "evidence": "目前港口, FF = 海上 (0FEA:1721f)"
+  },
+  {
+   "name": "weather",
+   "ds": 3251,
+   "type": "u8",
+   "evidence": "天候 (0FEA:1976e)"
+  },
+  {
+   "name": "hero",
+   "ds": 4789,
+   "type": "u8",
+   "evidence": "主角編號 0..5 (0FEA:162e4)"
+  }
+ ],
+ "tables": [
+  {
+   "name": "countries",
+   "ds": 4474,
+   "stride": 32,
+   "count": 7,
+   "accessor": "seg0:5bde",
+   "note": "6 國 + 海盜 (與名稱表 countries 同序)",
+   "fields": [
+    {
+     "name": "capitalPort",
+     "off": 10,
+     "type": "u8",
+     "evidence": "0FEA:18786 [rec+0Ah] → 港口表 (seg0:5c9a)",
+     "confidence": "confirmed",
+     "ref": "ports"
+    },
+    {
+     "name": "relations",
+     "off": 11,
+     "type": "u8",
+     "evidence": "對角線為 100 (各國對自己); 推定為國與國的友好度",
+     "confidence": "inferred",
+     "count": 7
+    }
+   ]
+  },
+  {
+   "name": "heroData",
+   "ds": 4698,
+   "stride": 14,
+   "count": 6,
+   "accessor": "seg0:5be8",
+   "note": "6 筆, 與主角數相同; 用途待查",
+   "fields": [
+    {
+     "name": "countryStanding",
+     "off": 6,
+     "type": "u8",
+     "evidence": "初值全為 100, 7 筆對應 7 國; 推定",
+     "confidence": "inferred",
+     "count": 7
+    }
+   ]
+  },
+  {
+   "name": "persons",
+   "ds": 4790,
+   "stride": 50,
+   "count": 120,
+   "accessor": "seg0:5bf8",
+   "note": "人物 (主角、提督、船長、夥伴)",
+   "fields": [
+    {
+     "name": "givenName",
+     "off": 0,
+     "type": "str",
+     "evidence": "0FEA:185a7 由 NAME.TBL 隨機抽名字寫入 rec+0",
+     "confidence": "confirmed",
+     "size": 13
+    },
+    {
+     "name": "familyName",
+     "off": 13,
+     "type": "str",
+     "evidence": "0FEA:185a7 寫入 rec+0Dh",
+     "confidence": "confirmed",
+     "size": 13
+    },
+    {
+     "name": "portrait",
+     "off": 26,
+     "type": "u16",
+     "evidence": "seg0:7d39: bit14-15 ≠ 0 → 拼合頭像部件字, 否則為具名頭像編號",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "stats",
+     "off": 28,
+     "type": "u8",
+     "evidence": "0FEA:186b4 生成 8 個 60..94 的值; 名稱對應待確認",
+     "confidence": "inferred",
+     "count": 8
+    },
+    {
+     "name": "navLevel",
+     "off": 36,
+     "type": "u8",
+     "evidence": "0FEA:1d302 MESSAGE #398「航海水平」印 rec+24h",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "battleLevel",
+     "off": 37,
+     "type": "u8",
+     "evidence": "0FEA:1d31e MESSAGE #399「戰鬥水平」印 rec+25h",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "navExp",
+     "off": 38,
+     "type": "u16",
+     "evidence": "生成時與 +28h 一起清 0; 推定為經驗值",
+     "confidence": "inferred"
+    },
+    {
+     "name": "battleExp",
+     "off": 40,
+     "type": "u16",
+     "evidence": "同上",
+     "confidence": "inferred"
+    },
+    {
+     "name": "age",
+     "off": 42,
+     "type": "u8",
+     "evidence": "0FEA:186b1 生成 20..35; 推定為年齡",
+     "confidence": "inferred"
+    },
+    {
+     "name": "fleet",
+     "off": 44,
+     "type": "u8",
+     "evidence": "0FEA:162f1 [rec+2Ch] → 艦隊表 (seg0:5c28); 初值中有 10 人為 FE (推定 = 不屬於任何艦隊)",
+     "confidence": "confirmed",
+     "ref": "fleets"
+    },
+    {
+     "name": "face",
+     "off": 49,
+     "type": "u8",
+     "evidence": "seg0:7d39 低 4 位元 = 拼合頭像種類; 0FEA:1875b 生成時 |= 20h",
+     "confidence": "confirmed"
+    }
+   ]
+  },
+  {
+   "name": "nobles",
+   "ds": 10790,
+   "stride": 22,
+   "count": 20,
+   "accessor": "seg0:5c08",
+   "note": "劇情人物 (國王、貴族、總督等) — 名稱首筆為「執事…」「…伯爵」「…公爵」",
+   "fields": [
+    {
+     "name": "name",
+     "off": 0,
+     "type": "str",
+     "evidence": "記錄開頭為名稱字串",
+     "confidence": "confirmed",
+     "size": 17
+    }
+   ]
+  },
+  {
+   "name": "barmaids",
+   "ds": 11230,
+   "stride": 19,
+   "count": 34,
+   "accessor": "seg0:5c18",
+   "note": "酒吧女郎 (34 人; 有 0x12 bytes 尾隨資料在 2E64)",
+   "fields": [
+    {
+     "name": "name",
+     "off": 0,
+     "type": "str",
+     "evidence": "記錄開頭為名稱字串",
+     "confidence": "confirmed",
+     "size": 13
+    }
+   ]
+  },
+  {
+   "name": "fleets",
+   "ds": 11894,
+   "stride": 133,
+   "count": 70,
+   "accessor": "seg0:5c28",
+   "fields": [
+    {
+     "name": "x",
+     "off": 0,
+     "type": "u16",
+     "evidence": "0FEA:187a7 由港口 +0/+2 複製到艦隊 +0/+2 (出港時位置)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "y",
+     "off": 2,
+     "type": "u16",
+     "evidence": "同上",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "ships",
+     "off": 43,
+     "type": "struct",
+     "evidence": "seg0:5c58: 編號 <10 時 = [c2d4]+2Bh+9×編號 (所屬艦隊的 10 艘)",
+     "confidence": "confirmed",
+     "count": 10,
+     "size": 9,
+     "fields": [
+      {
+       "name": "ship",
+       "off": 7,
+       "type": "u8",
+       "evidence": "0FEA:148c1 [slot+7] → 船隻表 (seg0:5c7a)",
+       "confidence": "confirmed",
+       "ref": "ships"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "t52d4",
+   "ds": 21204,
+   "stride": 30,
+   "count": 40,
+   "accessor": "seg0:5c38",
+   "note": "用途待查 (107 處引用)",
+   "fields": []
+  },
+  {
+   "name": "dockSlots",
+   "ds": 22404,
+   "stride": 9,
+   "count": 30,
+   "accessor": "seg0:5c58",
+   "note": "船隻欄位編號 10..39 (seg0:5c58: 0x572A + 9×編號), 與 fleets.ships 同格式; 推定為寄放在港口的船",
+   "fields": [
+    {
+     "name": "ship",
+     "off": 7,
+     "type": "u8",
+     "evidence": "同 fleets.ships",
+     "confidence": "confirmed",
+     "ref": "ships"
+    }
+   ]
+  },
+  {
+   "name": "ships",
+   "ds": 22674,
+   "stride": 22,
+   "count": 65,
+   "accessor": "seg0:5c7a",
+   "note": "#0..39 個別船隻 (初值名稱為「１」..「40」, 類型 FF = 未使用); #40..64 為 25 種船的範本 (名稱 = 船種名)",
+   "fields": [
+    {
+     "name": "name",
+     "off": 0,
+     "type": "str",
+     "evidence": "範本記錄的名稱即船種名 (如 #64 為「關船」)",
+     "confidence": "confirmed",
+     "size": 15
+    },
+    {
+     "name": "type",
+     "off": 15,
+     "type": "u8",
+     "evidence": "0FEA:148d4 [rec+0Fh] → 船種表 (seg0:5c8a); FF = 空欄",
+     "confidence": "confirmed",
+     "ref": "shipTypes"
+    }
+   ]
+  },
+  {
+   "name": "shipTypes",
+   "ds": 24104,
+   "stride": 12,
+   "count": 25,
+   "accessor": "seg0:5c8a",
+   "note": "25 種船的規格; 船種名見 ships #40..64, 說明見 MESSAGE #168..192",
+   "fields": [
+    {
+     "name": "price",
+     "off": 10,
+     "type": "u16",
+     "evidence": "數值隨船種遞增 (120 .. 32000); 推定為價格",
+     "confidence": "inferred"
+    }
+   ]
+  },
+  {
+   "name": "ports",
+   "ds": 24404,
+   "stride": 22,
+   "count": 130,
+   "accessor": "seg0:5c9a",
+   "note": "#0..99 港口 (對應 PORTMAP / CHIP_NO 100 張), #100..129 待查 (推定為補給港)",
+   "fields": [
+    {
+     "name": "x",
+     "off": 0,
+     "type": "u16",
+     "evidence": "0FEA:187a7 出港時複製到艦隊座標",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "y",
+     "off": 2,
+     "type": "u16",
+     "evidence": "同上",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "name",
+     "off": 4,
+     "type": "str",
+     "evidence": "0FEA:16b07 存檔一覽印 rec+4",
+     "confidence": "confirmed",
+     "size": 17
+    },
+    {
+     "name": "region",
+     "off": 21,
+     "type": "u8",
+     "evidence": "0FEA:28a42 低 3 位元 = 港口 NPC 頭像種類",
+     "confidence": "confirmed"
+    }
+   ]
+  },
+  {
+   "name": "portEconomy",
+   "ds": 27264,
+   "stride": 37,
+   "count": 100,
+   "accessor": "seg0:5caa",
+   "note": "100 筆, 與港口數相同; 推定為港口經濟資料",
+   "fields": [
+    {
+     "name": "influence",
+     "off": 8,
+     "type": "u8",
+     "evidence": "各港 6 個值中屬國那一國為 100 (里斯本=葡萄牙…); 推定為 6 國支持度",
+     "confidence": "inferred",
+     "count": 6
+    },
+    {
+     "name": "prices",
+     "off": 14,
+     "type": "u8",
+     "evidence": "10 個 45..55 附近的值, 與 10 種商品類別同數; 推定為各類物價指數",
+     "confidence": "inferred",
+     "count": 10
+    }
+   ]
+  },
+  {
+   "name": "t78f4",
+   "ds": 30964,
+   "stride": 128,
+   "count": 13,
+   "accessor": "seg0:5cba",
+   "note": "13 × 64 個 u16, 用途待查",
+   "fields": []
+  },
+  {
+   "name": "t7f74",
+   "ds": 32628,
+   "stride": 8,
+   "count": 3,
+   "accessor": "seg0:5cc4",
+   "note": "用途待查",
+   "fields": []
+  },
+  {
+   "name": "discoveries",
+   "ds": 32652,
+   "stride": 7,
+   "count": 100,
+   "accessor": "seg0:5cce",
+   "note": "100 個發現物, 名稱與說明在 COLONY.DAT (100 × 177 bytes)",
+   "fields": [
+    {
+     "name": "x",
+     "off": 0,
+     "type": "u16",
+     "evidence": "座標值域與港口相同; 推定為世界座標",
+     "confidence": "inferred"
+    },
+    {
+     "name": "y",
+     "off": 2,
+     "type": "u16",
+     "evidence": "同上",
+     "confidence": "inferred"
+    },
+    {
+     "name": "flags",
+     "off": 6,
+     "type": "u8",
+     "evidence": "0FEA:1685e 對 98 筆設 bit7; 推定 bit7 = 已發現",
+     "confidence": "inferred"
+    }
+   ]
+  },
+  {
+   "name": "items",
+   "ds": 33352,
+   "stride": 20,
+   "count": 100,
+   "accessor": "seg0:5cde",
+   "note": "道具 (說明見 ITEM.MES 100 筆)",
+   "fields": [
+    {
+     "name": "name",
+     "off": 0,
+     "type": "str",
+     "evidence": "記錄開頭為道具名 (匕首、短劍…); +0Fh 起為數值 (存檔中有非 0 值)",
+     "confidence": "confirmed",
+     "size": 15
+    }
+   ]
+  }
+ ],
+ "tail": {
+  "name": "buffer0c8e",
+  "ds": 35352,
+  "size": 768,
+  "note": "讀檔時讀入記憶體緩衝 [0c8e]; 用途待查"
+ }
+}

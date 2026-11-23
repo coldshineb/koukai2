@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>UW2 資源檢視器 (開發工具)</title>
+<style>
+  body { background:#222; color:#ddd; font:14px sans-serif; margin:0; display:flex; }
+  #side { width:300px; padding:10px; box-sizing:border-box; }
+  #side fieldset { border:1px solid #555; margin-bottom:10px; }
+  #side label { display:block; margin:4px 0; }
+  canvas { image-rendering: pixelated; width:1280px; height:960px; background:#000; }
+  select, input { width:100%; }
+</style>
+</head>
+<body>
+<div id="side">
+  <fieldset><legend>模式</legend>
+    <select id="mode">
+      <option value="port">港口地圖</option>
+      <option value="win">視窗 / 文字</option>
+      <option value="graph">圖像 (GRAPH 格式)</option>
+      <option value="kao">具名人物頭像</option>
+      <option value="kaoc">拼合頭像 (編號=種類)</option>
+      <option value="kaos">發現物圖</option>
+      <option value="chip">港口圖塊</option>
+      <option value="text">文本 (原版字型)</option>
+      <option value="font">字型表</option>
+    </select>
+  </fieldset>
+  <fieldset><legend>參數</legend>
+    <label>編號 <input id="idx" type="number" value="0" min="0"></label>
+    <label>調色盤 <select id="pal"></select></label>
+    <label>圖像檔 <select id="gfile">
+      <option>GRAPH.DAT</option><option>GRAPH2.DAT</option><option>ENDGRP.DAT</option>
+      <option>opgraph/00.dat</option><option>opgraph/01.dat</option><option>opgraph/02.dat</option><option>opgraph/03.dat</option>
+      <option>opgraph/04.dat</option><option>opgraph/05.dat</option><option>opgraph/06.dat</option><option>opgraph/07.dat</option>
+      <option>opgraph/08.dat</option><option>opgraph/09.dat</option><option>opgraph/10.dat</option><option>opgraph/11.dat</option>
+      <option>opgraph/12.dat</option><option>opgraph/13.dat</option>
+    </select></label>
+    <label>文本檔 <select id="tfile">
+      <option>message</option><option>menu</option><option>names</option><option>item_mes</option>
+      <option>snr0</option><option>snr1</option><option>snr2</option><option>snr3</option><option>snr4</option><option>snr5</option><option>snr6</option>
+    </select></label>
+    <div>方向鍵捲動港口地圖, PageUp/PageDown 切換編號</div>
+    <div id="ginfo"></div>
+  </fieldset>
+  <fieldset><legend>BGM (PS 版)</legend>
+    <select id="bgm" size="10"></select>
+    <audio id="player" controls loop style="width:100%"></audio>
+  </fieldset>
+</div>
+<canvas id="c"></canvas>
+<script type="module" src="./viewer.js"></script>
+</body>
+</html>

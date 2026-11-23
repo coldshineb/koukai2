@@ -1,0 +1,12241 @@
+{
+ "format": "uw2-state-1",
+ "sourceLength": 32884,
+ "globals": {
+  "options": 255,
+  "year": 21,
+  "month": 4,
+  "day": 16,
+  "time": 24,
+  "port": 255,
+  "weather": 0,
+  "hero": 0
+ },
+ "tables": {
+  "countries": [
+   {
+    "u_00": "0000020011000000003c",
+    "capitalPort": 0,
+    "relations": [
+     100,
+     85,
+     30,
+     50,
+     70,
+     50,
+     40
+    ],
+    "u_12": "00250000010000ffffffffffffff"
+   },
+   {
+    "u_00": "00000601030000000046",
+    "capitalPort": 1,
+    "relations": [
+     85,
+     100,
+     35,
+     45,
+     65,
+     50,
+     20
+    ],
+    "u_12": "21000000010000ffffffffffffff"
+   },
+   {
+    "u_00": "000004023d0000000050",
+    "capitalPort": 2,
+    "relations": [
+     30,
+     35,
+     100,
+     55,
+     25,
+     50,
+     70
+    ],
+    "u_12": "00000000120100ffffffffffffff"
+   },
+   {
+    "u_00": "0000010534000000005a",
+    "capitalPort": 29,
+    "relations": [
+     50,
+     45,
+     55,
+     100,
+     50,
+     60,
+     60
+    ],
+    "u_12": "01010000010100ffffffffffffff"
+   },
+   {
+    "u_00": "000002001b0000000032",
+    "capitalPort": 8,
+    "relations": [
+     70,
+     65,
+     25,
+     50,
+     100,
+     50,
+     30
+    ],
+    "u_12": "00011200000000ffffffffffffff"
+   },
+   {
+    "u_00": "000000053b0000000055",
+    "capitalPort": 33,
+    "relations": [
+     50,
+     50,
+     50,
+     60,
+     50,
+     100,
+     60
+    ],
+    "u_12": "00000001010000ffffffffffffff"
+   },
+   {
+    "u_00": "00000108ff0000000064",
+    "capitalPort": 4,
+    "relations": [
+     40,
+     20,
+     70,
+     60,
+     30,
+     60,
+     100
+    ],
+    "u_12": "00000000000000ffffffffffffff"
+   }
+  ],
+  "heroData": [
+   {
+    "u_00": "000000000000",
+    "countryStanding": [
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100
+    ],
+    "u_0d": "00"
+   },
+   {
+    "u_00": "000000000000",
+    "countryStanding": [
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100
+    ],
+    "u_0d": "00"
+   },
+   {
+    "u_00": "000000000000",
+    "countryStanding": [
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100
+    ],
+    "u_0d": "00"
+   },
+   {
+    "u_00": "000000000000",
+    "countryStanding": [
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100
+    ],
+    "u_0d": "00"
+   },
+   {
+    "u_00": "000000000000",
+    "countryStanding": [
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100
+    ],
+    "u_0d": "00"
+   },
+   {
+    "u_00": "000000000000",
+    "countryStanding": [
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100
+    ],
+    "u_0d": "00"
+   }
+  ],
+  "persons": [
+   {
+    "givenName": "約翰",
+    "familyName": "法雷爾",
+    "portrait": 0,
+    "stats": [
+     78,
+     75,
+     73,
+     85,
+     82,
+     82,
+     89,
+     50
+    ],
+    "navLevel": 1,
+    "battleLevel": 1,
+    "navExp": 0,
+    "battleExp": 0,
+    "age": 18,
+    "u_2b": "64",
+    "fleet": 0,
+    "u_2d": "ff005001",
+    "face": 96
+   },
+   {
+    "givenName": "卡特琳娜",
+    "familyName": "艾蘭茨",
+    "portrait": 1,
+    "stats": [
+     80,
+     79,
+     65,
+     52,
+     86,
+     92,
+     95,
+     50
+    ],
+    "navLevel": 8,
+    "battleLevel": 10,
+    "navExp": 190,
+    "battleExp": 170,
+    "age": 18,
+    "u_2b": "64",
+    "fleet": 10,
+    "u_2d": "ff00e104",
+    "face": 97
+   },
+   {
+    "givenName": "奧托",
+    "familyName": "斯賓諾拉",
+    "portrait": 2,
+    "stats": [
+     92,
+     72,
+     61,
+     43,
+     88,
+     86,
+     82,
+     50
+    ],
+    "navLevel": 10,
+    "battleLevel": 12,
+    "navExp": 140,
+    "battleExp": 210,
+    "age": 25,
+    "u_2b": "64",
+    "fleet": 30,
+    "u_2d": "ff00d104",
+    "face": 99
+   },
+   {
+    "givenName": "恩斯特",
+    "familyName": "洛佩斯",
+    "portrait": 3,
+    "stats": [
+     78,
+     92,
+     86,
+     82,
+     62,
+     53,
+     90,
+     50
+    ],
+    "navLevel": 11,
+    "battleLevel": 1,
+    "navExp": 120,
+    "battleExp": 0,
+    "age": 23,
+    "u_2b": "64",
+    "fleet": 50,
+    "u_2d": "ff00e018",
+    "face": 101
+   },
+   {
+    "givenName": "皮耶德",
+    "familyName": "康迪",
+    "portrait": 4,
+    "stats": [
+     84,
+     80,
+     75,
+     87,
+     53,
+     61,
+     81,
+     50
+    ],
+    "navLevel": 4,
+    "battleLevel": 1,
+    "navExp": 110,
+    "battleExp": 0,
+    "age": 33,
+    "u_2b": "64",
+    "fleet": 40,
+    "u_2d": "ff005110",
+    "face": 100
+   },
+   {
+    "givenName": "阿蘭",
+    "familyName": "維斯特",
+    "portrait": 5,
+    "stats": [
+     80,
+     86,
+     84,
+     65,
+     53,
+     42,
+     80,
+     50
+    ],
+    "navLevel": 1,
+    "battleLevel": 1,
+    "navExp": 0,
+    "battleExp": 0,
+    "age": 19,
+    "u_2b": "64",
+    "fleet": 20,
+    "u_2d": "ff00c103",
+    "face": 98
+   },
+   {
+    "givenName": "西蒙",
+    "familyName": "斯卡隆",
+    "portrait": 61,
+    "stats": [
+     74,
+     74,
+     86,
+     53,
+     77,
+     61,
+     87,
+     64
+    ],
+    "navLevel": 14,
+    "battleLevel": 15,
+    "navExp": 235,
+    "battleExp": 288,
+    "age": 24,
+    "u_2b": "00",
+    "fleet": 1,
+    "u_2d": "ff01711b",
+    "face": 32
+   },
+   {
+    "givenName": "路易",
+    "familyName": "科斯塔",
+    "portrait": 62,
+    "stats": [
+     80,
+     51,
+     86,
+     89,
+     52,
+     89,
+     59,
+     89
+    ],
+    "navLevel": 17,
+    "battleLevel": 17,
+    "navExp": 127,
+    "battleExp": 95,
+    "age": 32,
+    "u_2b": "00",
+    "fleet": 2,
+    "u_2d": "ff011016",
+    "face": 32
+   },
+   {
+    "givenName": "勞倫索",
+    "familyName": "皮特",
+    "portrait": 51236,
+    "stats": [
+     81,
+     78,
+     57,
+     83,
+     87,
+     70,
+     55,
+     86
+    ],
+    "navLevel": 11,
+    "battleLevel": 11,
+    "navExp": 128,
+    "battleExp": 180,
+    "age": 33,
+    "u_2b": "00",
+    "fleet": 3,
+    "u_2d": "ff016102",
+    "face": 32
+   },
+   {
+    "givenName": "洛波",
+    "familyName": "菲雷拉",
+    "portrait": 55486,
+    "stats": [
+     50,
+     82,
+     68,
+     59,
+     63,
+     80,
+     84,
+     59
+    ],
+    "navLevel": 11,
+    "battleLevel": 12,
+    "navExp": 190,
+    "battleExp": 114,
+    "age": 20,
+    "u_2b": "00",
+    "fleet": 4,
+    "u_2d": "ff019011",
+    "face": 32
+   },
+   {
+    "givenName": "萊佛爾",
+    "familyName": "塞爾朗",
+    "portrait": 63,
+    "stats": [
+     77,
+     64,
+     83,
+     74,
+     73,
+     73,
+     79,
+     83
+    ],
+    "navLevel": 15,
+    "battleLevel": 15,
+    "navExp": 221,
+    "battleExp": 158,
+    "age": 36,
+    "u_2b": "00",
+    "fleet": 5,
+    "u_2d": "ff011114",
+    "face": 32
+   },
+   {
+    "givenName": "迪艾哥",
+    "familyName": "索薩",
+    "portrait": 59269,
+    "stats": [
+     51,
+     74,
+     63,
+     64,
+     50,
+     83,
+     89,
+     63
+    ],
+    "navLevel": 9,
+    "battleLevel": 11,
+    "navExp": 241,
+    "battleExp": 105,
+    "age": 36,
+    "u_2b": "00",
+    "fleet": 6,
+    "u_2d": "ff01f004",
+    "face": 96
+   },
+   {
+    "givenName": "阿方索",
+    "familyName": "安德拉德",
+    "portrait": 51938,
+    "stats": [
+     59,
+     82,
+     75,
+     84,
+     52,
+     78,
+     85,
+     58
+    ],
+    "navLevel": 9,
+    "battleLevel": 11,
+    "navExp": 115,
+    "battleExp": 16,
+    "age": 31,
+    "u_2b": "00",
+    "fleet": 7,
+    "u_2d": "ff012010",
+    "face": 32
+   },
+   {
+    "givenName": "卡洛西亞",
+    "familyName": "阿爾瓦雷斯",
+    "portrait": 64,
+    "stats": [
+     77,
+     75,
+     89,
+     78,
+     55,
+     85,
+     52,
+     85
+    ],
+    "navLevel": 14,
+    "battleLevel": 16,
+    "navExp": 32,
+    "battleExp": 227,
+    "age": 28,
+    "u_2b": "00",
+    "fleet": 8,
+    "u_2d": "ff01d01c",
+    "face": 32
+   },
+   {
+    "givenName": "岡薩羅",
+    "familyName": "西爾維拉",
+    "portrait": 64876,
+    "stats": [
+     85,
+     57,
+     80,
+     81,
+     52,
+     73,
+     52,
+     75
+    ],
+    "navLevel": 8,
+    "battleLevel": 8,
+    "navExp": 241,
+    "battleExp": 142,
+    "age": 30,
+    "u_2b": "00",
+    "fleet": 9,
+    "u_2d": "ff011000",
+    "face": 96
+   },
+   {
+    "givenName": "艾斯圖帕",
+    "familyName": "阿爾特加",
+    "portrait": 65,
+    "stats": [
+     73,
+     54,
+     78,
+     82,
+     78,
+     55,
+     87,
+     51
+    ],
+    "navLevel": 14,
+    "battleLevel": 15,
+    "navExp": 105,
+    "battleExp": 1,
+    "age": 23,
+    "u_2b": "00",
+    "fleet": 11,
+    "u_2d": "ff019017",
+    "face": 33
+   },
+   {
+    "givenName": "斯蒂凡",
+    "familyName": "佩龍",
+    "portrait": 60630,
+    "stats": [
+     58,
+     87,
+     50,
+     58,
+     56,
+     67,
+     77,
+     52
+    ],
+    "navLevel": 10,
+    "battleLevel": 8,
+    "navExp": 175,
+    "battleExp": 182,
+    "age": 37,
+    "u_2b": "00",
+    "fleet": 12,
+    "u_2d": "ff01d111",
+    "face": 33
+   },
+   {
+    "givenName": "佩拉羅松",
+    "familyName": "阿基雷",
+    "portrait": 62127,
+    "stats": [
+     60,
+     61,
+     88,
+     55,
+     86,
+     70,
+     89,
+     74
+    ],
+    "navLevel": 8,
+    "battleLevel": 10,
+    "navExp": 122,
+    "battleExp": 203,
+    "age": 25,
+    "u_2b": "00",
+    "fleet": 13,
+    "u_2d": "ff01f002",
+    "face": 33
+   },
+   {
+    "givenName": "巴爾伯",
+    "familyName": "奧利德",
+    "portrait": 66,
+    "stats": [
+     62,
+     65,
+     83,
+     60,
+     62,
+     59,
+     78,
+     72
+    ],
+    "navLevel": 13,
+    "battleLevel": 16,
+    "navExp": 21,
+    "battleExp": 234,
+    "age": 29,
+    "u_2b": "00",
+    "fleet": 14,
+    "u_2d": "ff01b017",
+    "face": 97
+   },
+   {
+    "givenName": "雅各布",
+    "familyName": "波通溫",
+    "portrait": 67,
+    "stats": [
+     79,
+     51,
+     73,
+     69,
+     77,
+     71,
+     86,
+     88
+    ],
+    "navLevel": 16,
+    "battleLevel": 17,
+    "navExp": 122,
+    "battleExp": 241,
+    "age": 32,
+    "u_2b": "00",
+    "fleet": 15,
+    "u_2d": "ff01f11c",
+    "face": 33
+   },
+   {
+    "givenName": "烏果",
+    "familyName": "蒙塔古",
+    "portrait": 68,
+    "stats": [
+     65,
+     72,
+     54,
+     71,
+     53,
+     63,
+     55,
+     84
+    ],
+    "navLevel": 16,
+    "battleLevel": 17,
+    "navExp": 94,
+    "battleExp": 38,
+    "age": 29,
+    "u_2b": "00",
+    "fleet": 16,
+    "u_2d": "ff017114",
+    "face": 33
+   },
+   {
+    "givenName": "皮耶德",
+    "familyName": "耐普爾",
+    "portrait": 59731,
+    "stats": [
+     50,
+     55,
+     66,
+     66,
+     59,
+     79,
+     75,
+     74
+    ],
+    "navLevel": 9,
+    "battleLevel": 10,
+    "navExp": 135,
+    "battleExp": 163,
+    "age": 41,
+    "u_2b": "00",
+    "fleet": 17,
+    "u_2d": "ff01d000",
+    "face": 33
+   },
+   {
+    "givenName": "布律內爾",
+    "familyName": "羅耀拉",
+    "portrait": 57233,
+    "stats": [
+     65,
+     67,
+     50,
+     52,
+     51,
+     86,
+     83,
+     56
+    ],
+    "navLevel": 11,
+    "battleLevel": 11,
+    "navExp": 92,
+    "battleExp": 119,
+    "age": 19,
+    "u_2b": "00",
+    "fleet": 18,
+    "u_2d": "ff01b114",
+    "face": 97
+   },
+   {
+    "givenName": "埃魯南",
+    "familyName": "貝利歐",
+    "portrait": 69,
+    "stats": [
+     88,
+     63,
+     75,
+     83,
+     71,
+     65,
+     89,
+     87
+    ],
+    "navLevel": 16,
+    "battleLevel": 16,
+    "navExp": 217,
+    "battleExp": 94,
+    "age": 29,
+    "u_2b": "00",
+    "fleet": 19,
+    "u_2d": "ff019114",
+    "face": 97
+   },
+   {
+    "givenName": "烏宗",
+    "familyName": "卡夫",
+    "portrait": 54857,
+    "stats": [
+     70,
+     77,
+     65,
+     85,
+     77,
+     52,
+     51,
+     58
+    ],
+    "navLevel": 12,
+    "battleLevel": 11,
+    "navExp": 196,
+    "battleExp": 107,
+    "age": 27,
+    "u_2b": "00",
+    "fleet": 21,
+    "u_2d": "ff01e013",
+    "face": 34
+   },
+   {
+    "givenName": "伊薩克爾",
+    "familyName": "雅薩爾",
+    "portrait": 60914,
+    "stats": [
+     57,
+     61,
+     79,
+     70,
+     76,
+     84,
+     55,
+     86
+    ],
+    "navLevel": 10,
+    "battleLevel": 8,
+    "navExp": 3,
+    "battleExp": 49,
+    "age": 25,
+    "u_2b": "00",
+    "fleet": 22,
+    "u_2d": "ff014103",
+    "face": 34
+   },
+   {
+    "givenName": "卡拉",
+    "familyName": "羅姆",
+    "portrait": 70,
+    "stats": [
+     71,
+     65,
+     87,
+     79,
+     85,
+     77,
+     86,
+     72
+    ],
+    "navLevel": 17,
+    "battleLevel": 14,
+    "navExp": 122,
+    "battleExp": 186,
+    "age": 27,
+    "u_2b": "00",
+    "fleet": 23,
+    "u_2d": "ff01401b",
+    "face": 98
+   },
+   {
+    "givenName": "杜雷",
+    "familyName": "希恩",
+    "portrait": 71,
+    "stats": [
+     76,
+     70,
+     59,
+     60,
+     73,
+     89,
+     88,
+     77
+    ],
+    "navLevel": 14,
+    "battleLevel": 17,
+    "navExp": 203,
+    "battleExp": 240,
+    "age": 17,
+    "u_2b": "00",
+    "fleet": 24,
+    "u_2d": "ff014013",
+    "face": 34
+   },
+   {
+    "givenName": "塞南",
+    "familyName": "帕夏",
+    "portrait": 72,
+    "stats": [
+     83,
+     63,
+     80,
+     58,
+     60,
+     67,
+     68,
+     78
+    ],
+    "navLevel": 14,
+    "battleLevel": 16,
+    "navExp": 48,
+    "battleExp": 196,
+    "age": 28,
+    "u_2b": "00",
+    "fleet": 25,
+    "u_2d": "ff01e11c",
+    "face": 98
+   },
+   {
+    "givenName": "蓋茨",
+    "familyName": "凱莫爾",
+    "portrait": 73,
+    "stats": [
+     67,
+     72,
+     68,
+     52,
+     53,
+     58,
+     77,
+     62
+    ],
+    "navLevel": 15,
+    "battleLevel": 17,
+    "navExp": 25,
+    "battleExp": 157,
+    "age": 36,
+    "u_2b": "00",
+    "fleet": 26,
+    "u_2d": "ff016014",
+    "face": 98
+   },
+   {
+    "givenName": "阿弗梅特",
+    "familyName": "穆西丁",
+    "portrait": 56050,
+    "stats": [
+     72,
+     64,
+     68,
+     62,
+     68,
+     84,
+     75,
+     89
+    ],
+    "navLevel": 11,
+    "battleLevel": 12,
+    "navExp": 60,
+    "battleExp": 112,
+    "age": 32,
+    "u_2b": "00",
+    "fleet": 27,
+    "u_2d": "ff012014",
+    "face": 98
+   },
+   {
+    "givenName": "薩利姆",
+    "familyName": "哥賓德",
+    "portrait": 49596,
+    "stats": [
+     73,
+     65,
+     69,
+     89,
+     66,
+     58,
+     81,
+     60
+    ],
+    "navLevel": 9,
+    "battleLevel": 8,
+    "navExp": 260,
+    "battleExp": 293,
+    "age": 42,
+    "u_2b": "00",
+    "fleet": 28,
+    "u_2d": "ff014100",
+    "face": 98
+   },
+   {
+    "givenName": "丹尼爾",
+    "familyName": "米羅莎",
+    "portrait": 74,
+    "stats": [
+     69,
+     84,
+     74,
+     62,
+     85,
+     72,
+     83,
+     63
+    ],
+    "navLevel": 13,
+    "battleLevel": 15,
+    "navExp": 61,
+    "battleExp": 251,
+    "age": 20,
+    "u_2b": "00",
+    "fleet": 29,
+    "u_2d": "ff010014",
+    "face": 34
+   },
+   {
+    "givenName": "約瑟夫",
+    "familyName": "伊斯特曼",
+    "portrait": 75,
+    "stats": [
+     50,
+     51,
+     81,
+     73,
+     73,
+     54,
+     81,
+     55
+    ],
+    "navLevel": 14,
+    "battleLevel": 15,
+    "navExp": 112,
+    "battleExp": 283,
+    "age": 35,
+    "u_2b": "00",
+    "fleet": 31,
+    "u_2d": "ff01711b",
+    "face": 35
+   },
+   {
+    "givenName": "托馬斯",
+    "familyName": "格拉姆",
+    "portrait": 59113,
+    "stats": [
+     64,
+     55,
+     58,
+     51,
+     86,
+     64,
+     86,
+     66
+    ],
+    "navLevel": 8,
+    "battleLevel": 11,
+    "navExp": 9,
+    "battleExp": 97,
+    "age": 39,
+    "u_2b": "00",
+    "fleet": 32,
+    "u_2d": "ff018011",
+    "face": 35
+   },
+   {
+    "givenName": "阿爾弗來德",
+    "familyName": "羅",
+    "portrait": 76,
+    "stats": [
+     89,
+     85,
+     70,
+     88,
+     72,
+     67,
+     83,
+     78
+    ],
+    "navLevel": 17,
+    "battleLevel": 13,
+    "navExp": 181,
+    "battleExp": 88,
+    "age": 18,
+    "u_2b": "00",
+    "fleet": 33,
+    "u_2d": "ff01f01a",
+    "face": 99
+   },
+   {
+    "givenName": "埃德蒙",
+    "familyName": "哈維",
+    "portrait": 49643,
+    "stats": [
+     83,
+     52,
+     77,
+     68,
+     68,
+     71,
+     62,
+     73
+    ],
+    "navLevel": 9,
+    "battleLevel": 8,
+    "navExp": 153,
+    "battleExp": 215,
+    "age": 36,
+    "u_2b": "00",
+    "fleet": 34,
+    "u_2d": "ff01e001",
+    "face": 35
+   },
+   {
+    "givenName": "羅伯特",
+    "familyName": "怀爾德",
+    "portrait": 77,
+    "stats": [
+     77,
+     64,
+     73,
+     67,
+     69,
+     54,
+     65,
+     82
+    ],
+    "navLevel": 14,
+    "battleLevel": 15,
+    "navExp": 36,
+    "battleExp": 64,
+    "age": 26,
+    "u_2b": "00",
+    "fleet": 35,
+    "u_2d": "ff01d11c",
+    "face": 35
+   },
+   {
+    "givenName": "文克特",
+    "familyName": "拉塞爾",
+    "portrait": 78,
+    "stats": [
+     73,
+     56,
+     53,
+     66,
+     51,
+     64,
+     74,
+     80
+    ],
+    "navLevel": 16,
+    "battleLevel": 13,
+    "navExp": 227,
+    "battleExp": 34,
+    "age": 42,
+    "u_2b": "00",
+    "fleet": 36,
+    "u_2d": "ff010114",
+    "face": 99
+   },
+   {
+    "givenName": "威廉",
+    "familyName": "克來伯",
+    "portrait": 52147,
+    "stats": [
+     52,
+     72,
+     77,
+     57,
+     73,
+     78,
+     55,
+     83
+    ],
+    "navLevel": 11,
+    "battleLevel": 10,
+    "navExp": 81,
+    "battleExp": 116,
+    "age": 38,
+    "u_2b": "00",
+    "fleet": 37,
+    "u_2d": "ff01b114",
+    "face": 35
+   },
+   {
+    "givenName": "沃爾塔",
+    "familyName": "勞倫斯",
+    "portrait": 61094,
+    "stats": [
+     66,
+     64,
+     67,
+     51,
+     50,
+     66,
+     85,
+     53
+    ],
+    "navLevel": 8,
+    "battleLevel": 8,
+    "navExp": 210,
+    "battleExp": 56,
+    "age": 35,
+    "u_2b": "00",
+    "fleet": 38,
+    "u_2d": "ff010000",
+    "face": 35
+   },
+   {
+    "givenName": "查理",
+    "familyName": "格拉夫登",
+    "portrait": 53979,
+    "stats": [
+     82,
+     64,
+     58,
+     50,
+     59,
+     56,
+     68,
+     58
+    ],
+    "navLevel": 11,
+    "battleLevel": 10,
+    "navExp": 231,
+    "battleExp": 133,
+    "age": 32,
+    "u_2b": "00",
+    "fleet": 39,
+    "u_2d": "ff019014",
+    "face": 35
+   },
+   {
+    "givenName": "格廷",
+    "familyName": "本森",
+    "portrait": 79,
+    "stats": [
+     75,
+     50,
+     64,
+     65,
+     61,
+     75,
+     72,
+     73
+    ],
+    "navLevel": 16,
+    "battleLevel": 17,
+    "navExp": 46,
+    "battleExp": 44,
+    "age": 28,
+    "u_2b": "00",
+    "fleet": 41,
+    "u_2d": "ff01711d",
+    "face": 36
+   },
+   {
+    "givenName": "約瑟夫",
+    "familyName": "羅德維",
+    "portrait": 54588,
+    "stats": [
+     75,
+     52,
+     50,
+     72,
+     80,
+     69,
+     78,
+     63
+    ],
+    "navLevel": 12,
+    "battleLevel": 10,
+    "navExp": 160,
+    "battleExp": 207,
+    "age": 26,
+    "u_2b": "00",
+    "fleet": 42,
+    "u_2d": "ff019111",
+    "face": 100
+   },
+   {
+    "givenName": "卡米勒",
+    "familyName": "薩伯羅拉",
+    "portrait": 65160,
+    "stats": [
+     81,
+     78,
+     56,
+     84,
+     60,
+     74,
+     56,
+     62
+    ],
+    "navLevel": 12,
+    "battleLevel": 10,
+    "navExp": 257,
+    "battleExp": 295,
+    "age": 45,
+    "u_2b": "00",
+    "fleet": 43,
+    "u_2d": "ff015001",
+    "face": 36
+   },
+   {
+    "givenName": "約翰尼",
+    "familyName": "維薩里",
+    "portrait": 80,
+    "stats": [
+     50,
+     64,
+     81,
+     71,
+     86,
+     51,
+     64,
+     52
+    ],
+    "navLevel": 15,
+    "battleLevel": 16,
+    "navExp": 57,
+    "battleExp": 216,
+    "age": 21,
+    "u_2b": "00",
+    "fleet": 44,
+    "u_2d": "ff01b01d",
+    "face": 36
+   },
+   {
+    "givenName": "安德魯",
+    "familyName": "紀堯姆",
+    "portrait": 81,
+    "stats": [
+     89,
+     66,
+     74,
+     57,
+     89,
+     78,
+     78,
+     79
+    ],
+    "navLevel": 9,
+    "battleLevel": 10,
+    "navExp": 241,
+    "battleExp": 214,
+    "age": 21,
+    "u_2b": "00",
+    "fleet": 45,
+    "u_2d": "ff01d104",
+    "face": 36
+   },
+   {
+    "givenName": "卡比爾",
+    "familyName": "卡魯其",
+    "portrait": 63756,
+    "stats": [
+     69,
+     86,
+     51,
+     62,
+     71,
+     74,
+     52,
+     66
+    ],
+    "navLevel": 11,
+    "battleLevel": 12,
+    "navExp": 263,
+    "battleExp": 85,
+    "age": 26,
+    "u_2b": "00",
+    "fleet": 46,
+    "u_2d": "ff019114",
+    "face": 100
+   },
+   {
+    "givenName": "奧克斯",
+    "familyName": "巴里巴格",
+    "portrait": 53054,
+    "stats": [
+     75,
+     60,
+     86,
+     89,
+     69,
+     76,
+     81,
+     50
+    ],
+    "navLevel": 20,
+    "battleLevel": 21,
+    "navExp": 140,
+    "battleExp": 141,
+    "age": 28,
+    "u_2b": "00",
+    "fleet": 47,
+    "u_2d": "ff01f01c",
+    "face": 36
+   },
+   {
+    "givenName": "安德魯",
+    "familyName": "多利亞",
+    "portrait": 82,
+    "stats": [
+     83,
+     73,
+     87,
+     55,
+     71,
+     68,
+     77,
+     52
+    ],
+    "navLevel": 27,
+    "battleLevel": 30,
+    "navExp": 133,
+    "battleExp": 260,
+    "age": 28,
+    "u_2b": "00",
+    "fleet": 48,
+    "u_2d": "ff01511c",
+    "face": 36
+   },
+   {
+    "givenName": "胡安",
+    "familyName": "巴斯克塞",
+    "portrait": 49305,
+    "stats": [
+     67,
+     81,
+     56,
+     61,
+     50,
+     62,
+     78,
+     87
+    ],
+    "navLevel": 9,
+    "battleLevel": 9,
+    "navExp": 0,
+    "battleExp": 121,
+    "age": 45,
+    "u_2b": "00",
+    "fleet": 49,
+    "u_2d": "ff019000",
+    "face": 100
+   },
+   {
+    "givenName": "雨果",
+    "familyName": "奧爾扎克",
+    "portrait": 83,
+    "stats": [
+     64,
+     82,
+     85,
+     73,
+     62,
+     56,
+     54,
+     52
+    ],
+    "navLevel": 13,
+    "battleLevel": 15,
+    "navExp": 297,
+    "battleExp": 144,
+    "age": 31,
+    "u_2b": "00",
+    "fleet": 51,
+    "u_2d": "ff01b11b",
+    "face": 37
+   },
+   {
+    "givenName": "克里斯蒂",
+    "familyName": "格羅提茲",
+    "portrait": 49444,
+    "stats": [
+     89,
+     89,
+     52,
+     88,
+     65,
+     59,
+     72,
+     50
+    ],
+    "navLevel": 10,
+    "battleLevel": 11,
+    "navExp": 62,
+    "battleExp": 11,
+    "age": 29,
+    "u_2b": "00",
+    "fleet": 52,
+    "u_2d": "ff01c01a",
+    "face": 101
+   },
+   {
+    "givenName": "烏澤",
+    "familyName": "休根",
+    "portrait": 61534,
+    "stats": [
+     68,
+     56,
+     70,
+     76,
+     54,
+     60,
+     71,
+     63
+    ],
+    "navLevel": 9,
+    "battleLevel": 10,
+    "navExp": 103,
+    "battleExp": 247,
+    "age": 44,
+    "u_2b": "00",
+    "fleet": 53,
+    "u_2d": "ff013113",
+    "face": 101
+   },
+   {
+    "givenName": "莫里斯",
+    "familyName": "里迪爾",
+    "portrait": 50190,
+    "stats": [
+     62,
+     50,
+     58,
+     82,
+     66,
+     75,
+     58,
+     89
+    ],
+    "navLevel": 12,
+    "battleLevel": 11,
+    "navExp": 69,
+    "battleExp": 13,
+    "age": 35,
+    "u_2b": "00",
+    "fleet": 54,
+    "u_2d": "ff01601a",
+    "face": 37
+   },
+   {
+    "givenName": "皮耶德",
+    "familyName": "威爾斯",
+    "portrait": 51485,
+    "stats": [
+     61,
+     70,
+     57,
+     73,
+     50,
+     60,
+     57,
+     68
+    ],
+    "navLevel": 10,
+    "battleLevel": 8,
+    "navExp": 273,
+    "battleExp": 233,
+    "age": 43,
+    "u_2b": "00",
+    "fleet": 55,
+    "u_2d": "ff013110",
+    "face": 37
+   },
+   {
+    "givenName": "威廉姆",
+    "familyName": "海因",
+    "portrait": 84,
+    "stats": [
+     55,
+     89,
+     86,
+     64,
+     88,
+     69,
+     68,
+     73
+    ],
+    "navLevel": 15,
+    "battleLevel": 15,
+    "navExp": 137,
+    "battleExp": 9,
+    "age": 30,
+    "u_2b": "00",
+    "fleet": 56,
+    "u_2d": "ff01611c",
+    "face": 101
+   },
+   {
+    "givenName": "朱里安",
+    "familyName": "費盧米",
+    "portrait": 85,
+    "stats": [
+     68,
+     83,
+     61,
+     52,
+     56,
+     62,
+     85,
+     70
+    ],
+    "navLevel": 12,
+    "battleLevel": 8,
+    "navExp": 82,
+    "battleExp": 142,
+    "age": 21,
+    "u_2b": "00",
+    "fleet": 57,
+    "u_2d": "ff013010",
+    "face": 37
+   },
+   {
+    "givenName": "康耐爾斯",
+    "familyName": "亨德里克",
+    "portrait": 52487,
+    "stats": [
+     61,
+     57,
+     56,
+     88,
+     81,
+     67,
+     82,
+     52
+    ],
+    "navLevel": 8,
+    "battleLevel": 10,
+    "navExp": 71,
+    "battleExp": 199,
+    "age": 33,
+    "u_2b": "00",
+    "fleet": 58,
+    "u_2d": "ff01001c",
+    "face": 37
+   },
+   {
+    "givenName": "杰克遜",
+    "familyName": "勃盧姆",
+    "portrait": 86,
+    "stats": [
+     78,
+     69,
+     50,
+     69,
+     51,
+     56,
+     60,
+     85
+    ],
+    "navLevel": 13,
+    "battleLevel": 15,
+    "navExp": 10,
+    "battleExp": 36,
+    "age": 26,
+    "u_2b": "00",
+    "fleet": 59,
+    "u_2d": "ff01501c",
+    "face": 101
+   },
+   {
+    "givenName": "安東尼奧",
+    "familyName": "卡恩",
+    "portrait": 87,
+    "stats": [
+     81,
+     78,
+     89,
+     73,
+     68,
+     80,
+     70,
+     51
+    ],
+    "navLevel": 7,
+    "battleLevel": 16,
+    "navExp": 153,
+    "battleExp": 71,
+    "age": 44,
+    "u_2b": "00",
+    "fleet": 60,
+    "u_2d": "ff013200",
+    "face": 32
+   },
+   {
+    "givenName": "皮埃爾",
+    "familyName": "盧格蘭",
+    "portrait": 52664,
+    "stats": [
+     86,
+     74,
+     80,
+     55,
+     81,
+     50,
+     77,
+     65
+    ],
+    "navLevel": 9,
+    "battleLevel": 12,
+    "navExp": 0,
+    "battleExp": 279,
+    "age": 37,
+    "u_2b": "00",
+    "fleet": 62,
+    "u_2d": "ff013210",
+    "face": 38
+   },
+   {
+    "givenName": "路易斯",
+    "familyName": "斯科特",
+    "portrait": 54599,
+    "stats": [
+     68,
+     76,
+     77,
+     61,
+     73,
+     78,
+     59,
+     73
+    ],
+    "navLevel": 11,
+    "battleLevel": 16,
+    "navExp": 242,
+    "battleExp": 61,
+    "age": 20,
+    "u_2b": "00",
+    "fleet": 63,
+    "u_2d": "ff011214",
+    "face": 38
+   },
+   {
+    "givenName": "約翰",
+    "familyName": "戴維斯",
+    "portrait": 54495,
+    "stats": [
+     85,
+     56,
+     71,
+     54,
+     86,
+     60,
+     79,
+     71
+    ],
+    "navLevel": 10,
+    "battleLevel": 14,
+    "navExp": 88,
+    "battleExp": 192,
+    "age": 42,
+    "u_2b": "00",
+    "fleet": 64,
+    "u_2d": "ff013200",
+    "face": 38
+   },
+   {
+    "givenName": "希爾頓",
+    "familyName": "雷斯",
+    "portrait": 88,
+    "stats": [
+     93,
+     76,
+     70,
+     79,
+     89,
+     93,
+     41,
+     70
+    ],
+    "navLevel": 18,
+    "battleLevel": 32,
+    "navExp": 251,
+    "battleExp": 115,
+    "age": 36,
+    "u_2b": "00",
+    "fleet": 65,
+    "u_2d": "ff01f21c",
+    "face": 38
+   },
+   {
+    "givenName": "艾登",
+    "familyName": "雷斯",
+    "portrait": 89,
+    "stats": [
+     78,
+     66,
+     86,
+     70,
+     74,
+     85,
+     68,
+     54
+    ],
+    "navLevel": 16,
+    "battleLevel": 30,
+    "navExp": 150,
+    "battleExp": 194,
+    "age": 32,
+    "u_2b": "00",
+    "fleet": 66,
+    "u_2d": "ff017204",
+    "face": 38
+   },
+   {
+    "givenName": "穆罕默德",
+    "familyName": "夏洛克",
+    "portrait": 90,
+    "stats": [
+     87,
+     78,
+     78,
+     66,
+     85,
+     92,
+     76,
+     87
+    ],
+    "navLevel": 20,
+    "battleLevel": 31,
+    "navExp": 205,
+    "battleExp": 290,
+    "age": 28,
+    "u_2b": "00",
+    "fleet": 67,
+    "u_2d": "ff01f11c",
+    "face": 38
+   },
+   {
+    "givenName": "沃爾格",
+    "familyName": "阿里",
+    "portrait": 91,
+    "stats": [
+     52,
+     79,
+     62,
+     88,
+     60,
+     74,
+     59,
+     87
+    ],
+    "navLevel": 21,
+    "battleLevel": 28,
+    "navExp": 64,
+    "battleExp": 83,
+    "age": 35,
+    "u_2b": "00",
+    "fleet": 68,
+    "u_2d": "ff01f21c",
+    "face": 102
+   },
+   {
+    "givenName": "杰克",
+    "familyName": "拉康姆",
+    "portrait": 63923,
+    "stats": [
+     88,
+     66,
+     68,
+     88,
+     51,
+     78,
+     96,
+     70
+    ],
+    "navLevel": 9,
+    "battleLevel": 13,
+    "navExp": 271,
+    "battleExp": 47,
+    "age": 24,
+    "u_2b": "00",
+    "fleet": 69,
+    "u_2d": "ff011200",
+    "face": 38
+   },
+   {
+    "givenName": "洛克",
+    "familyName": "阿爾姆克",
+    "portrait": 31,
+    "stats": [
+     75,
+     82,
+     84,
+     90,
+     93,
+     92,
+     70,
+     70
+    ],
+    "navLevel": 30,
+    "battleLevel": 32,
+    "navExp": 200,
+    "battleExp": 310,
+    "age": 65,
+    "u_2b": "64",
+    "fleet": 254,
+    "u_2d": "ff00d014",
+    "face": 96
+   },
+   {
+    "givenName": "恩里克",
+    "familyName": "馬洛尼",
+    "portrait": 32,
+    "stats": [
+     66,
+     48,
+     93,
+     55,
+     62,
+     48,
+     82,
+     100
+    ],
+    "navLevel": 1,
+    "battleLevel": 1,
+    "navExp": 0,
+    "battleExp": 0,
+    "age": 24,
+    "u_2b": "64",
+    "fleet": 254,
+    "u_2d": "ff00d002",
+    "face": 96
+   },
+   {
+    "givenName": "多明戈",
+    "familyName": "馬耐斯",
+    "portrait": 33,
+    "stats": [
+     60,
+     68,
+     58,
+     62,
+     81,
+     76,
+     90,
+     100
+    ],
+    "navLevel": 1,
+    "battleLevel": 1,
+    "navExp": 0,
+    "battleExp": 0,
+    "age": 17,
+    "u_2b": "64",
+    "fleet": 254,
+    "u_2d": "ff00c001",
+    "face": 96
+   },
+   {
+    "givenName": "弗蘭克",
+    "familyName": "桑多",
+    "portrait": 34,
+    "stats": [
+     71,
+     55,
+     40,
+     43,
+     79,
+     80,
+     65,
+     70
+    ],
+    "navLevel": 8,
+    "battleLevel": 11,
+    "navExp": 140,
+    "battleExp": 20,
+    "age": 20,
+    "u_2b": "64",
+    "fleet": 254,
+    "u_2d": "ff00f114",
+    "face": 97
+   },
+   {
+    "givenName": "安德魯",
+    "familyName": "紀德",
+    "portrait": 35,
+    "stats": [
+     70,
+     44,
+     32,
+     60,
+     95,
+     82,
+     70,
+     80
+    ],
+    "navLevel": 9,
+    "battleLevel": 15,
+    "navExp": 20,
+    "battleExp": 200,
+    "age": 26,
+    "u_2b": "64",
+    "fleet": 254,
+    "u_2d": "ff007214",
+    "face": 97
+   },
+   {
+    "givenName": "艾德蒙",
+    "familyName": "吉爾巴特",
+    "portrait": 26,
+    "stats": [
+     62,
+     52,
+     90,
+     35,
+     37,
+     42,
+     55,
+     15
+    ],
+    "navLevel": 1,
+    "battleLevel": 1,
+    "navExp": 0,
+    "battleExp": 0,
+    "age": 30,
+    "u_2b": "00",
+    "fleet": 254,
+    "u_2d": "ff00a200",
+    "face": 99
+   },
+   {
+    "givenName": "馬休",
+    "familyName": "路易",
+    "portrait": 36,
+    "stats": [
+     81,
+     75,
+     52,
+     74,
+     77,
+     70,
+     69,
+     95
+    ],
+    "navLevel": 7,
+    "battleLevel": 10,
+    "navExp": 90,
+    "battleExp": 120,
+    "age": 27,
+    "u_2b": "64",
+    "fleet": 254,
+    "u_2d": "ff005114",
+    "face": 99
+   },
+   {
+    "givenName": "凱麥隆",
+    "familyName": "斯蒂芬",
+    "portrait": 38,
+    "stats": [
+     71,
+     72,
+     66,
+     78,
+     51,
+     60,
+     68,
+     75
+    ],
+    "navLevel": 3,
+    "battleLevel": 2,
+    "navExp": 80,
+    "battleExp": 30,
+    "age": 31,
+    "u_2b": "64",
+    "fleet": 254,
+    "u_2d": "ff00d112",
+    "face": 100
+   },
+   {
+    "givenName": "路德",
+    "familyName": "斯塔特",
+    "portrait": 39,
+    "stats": [
+     74,
+     85,
+     80,
+     69,
+     42,
+     38,
+     71,
+     89
+    ],
+    "navLevel": 10,
+    "battleLevel": 2,
+    "navExp": 40,
+    "battleExp": 10,
+    "age": 37,
+    "u_2b": "64",
+    "fleet": 254,
+    "u_2d": "ff007010",
+    "face": 101
+   },
+   {
+    "givenName": "加漢",
+    "familyName": "薩達姆",
+    "portrait": 40,
+    "stats": [
+     82,
+     80,
+     84,
+     44,
+     71,
+     79,
+     60,
+     65
+    ],
+    "navLevel": 3,
+    "battleLevel": 7,
+    "navExp": 30,
+    "battleExp": 120,
+    "age": 19,
+    "u_2b": "64",
+    "fleet": 254,
+    "u_2d": "ff004014",
+    "face": 98
+   },
+   {
+    "givenName": "彼利",
+    "familyName": "雷斯",
+    "portrait": 41,
+    "stats": [
+     80,
+     100,
+     100,
+     100,
+     68,
+     52,
+     74,
+     100
+    ],
+    "navLevel": 60,
+    "battleLevel": 50,
+    "navExp": 300,
+    "battleExp": 80,
+    "age": 37,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "0200e01f",
+    "face": 34
+   },
+   {
+    "givenName": "阿弗梅特",
+    "familyName": "古拉尼",
+    "portrait": 48,
+    "stats": [
+     82,
+     79,
+     53,
+     78,
+     83,
+     58,
+     66,
+     88
+    ],
+    "navLevel": 1,
+    "battleLevel": 1,
+    "navExp": 37,
+    "battleExp": 72,
+    "age": 27,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "1200c000",
+    "face": 98
+   },
+   {
+    "givenName": "阿蘭",
+    "familyName": "法西",
+    "portrait": 60690,
+    "stats": [
+     73,
+     67,
+     89,
+     81,
+     63,
+     86,
+     89,
+     74
+    ],
+    "navLevel": 2,
+    "battleLevel": 3,
+    "navExp": 229,
+    "battleExp": 140,
+    "age": 19,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "16008102",
+    "face": 34
+   },
+   {
+    "givenName": "薩加諾斯",
+    "familyName": "白",
+    "portrait": 49,
+    "stats": [
+     51,
+     58,
+     87,
+     82,
+     61,
+     88,
+     61,
+     73
+    ],
+    "navLevel": 2,
+    "battleLevel": 1,
+    "navExp": 292,
+    "battleExp": 227,
+    "age": 35,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "4b00a103",
+    "face": 98
+   },
+   {
+    "givenName": "法魯南",
+    "familyName": "品特",
+    "portrait": 42,
+    "stats": [
+     78,
+     73,
+     77,
+     83,
+     88,
+     69,
+     66,
+     42
+    ],
+    "navLevel": 12,
+    "battleLevel": 7,
+    "navExp": 274,
+    "battleExp": 52,
+    "age": 19,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "0d007018",
+    "face": 96
+   },
+   {
+    "givenName": "約翰",
+    "familyName": "卡斯特羅",
+    "portrait": 51021,
+    "stats": [
+     75,
+     52,
+     75,
+     56,
+     69,
+     79,
+     54,
+     88
+    ],
+    "navLevel": 2,
+    "battleLevel": 1,
+    "navExp": 139,
+    "battleExp": 164,
+    "age": 22,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "08009100",
+    "face": 32
+   },
+   {
+    "givenName": "米開羅",
+    "familyName": "萊爾",
+    "portrait": 44,
+    "stats": [
+     84,
+     73,
+     77,
+     84,
+     84,
+     54,
+     86,
+     64
+    ],
+    "navLevel": 7,
+    "battleLevel": 6,
+    "navExp": 275,
+    "battleExp": 140,
+    "age": 34,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "0000c015",
+    "face": 96
+   },
+   {
+    "givenName": "迪戈",
+    "familyName": "法格迪斯",
+    "portrait": 52681,
+    "stats": [
+     53,
+     83,
+     64,
+     65,
+     76,
+     81,
+     88,
+     83
+    ],
+    "navLevel": 6,
+    "battleLevel": 6,
+    "navExp": 131,
+    "battleExp": 255,
+    "age": 20,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "06003100",
+    "face": 96
+   },
+   {
+    "givenName": "格爾蒂",
+    "familyName": "佩雷拉",
+    "portrait": 43,
+    "stats": [
+     67,
+     79,
+     68,
+     61,
+     76,
+     66,
+     65,
+     61
+    ],
+    "navLevel": 1,
+    "battleLevel": 1,
+    "navExp": 107,
+    "battleExp": 58,
+    "age": 39,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "0a00d110",
+    "face": 96
+   },
+   {
+    "givenName": "馬諾爾",
+    "familyName": "佩斯特羅",
+    "portrait": 58436,
+    "stats": [
+     65,
+     83,
+     67,
+     79,
+     60,
+     78,
+     71,
+     15
+    ],
+    "navLevel": 2,
+    "battleLevel": 2,
+    "navExp": 286,
+    "battleExp": 41,
+    "age": 20,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "5c003100",
+    "face": 96
+   },
+   {
+    "givenName": "弗朗西斯科",
+    "familyName": "阿爾瓦萊斯",
+    "portrait": 59068,
+    "stats": [
+     51,
+     74,
+     67,
+     54,
+     57,
+     64,
+     74,
+     68
+    ],
+    "navLevel": 5,
+    "battleLevel": 5,
+    "navExp": 183,
+    "battleExp": 10,
+    "age": 41,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "34009004",
+    "face": 96
+   },
+   {
+    "givenName": "路易",
+    "familyName": "法雷",
+    "portrait": 49804,
+    "stats": [
+     58,
+     55,
+     62,
+     64,
+     58,
+     53,
+     63,
+     5
+    ],
+    "navLevel": 1,
+    "battleLevel": 1,
+    "navExp": 148,
+    "battleExp": 40,
+    "age": 22,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "2500f110",
+    "face": 96
+   },
+   {
+    "givenName": "凡",
+    "familyName": "克薩",
+    "portrait": 46,
+    "stats": [
+     87,
+     87,
+     52,
+     74,
+     82,
+     85,
+     72,
+     65
+    ],
+    "navLevel": 1,
+    "battleLevel": 2,
+    "navExp": 129,
+    "battleExp": 114,
+    "age": 36,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "03006000",
+    "face": 33
+   },
+   {
+    "givenName": "馬陸汀",
+    "familyName": "帕爾博",
+    "portrait": 59046,
+    "stats": [
+     87,
+     77,
+     60,
+     62,
+     85,
+     87,
+     71,
+     43
+    ],
+    "navLevel": 13,
+    "battleLevel": 8,
+    "navExp": 70,
+    "battleExp": 154,
+    "age": 30,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "4d007015",
+    "face": 97
+   },
+   {
+    "givenName": "貝爾南特",
+    "familyName": "戈麥斯",
+    "portrait": 47,
+    "stats": [
+     83,
+     70,
+     80,
+     71,
+     65,
+     88,
+     83,
+     77
+    ],
+    "navLevel": 14,
+    "battleLevel": 12,
+    "navExp": 255,
+    "battleExp": 150,
+    "age": 25,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "1200f11a",
+    "face": 97
+   },
+   {
+    "givenName": "迪艾哥",
+    "familyName": "百蘭斯",
+    "portrait": 45,
+    "stats": [
+     73,
+     75,
+     69,
+     78,
+     64,
+     54,
+     76,
+     79
+    ],
+    "navLevel": 11,
+    "battleLevel": 7,
+    "navExp": 276,
+    "battleExp": 228,
+    "age": 33,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "01003111",
+    "face": 33
+   },
+   {
+    "givenName": "潘佛",
+    "familyName": "奧力德",
+    "portrait": 61472,
+    "stats": [
+     64,
+     78,
+     81,
+     84,
+     59,
+     61,
+     86,
+     10
+    ],
+    "navLevel": 6,
+    "battleLevel": 5,
+    "navExp": 209,
+    "battleExp": 272,
+    "age": 35,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "2a001214",
+    "face": 33
+   },
+   {
+    "givenName": "阿倫索",
+    "familyName": "門特薩",
+    "portrait": 56580,
+    "stats": [
+     59,
+     65,
+     80,
+     71,
+     68,
+     53,
+     64,
+     77
+    ],
+    "navLevel": 1,
+    "battleLevel": 1,
+    "navExp": 135,
+    "battleExp": 101,
+    "age": 24,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "0000e100",
+    "face": 33
+   },
+   {
+    "givenName": "安冬尼",
+    "familyName": "金索",
+    "portrait": 51,
+    "stats": [
+     62,
+     66,
+     76,
+     84,
+     89,
+     67,
+     72,
+     54
+    ],
+    "navLevel": 2,
+    "battleLevel": 3,
+    "navExp": 272,
+    "battleExp": 247,
+    "age": 19,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "1000d014",
+    "face": 99
+   },
+   {
+    "givenName": "勞倫斯",
+    "familyName": "艾德瓦斯",
+    "portrait": 50,
+    "stats": [
+     51,
+     88,
+     84,
+     66,
+     62,
+     52,
+     79,
+     60
+    ],
+    "navLevel": 7,
+    "battleLevel": 9,
+    "navExp": 263,
+    "battleExp": 185,
+    "age": 31,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "1d00c105",
+    "face": 99
+   },
+   {
+    "givenName": "勞爾",
+    "familyName": "費奇",
+    "portrait": 52,
+    "stats": [
+     85,
+     76,
+     51,
+     63,
+     73,
+     74,
+     84,
+     63
+    ],
+    "navLevel": 2,
+    "battleLevel": 1,
+    "navExp": 208,
+    "battleExp": 69,
+    "age": 23,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "1d007112",
+    "face": 35
+   },
+   {
+    "givenName": "安冬尼",
+    "familyName": "夏利",
+    "portrait": 64091,
+    "stats": [
+     66,
+     87,
+     67,
+     68,
+     65,
+     53,
+     78,
+     41
+    ],
+    "navLevel": 2,
+    "battleLevel": 1,
+    "navExp": 275,
+    "battleExp": 108,
+    "age": 21,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "1e00b100",
+    "face": 99
+   },
+   {
+    "givenName": "阿洛基",
+    "familyName": "約翰尼",
+    "portrait": 53,
+    "stats": [
+     61,
+     85,
+     89,
+     60,
+     70,
+     86,
+     76,
+     61
+    ],
+    "navLevel": 14,
+    "battleLevel": 9,
+    "navExp": 193,
+    "battleExp": 290,
+    "age": 17,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "01007011",
+    "face": 36
+   },
+   {
+    "givenName": "張",
+    "familyName": "郎姆",
+    "portrait": 54,
+    "stats": [
+     85,
+     71,
+     80,
+     75,
+     80,
+     77,
+     76,
+     85
+    ],
+    "navLevel": 2,
+    "battleLevel": 2,
+    "navExp": 265,
+    "battleExp": 156,
+    "age": 37,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "09001000",
+    "face": 36
+   },
+   {
+    "givenName": "尼克",
+    "familyName": "斯蒂芬",
+    "portrait": 55,
+    "stats": [
+     79,
+     79,
+     65,
+     70,
+     74,
+     73,
+     78,
+     56
+    ],
+    "navLevel": 8,
+    "battleLevel": 5,
+    "navExp": 198,
+    "battleExp": 17,
+    "age": 41,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "08005110",
+    "face": 100
+   },
+   {
+    "givenName": "阿爾桑德",
+    "familyName": "班卓",
+    "portrait": 63102,
+    "stats": [
+     83,
+     74,
+     76,
+     60,
+     77,
+     64,
+     83,
+     72
+    ],
+    "navLevel": 7,
+    "battleLevel": 8,
+    "navExp": 38,
+    "battleExp": 90,
+    "age": 18,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "1900c004",
+    "face": 36
+   },
+   {
+    "givenName": "阿爾白",
+    "familyName": "斯基拉奇",
+    "portrait": 50442,
+    "stats": [
+     54,
+     68,
+     71,
+     79,
+     67,
+     79,
+     58,
+     0
+    ],
+    "navLevel": 5,
+    "battleLevel": 5,
+    "navExp": 43,
+    "battleExp": 168,
+    "age": 35,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "02005000",
+    "face": 36
+   },
+   {
+    "givenName": "克耐斯",
+    "familyName": "肖特",
+    "portrait": 53816,
+    "stats": [
+     75,
+     61,
+     76,
+     80,
+     53,
+     62,
+     88,
+     56
+    ],
+    "navLevel": 5,
+    "battleLevel": 6,
+    "navExp": 169,
+    "battleExp": 206,
+    "age": 31,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "21008100",
+    "face": 101
+   },
+   {
+    "givenName": "安普洛斯",
+    "familyName": "艾因卡",
+    "portrait": 64293,
+    "stats": [
+     81,
+     77,
+     77,
+     55,
+     78,
+     84,
+     59,
+     54
+    ],
+    "navLevel": 1,
+    "battleLevel": 2,
+    "navExp": 93,
+    "battleExp": 76,
+    "age": 22,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "5300d000",
+    "face": 101
+   },
+   {
+    "givenName": "蓋勒克",
+    "familyName": "修帕",
+    "portrait": 56,
+    "stats": [
+     57,
+     71,
+     58,
+     78,
+     67,
+     83,
+     71,
+     76
+    ],
+    "navLevel": 3,
+    "battleLevel": 4,
+    "navExp": 237,
+    "battleExp": 205,
+    "age": 26,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "55000110",
+    "face": 101
+   },
+   {
+    "givenName": "漢斯",
+    "familyName": "休塔特",
+    "portrait": 57,
+    "stats": [
+     82,
+     57,
+     52,
+     51,
+     57,
+     86,
+     84,
+     50
+    ],
+    "navLevel": 7,
+    "battleLevel": 9,
+    "navExp": 64,
+    "battleExp": 14,
+    "age": 38,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "21009118",
+    "face": 37
+   },
+   {
+    "givenName": "雅各布",
+    "familyName": "威爾維克",
+    "portrait": 58,
+    "stats": [
+     64,
+     52,
+     82,
+     53,
+     88,
+     77,
+     67,
+     51
+    ],
+    "navLevel": 5,
+    "battleLevel": 3,
+    "navExp": 0,
+    "battleExp": 60,
+    "age": 18,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "1b007202",
+    "face": 101
+   },
+   {
+    "givenName": "張",
+    "familyName": "阿爾馮斯",
+    "portrait": 56863,
+    "stats": [
+     54,
+     75,
+     43,
+     54,
+     78,
+     84,
+     75,
+     29
+    ],
+    "navLevel": 1,
+    "battleLevel": 3,
+    "navExp": 101,
+    "battleExp": 293,
+    "age": 24,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "30003204",
+    "face": 38
+   },
+   {
+    "givenName": "安冬尼奧",
+    "familyName": "品塔特",
+    "portrait": 61022,
+    "stats": [
+     70,
+     44,
+     65,
+     87,
+     82,
+     75,
+     46,
+     67
+    ],
+    "navLevel": 1,
+    "battleLevel": 1,
+    "navExp": 127,
+    "battleExp": 37,
+    "age": 21,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "3b003200",
+    "face": 38
+   },
+   {
+    "givenName": "卡扎萊",
+    "familyName": "費德理",
+    "portrait": 56020,
+    "stats": [
+     85,
+     62,
+     68,
+     80,
+     74,
+     70,
+     59,
+     81
+    ],
+    "navLevel": 1,
+    "battleLevel": 2,
+    "navExp": 68,
+    "battleExp": 216,
+    "age": 21,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "07003204",
+    "face": 102
+   },
+   {
+    "givenName": "弗蘭克",
+    "familyName": "羅羅諾阿",
+    "portrait": 58316,
+    "stats": [
+     72,
+     66,
+     71,
+     81,
+     52,
+     76,
+     89,
+     66
+    ],
+    "navLevel": 9,
+    "battleLevel": 15,
+    "navExp": 226,
+    "battleExp": 99,
+    "age": 22,
+    "u_2b": "00",
+    "fleet": 61,
+    "u_2d": "ff003214",
+    "face": 102
+   },
+   {
+    "givenName": "亨利",
+    "familyName": "蒙斯法爾",
+    "portrait": 60413,
+    "stats": [
+     60,
+     72,
+     58,
+     61,
+     78,
+     70,
+     43,
+     11
+    ],
+    "navLevel": 2,
+    "battleLevel": 3,
+    "navExp": 280,
+    "battleExp": 150,
+    "age": 20,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "45003204",
+    "face": 38
+   },
+   {
+    "givenName": "加里",
+    "familyName": "費夏",
+    "portrait": 64739,
+    "stats": [
+     69,
+     87,
+     73,
+     59,
+     81,
+     72,
+     76,
+     72
+    ],
+    "navLevel": 1,
+    "battleLevel": 1,
+    "navExp": 120,
+    "battleExp": 50,
+    "age": 29,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "23005104",
+    "face": 102
+   },
+   {
+    "givenName": "艾德瓦",
+    "familyName": "但比",
+    "portrait": 65431,
+    "stats": [
+     71,
+     71,
+     54,
+     58,
+     62,
+     79,
+     41,
+     88
+    ],
+    "navLevel": 5,
+    "battleLevel": 8,
+    "navExp": 155,
+    "battleExp": 191,
+    "age": 27,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "63003214",
+    "face": 102
+   },
+   {
+    "givenName": "洛帕特",
+    "familyName": "羅",
+    "portrait": 60,
+    "stats": [
+     69,
+     67,
+     62,
+     62,
+     73,
+     89,
+     82,
+     86
+    ],
+    "navLevel": 9,
+    "battleLevel": 12,
+    "navExp": 0,
+    "battleExp": 161,
+    "age": 26,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "42007114",
+    "face": 102
+   },
+   {
+    "givenName": "理查德",
+    "familyName": "哈克斯",
+    "portrait": 65526,
+    "stats": [
+     51,
+     69,
+     48,
+     83,
+     87,
+     67,
+     50,
+     75
+    ],
+    "navLevel": 1,
+    "battleLevel": 2,
+    "navExp": 110,
+    "battleExp": 25,
+    "age": 22,
+    "u_2b": "00",
+    "fleet": 255,
+    "u_2d": "32003204",
+    "face": 102
+   }
+  ],
+  "nobles": [
+   {
+    "name": "執事麥克",
+    "u_11": "0006000800"
+   },
+   {
+    "name": "摩力斯伯爵",
+    "u_11": "0007000922"
+   },
+   {
+    "name": "拉納•吉姆",
+    "u_11": "0008000912"
+   },
+   {
+    "name": "摩狄納公爵",
+    "u_11": "0009000a09"
+   },
+   {
+    "name": "摩爾迪斯教授",
+    "u_11": "000a00081b"
+   },
+   {
+    "name": "維拉夏諾",
+    "u_11": "010b00090d"
+   },
+   {
+    "name": "貝拉爾德•約蒂",
+    "u_11": "010c000920"
+   },
+   {
+    "name": "里白羅",
+    "u_11": "010d000903"
+   },
+   {
+    "name": "奧立維斯",
+    "u_11": "010e00090c"
+   },
+   {
+    "name": "梅爾卡特",
+    "u_11": "010f000921"
+   },
+   {
+    "name": "瑪努埃爾１世",
+    "u_11": "ff14000000"
+   },
+   {
+    "name": "卡洛斯１世",
+    "u_11": "ff18000000"
+   },
+   {
+    "name": "蘇萊曼大帝",
+    "u_11": "ff1d000000"
+   },
+   {
+    "name": "亨利８世",
+    "u_11": "ff1b000000"
+   },
+   {
+    "name": "佩特斯總督",
+    "u_11": "ff25000000"
+   },
+   {
+    "name": "耐普爾總督",
+    "u_11": "ff1c000000"
+   },
+   {
+    "name": "勞拉",
+    "u_11": "ff1e000000"
+   },
+   {
+    "name": "薩莎",
+    "u_11": "ff7f000000"
+   },
+   {
+    "name": "朱亞諾教授",
+    "u_11": "021000000a"
+   },
+   {
+    "name": "沃爾夫博士",
+    "u_11": "0311000023"
+   }
+  ],
+  "barmaids": [
+   {
+    "name": "卡蕾珞娃",
+    "u_0d": "260000ffff6f"
+   },
+   {
+    "name": "路琪亞",
+    "u_0d": "100000ffff3f"
+   },
+   {
+    "name": "蒂迪亞",
+    "u_0d": "130200ffff3d"
+   },
+   {
+    "name": "羅拉",
+    "u_0d": "140300ffff1f"
+   },
+   {
+    "name": "特萊薩",
+    "u_0d": "110700ffff0e"
+   },
+   {
+    "name": "瑪琪露塔",
+    "u_0d": "160800ffff1f"
+   },
+   {
+    "name": "佳娜",
+    "u_0d": "110d00ffff0e"
+   },
+   {
+    "name": "密麗娜",
+    "u_0d": "151000ffff2d"
+   },
+   {
+    "name": "乃麗",
+    "u_0d": "131200ffff39"
+   },
+   {
+    "name": "安娜",
+    "u_0d": "141a00ffff1e"
+   },
+   {
+    "name": "艾萊奴",
+    "u_0d": "171b00ffff1c"
+   },
+   {
+    "name": "莉莉安",
+    "u_0d": "161d00ffff1f"
+   },
+   {
+    "name": "萬塔",
+    "u_0d": "152000ffff2a"
+   },
+   {
+    "name": "麗爾",
+    "u_0d": "142100ffff3f"
+   },
+   {
+    "name": "克拉蒂亞",
+    "u_0d": "132300ffff2d"
+   },
+   {
+    "name": "安娜",
+    "u_0d": "142500ffff3d"
+   },
+   {
+    "name": "娜塔莉",
+    "u_0d": "152800ffff0d"
+   },
+   {
+    "name": "伊莎貝爾",
+    "u_0d": "182c00ffff1e"
+   },
+   {
+    "name": "阿美莉婭",
+    "u_0d": "122d00ffff3f"
+   },
+   {
+    "name": "西爾必亞",
+    "u_0d": "123500ffff1d"
+   },
+   {
+    "name": "維麗莎",
+    "u_0d": "133b00ffff3c"
+   },
+   {
+    "name": "伊爾瑪",
+    "u_0d": "153e00ffff1b"
+   },
+   {
+    "name": "哈拉",
+    "u_0d": "144200ffff3d"
+   },
+   {
+    "name": "哈蒂",
+    "u_0d": "164b00ffff25"
+   },
+   {
+    "name": "薩萊",
+    "u_0d": "144d00ffff0c"
+   },
+   {
+    "name": "康迪",
+    "u_0d": "135500ffff2d"
+   },
+   {
+    "name": "路基婭",
+    "u_0d": "155600ffff1e"
+   },
+   {
+    "name": "蒂蒂絲",
+    "u_0d": "125800ffff0e"
+   },
+   {
+    "name": "美華",
+    "u_0d": "136100ffff3f"
+   },
+   {
+    "name": "阿夏",
+    "u_0d": "116300ffff2d"
+   },
+   {
+    "name": "",
+    "nameTail": "006464ffffffffffffffffffff",
+    "u_0d": "ffffffffffff"
+   },
+   {
+    "name": "{#FFFF}{#FFFF}{#FFFF}{#FFFF}{#FFFF}{#FFFF}{FF}",
+    "u_0d": "ff0202020202"
+   },
+   {
+    "name": "{02}{02}{02}{02}{02}{02}{02}{02}{02}{02}{02}{02}{02}",
+    "u_0d": "020202020202"
+   },
+   {
+    "name": "{02}{02}{02}{02}{02}{02}{#FFFF}{#FFFF}{#FFFF}{FF}",
+    "u_0d": "ffffffffffff"
+   }
+  ],
+  "fleets": [
+   {
+    "x": 118,
+    "y": 358,
+    "u_04": "00000000000000000000000000000000000000000000000000ffffffffff000000000000000000",
+    "ships": [
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 2006,
+    "y": 353,
+    "u_04": "8e007401000000000041000000000000000000000000000000ffffffffff000037000001000106",
+    "ships": [
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "2d0028285a460f",
+      "ship": 47,
+      "u_08": "16"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "16"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "16"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 951,
+    "y": 668,
+    "u_04": "60015801000000000041000000000000000000000000000000ffffffffff000032000002000107",
+    "ships": [
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "2d0028285a460f",
+      "ship": 47,
+      "u_08": "16"
+     },
+     {
+      "u_00": "2d0028285a460f",
+      "ship": 47,
+      "u_08": "16"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "16"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 650,
+    "y": 572,
+    "u_04": "c2005601000000000041000000000000000000000000000000ffffffffff00002d000003000108",
+    "ships": [
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "2d0028285a460f",
+      "ship": 47,
+      "u_08": "16"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "16"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 487,
+    "y": 592,
+    "u_04": "c8007801000000000041000000000000000000000000000000ffffffffff000032000004000109",
+    "ships": [
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "2d0028285a460f",
+      "ship": 47,
+      "u_08": "15"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "16"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "16"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 109,
+    "y": 351,
+    "u_04": "f2007401000000000041000000000000000000000000000000ffffffffff00002800000500010a",
+    "ships": [
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "14"
+     },
+     {
+      "u_00": "1e00282864550a",
+      "ship": 58,
+      "u_08": "14"
+     },
+     {
+      "u_00": "1e00282864550a",
+      "ship": 58,
+      "u_08": "54"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 148,
+    "y": 299,
+    "u_04": "b2006401000000000041000000000000000000000000000000ffffffffff00002d00000600010b",
+    "ships": [
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "13"
+     },
+     {
+      "u_00": "1e00282864550a",
+      "ship": 58,
+      "u_08": "14"
+     },
+     {
+      "u_00": "1e00282864550a",
+      "ship": 58,
+      "u_08": "14"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 196,
+    "y": 190,
+    "u_04": "d4004601000000000041000000000000000000000000000000ffffffffff00003200000700010c",
+    "ships": [
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "14"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "14"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "14"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 308,
+    "y": 873,
+    "u_04": "e6004001000000000041000000000000000000000000000000ffffffffff00003700000800010d",
+    "ships": [
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "14"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "14"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 1885,
+    "y": 1022,
+    "u_04": "f0004801000000000041000000000000000000000000000000ffffffffff00003c00000900010e",
+    "ships": [
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "14"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "14"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 142,
+    "y": 374,
+    "u_04": "04015c01000000000041000000000000000000000000000001ffffffffff000000000100000001",
+    "ships": [
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 159,
+    "y": 640,
+    "u_04": "0e017801000000000041000000000000000000000000000001ffffffffff00002300010100010f",
+    "ships": [
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "2d0028285a460f",
+      "ship": 47,
+      "u_08": "16"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "16"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "16"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 280,
+    "y": 871,
+    "u_04": "c4006601000000000041000000000000000000000000000001ffffffffff00002d000102000110",
+    "ships": [
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "2d0028285a460f",
+      "ship": 47,
+      "u_08": "16"
+     },
+     {
+      "u_00": "2d0028285a460f",
+      "ship": 47,
+      "u_08": "16"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "16"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 578,
+    "y": 479,
+    "u_04": "02013e01000000000041000000000000000000000000000001ffffffffff000032000103000111",
+    "ships": [
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "2d0028285a460f",
+      "ship": 47,
+      "u_08": "16"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "16"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 2008,
+    "y": 317,
+    "u_04": "20015201000000000041000000000000000000000000000001ffffffffff000037000104000112",
+    "ships": [
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "2d0028285a460f",
+      "ship": 47,
+      "u_08": "15"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "16"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "16"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 187,
+    "y": 354,
+    "u_04": "4a018201000000000041000000000000000000000000000001ffffffffff00002d000105000113",
+    "ships": [
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "13"
+     },
+     {
+      "u_00": "1e00282864550a",
+      "ship": 58,
+      "u_08": "14"
+     },
+     {
+      "u_00": "1e00282864550a",
+      "ship": 58,
+      "u_08": "14"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 192,
+    "y": 347,
+    "u_04": "44016e01000000000041000000000000000000000000000001ffffffffff000023000106000114",
+    "ships": [
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "13"
+     },
+     {
+      "u_00": "1e00282864550a",
+      "ship": 58,
+      "u_08": "13"
+     },
+     {
+      "u_00": "1e00282864550a",
+      "ship": 58,
+      "u_08": "14"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 1980,
+    "y": 909,
+    "u_04": "3c015801000000000041000000000000000000000000000001ffffffffff00002d000107000115",
+    "ships": [
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "13"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "14"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 952,
+    "y": 687,
+    "u_04": "6601a001000000000041000000000000000000000000000001ffffffffff000037000108000116",
+    "ships": [
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "14"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "14"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 467,
+    "y": 626,
+    "u_04": "86019a01000000000041000000000000000000000000000001ffffffffff000028000109000117",
+    "ships": [
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "14"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "14"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 352,
+    "y": 342,
+    "u_04": "88019201000000000041000000000000000000000000000002ffffffffff000000000200000005",
+    "ships": [
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 438,
+    "y": 697,
+    "u_04": "7a018201000000000041000000000000000000000000000002ffffffffff00002d000201000118",
+    "ships": [
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "16"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "16"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "16"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 97,
+    "y": 592,
+    "u_04": "02019601000000000041000000000000000000000000000002ffffffffff000037000202000119",
+    "ships": [
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "16"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "16"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "16"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 4,
+    "y": 174,
+    "u_04": "80013c01000000000041000000000000000000000000000002ffffffffff00002d00020300011a",
+    "ships": [
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "16"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "16"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 259,
+    "y": 829,
+    "u_04": "9a012e01000000000041000000000000000000000000000002ffffffffff00003200020400011b",
+    "ships": [
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "16"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "16"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 364,
+    "y": 327,
+    "u_04": "a2015801000000000041000000000000000000000000000002ffffffffff00002d00020500011c",
+    "ships": [
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "11"
+     },
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "14"
+     },
+     {
+      "u_00": "40015a5a464632",
+      "ship": 60,
+      "u_08": "14"
+     },
+     {
+      "u_00": "40015a5a464632",
+      "ship": 60,
+      "u_08": "14"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 396,
+    "y": 326,
+    "u_04": "90008001000000000041000000000000000000000000000002ffffffffff00002300020600011d",
+    "ships": [
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "13"
+     },
+     {
+      "u_00": "40015a5a464632",
+      "ship": 60,
+      "u_08": "14"
+     },
+     {
+      "u_00": "40015a5a464632",
+      "ship": 60,
+      "u_08": "14"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 884,
+    "y": 690,
+    "u_04": "aa003a01000000000041000000000000000000000000000002ffffffffff00003c00020700011e",
+    "ships": [
+     {
+      "u_00": "7800464650461e",
+      "ship": 51,
+      "u_08": "12"
+     },
+     {
+      "u_00": "7800464650461e",
+      "ship": 51,
+      "u_08": "12"
+     },
+     {
+      "u_00": "7800464650461e",
+      "ship": 51,
+      "u_08": "13"
+     },
+     {
+      "u_00": "7800464650461e",
+      "ship": 51,
+      "u_08": "13"
+     },
+     {
+      "u_00": "7800464650461e",
+      "ship": 51,
+      "u_08": "14"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "14"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "14"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 57,
+    "y": 539,
+    "u_04": "a6002801000000000041000000000000000000000000000002ffffffffff00003700020800011f",
+    "ships": [
+     {
+      "u_00": "7800464650461e",
+      "ship": 51,
+      "u_08": "12"
+     },
+     {
+      "u_00": "7800464650461e",
+      "ship": 51,
+      "u_08": "12"
+     },
+     {
+      "u_00": "7800464650461e",
+      "ship": 51,
+      "u_08": "13"
+     },
+     {
+      "u_00": "7800464650461e",
+      "ship": 51,
+      "u_08": "13"
+     },
+     {
+      "u_00": "7800464650461e",
+      "ship": 51,
+      "u_08": "14"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "14"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 251,
+    "y": 396,
+    "u_04": "b4000601000000000041000000000000000000000000000002ffffffffff00002d000209000120",
+    "ships": [
+     {
+      "u_00": "7800464650461e",
+      "ship": 51,
+      "u_08": "12"
+     },
+     {
+      "u_00": "7800464650461e",
+      "ship": 51,
+      "u_08": "12"
+     },
+     {
+      "u_00": "7800464650461e",
+      "ship": 51,
+      "u_08": "13"
+     },
+     {
+      "u_00": "7800464650461e",
+      "ship": 51,
+      "u_08": "13"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "14"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "14"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 180,
+    "y": 264,
+    "u_04": "a000080100000000004100000000000000000000000000001dffffffffff000000001d00000002",
+    "ships": [
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 2011,
+    "y": 859,
+    "u_04": "8800fc0000000000004100000000000000000000000000001dffffffffff000037001d01000121",
+    "ships": [
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "16"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "16"
+     },
+     {
+      "u_00": "1e001e1e465a0a",
+      "ship": 46,
+      "u_08": "16"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 248,
+    "y": 221,
+    "u_04": "d600020100000000004100000000000000000000000000001dffffffffff00002d001d02000122",
+    "ships": [
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "16"
+     },
+     {
+      "u_00": "1e001e1e465a0a",
+      "ship": 46,
+      "u_08": "16"
+     },
+     {
+      "u_00": "1e001e1e465a0a",
+      "ship": 46,
+      "u_08": "16"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 243,
+    "y": 202,
+    "u_04": "d800f80000000000004100000000000000000000000000001dffffffffff000023001d03000123",
+    "ships": [
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "16"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "16"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "16"
+     },
+     {
+      "u_00": "1e001e1e465a0a",
+      "ship": 46,
+      "u_08": "16"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 322,
+    "y": 355,
+    "u_04": "fe00e60000000000004100000000000000000000000000001dffffffffff00002d001d04000124",
+    "ships": [
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "15"
+     },
+     {
+      "u_00": "1e001e1e465a0a",
+      "ship": 46,
+      "u_08": "16"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 193,
+    "y": 262,
+    "u_04": "f000f40000000000004100000000000000000000000000001dffffffffff000028001d05000125",
+    "ships": [
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "11"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "12"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "12"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "13"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 174,
+    "y": 275,
+    "u_04": "f200be0000000000004100000000000000000000000000001dffffffffff000023001d06000126",
+    "ships": [
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "11"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "11"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "12"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 361,
+    "y": 853,
+    "u_04": "2601c40000000000004100000000000000000000000000001dffffffffff00002d001d07000127",
+    "ships": [
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "11"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "13"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "14"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 610,
+    "y": 532,
+    "u_04": "f400f20000000000004100000000000000000000000000001dffffffffff000032001d08000128",
+    "ships": [
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "11"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "14"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 670,
+    "y": 542,
+    "u_04": "2001f00000000000004100000000000000000000000000001dffffffffff00003c001d09000129",
+    "ships": [
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "11"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "11"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "13"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "13"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 230,
+    "y": 322,
+    "u_04": "4201da00000000000041000000000000000000000000000008ffffffffff000000000800000004",
+    "ships": [
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 608,
+    "y": 508,
+    "u_04": "d200c000000000000041000000000000000000000000000008ffffffffff00003200080100012a",
+    "ships": [
+     {
+      "u_00": "96004646323c1e",
+      "ship": 43,
+      "u_08": "14"
+     },
+     {
+      "u_00": "96004646323c1e",
+      "ship": 43,
+      "u_08": "15"
+     },
+     {
+      "u_00": "96004646323c1e",
+      "ship": 43,
+      "u_08": "15"
+     },
+     {
+      "u_00": "96004646323c1e",
+      "ship": 43,
+      "u_08": "16"
+     },
+     {
+      "u_00": "96004646323c1e",
+      "ship": 43,
+      "u_08": "16"
+     },
+     {
+      "u_00": "96004646323c1e",
+      "ship": 43,
+      "u_08": "16"
+     },
+     {
+      "u_00": "0f001414465f0a",
+      "ship": 44,
+      "u_08": "16"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 2068,
+    "y": 808,
+    "u_04": "78006601000000000041000000000000000000000000000008ffffffffff00002300080200012b",
+    "ships": [
+     {
+      "u_00": "96004646323c1e",
+      "ship": 43,
+      "u_08": "14"
+     },
+     {
+      "u_00": "96004646323c1e",
+      "ship": 43,
+      "u_08": "14"
+     },
+     {
+      "u_00": "96004646323c1e",
+      "ship": 43,
+      "u_08": "15"
+     },
+     {
+      "u_00": "96004646323c1e",
+      "ship": 43,
+      "u_08": "15"
+     },
+     {
+      "u_00": "96004646323c1e",
+      "ship": 43,
+      "u_08": "16"
+     },
+     {
+      "u_00": "0f001414465f0a",
+      "ship": 44,
+      "u_08": "16"
+     },
+     {
+      "u_00": "0f001414465f0a",
+      "ship": 44,
+      "u_08": "16"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 443,
+    "y": 715,
+    "u_04": "8e007401000000000041000000000000000000000000000008ffffffffff00002800080300012c",
+    "ships": [
+     {
+      "u_00": "96004646323c1e",
+      "ship": 43,
+      "u_08": "14"
+     },
+     {
+      "u_00": "96004646323c1e",
+      "ship": 43,
+      "u_08": "15"
+     },
+     {
+      "u_00": "96004646323c1e",
+      "ship": 43,
+      "u_08": "15"
+     },
+     {
+      "u_00": "96004646323c1e",
+      "ship": 43,
+      "u_08": "15"
+     },
+     {
+      "u_00": "96004646323c1e",
+      "ship": 43,
+      "u_08": "16"
+     },
+     {
+      "u_00": "0f001414465f0a",
+      "ship": 44,
+      "u_08": "16"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 239,
+    "y": 756,
+    "u_04": "60015801000000000041000000000000000000000000000008ffffffffff00002300080400012d",
+    "ships": [
+     {
+      "u_00": "96004646323c1e",
+      "ship": 43,
+      "u_08": "14"
+     },
+     {
+      "u_00": "96004646323c1e",
+      "ship": 43,
+      "u_08": "15"
+     },
+     {
+      "u_00": "96004646323c1e",
+      "ship": 43,
+      "u_08": "15"
+     },
+     {
+      "u_00": "96004646323c1e",
+      "ship": 43,
+      "u_08": "15"
+     },
+     {
+      "u_00": "0f001414465f0a",
+      "ship": 44,
+      "u_08": "16"
+     },
+     {
+      "u_00": "0f001414465f0a",
+      "ship": 44,
+      "u_08": "16"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 256,
+    "y": 357,
+    "u_04": "c2005601000000000041000000000000000000000000000008ffffffffff00002800080500012e",
+    "ships": [
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "13"
+     },
+     {
+      "u_00": "40015a5a464632",
+      "ship": 60,
+      "u_08": "12"
+     },
+     {
+      "u_00": "40015a5a464632",
+      "ship": 60,
+      "u_08": "12"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 240,
+    "y": 339,
+    "u_04": "c8007801000000000041000000000000000000000000000008ffffffffff00002d00080600012f",
+    "ships": [
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "11"
+     },
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "12"
+     },
+     {
+      "u_00": "40015a5a464632",
+      "ship": 60,
+      "u_08": "12"
+     },
+     {
+      "u_00": "40015a5a464632",
+      "ship": 60,
+      "u_08": "13"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 283,
+    "y": 410,
+    "u_04": "f2007401000000000041000000000000000000000000000008ffffffffff00001e000807000130",
+    "ships": [
+     {
+      "u_00": "96004646323c1e",
+      "ship": 43,
+      "u_08": "11"
+     },
+     {
+      "u_00": "96004646323c1e",
+      "ship": 43,
+      "u_08": "12"
+     },
+     {
+      "u_00": "96004646323c1e",
+      "ship": 43,
+      "u_08": "13"
+     },
+     {
+      "u_00": "96004646323c1e",
+      "ship": 43,
+      "u_08": "13"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "13"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "12"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "12"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 60,
+    "y": 497,
+    "u_04": "b2006401000000000041000000000000000000000000000008ffffffffff000028000808000131",
+    "ships": [
+     {
+      "u_00": "96004646323c1e",
+      "ship": 43,
+      "u_08": "11"
+     },
+     {
+      "u_00": "96004646323c1e",
+      "ship": 43,
+      "u_08": "12"
+     },
+     {
+      "u_00": "96004646323c1e",
+      "ship": 43,
+      "u_08": "13"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "13"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "12"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "11"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 89,
+    "y": 89,
+    "u_04": "d4004601000000000041000000000000000000000000000008ffffffffff00001e000809000132",
+    "ships": [
+     {
+      "u_00": "96004646323c1e",
+      "ship": 43,
+      "u_08": "11"
+     },
+     {
+      "u_00": "96004646323c1e",
+      "ship": 43,
+      "u_08": "11"
+     },
+     {
+      "u_00": "96004646323c1e",
+      "ship": 43,
+      "u_08": "12"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "12"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "13"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "13"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 218,
+    "y": 248,
+    "u_04": "e6004001000000000041000000000000000000000000000021ffffffffff000000002100000003",
+    "ships": [
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 617,
+    "y": 555,
+    "u_04": "f0004801000000000041000000000000000000000000000021ffffffffff00001e002101000133",
+    "ships": [
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "16"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "16"
+     },
+     {
+      "u_00": "1e001e1e5a4b0a",
+      "ship": 45,
+      "u_08": "16"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 692,
+    "y": 514,
+    "u_04": "04015c01000000000041000000000000000000000000000021ffffffffff000028002102000134",
+    "ships": [
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "16"
+     },
+     {
+      "u_00": "1e001e1e5a4b0a",
+      "ship": 45,
+      "u_08": "16"
+     },
+     {
+      "u_00": "1e001e1e5a4b0a",
+      "ship": 45,
+      "u_08": "16"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 2109,
+    "y": 745,
+    "u_04": "0e017801000000000041000000000000000000000000000021ffffffffff00001e002103000135",
+    "ships": [
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "15"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "16"
+     },
+     {
+      "u_00": "1e001e1e5a4b0a",
+      "ship": 45,
+      "u_08": "16"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 845,
+    "y": 692,
+    "u_04": "c4006601000000000041000000000000000000000000000021ffffffffff00002d002104000136",
+    "ships": [
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "15"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "16"
+     },
+     {
+      "u_00": "1e001e1e5a4b0a",
+      "ship": 45,
+      "u_08": "16"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 220,
+    "y": 237,
+    "u_04": "02013e01000000000041000000000000000000000000000021ffffffffff000032002105000137",
+    "ships": [
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "11"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "12"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "12"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "13"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "14"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "14"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 205,
+    "y": 247,
+    "u_04": "20015201000000000041000000000000000000000000000021ffffffffff00003c002106000138",
+    "ships": [
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "11"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "12"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "12"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "14"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 277,
+    "y": 336,
+    "u_04": "4a018201000000000041000000000000000000000000000021ffffffffff000032002107000139",
+    "ships": [
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "11"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "14"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "15"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 323,
+    "y": 400,
+    "u_04": "44016e01000000000041000000000000000000000000000021ffffffffff00002d00210800013a",
+    "ships": [
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "11"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "14"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 65,
+    "y": 447,
+    "u_04": "3c015801000000000040000000000000000000000000000021ffffffffff00001900210900013b",
+    "ships": [
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "11"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "13"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "14"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 1985,
+    "y": 434,
+    "u_04": "6601a00100000000004000000000000000000000000000002affffffffff000023002a0100003c",
+    "ships": [
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "12"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "12"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "12"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     }
+    ]
+   },
+   {
+    "x": 1985,
+    "y": 434,
+    "u_04": "6601a00100000000004000000000000000000000000000002affffffffff000023002a01000172",
+    "ships": [
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "12"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "12"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "12"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 1909,
+    "y": 529,
+    "u_04": "86019a0100000000004000000000000000000000000000002bffffffffff000028002b0200013d",
+    "ships": [
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "12"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "12"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "12"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 717,
+    "y": 487,
+    "u_04": "8801920100000000004000000000000000000000000000002cffffffffff000032002c0300013e",
+    "ships": [
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "12"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "12"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 626,
+    "y": 572,
+    "u_04": "7a01820100000000004000000000000000000000000000002dffffffffff00002d002d0400013f",
+    "ships": [
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "11"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "12"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "12"
+     },
+     {
+      "u_00": "640032323c501e",
+      "ship": 49,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "13"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "14"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 381,
+    "y": 412,
+    "u_04": "02019601000000000040000000000000000000000000000004ffffffffff000023000405000140",
+    "ships": [
+     {
+      "u_00": "40015a5a464632",
+      "ship": 60,
+      "u_08": "11"
+     },
+     {
+      "u_00": "40015a5a464632",
+      "ship": 60,
+      "u_08": "11"
+     },
+     {
+      "u_00": "40015a5a464632",
+      "ship": 60,
+      "u_08": "12"
+     },
+     {
+      "u_00": "40015a5a464632",
+      "ship": 60,
+      "u_08": "12"
+     },
+     {
+      "u_00": "40015a5a464632",
+      "ship": 60,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "13"
+     },
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "13"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 351,
+    "y": 413,
+    "u_04": "82013c01000000000040000000000000000000000000000004ffffffffff00002d000406000141",
+    "ships": [
+     {
+      "u_00": "40015a5a464632",
+      "ship": 60,
+      "u_08": "11"
+     },
+     {
+      "u_00": "40015a5a464632",
+      "ship": 60,
+      "u_08": "11"
+     },
+     {
+      "u_00": "40015a5a464632",
+      "ship": 60,
+      "u_08": "12"
+     },
+     {
+      "u_00": "40015a5a464632",
+      "ship": 60,
+      "u_08": "12"
+     },
+     {
+      "u_00": "40015a5a464632",
+      "ship": 60,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050504b501e",
+      "ship": 59,
+      "u_08": "13"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 772,
+    "y": 674,
+    "u_04": "9a012e01000000000040000000000000000000000000000005ffffffffff00001e000507000142",
+    "ships": [
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "11"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "11"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "13"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "13"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 2042,
+    "y": 670,
+    "u_04": "a2015801000000000040000000000000000000000000000005ffffffffff000028000508000143",
+    "ships": [
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "11"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "11"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "13"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   },
+   {
+    "x": 1961,
+    "y": 578,
+    "u_04": "90008001000000000040000000000000000000000000000005ffffffffff00002d000509000144",
+    "ships": [
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "11"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "11"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "b40050503c4146",
+      "ship": 50,
+      "u_08": "12"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "12"
+     },
+     {
+      "u_00": "5000323241551e",
+      "ship": 48,
+      "u_08": "13"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     },
+     {
+      "u_00": "ff00ffffffffff",
+      "ship": 255,
+      "u_08": "00"
+     }
+    ]
+   }
+  ],
+  "t52d4": [
+   {
+    "u_00": "c800c800000005001932510000000000000000000000ffffffffff006400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   },
+   {
+    "u_00": "00000000000000001414000000000000000000000000ffffffffffff6400"
+   }
+  ],
+  "dockSlots": [
+   {
+    "u_00": "00000000000000",
+    "ship": 0,
+    "u_08": "00"
+   },
+   {
+    "u_00": "00000000000000",
+    "ship": 0,
+    "u_08": "00"
+   },
+   {
+    "u_00": "00000000000000",
+    "ship": 0,
+    "u_08": "00"
+   },
+   {
+    "u_00": "00000000000000",
+    "ship": 0,
+    "u_08": "00"
+   },
+   {
+    "u_00": "00000000000000",
+    "ship": 0,
+    "u_08": "00"
+   },
+   {
+    "u_00": "00000000000000",
+    "ship": 0,
+    "u_08": "00"
+   },
+   {
+    "u_00": "00000000000000",
+    "ship": 0,
+    "u_08": "00"
+   },
+   {
+    "u_00": "00000000000000",
+    "ship": 0,
+    "u_08": "00"
+   },
+   {
+    "u_00": "00000000000000",
+    "ship": 0,
+    "u_08": "00"
+   },
+   {
+    "u_00": "00000000000000",
+    "ship": 0,
+    "u_08": "00"
+   },
+   {
+    "u_00": "00000000000000",
+    "ship": 0,
+    "u_08": "00"
+   },
+   {
+    "u_00": "00000000000000",
+    "ship": 0,
+    "u_08": "00"
+   },
+   {
+    "u_00": "00000000000000",
+    "ship": 0,
+    "u_08": "00"
+   },
+   {
+    "u_00": "00000000000000",
+    "ship": 0,
+    "u_08": "00"
+   },
+   {
+    "u_00": "00000000000000",
+    "ship": 0,
+    "u_08": "00"
+   },
+   {
+    "u_00": "00000000000000",
+    "ship": 0,
+    "u_08": "00"
+   },
+   {
+    "u_00": "00000000000000",
+    "ship": 0,
+    "u_08": "00"
+   },
+   {
+    "u_00": "00000000000000",
+    "ship": 0,
+    "u_08": "00"
+   },
+   {
+    "u_00": "00000000000000",
+    "ship": 0,
+    "u_08": "00"
+   },
+   {
+    "u_00": "00000000000000",
+    "ship": 0,
+    "u_08": "00"
+   },
+   {
+    "u_00": "00000000000000",
+    "ship": 0,
+    "u_08": "00"
+   },
+   {
+    "u_00": "00000000000000",
+    "ship": 0,
+    "u_08": "00"
+   },
+   {
+    "u_00": "00000000000000",
+    "ship": 0,
+    "u_08": "00"
+   },
+   {
+    "u_00": "00000000000000",
+    "ship": 0,
+    "u_08": "00"
+   },
+   {
+    "u_00": "00000000000000",
+    "ship": 0,
+    "u_08": "00"
+   },
+   {
+    "u_00": "00000000000000",
+    "ship": 0,
+    "u_08": "00"
+   },
+   {
+    "u_00": "00000000000000",
+    "ship": 0,
+    "u_08": "00"
+   },
+   {
+    "u_00": "00000000000000",
+    "ship": 0,
+    "u_08": "00"
+   },
+   {
+    "u_00": "00000000000000",
+    "ship": 0,
+    "u_08": "00"
+   },
+   {
+    "u_00": "00000000000000",
+    "ship": 0,
+    "u_08": "00"
+   }
+  ],
+  "ships": [
+   {
+    "name": "１",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "２",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "３",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "４",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "５",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "６",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "７",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "８",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "９",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "０",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "10",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "11",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "12",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "13",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "14",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "15",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "16",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "17",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "18",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "19",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "20",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "21",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "22",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "23",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "24",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "25",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "26",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "27",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "28",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "29",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "30",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "31",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "32",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "33",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "34",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "35",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "36",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "37",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "38",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "39",
+    "type": 255,
+    "u_10": "2a0f1e009b00"
+   },
+   {
+    "name": "輕木帆船",
+    "type": 0,
+    "u_10": "52050f001e00"
+   },
+   {
+    "name": "單桅帆船",
+    "type": 1,
+    "u_10": "120514002300"
+   },
+   {
+    "name": "單桅三角帆船",
+    "type": 2,
+    "u_10": "52050f003200"
+   },
+   {
+    "name": "多桅帆船",
+    "type": 3,
+    "u_10": "321e96004001"
+   },
+   {
+    "name": "三角帆船",
+    "type": 4,
+    "u_10": "120a0f003700"
+   },
+   {
+    "name": "多桅三角帆船",
+    "type": 5,
+    "u_10": "520a1e005000"
+   },
+   {
+    "name": "多桅橫帆船",
+    "type": 6,
+    "u_10": "520a1e005000"
+   },
+   {
+    "name": "多桅小型帆船",
+    "type": 7,
+    "u_10": "720f2d007800"
+   },
+   {
+    "name": "中型帆船",
+    "type": 8,
+    "u_10": "721e50005401"
+   },
+   {
+    "name": "武裝帆船",
+    "type": 9,
+    "u_10": "721e6400d601"
+   },
+   {
+    "name": "西班牙大帆船",
+    "type": 10,
+    "u_10": "5246b4002602"
+   },
+   {
+    "name": "三桅帆船",
+    "type": 11,
+    "u_10": "521e7800c201"
+   },
+   {
+    "name": "輕型帆船",
+    "type": 12,
+    "u_10": "520f28005f00"
+   },
+   {
+    "name": "單桅快船",
+    "type": 13,
+    "u_10": "520f2800c300"
+   },
+   {
+    "name": "武裝快船",
+    "type": 14,
+    "u_10": "5241b4009501"
+   },
+   {
+    "name": "三桅大型帆船",
+    "type": 15,
+    "u_10": "72780e016202"
+   },
+   {
+    "name": "大型輪船",
+    "type": 16,
+    "u_10": "72782c010c03"
+   },
+   {
+    "name": "中國式帆船",
+    "type": 17,
+    "u_10": "521e4b008b01"
+   },
+   {
+    "name": "輕型三角帆船",
+    "type": 18,
+    "u_10": "020a1e005000"
+   },
+   {
+    "name": "佛蘭德帆船",
+    "type": 19,
+    "u_10": "021eb4002201"
+   },
+   {
+    "name": "威尼斯炮艦",
+    "type": 20,
+    "u_10": "023240014402"
+   },
+   {
+    "name": "混合式快船",
+    "type": 21,
+    "u_10": "421ea0000401"
+   },
+   {
+    "name": "鐵甲船",
+    "type": 22,
+    "u_10": "625068019402"
+   },
+   {
+    "name": "安宅船",
+    "type": 23,
+    "u_10": "221ea0003601"
+   },
+   {
+    "name": "關船",
+    "type": 24,
+    "u_10": "020f3c00af00"
+   }
+  ],
+  "shipTypes": [
+   {
+    "u_00": "0a1e4650020532000a04",
+    "price": 120
+   },
+   {
+    "u_00": "0a14415502053c000a04",
+    "price": 130
+   },
+   {
+    "u_00": "1e1e5a4b020546000f04",
+    "price": 180
+   },
+   {
+    "u_00": "4646323c1432f4012800",
+    "price": 2000
+   },
+   {
+    "u_00": "1414465f020550000f04",
+    "price": 140
+   },
+   {
+    "u_00": "141e5a4b040a78001405",
+    "price": 240
+   },
+   {
+    "u_00": "141e465a040a78001404",
+    "price": 240
+   },
+   {
+    "u_00": "28285a46060fb4001405",
+    "price": 1000
+   },
+   {
+    "u_00": "323241550c19c2012802",
+    "price": 3000
+   },
+   {
+    "u_00": "3c323c50101e58023202",
+    "price": 4000
+   },
+   {
+    "u_00": "50503c41142d20034600",
+    "price": 6000
+   },
+   {
+    "u_00": "324650461e1958022803",
+    "price": 4400
+   },
+   {
+    "u_00": "37285f55060596001405",
+    "price": 600
+   },
+   {
+    "u_00": "55325f550605fa002805",
+    "price": 1600
+   },
+   {
+    "u_00": "64503c551e148a024604",
+    "price": 22400
+   },
+   {
+    "u_00": "645a32412d28e8037802",
+    "price": 30000
+   },
+   {
+    "u_00": "645a3241322db0049602",
+    "price": 32000
+   },
+   {
+    "u_00": "1e5050460a19f4012803",
+    "price": 1600
+   },
+   {
+    "u_00": "0a286455020578000a05",
+    "price": 140
+   },
+   {
+    "u_00": "28504b501428f4011e01",
+    "price": 3400
+   },
+   {
+    "u_00": "325a4646283cb6033201",
+    "price": 6400
+   },
+   {
+    "u_00": "3c3c5f64191ec2012803",
+    "price": 4000
+   },
+   {
+    "u_00": "645a50551e2d4c046402",
+    "price": 14000
+   },
+   {
+    "u_00": "283c5f5f1414f4012802",
+    "price": 1400
+   },
+   {
+    "u_00": "141e6464060afa001405",
+    "price": 200
+   }
+  ],
+  "ports": [
+   {
+    "x": 120,
+    "y": 358,
+    "name": "里斯本",
+    "region": 80
+   },
+   {
+    "x": 142,
+    "y": 372,
+    "name": "塞維爾",
+    "region": 81
+   },
+   {
+    "x": 352,
+    "y": 344,
+    "name": "伊斯坦堡",
+    "region": 82
+   },
+   {
+    "x": 194,
+    "y": 342,
+    "name": "巴塞隆納",
+    "region": 17
+   },
+   {
+    "x": 200,
+    "y": 376,
+    "name": "阿爾及耳",
+    "region": 0
+   },
+   {
+    "x": 242,
+    "y": 372,
+    "name": "突尼斯",
+    "region": 0
+   },
+   {
+    "x": 178,
+    "y": 356,
+    "name": "瓦倫西亞",
+    "region": 17
+   },
+   {
+    "x": 212,
+    "y": 326,
+    "name": "馬賽",
+    "region": 86
+   },
+   {
+    "x": 230,
+    "y": 320,
+    "name": "熱那亞",
+    "region": 84
+   },
+   {
+    "x": 240,
+    "y": 328,
+    "name": "比薩",
+    "region": 20
+   },
+   {
+    "x": 260,
+    "y": 348,
+    "name": "那不勒斯",
+    "region": 20
+   },
+   {
+    "x": 270,
+    "y": 376,
+    "name": "錫腊庫扎",
+    "region": 4
+   },
+   {
+    "x": 196,
+    "y": 358,
+    "name": "帕爾巴",
+    "region": 1
+   },
+   {
+    "x": 258,
+    "y": 318,
+    "name": "威尼斯",
+    "region": 84
+   },
+   {
+    "x": 288,
+    "y": 338,
+    "name": "拉古扎",
+    "region": 4
+   },
+   {
+    "x": 330,
+    "y": 386,
+    "name": "干地亞",
+    "region": 6
+   },
+   {
+    "x": 324,
+    "y": 366,
+    "name": "雅典",
+    "region": 86
+   },
+   {
+    "x": 316,
+    "y": 344,
+    "name": "薩羅尼加",
+    "region": 6
+   },
+   {
+    "x": 358,
+    "y": 416,
+    "name": "亞力山卓",
+    "region": 82
+   },
+   {
+    "x": 390,
+    "y": 410,
+    "name": "雅法",
+    "region": 2
+   },
+   {
+    "x": 392,
+    "y": 402,
+    "name": "貝魯特",
+    "region": 2
+   },
+   {
+    "x": 378,
+    "y": 386,
+    "name": "尼古西亞",
+    "region": 2
+   },
+   {
+    "x": 258,
+    "y": 406,
+    "name": "的黎波里",
+    "region": 2
+   },
+   {
+    "x": 386,
+    "y": 316,
+    "name": "卡法",
+    "region": 6
+   },
+   {
+    "x": 410,
+    "y": 302,
+    "name": "特納",
+    "region": 6
+   },
+   {
+    "x": 418,
+    "y": 344,
+    "name": "特拉比松",
+    "region": 18
+   },
+   {
+    "x": 144,
+    "y": 384,
+    "name": "休達",
+    "region": 0
+   },
+   {
+    "x": 170,
+    "y": 314,
+    "name": "波爾多",
+    "region": 86
+   },
+   {
+    "x": 166,
+    "y": 296,
+    "name": "南特",
+    "region": 6
+   },
+   {
+    "x": 180,
+    "y": 262,
+    "name": "倫敦",
+    "region": 83
+   },
+   {
+    "x": 160,
+    "y": 264,
+    "name": "布里斯托爾",
+    "region": 19
+   },
+   {
+    "x": 136,
+    "y": 252,
+    "name": "都柏林",
+    "region": 3
+   },
+   {
+    "x": 214,
+    "y": 258,
+    "name": "安特衛普",
+    "region": 21
+   },
+   {
+    "x": 216,
+    "y": 248,
+    "name": "阿母斯特丹",
+    "region": 85
+   },
+   {
+    "x": 254,
+    "y": 230,
+    "name": "哥本哈根",
+    "region": 21
+   },
+   {
+    "x": 240,
+    "y": 244,
+    "name": "漢堡",
+    "region": 5
+   },
+   {
+    "x": 242,
+    "y": 190,
+    "name": "奧斯陸",
+    "region": 6
+   },
+   {
+    "x": 294,
+    "y": 196,
+    "name": "斯德哥爾摩",
+    "region": 6
+   },
+   {
+    "x": 244,
+    "y": 242,
+    "name": "盧卑克",
+    "region": 5
+   },
+   {
+    "x": 288,
+    "y": 240,
+    "name": "格但斯克",
+    "region": 5
+   },
+   {
+    "x": 322,
+    "y": 218,
+    "name": "里加",
+    "region": 5
+   },
+   {
+    "x": 210,
+    "y": 192,
+    "name": "卑爾根",
+    "region": 5
+   },
+   {
+    "x": 1904,
+    "y": 588,
+    "name": "加拉卡斯",
+    "region": 1
+   },
+   {
+    "x": 1852,
+    "y": 592,
+    "name": "喀他基那",
+    "region": 6
+   },
+   {
+    "x": 1816,
+    "y": 502,
+    "name": "哈瓦那",
+    "region": 1
+   },
+   {
+    "x": 1922,
+    "y": 584,
+    "name": "馬加里塔",
+    "region": 6
+   },
+   {
+    "x": 1828,
+    "y": 600,
+    "name": "巴拿馬城",
+    "region": 6
+   },
+   {
+    "x": 1826,
+    "y": 596,
+    "name": "波魯特內羅",
+    "region": 1
+   },
+   {
+    "x": 1894,
+    "y": 540,
+    "name": "聖多明尼各",
+    "region": 1
+   },
+   {
+    "x": 1736,
+    "y": 532,
+    "name": "委拉克路斯",
+    "region": 6
+   },
+   {
+    "x": 1848,
+    "y": 542,
+    "name": "牙買加",
+    "region": 1
+   },
+   {
+    "x": 1768,
+    "y": 564,
+    "name": "瓜地馬拉",
+    "region": 1
+   },
+   {
+    "x": 2064,
+    "y": 722,
+    "name": "伯南布哥",
+    "region": 0
+   },
+   {
+    "x": 2034,
+    "y": 824,
+    "name": "里約熱內盧",
+    "region": 0
+   },
+   {
+    "x": 1874,
+    "y": 590,
+    "name": "馬拉開波",
+    "region": 1
+   },
+   {
+    "x": 1852,
+    "y": 526,
+    "name": "聖地亞哥",
+    "region": 6
+   },
+   {
+    "x": 1996,
+    "y": 642,
+    "name": "開雲",
+    "region": 6
+   },
+   {
+    "x": 74,
+    "y": 402,
+    "name": "馬德拉韋",
+    "region": 0
+   },
+   {
+    "x": 74,
+    "y": 438,
+    "name": "聖克魯斯",
+    "region": 6
+   },
+   {
+    "x": 162,
+    "y": 596,
+    "name": "聖約魯吉",
+    "region": 0
+   },
+   {
+    "x": 76,
+    "y": 546,
+    "name": "畢紹",
+    "region": 6
+   },
+   {
+    "x": 254,
+    "y": 704,
+    "name": "羅安達",
+    "region": 0
+   },
+   {
+    "x": 70,
+    "y": 494,
+    "name": "阿爾金島",
+    "region": 0
+   },
+   {
+    "x": 72,
+    "y": 538,
+    "name": "巴得斯特",
+    "region": 6
+   },
+   {
+    "x": 154,
+    "y": 530,
+    "name": "廷巴克圖",
+    "region": 6
+   },
+   {
+    "x": 148,
+    "y": 594,
+    "name": "阿必尚",
+    "region": 6
+   },
+   {
+    "x": 388,
+    "y": 762,
+    "name": "索法拉",
+    "region": 0
+   },
+   {
+    "x": 418,
+    "y": 662,
+    "name": "馬林迪",
+    "region": 0
+   },
+   {
+    "x": 454,
+    "y": 614,
+    "name": "摩加迪休",
+    "region": 6
+   },
+   {
+    "x": 414,
+    "y": 670,
+    "name": "蒙巴薩",
+    "region": 0
+   },
+   {
+    "x": 420,
+    "y": 734,
+    "name": "莫三比克",
+    "region": 6
+   },
+   {
+    "x": 400,
+    "y": 748,
+    "name": "刻里馬納",
+    "region": 6
+   },
+   {
+    "x": 458,
+    "y": 540,
+    "name": "亞丁",
+    "region": 0
+   },
+   {
+    "x": 520,
+    "y": 450,
+    "name": "根布龍",
+    "region": 0
+   },
+   {
+    "x": 426,
+    "y": 528,
+    "name": "馬沙華",
+    "region": 6
+   },
+   {
+    "x": 376,
+    "y": 428,
+    "name": "開羅",
+    "region": 2
+   },
+   {
+    "x": 470,
+    "y": 426,
+    "name": "巴斯拉",
+    "region": 2
+   },
+   {
+    "x": 416,
+    "y": 488,
+    "name": "麥加",
+    "region": 2
+   },
+   {
+    "x": 496,
+    "y": 458,
+    "name": "卡塔爾",
+    "region": 2
+   },
+   {
+    "x": 502,
+    "y": 450,
+    "name": "設拉福",
+    "region": 2
+   },
+   {
+    "x": 532,
+    "y": 464,
+    "name": "馬斯開特",
+    "region": 2
+   },
+   {
+    "x": 576,
+    "y": 458,
+    "name": "迪普",
+    "region": 0
+   },
+   {
+    "x": 632,
+    "y": 562,
+    "name": "柯欽",
+    "region": 0
+   },
+   {
+    "x": 660,
+    "y": 576,
+    "name": "錫蘭",
+    "region": 6
+   },
+   {
+    "x": 934,
+    "y": 652,
+    "name": "安波那",
+    "region": 6
+   },
+   {
+    "x": 622,
+    "y": 536,
+    "name": "果阿",
+    "region": 0
+   },
+   {
+    "x": 786,
+    "y": 606,
+    "name": "麻六甲",
+    "region": 6
+   },
+   {
+    "x": 934,
+    "y": 622,
+    "name": "德那第",
+    "region": 6
+   },
+   {
+    "x": 948,
+    "y": 660,
+    "name": "班達",
+    "region": 6
+   },
+   {
+    "x": 934,
+    "y": 684,
+    "name": "德利",
+    "region": 6
+   },
+   {
+    "x": 760,
+    "y": 604,
+    "name": "帕塞",
+    "region": 6
+   },
+   {
+    "x": 820,
+    "y": 666,
+    "name": "巽他",
+    "region": 6
+   },
+   {
+    "x": 628,
+    "y": 552,
+    "name": "科澤科德",
+    "region": 6
+   },
+   {
+    "x": 810,
+    "y": 628,
+    "name": "邦加",
+    "region": 6
+   },
+   {
+    "x": 894,
+    "y": 454,
+    "name": "泉州",
+    "region": 6
+   },
+   {
+    "x": 862,
+    "y": 474,
+    "name": "澳門",
+    "region": 6
+   },
+   {
+    "x": 812,
+    "y": 482,
+    "name": "河內",
+    "region": 6
+   },
+   {
+    "x": 840,
+    "y": 388,
+    "name": "長安",
+    "region": 6
+   },
+   {
+    "x": 996,
+    "y": 390,
+    "name": "界",
+    "region": 6
+   },
+   {
+    "x": 956,
+    "y": 402,
+    "name": "長崎",
+    "region": 6
+   },
+   {
+    "x": 64,
+    "y": 210,
+    "name": "赫努克",
+    "region": 6
+   },
+   {
+    "x": 278,
+    "y": 114,
+    "name": "納爾維",
+    "region": 6
+   },
+   {
+    "x": 286,
+    "y": 860,
+    "name": "開普敦",
+    "region": 6
+   },
+   {
+    "x": 292,
+    "y": 312,
+    "name": "貝爾格勒",
+    "region": 6
+   },
+   {
+    "x": 472,
+    "y": 758,
+    "name": "塔馬達夫",
+    "region": 6
+   },
+   {
+    "x": 666,
+    "y": 60,
+    "name": "狄克孫",
+    "region": 6
+   },
+   {
+    "x": 912,
+    "y": 360,
+    "name": "旅順",
+    "region": 6
+   },
+   {
+    "x": 932,
+    "y": 716,
+    "name": "來巴求",
+    "region": 6
+   },
+   {
+    "x": 936,
+    "y": 578,
+    "name": "棉蘭老",
+    "region": 6
+   },
+   {
+    "x": 956,
+    "y": 78,
+    "name": "提克西",
+    "region": 6
+   },
+   {
+    "x": 1020,
+    "y": 334,
+    "name": "北海道",
+    "region": 6
+   },
+   {
+    "x": 1028,
+    "y": 884,
+    "name": "季窿",
+    "region": 6
+   },
+   {
+    "x": 1038,
+    "y": 538,
+    "name": "關島",
+    "region": 6
+   },
+   {
+    "x": 1050,
+    "y": 686,
+    "name": "莫爾茲比",
+    "region": 6
+   },
+   {
+    "x": 1160,
+    "y": 200,
+    "name": "科爾夫",
+    "region": 6
+   },
+   {
+    "x": 1210,
+    "y": 900,
+    "name": "惠靈頓",
+    "region": 6
+   },
+   {
+    "x": 1240,
+    "y": 738,
+    "name": "蘇瓦",
+    "region": 6
+   },
+   {
+    "x": 1342,
+    "y": 156,
+    "name": "諾母",
+    "region": 6
+   },
+   {
+    "x": 1400,
+    "y": 498,
+    "name": "歐胡",
+    "region": 6
+   },
+   {
+    "x": 1414,
+    "y": 732,
+    "name": "塔希提",
+    "region": 6
+   },
+   {
+    "x": 1510,
+    "y": 228,
+    "name": "朱諾",
+    "region": 6
+   },
+   {
+    "x": 1592,
+    "y": 122,
+    "name": "巴伊阿",
+    "region": 6
+   },
+   {
+    "x": 1614,
+    "y": 448,
+    "name": "聖大巴爾巴拉",
+    "region": 6
+   },
+   {
+    "x": 1770,
+    "y": 242,
+    "name": "邱吉爾",
+    "region": 6
+   },
+   {
+    "x": 1834,
+    "y": 724,
+    "name": "卡亞俄",
+    "region": 6
+   },
+   {
+    "x": 1864,
+    "y": 892,
+    "name": "法耳巴拉索",
+    "region": 6
+   },
+   {
+    "x": 1870,
+    "y": 778,
+    "name": "摩倫多",
+    "region": 6
+   },
+   {
+    "x": 1906,
+    "y": 372,
+    "name": "聖約翰",
+    "region": 6
+   },
+   {
+    "x": 1956,
+    "y": 906,
+    "name": "蒙特維的亞",
+    "region": 6
+   },
+   {
+    "x": 2100,
+    "y": 190,
+    "name": "法維爾",
+    "region": 6
+   }
+  ],
+  "portEconomy": [
+   {
+    "u_00": "0c03000002030000",
+    "influence": [
+     100,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     49,
+     50,
+     52,
+     50,
+     45,
+     54,
+     52,
+     51,
+     51,
+     51
+    ],
+    "u_18": "2600100a00141803ff0000ff00"
+   },
+   {
+    "u_00": "020300002a030000",
+    "influence": [
+     0,
+     100,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     54,
+     54,
+     49,
+     51,
+     52,
+     53,
+     54,
+     50,
+     54,
+     45
+    ],
+    "u_18": "64002a0a001806030d0000ff01"
+   },
+   {
+    "u_00": "2a030000d0020000",
+    "influence": [
+     0,
+     0,
+     100,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     47,
+     51,
+     51,
+     46,
+     50,
+     54,
+     48,
+     54,
+     47,
+     46
+    ],
+    "u_18": "d200250a00181014070405ff0a"
+   },
+   {
+    "u_00": "4e0200001c020000",
+    "influence": [
+     0,
+     100,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     47,
+     45,
+     52,
+     52,
+     50,
+     49,
+     46,
+     47,
+     48,
+     45
+    ],
+    "u_18": "2d00100a0000102aff0000ff01"
+   },
+   {
+    "u_00": "a0000000b4000000",
+    "influence": [
+     0,
+     0,
+     20,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     49,
+     54,
+     49,
+     46,
+     53,
+     52,
+     45,
+     53,
+     53,
+     51
+    ],
+    "u_18": "ff00ffff00092bffff0305ff02"
+   },
+   {
+    "u_00": "82000000a0000000",
+    "influence": [
+     0,
+     0,
+     15,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     50,
+     52,
+     49,
+     46,
+     49,
+     47,
+     51,
+     50,
+     50,
+     49
+    ],
+    "u_18": "5a00233c00ffffffff0305ff08"
+   },
+   {
+    "u_00": "400100002c010000",
+    "influence": [
+     0,
+     100,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     54,
+     45,
+     47,
+     51,
+     52,
+     54,
+     48,
+     54,
+     53,
+     50
+    ],
+    "u_18": "38001714002b01ffff0000ff01"
+   },
+   {
+    "u_00": "5e01000022010000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     48,
+     46,
+     53,
+     50,
+     49,
+     46,
+     52,
+     54,
+     46,
+     46
+    ],
+    "u_18": "6900271400043eff050203ff03"
+   },
+   {
+    "u_00": "ee020000f8020000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     100,
+     0
+    ],
+    "prices": [
+     46,
+     53,
+     48,
+     47,
+     53,
+     53,
+     49,
+     48,
+     50,
+     49
+    ],
+    "u_18": "be00201e0009143aff0204ff01"
+   },
+   {
+    "u_00": "6c0200001c020000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     100,
+     0
+    ],
+    "prices": [
+     49,
+     49,
+     51,
+     51,
+     53,
+     47,
+     53,
+     45,
+     52,
+     49
+    ],
+    "u_18": "aa00162800033e0aff0204ff01"
+   },
+   {
+    "u_00": "7602000080020000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     100,
+     0
+    ],
+    "prices": [
+     45,
+     54,
+     47,
+     47,
+     46,
+     51,
+     48,
+     52,
+     50,
+     54
+    ],
+    "u_18": "44001714000410294b0204ff01"
+   },
+   {
+    "u_00": "f0000000dc000000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     100,
+     0
+    ],
+    "prices": [
+     47,
+     52,
+     53,
+     50,
+     49,
+     50,
+     47,
+     51,
+     53,
+     46
+    ],
+    "u_18": "ff00ffff00012bff270204ff01"
+   },
+   {
+    "u_00": "220100001d010000",
+    "influence": [
+     0,
+     98,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     53,
+     52,
+     51,
+     50,
+     47,
+     51,
+     49,
+     47,
+     45,
+     52
+    ],
+    "u_18": "ff00ffff00ffffffff0200ff01"
+   },
+   {
+    "u_00": "e4020000da020000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     100,
+     0
+    ],
+    "prices": [
+     46,
+     47,
+     49,
+     49,
+     54,
+     49,
+     46,
+     52,
+     54,
+     54
+    ],
+    "u_18": "b4002b1e00111504440204ff01"
+   },
+   {
+    "u_00": "960000008c000000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     100,
+     0
+    ],
+    "prices": [
+     51,
+     46,
+     47,
+     53,
+     54,
+     46,
+     51,
+     48,
+     49,
+     50
+    ],
+    "u_18": "5c002914001400ffff0204ff02"
+   },
+   {
+    "u_00": "b4000000a0000000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     45,
+     47,
+     50,
+     47,
+     46,
+     47,
+     49,
+     53,
+     51,
+     46
+    ],
+    "u_18": "ff00ffff00ffffffff0204ff05"
+   },
+   {
+    "u_00": "800200001c020000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     49,
+     51,
+     54,
+     51,
+     52,
+     47,
+     48,
+     52,
+     48,
+     45
+    ],
+    "u_18": "3601241e000f2b37160204ff05"
+   },
+   {
+    "u_00": "6e00000078000000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     48,
+     49,
+     52,
+     53,
+     51,
+     50,
+     45,
+     50,
+     47,
+     51
+    ],
+    "u_18": "ff00ffff0009ffff230404ff05"
+   },
+   {
+    "u_00": "d0020000bc020000",
+    "influence": [
+     0,
+     0,
+     100,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     47,
+     53,
+     52,
+     52,
+     52,
+     50,
+     46,
+     53,
+     51,
+     49
+    ],
+    "u_18": "1900151400121529070405ff0a"
+   },
+   {
+    "u_00": "8c00000096000000",
+    "influence": [
+     0,
+     0,
+     95,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     54,
+     50,
+     48,
+     46,
+     52,
+     45,
+     45,
+     53,
+     48,
+     48
+    ],
+    "u_18": "ff00ffff00ffffffff0405ff0a"
+   },
+   {
+    "u_00": "0e010000fa000000",
+    "influence": [
+     0,
+     0,
+     100,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     52,
+     54,
+     49,
+     52,
+     48,
+     50,
+     51,
+     48,
+     46,
+     48
+    ],
+    "u_18": "d200251e00062affff0405ff0a"
+   },
+   {
+    "u_00": "96000000a0000000",
+    "influence": [
+     0,
+     0,
+     98,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     54,
+     51,
+     50,
+     50,
+     49,
+     49,
+     46,
+     50,
+     48,
+     53
+    ],
+    "u_18": "5800212800ffffffff0205ff0a"
+   },
+   {
+    "u_00": "a401000090010000",
+    "influence": [
+     0,
+     0,
+     90,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     48,
+     50,
+     51,
+     49,
+     48,
+     53,
+     47,
+     49,
+     48,
+     51
+    ],
+    "u_18": "ff00ffff00061018250305ff01"
+   },
+   {
+    "u_00": "540100005e010000",
+    "influence": [
+     0,
+     0,
+     35,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     51,
+     49,
+     47,
+     54,
+     48,
+     54,
+     53,
+     49,
+     51,
+     47
+    ],
+    "u_18": "5500232800ffffffff0405ff0a"
+   },
+   {
+    "u_00": "6e00000073000000",
+    "influence": [
+     0,
+     0,
+     20,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     48,
+     47,
+     52,
+     52,
+     51,
+     54,
+     52,
+     50,
+     51,
+     46
+    ],
+    "u_18": "ff00ffff0000ffff240405ff0a"
+   },
+   {
+    "u_00": "6801000072010000",
+    "influence": [
+     0,
+     0,
+     100,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     46,
+     51,
+     51,
+     49,
+     52,
+     45,
+     45,
+     48,
+     50,
+     53
+    ],
+    "u_18": "3a00150a000f3affff0405ff0a"
+   },
+   {
+    "u_00": "550000005a000000",
+    "influence": [
+     100,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     51,
+     45,
+     48,
+     47,
+     51,
+     52,
+     48,
+     52,
+     45,
+     49
+    ],
+    "u_18": "ff00ffff00ffffffff0300ff01"
+   },
+   {
+    "u_00": "5802000044020000",
+    "influence": [
+     0,
+     0,
+     0,
+     80,
+     0,
+     0
+    ],
+    "prices": [
+     47,
+     48,
+     54,
+     52,
+     54,
+     50,
+     53,
+     48,
+     51,
+     51
+    ],
+    "u_18": "20000f1400012a03ff0103ff01"
+   },
+   {
+    "u_00": "300200003a020000",
+    "influence": [
+     0,
+     0,
+     0,
+     80,
+     0,
+     0
+    ],
+    "prices": [
+     49,
+     45,
+     49,
+     52,
+     52,
+     45,
+     50,
+     51,
+     47,
+     49
+    ],
+    "u_18": "ff00ffff0004113eff0103ff03"
+   },
+   {
+    "u_00": "d0020000e4020000",
+    "influence": [
+     0,
+     0,
+     0,
+     100,
+     0,
+     0
+    ],
+    "prices": [
+     45,
+     46,
+     45,
+     47,
+     49,
+     46,
+     53,
+     49,
+     50,
+     45
+    ],
+    "u_18": "2d00130a0009183a150101ff02"
+   },
+   {
+    "u_00": "400100007c010000",
+    "influence": [
+     0,
+     0,
+     0,
+     100,
+     0,
+     0
+    ],
+    "prices": [
+     50,
+     47,
+     53,
+     50,
+     51,
+     53,
+     50,
+     49,
+     46,
+     50
+    ],
+    "u_18": "4b002223000a10ff0e0101ff02"
+   },
+   {
+    "u_00": "720100005e010000",
+    "influence": [
+     0,
+     0,
+     0,
+     93,
+     0,
+     0
+    ],
+    "prices": [
+     52,
+     48,
+     51,
+     54,
+     48,
+     53,
+     50,
+     46,
+     51,
+     47
+    ],
+    "u_18": "ff00ffff00000aff0e0101ff02"
+   },
+   {
+    "u_00": "940200009e020000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     100
+    ],
+    "prices": [
+     49,
+     51,
+     46,
+     50,
+     52,
+     47,
+     49,
+     53,
+     46,
+     54
+    ],
+    "u_18": "3400171e00022934280102ff04"
+   },
+   {
+    "u_00": "bc020000da020000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     100
+    ],
+    "prices": [
+     51,
+     48,
+     53,
+     53,
+     48,
+     51,
+     50,
+     52,
+     46,
+     51
+    ],
+    "u_18": "0300280a00181516170102ff04"
+   },
+   {
+    "u_00": "12020000fe010000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     98
+    ],
+    "prices": [
+     53,
+     50,
+     45,
+     47,
+     50,
+     51,
+     47,
+     46,
+     54,
+     52
+    ],
+    "u_18": "be002b2d001112134e0103ff04"
+   },
+   {
+    "u_00": "580200006c020000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     95
+    ],
+    "prices": [
+     49,
+     53,
+     54,
+     46,
+     53,
+     53,
+     50,
+     46,
+     54,
+     45
+    ],
+    "u_18": "5500292800141037ff0102ff05"
+   },
+   {
+    "u_00": "be000000b9000000",
+    "influence": [
+     0,
+     0,
+     0,
+     80,
+     0,
+     0
+    ],
+    "prices": [
+     54,
+     46,
+     50,
+     46,
+     49,
+     54,
+     48,
+     54,
+     50,
+     47
+    ],
+    "u_18": "52002d0a00ffffffff0103ff06"
+   },
+   {
+    "u_00": "e0010000d6010000",
+    "influence": [
+     0,
+     0,
+     0,
+     85,
+     0,
+     0
+    ],
+    "prices": [
+     45,
+     50,
+     54,
+     50,
+     46,
+     50,
+     51,
+     52,
+     51,
+     51
+    ],
+    "u_18": "50002132000001ff0d0103ff06"
+   },
+   {
+    "u_00": "400100002c010000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     85
+    ],
+    "prices": [
+     54,
+     53,
+     50,
+     45,
+     47,
+     48,
+     47,
+     46,
+     46,
+     54
+    ],
+    "u_18": "aa002032000f02050c0103ff06"
+   },
+   {
+    "u_00": "7201000018010000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     90
+    ],
+    "prices": [
+     49,
+     45,
+     53,
+     54,
+     45,
+     50,
+     53,
+     48,
+     46,
+     48
+    ],
+    "u_18": "ff00ffff001035ff260103ff05"
+   },
+   {
+    "u_00": "96000000a0000000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     85
+    ],
+    "prices": [
+     51,
+     54,
+     50,
+     45,
+     47,
+     54,
+     51,
+     48,
+     50,
+     45
+    ],
+    "u_18": "50002d0a00ffffffff0103ff06"
+   },
+   {
+    "u_00": "9100000096000000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     80
+    ],
+    "prices": [
+     51,
+     46,
+     48,
+     47,
+     50,
+     45,
+     48,
+     48,
+     45,
+     45
+    ],
+    "u_18": "ff00ffff00ffffffff0103ff04"
+   },
+   {
+    "u_00": "dc000000d2000000",
+    "influence": [
+     0,
+     95,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     52,
+     49,
+     54,
+     49,
+     49,
+     45,
+     52,
+     47,
+     50,
+     53
+    ],
+    "u_18": "28000614012b11ffff070aff07"
+   },
+   {
+    "u_00": "be00000082000000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     51,
+     51,
+     45,
+     50,
+     50,
+     51,
+     54,
+     53,
+     52,
+     47
+    ],
+    "u_18": "ff00ffff012b02ffff070aff07"
+   },
+   {
+    "u_00": "d2000000dc000000",
+    "influence": [
+     0,
+     93,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     54,
+     52,
+     54,
+     53,
+     48,
+     48,
+     52,
+     54,
+     45,
+     49
+    ],
+    "u_18": "2300061401ffffffff060aff00"
+   },
+   {
+    "u_00": "280000002d000000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     50,
+     50,
+     49,
+     51,
+     53,
+     46,
+     50,
+     52,
+     52,
+     49
+    ],
+    "u_18": "ff00ffff0100ffff42070aff07"
+   },
+   {
+    "u_00": "a0000000be000000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     50,
+     52,
+     46,
+     45,
+     52,
+     51,
+     51,
+     49,
+     48,
+     48
+    ],
+    "u_18": "ff00ffff012b44ffff060aff07"
+   },
+   {
+    "u_00": "3c0000004b000000",
+    "influence": [
+     0,
+     95,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     53,
+     51,
+     50,
+     46,
+     47,
+     53,
+     45,
+     46,
+     45,
+     54
+    ],
+    "u_18": "ff00ffff01ffffffff060aff07"
+   },
+   {
+    "u_00": "96000000a0000000",
+    "influence": [
+     0,
+     98,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     47,
+     45,
+     51,
+     45,
+     53,
+     48,
+     48,
+     49,
+     49,
+     51
+    ],
+    "u_18": "12000a14012a29ffff060aff00"
+   },
+   {
+    "u_00": "500000004b000000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     47,
+     52,
+     52,
+     48,
+     51,
+     46,
+     47,
+     46,
+     51,
+     47
+    ],
+    "u_18": "90011f2801ffffffff060aff07"
+   },
+   {
+    "u_00": "3c00000050000000",
+    "influence": [
+     0,
+     90,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     46,
+     50,
+     53,
+     54,
+     54,
+     52,
+     46,
+     48,
+     45,
+     52
+    ],
+    "u_18": "12000a14013cffffff060aff00"
+   },
+   {
+    "u_00": "4600000041000000",
+    "influence": [
+     0,
+     97,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     54,
+     54,
+     50,
+     51,
+     49,
+     47,
+     48,
+     49,
+     47,
+     47
+    ],
+    "u_18": "0a000d0901ffffffff060aff07"
+   },
+   {
+    "u_00": "d7000000f0000000",
+    "influence": [
+     100,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     49,
+     45,
+     54,
+     54,
+     45,
+     51,
+     49,
+     52,
+     45,
+     47
+    ],
+    "u_18": "23002919010013ff4a070aff02"
+   },
+   {
+    "u_00": "2d00000032000000",
+    "influence": [
+     90,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     46,
+     48,
+     54,
+     52,
+     53,
+     52,
+     50,
+     52,
+     50,
+     51
+    ],
+    "u_18": "7c011f2d0137ffff41070aff02"
+   },
+   {
+    "u_00": "7800000069000000",
+    "influence": [
+     0,
+     95,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     48,
+     50,
+     45,
+     53,
+     49,
+     47,
+     45,
+     51,
+     49,
+     48
+    ],
+    "u_18": "ff00ffff01ffffffff070aff08"
+   },
+   {
+    "u_00": "5000000069000000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     54,
+     54,
+     53,
+     51,
+     46,
+     45,
+     45,
+     49,
+     50,
+     52
+    ],
+    "u_18": "ff00ffff012bffffff060aff00"
+   },
+   {
+    "u_00": "4600000041000000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     47,
+     49,
+     52,
+     47,
+     45,
+     47,
+     50,
+     53,
+     50,
+     51
+    ],
+    "u_18": "3c002d0a01ffffffff070aff00"
+   },
+   {
+    "u_00": "f0000000e6000000",
+    "influence": [
+     100,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     49,
+     49,
+     45,
+     49,
+     52,
+     54,
+     51,
+     53,
+     53,
+     52
+    ],
+    "u_18": "0c000a0a02ffffffff0507ff01"
+   },
+   {
+    "u_00": "5a00000050000000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     48,
+     49,
+     49,
+     49,
+     53,
+     48,
+     51,
+     53,
+     54,
+     52
+    ],
+    "u_18": "ff00ffff02ffffffff0507ff02"
+   },
+   {
+    "u_00": "d2000000be000000",
+    "influence": [
+     100,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     47,
+     52,
+     49,
+     47,
+     48,
+     45,
+     52,
+     46,
+     47,
+     48
+    ],
+    "u_18": "64001c14020018ff450507ff08"
+   },
+   {
+    "u_00": "5500000064000000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     52,
+     54,
+     53,
+     50,
+     50,
+     45,
+     52,
+     50,
+     53,
+     46
+    ],
+    "u_18": "ff00ffff02ffffffff0507ff08"
+   },
+   {
+    "u_00": "5a0000004b000000",
+    "influence": [
+     96,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     46,
+     52,
+     49,
+     45,
+     49,
+     54,
+     49,
+     51,
+     45,
+     54
+    ],
+    "u_18": "78001a0a02ffffffff0507ff08"
+   },
+   {
+    "u_00": "c8000000b9000000",
+    "influence": [
+     100,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     49,
+     51,
+     54,
+     46,
+     49,
+     48,
+     54,
+     52,
+     48,
+     54
+    ],
+    "u_18": "ff00ffff022935ffff0507ff08"
+   },
+   {
+    "u_00": "4b0000003c000000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     53,
+     53,
+     48,
+     49,
+     53,
+     46,
+     46,
+     53,
+     49,
+     51
+    ],
+    "u_18": "ff00ffff02ffffffff0507ff08"
+   },
+   {
+    "u_00": "ae01000023000000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     54,
+     53,
+     49,
+     50,
+     45,
+     54,
+     50,
+     53,
+     53,
+     50
+    ],
+    "u_18": "3c001c0a0240413d4c0507ff09"
+   },
+   {
+    "u_00": "5a0000004b000000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     45,
+     51,
+     49,
+     52,
+     50,
+     52,
+     46,
+     46,
+     51,
+     48
+    ],
+    "u_18": "5000261402ffffffff0507ff08"
+   },
+   {
+    "u_00": "8601000090010000",
+    "influence": [
+     85,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     52,
+     45,
+     46,
+     45,
+     50,
+     47,
+     54,
+     53,
+     49,
+     52
+    ],
+    "u_18": "5a001c0a03ffffffff0807ff08"
+   },
+   {
+    "u_00": "7201000068010000",
+    "influence": [
+     95,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     45,
+     50,
+     47,
+     49,
+     50,
+     50,
+     48,
+     48,
+     49,
+     52
+    ],
+    "u_18": "4600260f03ffffffff0807ff08"
+   },
+   {
+    "u_00": "5a00000046000000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     47,
+     48,
+     53,
+     50,
+     52,
+     50,
+     51,
+     46,
+     46,
+     53
+    ],
+    "u_18": "55001c0f03ffffffff0807ff08"
+   },
+   {
+    "u_00": "7c01000086010000",
+    "influence": [
+     90,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     45,
+     45,
+     45,
+     45,
+     45,
+     47,
+     54,
+     54,
+     46,
+     52
+    ],
+    "u_18": "ff00ffff03433234360807ff08"
+   },
+   {
+    "u_00": "b4000000a0000000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     47,
+     47,
+     49,
+     50,
+     54,
+     53,
+     50,
+     54,
+     51,
+     51
+    ],
+    "u_18": "ff00ffff032941ff3f0807ff08"
+   },
+   {
+    "u_00": "3c0000003c000000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     49,
+     50,
+     48,
+     51,
+     46,
+     51,
+     46,
+     52,
+     51,
+     49
+    ],
+    "u_18": "2d001e1403ffffffff0807ff08"
+   },
+   {
+    "u_00": "d200000004010000",
+    "influence": [
+     90,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     50,
+     45,
+     49,
+     50,
+     48,
+     45,
+     51,
+     53,
+     46,
+     47
+    ],
+    "u_18": "6e001b1904ffffffff0906ff0a"
+   },
+   {
+    "u_00": "640000005a000000",
+    "influence": [
+     95,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     49,
+     53,
+     54,
+     48,
+     51,
+     47,
+     48,
+     49,
+     48,
+     50
+    ],
+    "u_18": "1900051e04ffffffff0906ff0a"
+   },
+   {
+    "u_00": "5a00000055000000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     48,
+     46,
+     51,
+     49,
+     47,
+     46,
+     50,
+     47,
+     53,
+     54
+    ],
+    "u_18": "1900041e0443ffffff0906ff08"
+   },
+   {
+    "u_00": "fe010000e0010000",
+    "influence": [
+     0,
+     0,
+     100,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     52,
+     53,
+     51,
+     52,
+     51,
+     45,
+     47,
+     53,
+     51,
+     52
+    ],
+    "u_18": "be00242804073911ff0905ff0a"
+   },
+   {
+    "u_00": "e0010000f4010000",
+    "influence": [
+     0,
+     0,
+     100,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     48,
+     53,
+     52,
+     48,
+     48,
+     51,
+     49,
+     54,
+     53,
+     46
+    ],
+    "u_18": "0a000b0504ffffffff0906ff0a"
+   },
+   {
+    "u_00": "f401000050000000",
+    "influence": [
+     0,
+     0,
+     100,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     45,
+     48,
+     45,
+     50,
+     46,
+     53,
+     53,
+     46,
+     53,
+     48
+    ],
+    "u_18": "3200261404193916ff0906ff0a"
+   },
+   {
+    "u_00": "82000000a0000000",
+    "influence": [
+     0,
+     0,
+     100,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     46,
+     54,
+     48,
+     53,
+     46,
+     52,
+     46,
+     53,
+     45,
+     53
+    ],
+    "u_18": "23001e0f04ffffffff0906ff0a"
+   },
+   {
+    "u_00": "4600000050000000",
+    "influence": [
+     0,
+     0,
+     100,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     54,
+     48,
+     53,
+     49,
+     52,
+     48,
+     45,
+     53,
+     51,
+     53
+    ],
+    "u_18": "ff00ffff04ffffffff0906ff0a"
+   },
+   {
+    "u_00": "b4000000e6000000",
+    "influence": [
+     0,
+     0,
+     95,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     53,
+     49,
+     50,
+     50,
+     51,
+     53,
+     52,
+     53,
+     47,
+     49
+    ],
+    "u_18": "ff00ffff04ffffffff0906ff0a"
+   },
+   {
+    "u_00": "4b00000050000000",
+    "influence": [
+     87,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     51,
+     46,
+     51,
+     46,
+     53,
+     53,
+     46,
+     49,
+     50,
+     45
+    ],
+    "u_18": "ff00ffff05ffffffff0a06ff0a"
+   },
+   {
+    "u_00": "8200000078000000",
+    "influence": [
+     90,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     52,
+     45,
+     48,
+     52,
+     50,
+     54,
+     50,
+     52,
+     50,
+     48
+    ],
+    "u_18": "ff00ffff05ffffffff0a06ff0b"
+   },
+   {
+    "u_00": "b4000000d2000000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     50,
+     51,
+     52,
+     49,
+     48,
+     48,
+     46,
+     47,
+     52,
+     53
+    ],
+    "u_18": "0400010505380fffff0a06ff0b"
+   },
+   {
+    "u_00": "3200000032000000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     48,
+     46,
+     53,
+     46,
+     48,
+     53,
+     46,
+     49,
+     51,
+     49
+    ],
+    "u_18": "0500030706ffffffff0b06ff08"
+   },
+   {
+    "u_00": "1c02000030020000",
+    "influence": [
+     85,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     54,
+     53,
+     52,
+     45,
+     51,
+     46,
+     51,
+     49,
+     49,
+     51
+    ],
+    "u_18": "0a000514052a0136ff0a06ff0b"
+   },
+   {
+    "u_00": "5a0000005f000000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     46,
+     50,
+     51,
+     49,
+     52,
+     50,
+     54,
+     47,
+     48,
+     46
+    ],
+    "u_18": "0300010506ffffffff0b06ff08"
+   },
+   {
+    "u_00": "5000000055000000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     47,
+     54,
+     54,
+     47,
+     49,
+     53,
+     52,
+     49,
+     49,
+     50
+    ],
+    "u_18": "0400000806ffffffff0b06ff08"
+   },
+   {
+    "u_00": "2d00000028000000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     49,
+     48,
+     46,
+     46,
+     52,
+     48,
+     49,
+     45,
+     50,
+     47
+    ],
+    "u_18": "0300030306ffffffff0b06ff08"
+   },
+   {
+    "u_00": "280000002d000000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     45,
+     48,
+     54,
+     50,
+     47,
+     45,
+     47,
+     45,
+     49,
+     48
+    ],
+    "u_18": "0400000506ffffffff0b06ff08"
+   },
+   {
+    "u_00": "2300000028000000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     53,
+     54,
+     51,
+     51,
+     45,
+     49,
+     51,
+     54,
+     51,
+     50
+    ],
+    "u_18": "ff00ffff06ffffffff0b06ff08"
+   },
+   {
+    "u_00": "2800000037000000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     52,
+     45,
+     53,
+     54,
+     52,
+     48,
+     52,
+     46,
+     51,
+     49
+    ],
+    "u_18": "ff00ffff06ffffffff0b06ff08"
+   },
+   {
+    "u_00": "1202000030020000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     47,
+     54,
+     45,
+     54,
+     45,
+     53,
+     50,
+     50,
+     52,
+     45
+    ],
+    "u_18": "0f000319053829064d0a06ff0b"
+   },
+   {
+    "u_00": "320000002d000000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     51,
+     48,
+     46,
+     48,
+     48,
+     46,
+     48,
+     53,
+     54,
+     46
+    ],
+    "u_18": "ff00ffff06ffffffff0b06ff08"
+   },
+   {
+    "u_00": "080200003a020000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     50,
+     47,
+     50,
+     51,
+     52,
+     52,
+     47,
+     51,
+     48,
+     45
+    ],
+    "u_18": "1900111e07192b2a0b0c08ff0c"
+   },
+   {
+    "u_00": "e0010000ea010000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     53,
+     49,
+     46,
+     50,
+     51,
+     54,
+     49,
+     47,
+     47,
+     46
+    ],
+    "u_18": "ff00ffff073938333c0c08ff0c"
+   },
+   {
+    "u_00": "2c01000054010000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     47,
+     53,
+     51,
+     45,
+     48,
+     51,
+     51,
+     52,
+     51,
+     52
+    ],
+    "u_18": "46001a1e07321affff0c06ff0c"
+   },
+   {
+    "u_00": "4402000018010000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     48,
+     49,
+     52,
+     47,
+     50,
+     47,
+     46,
+     48,
+     53,
+     49
+    ],
+    "u_18": "14001628073932330b0c08ff0c"
+   },
+   {
+    "u_00": "a40100009a010000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     45,
+     48,
+     54,
+     54,
+     53,
+     51,
+     47,
+     46,
+     54,
+     45
+    ],
+    "u_18": "0f001628073c1908490c09ff0d"
+   },
+   {
+    "u_00": "d2000000dc000000",
+    "influence": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "prices": [
+     47,
+     53,
+     51,
+     45,
+     48,
+     51,
+     51,
+     52,
+     51,
+     52
+    ],
+    "u_18": "2300200f07190834ff0c09ff0d"
+   }
+  ],
+  "t78f4": [
+   {
+    "u_00": "8c00780050005f003c003700dc00c800050069002d0014000a0020000a0014004100b40032004b0028002800dc0046003200190018012c01180136017800e803f000b4006400be0090012c0178006e00020032007800e600640082001e0014001c002400460050003200780078000b0c0e0f151819292c0000001e0032003c4b"
+   },
+   {
+    "u_00": "a00082008c006e0037004600fa00dc0005006e0031000f000a00080026003a004100f00014003c002d00230004015a005a0041001d0131012201400182004c040401aa006e00460090015e0182008200020082003700e100640064001900140014002d003c006e005a00000000000b0c0d1215232affff0000000028464bffff"
+   },
+   {
+    "u_00": "960078007800640046004100c800c80005005f00300028000a0008000f0014004100a0000f0019002a004100c80041004b001e000901400118012c016e00e803f000af005a00b90090012c017800640002007d008200e60064007d00190012001e002800260041003200030000000c0d0e0f12131928ff0000001e003c0028ff"
+   },
+   {
+    "u_00": "91006e0064005f0041003c00b400b40040014b00320023000a0019000c0028002d006e0028001e000a00410078002d00410023000e012c0104010e0150008403f000a0005f00aa002c01aa0064007800020064006e00e60064006400190023003c004600230032000000000000000c0e10131419ffffff00001e280028ffffff"
+   },
+   {
+    "u_00": "6e0096004b005a003c0041001801a0005401550032000f00230007002a000f0014008c0028003c001e003c00b4005a005f003c002c012c012201f0005500e803c8003c006400be00900196008c007800020032006400eb00640028001e000e00370041003c0064007300460000000b0d10121321292dff00001e142832281eff"
+   },
+   {
+    "u_00": "2d00280028002d002d0028000a0014000f000a003c002d00050032003c001e00160026002d000a000f004b0050000f005500110050005a002d0046000f002c01b4001e001400230050006e003c005a0032003c00280032008c0014003200190023002d00dc00bc02000000000000090c14191b1fffffff1e0000191e28ffffff"
+   },
+   {
+    "u_00": "37002d001e00280005001e00460019001e00140050002d00080023001e0023000f00280032000f00140055005a0014004600410046001801780069002800fa008c00280016002300780069002300320002000f0032003200b4001c0014000f00280078003c002300000000000000040c101a1e29ffffff14001e0a2314ffffff"
+   },
+   {
+    "u_00": "3200320023002d000700190046001e0014000f00550032000a000f0019001e003200250034000c0019005200580012004400430064000e016e005f001e000e0164002a0017001e00820064002a003c000200140032003200aa001e0014001900370096005a000000000000000000040d1e2023ffffffff0f000f191effffffff"
+   },
+   {
+    "u_00": "1900140014001900140014000a0010000c000a0041002d00070037000f00230006001c00370008000a00500050001400500046003c00780028004b0032009600aa002800190023004600780037005f00640014001e006900a0001900140012001e007800260250002800000000000c10141a1f2129ffff00140f001e1e19ffff"
+   },
+   {
+    "u_00": "1e001c0016001200280023000f005a000f0005003200230014000f0005000a000c006400050010001e000e006e001600730041005000360146003c004100b603aa004b003c00780040011e0078001c000200780023002300f000780023000a0014000f001e0020002d004b003200080e101213151725270f001e000014142828"
+   },
+   {
+    "u_00": "0c000a0005000d000f000e000c0008000600050044000f000f00040008002d0005004b000a00140003001e0055003b00dc001200460022015a00280014001a04b4001e0037008200c80023008200870002008c00c8002c01e600160019000f0014000c00190008001e003c0000000002070d12141921ff140a000000000f1eff"
+   },
+   {
+    "u_00": "0300020002000300020002000c0006000500050046000c00050004000a002d000600280010001200140026002a002a00280020001400d200780023000a00fc03be0046001900320064002d00410037000200140028005f00be001200030003000f0032001e002d0000000000000002050c1a1e22ffffff0000000f141effffff"
+   },
+   {
+    "u_00": "1e00280032002d0003000a0040010800050005005a001400030005000700460005003200120017000e0028001e00460036010f003700fa002c011e0014008403c800320023008c00500034008c00a0000200c8000c00c20146000f00140014000a0019003c0078001e000000000005070c191d242affff0000000a0a281effff"
+   }
+  ],
+  "t7f74": [
+   {
+    "u_00": "000b0affffffffff"
+   },
+   {
+    "u_00": "ffffffffffffffff"
+   },
+   {
+    "u_00": "ffffffffffffffff"
+   }
+  ],
+  "discoveries": [
+   {
+    "x": 168,
+    "y": 270,
+    "u_04": "000a",
+    "flags": 132
+   },
+   {
+    "x": 354,
+    "y": 418,
+    "u_04": "000a",
+    "flags": 132
+   },
+   {
+    "x": 364,
+    "y": 444,
+    "u_04": "001e",
+    "flags": 132
+   },
+   {
+    "x": 386,
+    "y": 502,
+    "u_04": "001e",
+    "flags": 133
+   },
+   {
+    "x": 374,
+    "y": 536,
+    "u_04": "0023",
+    "flags": 132
+   },
+   {
+    "x": 398,
+    "y": 562,
+    "u_04": "001e",
+    "flags": 134
+   },
+   {
+    "x": 368,
+    "y": 566,
+    "u_04": "001e",
+    "flags": 129
+   },
+   {
+    "x": 382,
+    "y": 600,
+    "u_04": "0028",
+    "flags": 133
+   },
+   {
+    "x": 376,
+    "y": 640,
+    "u_04": "0014",
+    "flags": 134
+   },
+   {
+    "x": 228,
+    "y": 632,
+    "u_04": "001e",
+    "flags": 132
+   },
+   {
+    "x": 194,
+    "y": 550,
+    "u_04": "0028",
+    "flags": 129
+   },
+   {
+    "x": 164,
+    "y": 530,
+    "u_04": "001e",
+    "flags": 129
+   },
+   {
+    "x": 254,
+    "y": 688,
+    "u_04": "0019",
+    "flags": 130
+   },
+   {
+    "x": 282,
+    "y": 648,
+    "u_04": "0046",
+    "flags": 133
+   },
+   {
+    "x": 330,
+    "y": 644,
+    "u_04": "0014",
+    "flags": 129
+   },
+   {
+    "x": 244,
+    "y": 730,
+    "u_04": "001e",
+    "flags": 135
+   },
+   {
+    "x": 296,
+    "y": 862,
+    "u_04": "0028",
+    "flags": 132
+   },
+   {
+    "x": 330,
+    "y": 856,
+    "u_04": "0028",
+    "flags": 129
+   },
+   {
+    "x": 428,
+    "y": 644,
+    "u_04": "0041",
+    "flags": 130
+   },
+   {
+    "x": 484,
+    "y": 784,
+    "u_04": "0064",
+    "flags": 130
+   },
+   {
+    "x": 472,
+    "y": 712,
+    "u_04": "000a",
+    "flags": 130
+   },
+   {
+    "x": 404,
+    "y": 460,
+    "u_04": "001e",
+    "flags": 131
+   },
+   {
+    "x": 474,
+    "y": 422,
+    "u_04": "003c",
+    "flags": 134
+   },
+   {
+    "x": 572,
+    "y": 458,
+    "u_04": "003c",
+    "flags": 132
+   },
+   {
+    "x": 618,
+    "y": 510,
+    "u_04": "000a",
+    "flags": 130
+   },
+   {
+    "x": 738,
+    "y": 538,
+    "u_04": "0023",
+    "flags": 129
+   },
+   {
+    "x": 766,
+    "y": 556,
+    "u_04": "001e",
+    "flags": 132
+   },
+   {
+    "x": 752,
+    "y": 586,
+    "u_04": "0032",
+    "flags": 130
+   },
+   {
+    "x": 796,
+    "y": 550,
+    "u_04": "003c",
+    "flags": 132
+   },
+   {
+    "x": 832,
+    "y": 478,
+    "u_04": "0046",
+    "flags": 130
+   },
+   {
+    "x": 936,
+    "y": 368,
+    "u_04": "001e",
+    "flags": 131
+   },
+   {
+    "x": 1010,
+    "y": 386,
+    "u_04": "0028",
+    "flags": 132
+   },
+   {
+    "x": 1016,
+    "y": 356,
+    "u_04": "0041",
+    "flags": 135
+   },
+   {
+    "x": 854,
+    "y": 390,
+    "u_04": "005a",
+    "flags": 132
+   },
+   {
+    "x": 844,
+    "y": 342,
+    "u_04": "0050",
+    "flags": 132
+   },
+   {
+    "x": 822,
+    "y": 364,
+    "u_04": "001e",
+    "flags": 130
+   },
+   {
+    "x": 794,
+    "y": 380,
+    "u_04": "004b",
+    "flags": 130
+   },
+   {
+    "x": 1872,
+    "y": 386,
+    "u_04": "001e",
+    "flags": 130
+   },
+   {
+    "x": 1844,
+    "y": 430,
+    "u_04": "0014",
+    "flags": 129
+   },
+   {
+    "x": 1720,
+    "y": 504,
+    "u_04": "0028",
+    "flags": 128
+   },
+   {
+    "x": 1794,
+    "y": 554,
+    "u_04": "001e",
+    "flags": 134
+   },
+   {
+    "x": 1914,
+    "y": 590,
+    "u_04": "000a",
+    "flags": 131
+   },
+   {
+    "x": 1946,
+    "y": 590,
+    "u_04": "001e",
+    "flags": 133
+   },
+   {
+    "x": 1752,
+    "y": 400,
+    "u_04": "0019",
+    "flags": 131
+   },
+   {
+    "x": 1776,
+    "y": 332,
+    "u_04": "0050",
+    "flags": 134
+   },
+   {
+    "x": 1970,
+    "y": 670,
+    "u_04": "001e",
+    "flags": 131
+   },
+   {
+    "x": 1974,
+    "y": 700,
+    "u_04": "0023",
+    "flags": 133
+   },
+   {
+    "x": 1940,
+    "y": 682,
+    "u_04": "003c",
+    "flags": 134
+   },
+   {
+    "x": 1912,
+    "y": 638,
+    "u_04": "0041",
+    "flags": 130
+   },
+   {
+    "x": 1886,
+    "y": 658,
+    "u_04": "0037",
+    "flags": 128
+   },
+   {
+    "x": 1900,
+    "y": 708,
+    "u_04": "0014",
+    "flags": 131
+   },
+   {
+    "x": 1876,
+    "y": 722,
+    "u_04": "0023",
+    "flags": 130
+   },
+   {
+    "x": 1872,
+    "y": 694,
+    "u_04": "005a",
+    "flags": 129
+   },
+   {
+    "x": 1838,
+    "y": 676,
+    "u_04": "0032",
+    "flags": 130
+   },
+   {
+    "x": 1942,
+    "y": 894,
+    "u_04": "0037",
+    "flags": 130
+   },
+   {
+    "x": 1960,
+    "y": 860,
+    "u_04": "0046",
+    "flags": 128
+   },
+   {
+    "x": 1976,
+    "y": 822,
+    "u_04": "0064",
+    "flags": 133
+   },
+   {
+    "x": 1934,
+    "y": 822,
+    "u_04": "003c",
+    "flags": 130
+   },
+   {
+    "x": 1856,
+    "y": 1042,
+    "u_04": "0019",
+    "flags": 130
+   },
+   {
+    "x": 1848,
+    "y": 988,
+    "u_04": "0023",
+    "flags": 130
+   },
+   {
+    "x": 1876,
+    "y": 784,
+    "u_04": "003c",
+    "flags": 134
+   },
+   {
+    "x": 1826,
+    "y": 710,
+    "u_04": "0046",
+    "flags": 132
+   },
+   {
+    "x": 1838,
+    "y": 630,
+    "u_04": "0023",
+    "flags": 128
+   },
+   {
+    "x": 1822,
+    "y": 608,
+    "u_04": "0028",
+    "flags": 132
+   },
+   {
+    "x": 1784,
+    "y": 576,
+    "u_04": "0041",
+    "flags": 128
+   },
+   {
+    "x": 1750,
+    "y": 552,
+    "u_04": "0046",
+    "flags": 128
+   },
+   {
+    "x": 1706,
+    "y": 542,
+    "u_04": "005a",
+    "flags": 128
+   },
+   {
+    "x": 1682,
+    "y": 526,
+    "u_04": "001e",
+    "flags": 132
+   },
+   {
+    "x": 1668,
+    "y": 494,
+    "u_04": "0055",
+    "flags": 128
+   },
+   {
+    "x": 1642,
+    "y": 460,
+    "u_04": "0032",
+    "flags": 130
+   },
+   {
+    "x": 1608,
+    "y": 430,
+    "u_04": "001e",
+    "flags": 130
+   },
+   {
+    "x": 1568,
+    "y": 364,
+    "u_04": "0037",
+    "flags": 130
+   },
+   {
+    "x": 810,
+    "y": 668,
+    "u_04": "004b",
+    "flags": 132
+   },
+   {
+    "x": 846,
+    "y": 680,
+    "u_04": "003c",
+    "flags": 133
+   },
+   {
+    "x": 900,
+    "y": 680,
+    "u_04": "0055",
+    "flags": 133
+   },
+   {
+    "x": 876,
+    "y": 760,
+    "u_04": "0050",
+    "flags": 129
+   },
+   {
+    "x": 862,
+    "y": 826,
+    "u_04": "004b",
+    "flags": 130
+   },
+   {
+    "x": 938,
+    "y": 842,
+    "u_04": "0032",
+    "flags": 134
+   },
+   {
+    "x": 1044,
+    "y": 906,
+    "u_04": "001e",
+    "flags": 130
+   },
+   {
+    "x": 1068,
+    "y": 860,
+    "u_04": "0037",
+    "flags": 130
+   },
+   {
+    "x": 1016,
+    "y": 732,
+    "u_04": "0037",
+    "flags": 130
+   },
+   {
+    "x": 1002,
+    "y": 668,
+    "u_04": "0050",
+    "flags": 130
+   },
+   {
+    "x": 888,
+    "y": 642,
+    "u_04": "003c",
+    "flags": 132
+   },
+   {
+    "x": 828,
+    "y": 618,
+    "u_04": "002d",
+    "flags": 131
+   },
+   {
+    "x": 910,
+    "y": 532,
+    "u_04": "002d",
+    "flags": 130
+   },
+   {
+    "x": 938,
+    "y": 544,
+    "u_04": "0055",
+    "flags": 129
+   },
+   {
+    "x": 1230,
+    "y": 890,
+    "u_04": "0064",
+    "flags": 130
+   },
+   {
+    "x": 8,
+    "y": 166,
+    "u_04": "0046",
+    "flags": 130
+   },
+   {
+    "x": 704,
+    "y": 2,
+    "u_04": "005a",
+    "flags": 134
+   },
+   {
+    "x": 1252,
+    "y": 94,
+    "u_04": "003c",
+    "flags": 130
+   },
+   {
+    "x": 1624,
+    "y": 64,
+    "u_04": "004b",
+    "flags": 135
+   },
+   {
+    "x": 1778,
+    "y": 4,
+    "u_04": "0064",
+    "flags": 133
+   },
+   {
+    "x": 1942,
+    "y": 10,
+    "u_04": "0064",
+    "flags": 133
+   },
+   {
+    "x": 990,
+    "y": 568,
+    "u_04": "0046",
+    "flags": 129
+   },
+   {
+    "x": 1090,
+    "y": 592,
+    "u_04": "0055",
+    "flags": 128
+   },
+   {
+    "x": 1242,
+    "y": 732,
+    "u_04": "000a",
+    "flags": 130
+   },
+   {
+    "x": 1762,
+    "y": 676,
+    "u_04": "0050",
+    "flags": 130
+   },
+   {
+    "x": 1574,
+    "y": 888,
+    "u_04": "0064",
+    "flags": 132
+   },
+   {
+    "x": 0,
+    "y": 0,
+    "u_04": "0000",
+    "flags": 128
+   },
+   {
+    "x": 1,
+    "y": 0,
+    "u_04": "0000",
+    "flags": 128
+   }
+  ],
+  "items": [
+   {
+    "name": "匕首",
+    "u_0f": "0005000500"
+   },
+   {
+    "name": "短劍",
+    "u_0f": "010a000a00"
+   },
+   {
+    "name": "長劍",
+    "u_0f": "0228001400"
+   },
+   {
+    "name": "刺劍",
+    "u_0f": "031e000f01"
+   },
+   {
+    "name": "重劍",
+    "u_0f": "0314000a01"
+   },
+   {
+    "name": "長刺劍",
+    "u_0f": "033c001401"
+   },
+   {
+    "name": "短佩劍",
+    "u_0f": "051e000a02"
+   },
+   {
+    "name": "土耳其彎刀",
+    "u_0f": "0650001402"
+   },
+   {
+    "name": "日本刀",
+    "u_0f": "07c8001902"
+   },
+   {
+    "name": "短彎刀",
+    "u_0f": "080f000a03"
+   },
+   {
+    "name": "闊劍",
+    "u_0f": "0932001403"
+   },
+   {
+    "name": "青龍偃月刀",
+    "u_0f": "0af0001e03"
+   },
+   {
+    "name": "蛇形劍",
+    "u_0f": "048c001901"
+   },
+   {
+    "name": "長柄劍",
+    "u_0f": "028c001900"
+   },
+   {
+    "name": "雙刃寬刀",
+    "u_0f": "0996001903"
+   },
+   {
+    "name": "佩劍",
+    "u_0f": "051e000f02"
+   },
+   {
+    "name": "硬鎧",
+    "u_0f": "0b0a000a06"
+   },
+   {
+    "name": "鎖子甲",
+    "u_0f": "0c14001406"
+   },
+   {
+    "name": "短甲",
+    "u_0f": "0d28001e06"
+   },
+   {
+    "name": "速環甲",
+    "u_0f": "0e50002806"
+   },
+   {
+    "name": "四分儀",
+    "u_0f": "0f28000507"
+   },
+   {
+    "name": "六分儀",
+    "u_0f": "1050000207"
+   },
+   {
+    "name": "經緯儀",
+    "u_0f": "1178000107"
+   },
+   {
+    "name": "懷錶",
+    "u_0f": "1214000108"
+   },
+   {
+    "name": "望遠鏡",
+    "u_0f": "1332000108"
+   },
+   {
+    "name": "貓",
+    "u_0f": "1414000108"
+   },
+   {
+    "name": "白虎半月刀",
+    "u_0f": "0ab4001903"
+   },
+   {
+    "name": "望遠鏡",
+    "u_0f": "1332000008"
+   },
+   {
+    "name": "空白",
+    "u_0f": "0032000008"
+   },
+   {
+    "name": "私掠許可書(P)",
+    "u_0f": "1800000008"
+   },
+   {
+    "name": "私掠許可書(S)",
+    "u_0f": "1800000008"
+   },
+   {
+    "name": "私掠許可書(O)",
+    "u_0f": "1800000008"
+   },
+   {
+    "name": "私掠許可書(E)",
+    "u_0f": "1800000008"
+   },
+   {
+    "name": "私掠許可書(I)",
+    "u_0f": "1800000008"
+   },
+   {
+    "name": "私掠許可書(H)",
+    "u_0f": "1800000008"
+   },
+   {
+    "name": "免稅証(P)",
+    "u_0f": "1964000008"
+   },
+   {
+    "name": "免稅証(S)",
+    "u_0f": "1964000008"
+   },
+   {
+    "name": "免稅証(O)",
+    "u_0f": "1964000008"
+   },
+   {
+    "name": "免稅証(E)",
+    "u_0f": "1964000008"
+   },
+   {
+    "name": "免稅証(I)",
+    "u_0f": "1964000008"
+   },
+   {
+    "name": "免稅証(H)",
+    "u_0f": "1964000008"
+   },
+   {
+    "name": "老鼠藥",
+    "u_0f": "1505000109"
+   },
+   {
+    "name": "聖香油",
+    "u_0f": "160a000109"
+   },
+   {
+    "name": "強血澲",
+    "u_0f": "170a000109"
+   },
+   {
+    "name": "王冠",
+    "u_0f": "1eb80b010a"
+   },
+   {
+    "name": "聖香油",
+    "u_0f": "160a000109"
+   },
+   {
+    "name": "贖罪狀",
+    "u_0f": "000a000009"
+   },
+   {
+    "name": "免罪符",
+    "u_0f": "000a000009"
+   },
+   {
+    "name": "空白",
+    "u_0f": "000a000009"
+   },
+   {
+    "name": "空白",
+    "u_0f": "000a000009"
+   },
+   {
+    "name": "真絲披肩",
+    "u_0f": "201e00030a"
+   },
+   {
+    "name": "華服",
+    "u_0f": "215000080a"
+   },
+   {
+    "name": "純銀頭飾",
+    "u_0f": "263200050a"
+   },
+   {
+    "name": "銀梳",
+    "u_0f": "2264000a0a"
+   },
+   {
+    "name": "貂皮大氅",
+    "u_0f": "1b78000c0a"
+   },
+   {
+    "name": "珠冠",
+    "u_0f": "232800040a"
+   },
+   {
+    "name": "鳳羽團扇",
+    "u_0f": "241e00030a"
+   },
+   {
+    "name": "絲帶",
+    "u_0f": "250a00020a"
+   },
+   {
+    "name": "天鵝絨大氅",
+    "u_0f": "1b3200050a"
+   },
+   {
+    "name": "鑽石王冠",
+    "u_0f": "1ee803640b"
+   },
+   {
+    "name": "珍珠手鐲",
+    "u_0f": "1c64000a0b"
+   },
+   {
+    "name": "紅寶石髯簪",
+    "u_0f": "27f401320b"
+   },
+   {
+    "name": "銀燭臺",
+    "u_0f": "281e00030b"
+   },
+   {
+    "name": "翡翠百寶箱",
+    "u_0f": "1fc800140b"
+   },
+   {
+    "name": "寶冠",
+    "u_0f": "1ef4013c0b"
+   },
+   {
+    "name": "金手鐲",
+    "u_0f": "1c96000f0b"
+   },
+   {
+    "name": "藍寶石戒指",
+    "u_0f": "1db400140b"
+   },
+   {
+    "name": "孔雀石小箱",
+    "u_0f": "1f50000a0b"
+   },
+   {
+    "name": "白銀胸花",
+    "u_0f": "29c800140b"
+   },
+   {
+    "name": "紅寶石戒指",
+    "u_0f": "1ddc00190b"
+   },
+   {
+    "name": "１０６",
+    "u_0f": "160000000d"
+   },
+   {
+    "name": "班達第",
+    "u_0f": "160000000d"
+   },
+   {
+    "name": "查克斯",
+    "u_0f": "160000000d"
+   },
+   {
+    "name": "村正妖刀",
+    "u_0f": "07d80e2802"
+   },
+   {
+    "name": "神劍",
+    "u_0f": "02100e2800"
+   },
+   {
+    "name": "聖騎士甲",
+    "u_0f": "0e70174606"
+   },
+   {
+    "name": "聖騎士劍",
+    "u_0f": "04d80e2801"
+   },
+   {
+    "name": "魔刀",
+    "u_0f": "06f00a1e02"
+   },
+   {
+    "name": "艾羅爾寶甲",
+    "u_0f": "0db80b3706"
+   },
+   {
+    "name": "預備",
+    "u_0f": "0000000000"
+   },
+   {
+    "name": "假面地圖",
+    "u_0f": "1a0000000c"
+   },
+   {
+    "name": "祭壇地圖",
+    "u_0f": "1a0000000c"
+   },
+   {
+    "name": "雕像地圖",
+    "u_0f": "1a0000000c"
+   },
+   {
+    "name": "石板地圖",
+    "u_0f": "1a0000000c"
+   },
+   {
+    "name": "水晶玉地圖",
+    "u_0f": "1a0000000c"
+   },
+   {
+    "name": "火燄之壺地圖",
+    "u_0f": "1a0000000c"
+   },
+   {
+    "name": "魔劍地圖",
+    "u_0f": "1a0000000c"
+   },
+   {
+    "name": "藏金圖",
+    "u_0f": "1a0000000c"
+   },
+   {
+    "name": "聖人寶杖地圖",
+    "u_0f": "1a0000000c"
+   },
+   {
+    "name": "古地圖",
+    "u_0f": "1a0000000c"
+   },
+   {
+    "name": "純金假面",
+    "u_0f": "2a0000000d"
+   },
+   {
+    "name": "翡翠祭壇",
+    "u_0f": "1f0000000d"
+   },
+   {
+    "name": "古神雕像",
+    "u_0f": "2a0000000d"
+   },
+   {
+    "name": "黑曜石石板",
+    "u_0f": "2a0000000d"
+   },
+   {
+    "name": "暗黑神水晶玉",
+    "u_0f": "2a0000000d"
+   },
+   {
+    "name": "火燄之壺",
+    "u_0f": "2a0000000d"
+   },
+   {
+    "name": "破壞神寶劍",
+    "u_0f": "040000000d"
+   },
+   {
+    "name": "黃金藏寶圖",
+    "u_0f": "2a0000000d"
+   },
+   {
+    "name": "聖人寶杖",
+    "u_0f": "270000000d"
+   },
+   {
+    "name": "最後的財寶",
+    "u_0f": "000000000d"
+   }
+  ]
+ },
+ "gaps": {
+  "0ca4": "ff050500020515041018ffff00000000240048000c000b000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000f10094002c01b20063000b0144014501ad001002b000590204012903b401e202a901010266020e0209000400050304020501000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003c00200010000a0000003b00200011000a0000003d0070000f000a000000320078001a000a0000003400700018000a0000003c00780010000a000000320020001a000a000000320070001a000a0000004000d0000c00070000002f00b0001d000a0000003c00400010000a000000320070001a000a000000320078001a000a0000003c00700010000a0000003c00400010000a00000046008000060006000000420080000a000a000000400080000c000a0000003e0070000e000a0000003800700014000a000000420070000a0008000000",
+  "12ae": "0000000000000000",
+  "2e64": "ffffffffffffff00ffffffffffffffffff00"
+ },
+ "tail": "000000000000180000004f0000000007000000000000000000001b43371b4230011b2a1b3d2020836683428358834e83478389815b203a2089f1959c82c582ab82dc82b982f1070700000000480e1b43371b423049503a25642f43533a25640036060000530600003606000053060000082008000000000000000000f00150011002d800f801f8003738392a3f3435362f3e3132332d2c303d2b0d1b43301b42370025396c640000202031002020320020203300202034002020350020203600202037002020380020203900203130002031310020313200c08ac48ac88acc8ad08ad48ad88adc8ae08ae48ae88aec8a0a000000a0a493e0948300946da357a0aa0025326400000000010101020303031b43301b4237253264001b43301b42372573001b43301b4237001b43301b42370000fafafafaf5f5f5f5aaaaaaaa55555555afafafaf5f5f5f5f8162257381630a008162257381630a001b43301b4237001b43301b4237001b4330011b4237001b43301b4237001b43301b4237002535640025356400253364001b43301b42370031352532640025732e253264002532643a253032642025632e4d00253575002535640a2535750000a3cfa155a0aa000a2573a0aa002535640a2535750a2535640a2535750a25346400ffffff0080ff800080ff800080ff8000ffffff0008ff080008ff080008ff08001b4330011b423700256400ffff00151316120203040706050b09080a010d0e0f1014110c0000000d0004000d040a0d0606000a0f000a060f0a0d0f0e0907070c0004000a06050e0b0f000806000706000b0c06020000000d0004000d040a0d0606000a0f000a060f0a0d0f0e0201010200010002010103020200010100010100020002017ea100007ea1000045a1000045a1000008a0000008a00000e79f0000e79f0000c99d0000c99d0000c99d0000c99d0000c99d0000c99d0000c99d0000c99d0000a4f3ac832000a1f4a14e20009330a073200095d1a25220009497a252200095d1aa8520009cccab8320009c37aa852020200094d7a2b020202000a06a00a744002573",
+ "source": "DATA1.LZW #15 (0x7D75 bytes, 0FEA:171c4 載入 DS:0CA4) + MAIN.EXE DGROUP 0x8A19..0x8D18"
+}
