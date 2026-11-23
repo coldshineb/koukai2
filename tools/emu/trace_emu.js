@@ -13,7 +13,8 @@ const sc = S.makeScript(KEYS.concat([{ mouse: {} }]));
 let done = false, cur = {};
 const trace = S.trace = [];
 const saveEnv = S.env, sH16 = S._H16, sH33 = S._H33; S.env = env; S._H16 = S._H33 = undefined;
-S.installEmuServices(sc, () => { trace.push({ shot: shots.length, calls: cur }); cur = {}; shots.push({ fb: S.emuFb480().slice(), dac: Array.from(c.vga.dac.slice(0, 48)) });
+S.installEmuServices(sc, () => { trace.push({ shot: shots.length, calls: cur }); cur = {}; shots.push({ fb: S.TRACE_FB === 0 ? null : S.emuFb480().slice(), dac: Array.from(c.vga.dac.slice(0, 48)), mouse: { x: env.mouse.x, y: env.mouse.y } });
+  { const tp = S.TELEPORT?.[shots.length - 1]; if (tp) for (const [a, v] of tp) c.mem[S.DSEG * 16 + a] = v; }
   if (!sc.keys.length) { done = true; c.halted = true; } });
 S.env = saveEnv; S._H16 = sH16; S._H33 = sH33;
 c.mem[L + 0x1ac19] = 0xcb;

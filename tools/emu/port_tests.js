@@ -9,6 +9,14 @@ const KEYS = NEWGAME.concat(S.PORT_KEYS || [K.left, K.left, K.left, K.right, K.r
 const TAIL = 30;                    // 最後一鍵之後再等多少次輸入查詢才截最終狀態
 const grabEmu = c => { const d = c.s[3] * 16; return { st: c.mem.slice(d + 0x0ca4, d + 0x8a18), rt: Array.from(c.mem.slice(d + 0x532, d + 0x536)),
   rng: ((c.mem[d + 0xbd88] | (c.mem[d + 0xbd89] << 8) | (c.mem[d + 0xbd8a] << 16) | (c.mem[d + 0xbd8b] << 24)) >>> 0) }; };
+// 遮掉游標區 (24×24, 熱點左上; 驅動座標 y − 40) 後的 32 位元雜湊
+function fbHash(fb, ms) {
+  const f = fb.slice();
+  for (const m of ms) if (m) for (let yy = m.y - 40; yy < m.y - 16; yy++) for (let xx = m.x; xx < m.x + 24; xx++) if (yy >= 0 && yy < 400 && xx < 640) f[yy * 640 + xx] = 0;
+  f[399 * 640 + 639] = 0;
+  let h = 0x811c9dc5; for (let i = 0; i < f.length; i++) h = Math.imul(h ^ f[i], 0x01000193);
+  return h >>> 0;
+}
 function runEmu() {
   S.restoreTitle();
   const env = S.titleEnv, c = env.cpu, shots = [];
@@ -16,7 +24,10 @@ function runEmu() {
   const sc = S.makeScript(KEYS.concat([{ mouse: {} }]));            // 最後一個空動作 = 收尾截圖點
   let synced = false, done = false;
   const saveEnv = S.env, sH16 = S._H16, sH33 = S._H33; S.env = env; S._H16 = S._H33 = undefined;
-  S.installEmuServices(sc, () => { const fb = S.emuFb480(); fb[399 * 640 + 639] = 0xff; shots.push({ mouse: { x: env.mouse.x, y: env.mouse.y }, fb, dac: Array.from(c.vga.dac.slice(0, 48)), ...grabEmu(c) });
+  S.installEmuServices(sc, () => { let fb = S.emuFb480(); fb[399 * 640 + 639] = 0xff; const m = { x: env.mouse.x, y: env.mouse.y };
+    // S.FB_HASH = n: 長路線省記憶體 — 每張只存遮掉游標 (本張與上一張的位置) 後的雜湊, 每 n 張與最後一張才存完整畫面
+    let fh; if (S.FB_HASH) { fh = fbHash(fb, [m, ...Array.from({ length: S.CURSOR_LAG ?? 1 }, (_, k) => shots[shots.length - 1 - k]?.mouse)]); if (shots.length % S.FB_HASH && sc.keys.length && !(S.FB_KEEP && shots.length >= S.FB_KEEP[0] && shots.length <= S.FB_KEEP[1])) fb = null; }
+    shots.push({ mouse: m, fb, fh, dac: Array.from(c.vga.dac.slice(0, 48)), ...grabEmu(c) });
     const tp = S.TELEPORT?.[shots.length - 1]; if (tp) for (const [a, v] of tp) c.mem[S.DSEG * 16 + a] = v;              // S.TELEPORT[畫面序號] = [[DS 位址, 值], ...]
     if (!sc.keys.length) { done = true; c.halted = true; } });
   S.env = saveEnv; S._H16 = sH16; S._H33 = sH33;
@@ -83,7 +94,9 @@ async function runJS(rng0) {
   sys.rng.rand = () => { if (!synced && ctx.menu.count === 4 && ctx.menu.level === 0) { synced = true; sc.calls = 0; sys.rng.state = rng0; } return r0(); };
   sys.onIO = s => S.scriptStep(sc, s.keybuf, (a, b) => s.pushKey(a, b), k => {
     if (k && k.mouse) { if ('x' in k.mouse) s.mouse.x = k.mouse.x; if ('y' in k.mouse) s.mouse.y = k.mouse.y; if ('b' in k.mouse) s.mouse.buttons = k.mouse.b; }
-    shots.push({ fb: scr.fb.slice(), dac: Array.from(scr.raw), st: state.b.slice(0, 0x8a18 - 0x0ca4), rt: ctx.rt ? [ctx.rt.year, ctx.rt.month, ctx.rt.day, ctx.rt.time] : [], rng: sys.rng.state });
+    let fb = scr.fb.slice(), fh;
+    if (S.FB_HASH) { const R = S.emuShotsRef, n = shots.length, e = R?.[n]; fh = fbHash(fb, Array.from({ length: (S.CURSOR_LAG ?? 1) + 1 }, (_, k) => R?.[n - k]?.mouse)); if (!e?.fb) fb = null; }
+    shots.push({ fb, fh, dac: Array.from(scr.raw), st: state.b.slice(0, 0x8a18 - 0x0ca4), rt: ctx.rt ? [ctx.rt.year, ctx.rt.month, ctx.rt.day, ctx.rt.time] : [], rng: sys.rng.state });
     { const tp = S.TELEPORT?.[shots.length - 1]; if (tp) for (const [a, v] of tp) state.set8(a, v); }
     if (!sc.keys.length) throw new Error("STOP");
   });
@@ -103,16 +116,27 @@ const rngTitle = (c0.mem[d0 + 0xbd88] | (c0.mem[d0 + 0xbd89] << 8) | (c0.mem[d0 
 const save0 = new Uint8Array(fs.readFileSync(S.W + "/uw2_remake/tools/work/sea2/KOUKAI2.DAT"));   // 原始存檔 (模擬磁碟上的 f["KOUKAI2.DAT"] 會被存檔路線改寫)
 if (f["KOUKAI2.DAT"].length === save0.length) f["KOUKAI2.DAT"].set(save0);   // 兩邊都從原始存檔開始 (上一次測試的存檔路線改寫過模擬磁碟)
 const E = runEmu();
+S.emuShotsRef = E.shots;
 const J = await runJS(rngTitle);
+S.emuShotsRef = null;
 S.lastRun = { E, J };                                             // 供測試後檢查 (例: 最終狀態 E.shots.at(-1).st)
 const rep = [`keys=${KEYS.length} emuShots=${E.shots.length} jsShots=${J.shots.length} emuDone=${E.done} ip=${E.ip}`];
 const n = Math.min(E.shots.length, J.shots.length);
 let firstStateDiff = -1;
 for (let i = 0; i < n; i++) {
   const e = E.shots[i], j = J.shots[i];
+  if (!e.fb || !j.fb) {                                              // S.FB_HASH: 只比雜湊
+    let dd = 0; for (let k = 0; k < 16; k++) if (e.dac[k * 3] !== j.dac[k * 3 + 1] * 4 || e.dac[k * 3 + 1] !== j.dac[k * 3 + 2] * 4 || e.dac[k * 3 + 2] !== j.dac[k * 3] * 4) dd++;
+    const sd = []; for (let k = 0; k < e.st.length; k++) if (e.st[k] !== j.st[k]) sd.push((0x0ca4 + k).toString(16) + ":" + e.st[k].toString(16) + "/" + j.st[k].toString(16));
+    if (sd.length && firstStateDiff < 0) firstStateDiff = i;
+    const ok = e.fh === j.fh && !dd && !sd.length && e.rng === j.rng && (i < NEWGAME.length || e.rt.join() === j.rt.join());
+    rep.push(`${ok ? "OK  " : "FAIL"} #${String(i).padStart(2)} ${i < KEYS.length ? JSON.stringify(KEYS[i]) : "end"} fb ${e.fh === j.fh ? "=" : "≠"} dac=${dd} state=${sd.length}${sd.length ? " " + sd.slice(0, 8).join(" ") : ""} rng ${e.rng === j.rng ? "=" : e.rng.toString(16) + "/" + j.rng.toString(16)} rt ${e.rt}/${j.rt}`);
+    continue;
+  }
   e.fb[399 * 640 + 639] = j.fb[399 * 640 + 639];
   // 原版的軟體游標畫在 VRAM 裡 (24×24, 熱點左上): 遮掉目前與上一次的游標位置
-  for (const m of [E.shots[i].mouse, i ? E.shots[i - 1].mouse : null]) if (m) for (let yy = m.y - 40; yy < m.y - 16; yy++) for (let xx = m.x; xx < m.x + 24; xx++)
+  // S.CURSOR_LAG = n: 原版軟體游標有時晚幾張才在舊位置重畫/還原 (滑鼠在測試中是瞬間移動的), 改為遮掉最近 n+1 張的所有位置
+  for (const m of Array.from({ length: (S.CURSOR_LAG ?? 1) + 1 }, (_, k) => E.shots[i - k]?.mouse)) if (m) for (let yy = m.y - 40; yy < m.y - 16; yy++) for (let xx = m.x; xx < m.x + 24; xx++)
     if (yy >= 0 && yy < 400 && xx < 640) e.fb[yy * 640 + xx] = j.fb[yy * 640 + xx];
   const d = S.cmp(e.fb, j.fb);
   let dd = 0; for (let k = 0; k < 16; k++) if (e.dac[k * 3] !== j.dac[k * 3 + 1] * 4 || e.dac[k * 3 + 1] !== j.dac[k * 3 + 2] * 4 || e.dac[k * 3 + 2] !== j.dac[k * 3] * 4) dd++;

@@ -120,14 +120,11 @@ export class SeaScene extends PortScene {
   // ================= 畫面 =================
   // 7180: (col, 0x10) 印 %2d (v+1); 只在海上
   seaNum(col, v) { const { con, printf } = this.c; con.right = 0x4f; con.setCursor(col, 0x10); printf(this.SS.day2, v + 1); }
-  // 71ad 年 / 71c6 月 / 71f0 日
-  seaDate() {
-    if (this.port !== 0xff) return;
-    const { con, printf, rt } = this.c;
-    this.seaNum(0x43, rt.year + 0x5dc);
-    con.setCursor(0x48, 0x10); printf(this.SS.month, this.seaMonths[rt.month]);
-    this.seaNum(0x4c, rt.day);
-  }
+  // 71ad 年 / 71c6 月 / 71f0 日 (只在海上; 主迴圈 1623a 在每年 / 每月 / 每天開始時也各呼叫一次)
+  seaYear() { if (this.port === 0xff) this.seaNum(0x43, this.c.rt.year + 0x5dc); }
+  seaMonth() { if (this.port === 0xff) { const { con, printf, rt } = this.c; con.setCursor(0x48, 0x10); printf(this.SS.month, this.seaMonths[rt.month]); } }
+  seaDay() { if (this.port === 0xff) this.seaNum(0x4c, this.c.rt.day); }
+  seaDate() { this.seaYear(); this.seaMonth(); this.seaDay(); }
   // 6b30 / 6cfc / 3197c 共用: 主角所在的 3×3 海域格區域 → bda6 / bdaa (地圖格) 與區域編號
   regionOf() {
     const F = this.fleet;
@@ -491,8 +488,77 @@ export class SeaScene extends PortScene {
     }
     this.scroll();
   }
-  // 1fd9:44d8 = 24268 → 23a97: 三個方向都被擋住時以區域距離場求中途點 (主角艦隊 +8) — 尚未移植
-  blocked() { seaTodo("被陸地擋住時的中途點 (1fd9:44d8 → 23a97)"); }
+  // 1fd9:44d8 = 24268: 三個方向都被擋住 → 23a97(目標 = 艦隊 +8, 艦隊, 0): 以 +8/+a 為目標重求中途點寫回 +8/+a
+  blocked() { this.pathStep(this.fleet, this.fleet + 8, 0); }
+  // 237fb + 23872 區域距離場 (緩衝 [0c88] = 視窗保存區, 72 × 72 字): 0x800 = 未到, 0x801 = 陸地 (圖塊 >= 0x34); 由目標往外做帶權最短路
+  //   (DS:ae18: 8 方向 dx, dy, 成本 2 / 3; 佇列 = 堆疊上 72×72 字的環狀緩衝, 插入排序); 船身 2×2: 該格與 東、南、東南 都不能是陸地
+  //   回傳 1 = 由目標擴展到了起點 (起點 = 艦隊 F, 座標以區域左上為原點的 8 位元值); 目標在陸地上或到不了 → 0
+  pathField(F, T) {
+    const st = this.st, D = this.SJ.tab.path8, N = 72 * 72, Q = new Int32Array(N);
+    const buf = (this.pathBuf ??= new Uint16Array(0x8000)); buf.fill(0);
+    const left = (this.item * 0x2d0 + this.bda6) & 0xffff, top = this.bdaa & 0xffff;
+    const sx = (st.u16(F) - left) & 0xff, sy = (st.u16(F + 2) - top) & 0xff, tx = (st.u16(T) - left) & 0xff, ty = (st.u16(T + 2) - top) & 0xff;
+    for (let y = 0; y < 72; y++) for (let x = 0; x < 72; x++) buf[y * 72 + x] = this.seaBuf[y * 0x60 + x] >= 0x34 ? 0x801 : 0x800;
+    const ti = ty * 72 + tx;
+    if (buf[ti] > 0x800) return 0;
+    buf[ti] = 0;
+    let head = 0, tail = 1; Q[0] = ti;
+    if (buf[sy * 72 + sx] === 0) return 1;
+    buf[sy * 72 + sx] = 0x800;
+    while (head !== tail) {
+      const cur = Q[head], x = cur % 72, y = Math.floor(cur / 72), d = buf[cur];
+      for (let k = 0; k < 8; k++) {
+        const nx = (x + D[k * 3]) & 0xff, ny = (y + D[k * 3 + 1]) & 0xff;          // 237c7
+        if (nx >= 72 || ny >= 72) continue;
+        if (nx === sx && ny === sy) return 1;
+        const n = ny * 72 + nx;
+        if (buf[n] !== 0x800 || buf[n + 1] === 0x801 || buf[n + 72] === 0x801 || buf[n + 73] === 0x801) continue;
+        buf[n] = (d + D[k * 3 + 2]) & 0xffff;
+        let slot = tail, bx = tail - 1;
+        for (;;) {
+          if (bx < 0) bx = N - 1;
+          Q[slot] = Q[bx];
+          if (buf[Q[bx]] <= buf[n]) break;
+          slot = bx; bx--;
+        }
+        Q[slot] = n;
+        if (++tail >= N) tail = 0;
+      }
+      if (++head >= N) head = 0;
+    }
+    return 0;
+  }
+  // 23a97(T, F, mode): 距離場建好後由艦隊沿距離遞減走 (最多 256 步, 每步取 8 鄰格中最小的; 都不更小時往北), 第一步的方向一直延伸到不再同向的位置 → T
+  //   艦隊與目標同一格時 T = 區域左上 (原版如此)。mode ≠ 0 的後半 (再嘗試轉向) 只有艦隊 AI 使用, 尚未移植
+  pathStep(F, T, mode) {
+    const st = this.st, D = this.SJ.tab.path8;
+    if (!this.pathField(F, T)) return 0;
+    const buf = this.pathBuf;
+    const left = (this.item * 0x2d0 + this.bda6) & 0xffff, top = this.bdaa & 0xffff;
+    const fx = seaS16(st.u16(F) - left), fy = seaS16(st.u16(F + 2) - top), tx = seaS16(st.u16(T) - left), ty = seaS16(st.u16(T + 2) - top);
+    const ti = seaS16(ty * 72 + tx); let cur = seaS16(fy * 72 + fx);
+    if (cur === ti) { st.set16(T, left); st.set16(T + 2, top); return 1; }
+    const path = []; let x = fx, y = fy;
+    while (cur !== ti && path.length < 0x100) {
+      let best = buf[cur & 0x7fff], bd = 0;
+      for (let k = 0; k < 8; k++) {
+        const nx = x + D[k * 3], ny = y + D[k * 3 + 1];
+        if (nx < 0 || nx >= 72 || ny < 0 || ny >= 72) continue;
+        const w = buf[(cur + D[k * 3 + 1] * 72 + D[k * 3]) & 0x7fff];
+        if (w < best) { best = w; bd = k; }
+      }
+      cur = seaS16(cur + D[bd * 3] + 72 * D[bd * 3 + 1]); path.push(cur); x += D[bd * 3]; y += D[bd * 3 + 1];
+    }
+    let y0 = Math.trunc(path[0] / 72), x0 = path[0] % 72;
+    const d = this.SJ.tab.dir3[(y0 - fy) * 3 + (x0 - fx) + 4], X = this.SJ.tab.dirX, Y = this.SJ.tab.dirY;
+    for (let si = 1; si < path.length; si++) {
+      if (path[si] !== (x0 + X[d]) + (y0 + Y[d]) * 72) break;
+      x0 += X[d]; y0 += Y[d];
+    }
+    if (mode) seaTodo("23a97 轉向嘗試 (艦隊 AI)");
+    st.set16(T, x0 + left); st.set16(T + 2, y0 + top);
+    return 1;
+  }
   // 31b73 地圖視窗捲動: 主角離視窗左上 < 11 − [0ca9] 或 > 11 + [0ca9] 時移動一格 (x 限 項內 0..0x2b8, y 0..0x420)
   scroll() {
     const st = this.st, F = this.fleet, m = st.u8(0x0ca9);
@@ -660,20 +726,181 @@ export class SeaScene extends PortScene {
       case 0xc0: if (!rng.random(10) && rng.random(6) >= (st.u8(0x0cb1) & 7)) await this.weatherBegin(0x15c, 3); break;
     }
   }
-  // 1988c 落水 — 尚未移植細節 (19849 / 197f7)
-  async overboard() { seaTodo("海難: 船員落水 (1988c)"); }
-  // 1999c 天候開始的預兆: [0cb3] = (高 4 位元) | 種類 | 0x40; 觀測者 (19909) random(100) <= +1f 時發言 (msg + 2 若 +1e < 70, + 1 若 +2f bit3)
+  // 1988c 海難: 非主角當船長、船長 +1b & 0xc0 且 random(100) > 船長 +23 的第一艘船 → 19849 (船長離隊、船 5deb 移除) → 197f7
+  async overboard() {
+    const st = this.st, rng = this.c.sys.rng;
+    for (let i = 0; i < 10; i++) {
+      const M = this.crewOf(i);
+      if (!this.present(i) || st.u8(M + 0x1b) === st.u8(0x12b5)) continue;
+      const P = st.personRecord(st.u8(M + 0x1b));
+      if (rng.random(100) <= st.u8(P + 0x23)) continue;
+      if (!(st.u8(P + 0x1b) & 0xc0)) continue;
+      this.dropShip(i, M);
+      await this.shipLostMsg(i);
+      return;
+    }
+  }
+  // 19849: 船長從船員名單 (DS:2e1b) 移除 (+2d = FF, +31 &= DF), 再 5deb 移除船位 i
+  dropShip(i, M) {
+    const st = this.st, c = st.u8(M + 0x1b);
+    for (let k = 0; k < 0x1e; k++) if (st.u8(0x2e1b + k) === c) {
+      st.set8(0x2e1b + k, 0xff);
+      const P = st.personRecord(c); st.set8(P + 0x2d, 0xff); st.set8(P + 0x31, st.u8(P + 0x31) & 0xdf);
+      break;
+    }
+    this.removeShip(i);
+  }
+  // seg0:5deb 移除船位 i: 船 (+0f = FF, +10/+11/+12/+14 = 0)、船位 (+2..+6 = FF, +0 = 0, +8 = 0)、船員配置清空, 船長 (非主角) 職務 = 6; +08 先寫 0x19 再寫 0x32 (原版如此)
+  removeShip(i) {
+    const st = this.st, M = this.crewOf(i), S = this.slotOf(i), ship = this.shipRec(st.u8(S + 7));
+    st.set8(ship + 0x0f, 0xff); st.set8(ship + 0x11, 0); st.set8(ship + 0x10, 0); st.set16(ship + 0x14, 0); st.set16(ship + 0x12, 0);
+    for (const k of [5, 4, 3, 2, 6]) st.set8(S + k, 0xff);
+    st.set16(S, 0); st.set8(S + 8, 0);
+    st.set16(M + 6, 0); st.set16(M + 4, 0); st.set16(M + 2, 0); st.set16(M, 0);
+    for (let k = 0; k < 5; k++) { st.set8(M + 0x16 + k, 0xff); st.set16(M + 0x0c + 2 * k, 0); }
+    st.set16(M + 0x0a, 0);
+    if (st.u8(M + 0x1b) !== st.u8(0x12b5)) st.set8(st.personRecord(st.u8(M + 0x1b)) + 0x2e, 6);
+    st.set8(M + 0x1b, 0xff); st.set8(M + 0x1c, 0); st.set8(M + 0x1d, 0); st.set8(M + 8, 0x19); st.set8(M + 8, 0x32);
+  }
+  // 197f7: 0x150 / 0x151「%s 不見了」— 原版以「船位編號」當船編號取船名 (5c7a(i)), 照搬
+  async shipLostMsg(i) {
+    if (this.port !== 0xff) return;
+    const { sys, message, con } = this.c, st = this.st, ship = this.shipRec(i);
+    sys.mouseHide();
+    const p = this.b.crewSpeaks();
+    message(p !== 0xff && (st.u8(st.personRecord(p) + 0x2f) & 8) ? 0x151 : 0x150, this.b.dstr(ship));
+    await this.c.menu.waitPrompt(); await this.c.win.close();
+    sys.mouseShow();
+    con.right = 0x50;
+  }
+  // 19909 觀測者: 船員名單中最後一個職務 3 與最後一個職務 5 的人, 取 +1f 較高者 (相同時取職務 5)
+  watcher() {
+    const st = this.st; let a = 0xffff, b = 0xffff, pa = 0, pb = 0;
+    for (let i = 0; i < 0x1e; i++) {
+      const n = st.u8(0x2e1b + i); if (n === 0xff) continue;
+      const P = st.personRecord(n), j = st.u8(P + 0x2e);
+      if (j === 3) { pa = P; a = n; } else if (j === 5) { pb = P; b = n; }
+    }
+    if (b === 0xffff && a === 0xffff) return 0xffff;
+    if (b === 0xffff) return a;
+    if (a !== 0xffff && st.u8(pb + 0x1f) < st.u8(pa + 0x1f)) return a;
+    return b;
+  }
+  // 1999c 天候開始: [0cb3] = (高 4 位元) | 種類 | 0x40; 觀測者 random(100) <= +1f 時發言 (msg + 2 若 +1e < 70; + 1 若 +2f bit3)
   async weatherBegin(msg, kind) {
-    const st = this.st;
+    const st = this.st, { sys, message, menu, win } = this.c;
     const di = this.watcher();
     st.set8(0x0cb3, (st.u8(0x0cb3) & 0xf0) | kind | 0x40);
     if (di === 0xffff) return;
-    seaTodo("天候預兆的觀測者發言 (1999c / 19909)");
+    const P = st.personRecord(di);
+    if ((this.c.sys.rng.random(100) & 0xff) > st.u8(P + 0x1f)) return;
+    if (this.port !== 0xff) return;
+    sys.mouseHide();
+    this.b.talkPerson(di);
+    if (st.u8(P + 0x1e) < 0x46) msg += 2;
+    message(st.u8(P + 0x2f) & 8 ? msg + 1 : msg);
+    await menu.waitPrompt(); await win.close();
+    sys.mouseShow();
   }
-  watcher() { seaTodo("觀測者 (19909)"); return 0xffff; }
-  // 19f48 天候進行中
+  // 船員發言 0x... (+1 若發言者 +2f bit3) 後等待、關閉
+  async crewSay(m0, m1, ...a) {
+    const { message, menu, win } = this.c, st = this.st, p = this.b.crewSpeaks();
+    message(p !== 0xff && (st.u8(st.personRecord(p) + 0x2f) & 8) ? m1 : m0, ...a);
+    await menu.waitPrompt(); await win.close();
+  }
+  // 19f48 天候進行中: 剛開始 (bit6) 時船員報告 (暴風雨先 2103 + GRAPH #0x3a), 重畫地圖, bit6 → bit7; 依種類 19bd1 / 19e84 / 19efc; 1976e
   async weatherOngoing() {
-    seaTodo("天候進行中 (19f48 / 19bd1 / 19e84 / 19efc)");
-    this.c.palette.selectTimePalette(this.time, true, this.st.u8(0x0cb3));
+    const st = this.st, { sys, graph } = this.c;
+    if (st.u8(0x0cb3) & 0x40) {
+      sys.mouseHide();
+      if ((st.u8(0x0cb3) & 15) === 1) { this.clearCache(); graph.draw(0x3a, 0xa0, 0x10); }
+      const si = ((st.u8(0x0cb3) & 15) + 0xaf) * 2;
+      await this.crewSay(si, si + 1);
+      this.drawMap();
+      sys.mouseShow();
+      st.set8(0x0cb3, (st.u8(0x0cb3) & 0xbf) | 0x80);
+    }
+    switch (st.u8(0x0cb3) & 15) {
+      case 1: await this.storm(); break;
+      case 2: await this.calm(); break;
+      case 3: await this.fog(); break;
+    }
+    this.c.palette.selectTimePalette(this.time, true, st.u8(0x0cb3));   // 1976e
+  }
+  // 19bd1 暴風雨 (每時刻): 各船損傷 si = min(10, (100 − 船長 +1d) / (+24/5 + 3) + 1) + random(2), 非 +10 bit6 的船 ×5;
+  //   耐久度 (+2) −si, 轉向力 (+4)、推進力 (+5) −si/2; 最大耐久 (+3) = max(船型 +1 / 4, +3 − 1), 耐久度 <= 最大耐久;
+  //   耐久度 0: 主角的船 → 淡出、[03ea] = 0x18 (遊戲結束); 其他船 → 沉沒訊息 0x166/0x167 (+ 船長 0x329 或 19849), 5deb
+  //   [1005]&0x18 時不損傷。之後 18299、風力 = 7; 非當天開始且 (random(8) = 0 或離開天候區) → 結束 0x168/0x169; 8067
+  async storm() {
+    const st = this.st, { sys, palette, message, menu, win } = this.c, rng = this.c.sys.rng, F = this.fleet;
+    if (!(st.u8(0x1005) & 0x18)) {
+      for (let i = 0; i < 10; i++) {
+        const M = this.crewOf(i), S = this.slotOf(i);
+        if ((st.u8(S + 8) & 0x30) !== 0x10) continue;
+        const P = st.personRecord(st.u8(M + 0x1b)), ship = this.shipRec(st.u8(S + 7));
+        const cx = Math.floor(st.u8(P + 0x24) / 5) + 3;
+        let si = seaUmin(10, (Math.trunc((100 - st.u8(P + 0x1d)) / cx) + 1) & 0xffff);
+        si = (si + rng.random(2)) & 0xffff;
+        if (!(st.u8(ship + 0x10) & 0x40)) si = (5 * si) & 0xffff;
+        st.set8(S + 2, st.u8(S + 2) - seaUmin(st.u8(S + 2), si));
+        const h = Math.trunc(seaS16(si) / 2);
+        st.set8(S + 5, st.u8(S + 5) - seaUmin(st.u8(S + 5), h));
+        st.set8(S + 4, st.u8(S + 4) - seaUmin(st.u8(S + 4), h));
+        const mx = seaUmax(st.u8(this.typeOf(st.u8(ship + 0x0f)) + 1) >> 2, (st.u8(S + 3) - 1) & 0xffff) & 0xff;
+        st.set8(S + 3, mx);
+        st.set8(S + 2, seaUmin(mx, st.u8(S + 2)));
+        if (st.u8(S + 2)) continue;
+        if (st.u8(M + 0x1b) === st.u8(0x12b5)) { await palette.fadeBlack(); palette.ending = 0x18; return; }
+        sys.mouseHide();
+        const cap = st.u8(M + 0x1b), Pc = st.personRecord(cap);
+        if (!(st.u8(Pc + 0x1b) & 0xc0)) {
+          let k = 0; while (k < 0x1e && st.u8(0x2e1b + k) !== cap) k++;
+          if (k < 0x1e) st.set8(0x2e1b + k, 0xff);
+          const p = this.b.crewSpeaks();
+          message(p !== 0xff && (st.u8(st.personRecord(p) + 0x2f) & 8) ? 0x167 : 0x166, this.b.dstr(this.shipRec(st.u8(S + 7))));
+          message(0x329, this.b.dstr(Pc));
+          st.set8(0x2e1b + k, cap);                                      // 原版把船長放回原位 (找不到時寫到 DS:2e39)
+          this.removeShip(i);
+        } else {
+          this.dropShip(i, M);
+          const p = this.b.crewSpeaks();
+          message(p !== 0xff && (st.u8(st.personRecord(p) + 0x2f) & 8) ? 0x167 : 0x166, this.b.dstr(this.shipRec(st.u8(S + 7))));   // 5deb 不清 +7 與船名, 仍是原船名
+        }
+        await menu.waitPrompt(); await win.close();
+        sys.mouseShow();
+      }
+      this.fleetDurability(F);                                         // 18299
+    }
+    st.set8(0x0cb1, st.u8(0x0cb1) | 7);
+    if (!(st.u8(0x0cb3) & 0x80) && (!rng.random(8) || !(st.u8(0x0cb1) & 0x80))) {
+      // 9888 停止效果音
+      st.set8(0x0cb3, st.u8(0x0cb3) & 0xf0);
+      sys.mouseHide(); await this.crewSay(0x168, 0x169); sys.mouseShow();
+    }
+    this.seaPanel();                                                   // 8067
+  }
+  // 18299 艦隊 +28 = (各船耐久度和 + 4) / 5; 和為 0 時 +29 bit0 清除
+  fleetDurability(F) {
+    const st = this.st; let sum = 0;
+    for (let i = 0; i < 10; i++) { const S = F + 0x2b + 9 * i; if ((st.u8(S + 8) & 0x30) === 0x10) sum += st.u8(S + 2); }
+    st.set8(F + 0x28, Math.trunc((sum + 4) / 5));
+    if (!sum) st.set8(F + 0x29, st.u8(F + 0x29) & 0xfe);
+  }
+  // 19e84 無風: 非當天開始、random(20) = 0 且所在海域風力 (風向表 &7) ≠ 0 → 結束 0x16a/0x16b; 期間風力 = 0
+  async calm() {
+    const st = this.st, rng = this.c.sys.rng, [w] = this.clock.windAt(this.fleet), { sys } = this.c;
+    if (!(st.u8(0x0cb3) & 0x80) && !rng.random(0x14) && (w & 7)) {
+      st.set8(0x0cb3, st.u8(0x0cb3) & 0xf0);
+      sys.mouseHide(); await this.crewSay(0x16a, 0x16b); sys.mouseShow();
+    }
+    st.set8(0x0cb1, st.u8(0x0cb1) & 0xf8);
+  }
+  // 19efc 霧: 非當天開始且 (random(30) = 0 或離開天候區 (風 bit7 = 0)) → 結束 0x16c
+  async fog() {
+    const st = this.st, rng = this.c.sys.rng, { sys, message, menu, win } = this.c;
+    if (st.u8(0x0cb3) & 0x80) return;
+    if (rng.random(0x1e) && (st.u8(0x0cb1) & 0x80)) return;
+    st.set8(0x0cb3, st.u8(0x0cb3) & 0xf0);
+    sys.mouseHide(); this.b.crewSpeaks(); message(0x16c); await menu.waitPrompt(); await win.close(); sys.mouseShow();
   }
 }

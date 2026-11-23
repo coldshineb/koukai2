@@ -18,6 +18,8 @@ TABLES = {
     "dirX": (0x0718, 8, "sb"), "dirY": (0x0720, 8, "sb"),   # 31728 8 方位的位移向量
     "shipDir": (0x8b20, 8, "b"),              # 6cfc 方位 → 精靈方向
     "buttons": (0xa9d8, 13 * 9, "b"),         # 21008 海上畫面按鈕 (x, y, w, h 為 int16, +8 按鍵)
+    "path8": (0xae18, 24, "sb"),              # 23872 / 23a97 8 方向 (dx, dy, 成本)
+    "dir3": (0xae38, 9, "b"),                 # 23a97 (3dy + dx + 4) → 方位
 }
 STR = {
     "dateColor": 0x8b8f, "n5": 0x8b96, "n5b": 0x8b9a, "n3": 0x8b9e, "day2": 0x8b28, "month": 0x8b32, "speed": 0x8b1a,

@@ -185,11 +185,13 @@ export class GameClock {
       // 16173
       if (this.abort()) Object.assign(this.rt, { year: st.year, month: st.month, day: st.day, time: st.time });
       if (palette.ending) break;
+      this.portScene.seaYear();                                                      // 71ad
       this.rt.month = st.month;
       while (this.rt.month < 12 && !palette.ending) {
         const days = this.daysInMonth();
+        this.portScene.seaMonth();                                                   // 71c6
         this.rt.day = st.day;
-        while (!palette.ending && this.rt.day < days) { await this.day(); this.rt.day++; }
+        while (!palette.ending && this.rt.day < days) { this.portScene.seaDay(); await this.day(); this.rt.day++; }   // 71f0
         if (!palette.ending && !this.abort()) clockTodo("月末處理 (18ff5)");
         this.rt.month++;
       }
