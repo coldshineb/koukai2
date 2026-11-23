@@ -8,6 +8,9 @@
 //   "mapno"   同上, 0x25d 選否 (Esc)
 //   "maphave" 隨身物已有 0x50 → 0x36f
 //   "mappoor" 現金 500 → 0x25f
+//   "n3" / "n4" / "n11"  任務 3 / 4 / 11 → 0x9b / 0x9c / 0xa1 → 談完直接開戰 navalBattle(對方, 主角) (對方發起: fa5b 開戰對話 → 交戰 / 撤離 / 投降)
+//             之後的按鍵 S.NEGO_TAIL (預設: 0x331 等 → 交戰 → 指令選單後空動作); S.NEGO_FLEET = 艦隊編號 (預設 65 海盜; 非海盜時 fa5b 走 0x332 / 0x333)
+//             比對另加海戰的 DS 工作區 (同 battle_route.js)
 "use strict";
 (function () {
 const S = session;
@@ -16,9 +19,9 @@ const E = K.enter, X = K.esc, idle = n => Array(n).fill({ mouse: {} });
 const poke = [], b = (a, v) => poke.push([a, v]), w16 = (a, v) => { b(a, v & 255); b(a + 1, (v >> 8) & 255); };
 const inv = list => { for (let i = 0; i < 20; i++) b(0x2e57 + i, i < list.length ? list[i] : 0xff); };
 const mode = S.NEGO || "n8";
-const F = 0x2e76 + 0x85 * 65;
+const FN = S.NEGO_FLEET ?? 65, F = 0x2e76 + 0x85 * FN;
 w16(F, 119); w16(F + 2, 357);
-const task = { n8: 8, nff: 0xff, n1: 1, n5: 5 }[mode] ?? 0;
+const task = { n8: 8, nff: 0xff, n1: 1, n5: 5, n3: 3, n4: 4, n11: 11 }[mode] ?? 0;
 b(F + 0x1b, task);
 if (mode === "n1") b(F + 0x1c, 45);
 if (mode === "n5") b(F + 0x1c, 9);
@@ -26,6 +29,12 @@ const open = [...idle(2), K.f3, ...idle(2), K.down, E];          // 命令 → �
 let keys;
 if (mode === "n8") keys = [...open, E, E, E, E, X, X, ...idle(2)];
 else if (mode === "nff" || mode === "n1" || mode === "n5") keys = [...open, E, E, X, X, ...idle(2)];
+else if (mode === "n3" || mode === "n4" || mode === "n11") {
+  const T = { down: K.down, up: K.up, enter: E, esc: X, l: [0x4b, 0], right: [0x4d, 0] };
+  const tail = (S.NEGO_TAIL || ["enter", "i", "enter", "i", "i", "i", "i"]).map(k => k === "i" ? { mouse: {} } : T[k]);
+  keys = [...open, E, E, ...tail];                                         // 清單第 1 項 → 任務的台詞 (等待) → 海戰
+  S.EXTRA_DS = [[0x8e14, 0x97d4], [0x97e0, 0x9bfe], [0x9c2a, 0x9c2e], [0x9d3e, 0x9d44]]; S.DAC_N = 8;
+}
 else {
   b(0x0d5e, 1); w16(0x0d74, 0x0b); w16(0x0d8a, 64); w16(0x0d8c, 0x5a);
   inv(mode === "maphave" ? [0x50] : []);

@@ -436,13 +436,13 @@ export class FleetAI {
     st.set8(F + 0x18, nx + b6); st.set8(F + 0x19, ny + b7);
     return 0;
   }
-  // 1afe8 每支艦隊 (先查滑鼠右鍵)
+  // 1afe8 每支艦隊 (先查滑鼠右鍵); 迴圈以全域 [c2ea] 判斷結束 (艦隊指標另外遞增): 途中開戰 → 回到海上 851f → 6aae 把 [c2ea] 設成 0x46 → 這一輪剩下的艦隊不處理
   async seaTick() {
     const st = this.st, sea = this.sea, { sys, palette } = this.c;
     const w1 = st.u8(0x0cb1), w2 = st.u8(0x0cb2);
     const wDir = (w1 & 0x38) >> 3, wStr = w1 & 7, cDir = (w2 & 0x38) >> 3, cStr = w2 & 7;
     let k = 0;
-    for (this.v.c2ea = 0; !palette.ending && k < 0x46; k++, this.v.c2ea = k) {
+    for (this.v.c2ea = 0; !palette.ending && this.v.c2ea < 0x46; k++, this.v.c2ea = (this.v.c2ea + 1) & 0xff) {
       if (sys.mouseEvent() === 0x82) sea.a9c8 |= 1;
       const F = faFleet(k);
       if (F === this.heroFleet || !(st.u8(F + 0x29) & 1)) continue;
