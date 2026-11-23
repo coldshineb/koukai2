@@ -29,6 +29,21 @@ STR = {
     "pAssist": 0xa857, "pAccount": 0xa864, "pBosun": 0xa871, "pPad0": 0xa881, "pPad1": 0xa883, "pPad2": 0xa885,
     "slColor": 0xa887, "slRest": 0xa88e, "slColor2": 0xa89b, "slNum": 0xa8a2,
     "rColor": 0xa8cc, "rDrive": 0xa8d3, "rWatch": 0xa8d8, "rDeck": 0xa8dd, "rNum": 0xa8a8,
+    # 情報: 自艦隊 1d0e8、艦船 1c1a3、人物 1c839、主公 1cc11; 清單種類 1 的列格式 149b0
+    "fvColor": 0xa79c, "siColor": 0xa760, "n4": 0xa767, "siClass": 0xa76b, "siHi": 0xa771, "siMid": 0xa775,
+    "piColor": 0xa785, "piStat": 0xa78c, "piTitle": 0xa794, "n3": 0xa798, "lsPad1": 0xa197, "lsTotal1": 0xa199,
+}
+BYTES = {
+    "fleetPos": (0xa7a4, 20),        # 1d0e8 艦隊一覽各船圖位置 (欄, 列×16)
+    "windSpeed": (0x06d8, 0x80),     # 1d0e8 風向差 k 的速度表: DS:06d8 + 8k + 船型
+    "goodsCat": (0x0784, 10),        # 1fd9:468e (2441e) 商品分類界線
+}
+WORDS = {
+    "gunA": (0x07ec, 8), "gunB": (0x07fc, 8),   # 1d0e8 砲種的戰力係數
+    "gunW": (0x07dc, 8),                        # 1c1a3 砲種重量 (0x378)
+}
+PTRS = {
+    "skills": (0x08ec, 5),           # 1c839 技能名 (測量/地圖製作/砲術/會計/交涉)
 }
 # 注意: seg0:92f7 百分比條的顏色 DS:bafa / bafc 在 BSS (不在檔案內), 由 seg0:9376 設定 (初值 0)
 
@@ -39,7 +54,11 @@ def main(sea2, assets):
 
     def cs(o):
         t = b(o, 256); return t[:t.index(0)].hex()
-    out = {"str": {k: cs(v) for k, v in STR.items()}}
+    u16 = lambda o: struct.unpack("<H", b(o, 2))[0]
+    out = {"str": {k: cs(v) for k, v in STR.items()},
+           "tab": {**{k: list(b(o, n)) for k, (o, n) in BYTES.items()},
+                   **{k: [u16(o + 2 * i) for i in range(n)] for k, (o, n) in WORDS.items()}},
+           "ptr": {k: [cs(u16(o + 2 * i)) for i in range(n)] for k, (o, n) in PTRS.items()}}
     p = os.path.join(assets, "data", "commands.json")
     json.dump(out, open(p, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     print("->", p, len(out["str"]), "strings")

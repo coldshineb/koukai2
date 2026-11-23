@@ -21,6 +21,8 @@ export class Commands {
     this.p = scene; this.c = scene.c;
     const J = scene.P.commands;                                         // assets/data/commands.json
     this.S = Object.fromEntries(Object.entries(J.str).map(([k, v]) => [k, cmHex(v)]));
+    const D = scene.P.data, h = a => a.map(cmHex);                     // port.json 的共用表 + commands.json 的表
+    this.T = { ...J.tab, cannons: h(D.build.cannons), skills: h(J.ptr.skills) };
     this.c.persons ??= new Array(0x50).fill(0);
     this.c.barColors ??= [0, 0];                                       // DS:bafa / bafc (BSS 初值 0, seg0:9376 設定)
   }
@@ -93,7 +95,336 @@ export class Commands {
   async waitClose() { await this.c.menu.waitPrompt(); await this.c.win.close(); }   // 0fea:490b + 796d
 
   // ================= 情報 1fd9:0e33 (20bc3) =================
-  async info() { cmTodo("情報 (20bc3)"); }
+  // MENU #0x1a (自艦隊/艦船/人物/主公/積載情報/積載一覽表/發現物/航海圖/航海日誌/海港地圖) 於 y=0x30
+  // 停用: 沒有船 → 0,1,4,5; 有船但都沒載貨 (20b6a, 只在進入時算一次) → 4,5; [100e] = 0 → 7; 日誌 [0c8e] 首字 = FFFF → 8; 海上 → 9;
+  //   沒有「已知且已發現」的發現物 → 6。海港地圖與取消後結束, 其他回到選單
+  async info() {
+    const st = this.st, { menu, palette } = this.c, items = this.c.menuItems(0x1a).slice(0, 10), b = this.b, p = this.p;
+    const cargo = this.anyCargo();
+    let di = 0;
+    do {
+      if (!b.fleetShips()) menu.disabled |= 0x33; else if (!cargo) menu.disabled |= 0x30;
+      if (!st.u16(0x100e)) menu.disabled |= 0x80;
+      if (st.u16(0x8a18) === 0xffff) menu.disabled |= 0x100;
+      if (st.port === 0xff) menu.disabled |= 0x200;
+      if (!this.discList(1)) menu.disabled |= 0x40;
+      const r = await this.popMenu(0x30, items);
+      switch (r) {
+        case 0: if (await this.fleetInfo()) await this.reenter(); break;          // 0fea:d7be = 1d65e
+        case 1:                                                                    // 0fea:d7e8 = 1d688
+          await this.shipInfos();
+          await palette.fadeBlack(); p.clearCache(); p.drawMap();
+          palette.selectTimePalette(this.rt.time, st.port === 0xff, st.weather); await palette.fadeToTarget();
+          break;
+        case 2: await this.personInfos(); p.clearCache(); p.drawMap(); break;     // 0fea:d81f = 1d6bf
+        case 3: await this.lordInfo(); p.clearCache(); p.drawMap(); break;         // 0fea:d843 = 1cc11
+        case 4: await this.cargoInfos(); break;                                    // 0fea:d848 = 1d6e8
+        case 5: await this.cargoList(); break;                                     // 0fea:d866 = 1cf02
+        case 6: await this.discInfos(); break;                                     // 0fea:d86b = 1d084
+        case 7: cmTodo("航海圖 (0fea:dc2e = 1dace, 世界地圖)"); break;
+        case 8: await this.logBook(); break;                                       // 0fea:e47e = 1e31e
+        case 9: await this.portMap(); di = 1; break;                               // 0fea:e10f = 1dfaf
+        default: di = 1;
+      }
+    } while (!di);
+    await this.redrawMap();                                                        // 20b40
+  }
+  // 20b6a 艦隊中有船且載有商品 (+16..+1a ≠ FF) 的船位
+  anyCargo() {
+    const st = this.st, b = this.b;
+    for (let i = 0; i < 10; i++) {
+      if ((st.u8(b.fleetSlot(i) + 8) & 0x30) !== 0x10) continue;
+      for (let k = 0; k < 5; k++) if (st.u8(b.crewData(i) + 0x16 + k) !== 0xff) return 1;
+    }
+    return 0;
+  }
+  // 發現物 (DS:7f8c + 7×i, 100 筆): +6 bit7 = 0 且 bit6、bit5 = 1; first = 1 時只判斷有無 (20bc3), 否則列入 [0538] (1d084)
+  discList(first) {
+    const st = this.st, P = this.c.persons; let n = 0;
+    for (let i = 0; i < 100; i++) {
+      const f = st.u8(0x7f8c + i * 7 + 6);
+      if (!(f & 0x80) && (f & 0x40) && (f & 0x20)) { if (first) return 1; P[n++] = i; }
+    }
+    return n;
+  }
+  // ---- 0 自艦隊情報 1d65e → 1d0e8(主角艦隊): 回傳 1 時重新進港 (8c53) ----
+  async fleetInfo() {
+    const st = this.st, { sys } = this.c;
+    if (!this.b.fleetShips()) return 0;
+    sys.mouseHide();
+    await this.fleetView(st.u8(st.personRecord(st.hero) + 0x2c));
+    sys.mouseShow();
+    return 1;
+  }
+  // 1d0e8 艦隊一覽: 全畫面 [0c86]+0x2ba0 底紋 → 各船圖 (seg0:8050, 位置 DS:a7a4) → 下方資料框: 提督頭像、0x397..0x399、
+  //   最慢的船 (速度計算同 1c0a8 但風向表 DS:06d8) 的 +4/+5 與 總水手、總砲數、最低耐久、總戰力 (0x39a..0x39c)
+  async fleetView(f) {
+    const st = this.st, { scr, gfx, graph, con, message, palette } = this.c, b = this.b, T = this.T;
+    const F = 0x2e76 + f * 0x85, hero = st.u8(st.personRecord(st.hero) + 0x2c) === f;
+    await palette.fadeBlack();
+    for (let c = 0; c < 0x28; c++) for (let r = 0; r < 0x14; r++) scr.putPlanar(c * 2, r << 4, 2, 0x10, gfx, 0x2ba0);
+    let cnt = 0;
+    for (let i = 0; i < 10; i++) {
+      const S = F + 0x2b + i * 9;
+      if ((st.u8(S + 8) & 0x30) !== 0x10) continue;
+      graph.draw(st.u8(0x5892 + st.u8(S + 7) * 0x16 + 0x0f) + 0x1c, T.fleetPos[cnt * 2] << 3, T.fleetPos[cnt * 2 + 1] << 4);   // seg0:8050
+      cnt++;
+    }
+    if (!cnt) {
+      await this.c.win.open(0x14, 0x80, 0x1e, 0x60, 0);
+      con.puts(this.S.fvColor); con.setCursor(0x16, 0x90); message(0x396); await this.waitClose();
+      return;
+    }
+    scr.fillCols(0, 0x130, 0x50, 0x60, 0);
+    scr.fillRectPxPlanes(1, 0x131, 0x27e, 0x18e, 0x0d, 4);
+    scr.fillRectPxPlanes(2, 0x132, 0x27d, 0x18d, 0x0e, 4);
+    scr.fillRectPxPlanes(3, 0x133, 0x27c, 0x18c, 0x0a, 4);
+    scr.fillRectPxPlanes(4, 0x134, 0x27b, 0x18b, 0x00, 4);
+    scr.fillRectPxPlanes(5, 0x135, 0xd7, 0x18a, 0x08, 4);
+    const A = st.personRecord(st.u8(F + 0x2a));
+    scr.fillCols(1, 0x138, 8, 0x50, 0);
+    this.c.kao.drawPerson(scr, st.bytes(A, 0x32), 1, 0x138);             // seg0:7d39
+    con.setCursor(0x0b, 0x140); message(0x397, st.cstr(A));
+    con.setCursor(0x0b, 0x160); message(0x398, st.u8(A + 0x24));
+    con.setCursor(0x0b, 0x178); message(0x399, st.u8(A + 0x25));
+    const s16 = v => (v << 16) >> 16;
+    const wind = Math.abs(((st.u8(0x0cb1) & 0x38) >> 3) - st.u8(F + 0x1a)) & 0xff, WT = T.windSpeed, wbase = wind << 3;
+    let best = 10000, slow = F + 0x2b, sumSail = 0, sumMax = 0, sumGuns = 0, sumX = 0, minDur = 100;
+    for (let i = 0; i < 10; i++) {
+      const S = F + 0x2b + i * 9;
+      if ((st.u8(S + 8) & 0x30) !== 0x10) continue;
+      const ship = 0x5892 + st.u8(S + 7) * 0x16, t = st.u8(ship + 0x0f), TR = 0x5e28 + t * 0x0c;
+      const minS = st.u8(TR + 5), sail = s16(st.u16(S));
+      sumSail = (sumSail + st.u16(S)) & 0xffff; sumMax = (sumMax + st.u16(ship + 0x12)) & 0xffff;
+      let r8, r9, w, cap;
+      if (hero) { const M = b.crewData(i); r8 = st.u8(M + 8); r9 = st.u8(M + 9); w = s16(st.u16(M + 0x0a)); cap = st.u8(M + 0x1b); }
+      else { r8 = 0x19; r9 = 0x32; w = Math.trunc(s16(st.u16(TR + 6)) / 2); cap = st.u8(F + 0x2a); }
+      const maxw = s16(st.u16(TR + 6)), s5 = st.u8(S + 5), CP = st.personRecord(cap), pc = st.u8(CP + 0x24), pd = st.u8(CP + 0x1d);
+      sumGuns = (sumGuns + st.u8(S + 6)) & 0xffff;
+      const deck = cmUmin(300, Math.trunc(s16((100 - r9 - r8) * sail) / 100) & 0xffff);
+      const k = st.u8(S + 8) & 7, g = Math.trunc((cmUmin(st.u8(S + 6), deck) * ((2 * T.gunA[k] + T.gunB[k]) & 0xffff)) / 10) & 0xffff;
+      sumX = (sumX + 2 * st.u8(S + 2) + g + deck) & 0xffff;
+      const di2 = s16(WT[wbase + t] * s5);
+      const q = cmUmin(100, Math.trunc((r9 * sail) / minS) & 0xffff);
+      const c = cmUmin(150, (180 - cmUmin(180, Math.trunc(s16(100 * w) / maxw) & 0xffff)) & 0xffff);
+      const x = Math.trunc(s16(q * di2) / 100) & 0xffff;
+      const di3 = Math.trunc(((x * c) >>> 0) / 100) & 0xffff;
+      const v = cmUmin(30, (Math.trunc(s16(di3 * pc) / 10) + di3) & 0xffff);
+      const sp = cmUmin(40, Math.trunc(s16(v * pd) / 75) & 0xffff);
+      if (sp < best) { best = sp; slow = S; }
+      if (st.u8(S + 2) < minDur) minDur = st.u8(S + 2);
+    }
+    con.setCursor(0x1d, 0x140); message(0x39a, st.u8(slow + 4), sumSail);
+    con.setCursor(0x1d, 0x158); message(0x39b, st.u8(slow + 5), sumGuns);
+    con.setCursor(0x1d, 0x170); message(0x39c, minDur, sumX);
+    palette.setTarget(palette.table("ships")); await palette.fadeToTarget();
+    await this.c.menu.waitPrompt();
+  }
+  // 1d607 艦隊的船 (清單 0x80), FF = 取消或沒有船
+  async pickShip() {
+    const n = this.b.fleetShips(); if (!n) return 0xff;
+    const r = await this.b.listSel().select(0x80, n);
+    return r === -1 ? 0xff : this.c.persons[r];
+  }
+  // ---- 1 艦船情報 1d688: 艦船調色盤 (DS:a730), 8dfd(1) 底紋, 淡入; 反覆選船 → 1c1a3(船位, 0x0f) ----
+  async shipInfos() {
+    const { palette } = this.c;
+    palette.setTarget(palette.table("ships"));
+    this.p.wallpaper(1);
+    await palette.fadeToTarget();
+    for (;;) { const s = await this.pickShip(); if (s === 0xff) break; this.shipInfo(s, 0x0f); }
+  }
+  // 1c1a3 船隻詳細資料 (欄 x): 7358(x,0x20,0x29,0x150) 船圖 / 船首像 (TRANSIT.DAT 0x1980 + 0x480×n) / 補給 2×2 (圖 [0c86]+0x20d0) /
+  //   船級、0x374/0x375/0x377 砲 (DS:07cc)/0x378/0x379/0x37a 人數/0x37b/0x37c 載重比例 (>79 色 2, >30 色 4)/0x37e 速度 /
+  //   MENU #0x29 七項 「目前 / 最大」 與長條 (seg0:90c0 / 91a1)
+  shipInfo(slot, x) {
+    const st = this.st, { scr, gfx, graph, con, printf, message, win } = this.c, b = this.b, S0 = this.S, T = this.T;
+    const lab = this.c.menuItems(0x29);
+    const S = b.fleetSlot(slot), M = b.crewData(slot), cap = st.personRecord(st.u8(M + 0x1b)), ship = 0x5892 + st.u8(S + 7) * 0x16;
+    const TR = 0x5e28 + st.u8(ship + 0x0f) * 0x0c, tmpl = 0x5892 + (st.u8(ship + 0x0f) + 0x28) * 0x16, s16 = v => (v << 16) >> 16;
+    const sup = [Math.trunc(s16(st.u16(M)) / 10), Math.trunc(s16(st.u16(M + 2)) / 10), s16(st.u16(M + 4)), s16(st.u16(M + 6))];
+    const cur = [st.u8(S + 2), st.u8(S + 4), st.u8(S + 5), st.u16(S), st.u8(M + 0x1c), this.c.cargoUsed(slot), (this.c.cargoUsed(slot) + st.u8(S + 6) + st.u16(S)) & 0xffff];   // 5d36 / 5d8b
+    const max = [st.u8(S + 3), st.u8(TR + 2), st.u8(TR + 3), st.u16(ship + 0x12), 100, st.u16(ship + 0x14), st.u16(TR + 6)];
+    win.frame(x, 0x20, 0x29, 0x150, 0);
+    graph.draw(st.u8(ship + 0x0f) + 0x1c, (x + 2) << 3, 0x30);           // seg0:8050
+    con.puts(S0.siColor);
+    const fh = st.u8(M + 0x1d);
+    if (fh) scr.putPlanar(x + 0x13, 0x30, 6, 0x30, this.p.P.transit, 0x1980 + 0x480 * fh);
+    for (let r = 0; r < 2; r++) for (let c = 0; c < 2; c++) {
+      scr.putPlanar(c * 7 + x + 0x1a, r * 0x28 + 0x30, 2, 0x20, gfx, 0x20d0 + ((2 * r + c) << 8));
+      con.setCursor((c + 4) * 7 + x, r * 0x28 + 0x40); printf(S0.n4, sup[2 * r + c]);
+    }
+    scr.fillCols(x + 0x14, 0x80, 1, 0xe0, 2);
+    con.left = x + 2; con.setCursor(con.left, 0x98); printf(S0.siClass, st.cstr(tmpl));
+    con.setCursor(con.left, 0xa8); message(0x374, st.cstr(ship)); message(0x375, st.cstr(cap)); message(0x377, T.cannons[st.u8(S + 8) & 7]);
+    con.left++; con.setCursor(con.left, 0xea);
+    if (st.u8(S + 8) & 7) message(0x378, st.u8(S + 6), st.u8(ship + 0x11), s16(T.gunW[st.u8(S + 8) & 7] * st.u8(S + 6)));
+    con.left--; con.setCursor(con.left, 0x100); message(0x379);
+    const s0 = st.u16(S), a = Math.trunc(((st.u8(M + 9) * s0) >>> 0) / 100) & 0xffff, bb = Math.trunc(((st.u8(M + 8) * s0) >>> 0) / 100) & 0xffff;
+    con.setCursor(con.left, 0x112); message(0x37a, a, bb, (s0 - a - bb) & 0xffff);
+    con.setCursor(con.left, 0x128); message(0x37b, st.u8(TR + 5));
+    con.left += 2; con.setCursor(con.left, 0x13a); message(0x37c);
+    const pct = Math.trunc((100 * cur[6]) / (s16(max[6]) || 1)) & 0xffff;
+    if (pct > 0x4f) con.puts(S0.siHi); else if (pct > 0x1e) con.puts(S0.siMid);
+    message(0x37d, pct);
+    con.setCursor(con.left, 0x14c); message(0x37e, (b.shipSpeed(slot) + 1) >> 1);
+    this.c.barColors = [2, 1];                                          // seg0:9376(2, 1)
+    for (let i = 0; i < 7; i++) {
+      con.setCursor(x + 0x16, (i + 4) << 5); message(0x37f, lab[i], cur[i], max[i]);
+      this.barFrame(x + 0x18, (i << 5) + 0x94, 1);
+      this.bar(x + 0x18, (i << 5) + 0x94, Math.trunc((100 * cur[i]) / (s16(max[i]) || 1)), 1);
+    }
+  }
+  // ---- 2 人物情報 1d6bf: 反覆 清單 0x86 (主角 + 船員, 12d8c) → 1c839(人物, 0x0f, 1) ----
+  async personInfos() {
+    for (;;) {
+      const n = this.b.captainPool();
+      const r = await this.b.listSel().select(0x86, n);
+      if (r === -1) break;
+      this.personInfo(this.c.persons[r], 0x0f, 1);
+    }
+  }
+  // 1c839 人物資料 (欄 x, mode ≠ 0 時加上 所乘的船、職務、爵位 / 酬金): 頭像 7d39、0x381 姓名、0x382 年齡、
+  //   能力 7 項 (DS:08f6「%-6s%3d」與 9216 / 92f7)、0x386..0x38a、技能 5 項 (DS:08ec, +30 bit (0x10>>i) 為 ○)
+  personInfo(n, x, mode) {
+    const st = this.st, { scr, con, printf, message, kao, win } = this.c, b = this.b, S0 = this.S, T = this.T;
+    const P = st.personRecord(n), H = 0x125a + st.hero * 0x0e, isHero = n === st.hero;
+    const xs = [0x0e, 0x13, 0x1c, 0x21, 0x0e], ys = [0x118, 0x118, 0x118, 0x118, 0x130];
+    let si7 = 0, shipR = 0;
+    if (mode) {
+      si7 = 0xff; let found = 0;
+      for (let i = 0; i < 10; i++) {
+        if ((st.u8(b.fleetSlot(i) + 8) & 0x30) !== 0x10) continue;
+        const c = st.u8(b.crewData(i) + 0x1b);
+        if (c === n) { found = 1; si7 = i; }
+        if (!found && c === st.hero) si7 = i;
+      }
+      if (si7 !== 0xff) shipR = 0x5892 + st.u8(b.fleetSlot(si7) + 7) * 0x16;
+    }
+    win.frame(x, 0x20, 0x28, 0x160, 0);
+    kao.drawPerson(scr, st.bytes(P, 0x32), x + 2, 0x30);
+    scr.fillCols(x + 0x0c, 0x90, 1, 0xe0, 2);
+    con.left = x + 0x0b; con.setCursor(con.left, 0x30); con.puts(S0.piColor);
+    if (mode) {
+      if (si7 !== 0xff) message(0x39d, st.cstr(shipR));
+      message(0x380, b.T.crewRoles[st.u8(P + 0x2e)]);
+    }
+    message(0x381, st.cstr(P), st.cstr(P + 0x0d));
+    message(0x382, st.u8(P + 0x2a));
+    this.c.barColors = [2, 1];
+    for (let i = 0; i < 7; i++) {
+      con.setCursor(x + 2, (i << 5) + 0x90); printf(S0.piStat, b.T.stats[i], st.u8(P + 0x1c + i));
+      this.barFrame(x + 2, (i << 5) + 0xa4); this.bar(x + 2, (i << 5) + 0xa4, st.u8(P + 0x1c + i));
+    }
+    con.left = x + 0x0e; con.setCursor(con.left, 0x90);
+    if (mode) {
+      if (isHero) {
+        message(0x383);
+        const ti = st.u8(H + 0x0d);
+        if (ti) printf(S0.piTitle, st.hero === 5 ? b.T.ottomanTitles[ti] : b.T.titles[ti]); else message(0x384);
+      } else for (let i = 0; i < 0x1e; i++) if (st.u8(0x2e1b + i) === n) message(0x385, 10 * st.u8(0x2e39 + i));
+    }
+    message(0x386, st.u8(P + 0x24));
+    con.left += 6; con.setCursor(con.left, -1); message(0x387, st.u16(P + 0x26));
+    con.left -= 6; con.setCursor(con.left, -1); message(0x388, st.u8(P + 0x25));
+    con.left += 6; con.setCursor(con.left, -1); message(0x389, st.u16(P + 0x28));
+    con.left -= 6; con.setCursor(con.left, -1); message(0x38a, this.p.nations[st.u8(P + 0x31) & 0x0f]);
+    message(0x38b);
+    for (let i = 0; i < 5; i++) {
+      message(0x38c);
+      if (st.u8(P + 0x30) & (0x10 >> i)) message(0x38d);
+      con.setCursor(xs[i] + x, ys[i] + 0x20); message(0x380, T.skills[i]);
+    }
+    message(0x38c);
+  }
+  // ---- 3 主公情報 1cc11: 7358(0x0f,0x20,0x1f,0xa8) 金幣 (%10000) / 金塊 (/10000)、MENU #0x2a 三種聲望、6 國友好度 (−100 → 0x394 + 絕對值) ----
+  async lordInfo() {
+    const st = this.st, { con, printf, message, win } = this.c, lab = this.c.menuItems(0x2a), H = 0x125a + st.hero * 0x0e;
+    const money = (st.u16(0x12ae) | (st.u16(0x12b0) << 16)) | 0;
+    win.frame(0x0f, 0x20, 0x1f, 0xa8, 0);
+    con.setCursor(0x11, 0x30); message(0x38e);
+    con.setCursor(0x11, 0x48); message(0x38f, money % 10000);            // seg0:37ee 有號長整數餘數
+    con.setCursor(0x11, 0x58); message(0x390, Math.trunc(money / 10000));
+    con.setCursor(0x11, 0x70); message(0x391);
+    for (let i = 0; i < 3; i++) { con.setCursor(0x11, (i << 4) + 0x88); message(0x392, lab[i], st.u16(H + 2 * i)); }
+    for (let i = 0; i < 6; i++) {
+      con.setCursor(0x1c, (i << 4) + 0x48); message(0x393, this.p.nations[i]);
+      const v = st.u8(H + 6 + i);
+      if (v < 100) message(0x394);
+      printf(this.S.n3, Math.abs(v - 100));
+    }
+    await this.c.menu.waitPrompt();
+  }
+  // ---- 4 積載情報 1d6e8: 反覆選船 → 1cd6c (沒有商品的船什麼都不顯示) ----
+  async cargoInfos() {
+    for (;;) { const s = await this.pickShip(); if (s === 0xff) break; await this.cargoInfo(s); }
+  }
+  // 1cd6c 74f7(0x0f,0x20,0x14,0x90,0): 0x374 船名, 每種商品 0x395 (名稱 DS:0728, 數量 +0c)
+  async cargoInfo(slot) {
+    const st = this.st, { con, message, win } = this.c, M = this.b.crewData(slot);
+    let any = 0; for (let k = 0; k < 5; k++) if (st.u8(M + 0x16 + k) !== 0xff) any = 1;
+    if (!any) return;
+    const ship = 0x5892 + st.u8(this.b.fleetSlot(slot) + 7) * 0x16;
+    await win.open(0x0f, 0x20, 0x14, 0x90, 0);
+    con.setCursor(0x11, 0x28); message(0x374, st.cstr(ship));
+    let y = 0;
+    for (let k = 0; k < 5; k++) {
+      const g = st.u8(M + 0x16 + k); if (g === 0xff) continue;
+      con.setCursor(0x11, y + 0x50); message(0x395, this.p.goods[g], st.u16(M + 0x0c + 2 * k)); y += 0x10;
+    }
+    await this.waitClose();
+  }
+  // ---- 5 積載一覽表 1cf02: 各商品總數 ([0538 + 0x32×2 + 商品×2]) → 清單 0x81 → 1ce45 最高價港口:
+  //   主角 +30 bit1 → 主角說 0x350; 否則每位會計 (職務 4) 各說一次: +30 bit1 → 0x351 (港名), 否則 0x352 ----
+  async cargoList() {
+    const st = this.st, { message } = this.c, b = this.b, P = this.c.persons;
+    for (let i = 0x32; i < 0x64; i++) P[i] = 0;
+    let k = 0;
+    for (let i = 0; i < 10; i++) {
+      if ((st.u8(b.fleetSlot(i) + 8) & 0x30) !== 0x10) continue;
+      const M = b.crewData(i);
+      for (let j = 0; j < 5; j++) {
+        const g = st.u8(M + 0x16 + j); if (g === 0xff) continue;
+        if (!P[0x32 + g]) P[k++] = g;
+        P[0x32 + g] = (P[0x32 + g] + st.u16(M + 0x0c + 2 * j)) & 0xffff;
+      }
+    }
+    if (!k) return;
+    const r = await b.listSel().select(0x81, k);
+    if (r === -1) return;
+    const g = P[r], R = 0x5f54 + this.bestPort(g) * 0x16, hero = st.personRecord(st.hero);
+    if (st.u8(hero + 0x30) & 2) { b.talkPerson(st.hero); message(0x350, this.p.goods[g], st.cstr(R + 4)); await this.waitClose(); return; }
+    for (let i = 0; i < 0x1e; i++) {
+      const c = st.u8(0x2e1b + i); if (c === 0xff) continue;
+      const C = st.personRecord(c); if (st.u8(C + 0x2e) !== 4) continue;
+      b.talkPerson(c);
+      if (st.u8(C + 0x30) & 2) message(0x351, this.p.goods[g], st.cstr(R + 4)); else message(0x352, this.p.goods[g]);
+      await this.waitClose();
+    }
+  }
+  // 1ce45 商品 g 賣價最高的港口 (+15 bit6 的港才算): 特產港 (+1a = g) = (分類物價 + 50) × +18 / 200, 其他 = (分類物價 + 50) × 地區價 / 100
+  bestPort(g) {
+    const st = this.st, cats = this.T.goodsCat; let best = 0, port = 0;
+    let cat = 0; while (cat < 10 && !(cats[cat] > g)) cat++; if (cat >= 10) cat = 0;     // 1fd9:468e = 2441e
+    for (let p = 0; p < 100; p++) {
+      const R = 0x5f54 + p * 0x16, E = 0x6a80 + p * 0x25, pr = st.u8(E + 0x0e + cat) + 0x32, s16 = v => (v << 16) >> 16;
+      const v = st.u8(E + 0x1a) === g ? s16(Math.trunc(pr * s16(st.u16(E + 0x18)) / 200))                         // seg0:3722
+        : s16(Math.trunc(pr * s16(st.u16(0x78f4 + st.u8(E + 0x21) * 0x80 + 2 * g)) / 100));                         // seg0:5cba 地區價
+      if (v > best && (st.u8(R + 0x15) & 0x40)) { best = v; port = p; }
+    }
+    return port;
+  }
+  // ---- 6 發現物情報 1d084: 清單 0x92 → 2e09:681c 發現物資料 (buildings.discInfo), 直到 Esc ----
+  async discInfos() {
+    for (;;) {
+      const n = this.discList(0);
+      const r = await this.b.listSel().select(0x92, n);
+      if (r === -1) break;
+      await this.b.discInfo(this.c.persons[r]);
+    }
+  }
+  async logBook() { cmTodo("航海日誌 (1e31e)"); }
+  async portMap() { cmTodo("海港地圖 (1dfaf)"); }
   // ================= 經營 1fd9:0fdc (20d6c) =================
   // MENU #0x1b (船長變更/人事變更/水手編組/水手比例/艦船銷毀/積載分配) 於 y=0x88; 沒有船 → 0,2..5 停用; 沒有船員 → 1
   // 選了項目就先畫艦隊表 (1e628, 不保存背景); 子功能結束後回到選單, 取消才結束
@@ -725,25 +1056,25 @@ export class Commands {
     if (si & 1) st.set8(a, v + cmUmin(max - v, 1)); else st.set8(a, v - cmUmin(v, 1));
     const m = (st.u8(0x0ca8) + 2) * 2; this.c.sys.mickeyRatio = [m, m];
   }
-  // seg0:9216 數值框 (欄 x, y)
-  barFrame(x, y) {
-    const s = this.c.scr, si = (x << 3) + 4;
-    s.fillCols(x + 1, y, 7, 8, 5);
+  // seg0:9216 數值框 (欄 x, y); wide = seg0:90c0 (13 欄, 右端 +0x6a / +0x6f)
+  barFrame(x, y, wide = 0) {
+    const s = this.c.scr, si = (x << 3) + 4, e = wide ? 0x6a : 0x38;
+    s.fillCols(x + 1, y, wide ? 0x0d : 7, 8, 5);
     s.fillRectPxPlanes(si, y, si + 5, y + 7, 5, 4);
-    s.fillRectPxPlanes(si + 0x38, y, si + 0x3d, y + 7, 5, 4);
-    s.rectOutline(si, y, si + 0x3d, y + 7, 0);
-    s.rectOutline(si + 5, y + 1, si + 0x38, y + 6, 0);
-    s.line(si, y, si + 0x3d, y, 7);
+    s.fillRectPxPlanes(si + e, y, si + e + 5, y + 7, 5, 4);
+    s.rectOutline(si, y, si + e + 5, y + 7, 0);
+    s.rectOutline(si + 5, y + 1, si + e, y + 6, 0);
+    s.line(si, y, si + e + 5, y, 7);
     s.line(si, y, si, y + 7, 7);
-    s.line(si + 5, y + 6, si + 0x38, y + 6, 7);
-    s.line(si + 0x38, y + 1, si + 0x38, y + 6, 7);
+    s.line(si + 5, y + 6, si + e, y + 6, 7);
+    s.line(si + e, y + 1, si + e, y + 6, 7);
   }
-  // seg0:92f7 百分比條 (0..100 → 0..50 像素), 顏色 DS:bafa / bafc
-  bar(x, y, v) {
-    const s = this.c.scr, [ca, cb] = this.c.barColors;
-    const si = Math.trunc((v < 0 ? 0 : v > 100 ? 100 : v) / 2), x8 = x << 3;
+  // seg0:92f7 百分比條 (0..100 → 0..50 像素), 顏色 DS:bafa / bafc; wide = seg0:91a1 (0..100 像素)
+  bar(x, y, v, wide = 0) {
+    const s = this.c.scr, [ca, cb] = this.c.barColors, c = v < 0 ? 0 : v > 100 ? 100 : v;
+    const si = wide ? c : Math.trunc(c / 2), x8 = x << 3, full = wide ? 100 : 50, end = wide ? 0x6d : 0x3b;
     if (si) s.fillRectPxPlanes(x8 + 0x0a, y + 2, x8 + si + 9, y + 5, ca, 4);
-    if (si !== 50) s.fillRectPxPlanes(x8 + si + 0x0a, y + 2, x8 + 0x3b, y + 5, cb, 4);
+    if (si !== full) s.fillRectPxPlanes(x8 + si + 0x0a, y + 2, x8 + end, y + 5, cb, 4);
   }
   // 0fea:7042 = 16ee2(mode): 0/2/3 存檔 (16cf0), 1 讀檔 (16b3f); 讀檔成功且 mode = 1 時 1721f 重新進港, 回傳 1
   async saveLoad(mode) {

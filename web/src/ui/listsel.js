@@ -117,6 +117,7 @@ export class ListSelect {
   format(v) {
     switch (this.k) {
       case 0: return this.fmtShipName(v);
+      case 1: return this.fmtGoodsTotal(v);
       case 6: return this.fmtPerson(v);
       case 2: { const s = this.st.cstr(ListSelect.shipRec(this.st.u8(ListSelect.fleetSlot(this.st, v) + 7))); this.c.con.puts(s); return lsStrlen(s); }   // 14954 船名
       case 4: return this.fmtCapacity(v);
@@ -129,6 +130,7 @@ export class ListSelect {
       case 16: return this.fmtTable("figureheads", v);  // 14cb3 DS:093c[v] 船首像
       case 17: return this.fmtTable("cannons", v);      // 14cd0 DS:07cc[v] 砲
       case 18: return this.fmtDisc(v);
+      case 20: this.c.message(0x1d1 + (v & 0xffff)); return 10;   // 14d28 地區名 (MESSAGE 0x1d1 + v; 回傳固定 10, 王宮 勢力狀況)
       default: console.warn("尚未移植: 清單列格式 " + this.k); return 0;
     }
   }
@@ -171,6 +173,14 @@ export class ListSelect {
   fmtDisc(n) { const r = ListSelect.colonyRec(this.c, n & 0xffff); this.c.con.puts(r); return lsStrlen(r); }
   // COLONY.DAT 第 n 筆 (0xb1 bytes: +00 名稱, +0f 圖號, +10 說明), 由 colony.json 編碼回原版位元組
   static colonyRec(c, n) { return ((c._colony ??= [])[n] ??= c.font.encode(c.portAssets.colony[n])); }
+  // 149b0 種類 1: 商品名 (DS:0728, 以 DS:a197 空白補到 11 字) + 「%6d」(DS:a199) 總數 [0538 + 0x32×2 + 商品×2] (積載一覽表 1cf02)
+  fmtGoodsTotal(g) {
+    const name = (this.goods ??= this.c.portAssets.data.goods.map(lsHex))[g & 0xffff], con = this.c.con;
+    con.puts(name);
+    for (let n = lsStrlen(name); n < 0x0b; n++) con.puts(SPACE);
+    this.c.printf(lsHex("253664"), this.c.persons[0x32 + (g & 0xffff)]);
+    return 0x11;
+  }
   // 14890 種類 0: 「船名號」
   fmtShipName(slot) {
     const st = this.st, ship = ListSelect.shipRec(st.u8(ListSelect.fleetSlot(st, slot) + 7));
