@@ -32,7 +32,7 @@ const BUY = [
 const SELL = [K.down, K.enter, K.enter, K.enter, K.down, K.enter, K.enter, ...D(2), K.enter, K.enter, K.esc, K.esc, K.down];
 const NONE = [K.enter, K.enter, K.down, K.enter, K.enter, K.esc, K.down];
 const FULL = [K.enter, K.enter, K.esc, K.down];
-const NIGHT = [K.enter, K.enter, ...D(3), K.enter, K.esc, K.esc, K.esc, K.down];
+const NIGHT = [K.enter, ...D(3), K.enter, K.esc, K.esc, K.esc, K.down];
 S.PORT_SETUP = mode === "night" ? { port: 1, vx: 0, vy: 31, hx: 12, hy: 13, time: 7, poke } : { port: 0, vx: 2, vy: 35, hx: 12, hy: 13, time: 0x18, poke };
 S.PORT_KEYS = [K.up, ...(S.SHOP_KEYS || { buy: BUY, sell: SELL, none: NONE, full: FULL, night: NIGHT }[mode])];
 S.NO_EVENTS = 1;
