@@ -1233,7 +1233,7 @@ export class Buildings {
     let sel;
     do {
       const items = this.c.menuItems(22);
-      let n = 0; for (let i = 0; i < 5; i++) if (st.u8(0x7f74 + this.port * 8 + i) !== 0xff) n++;   // seg0:5cc4 中古船表
+      let n = 0; for (let i = 0; i < 5; i++) if (st.u8(0x7f74 + i) !== 0xff) n++;   // seg0:5cc4(0) 中古船表第 1 筆 (到港 1bd16 把本港移到第 1 筆; 原版各處都傳 al = 0)
       if (!n) menu.disabled |= 2;
       this.b2f4 = this.b2f5 = this.b2f6 = this.b2f7 = 0xff; this.b2f8 = 0;
       sel = await this.menu(items);
@@ -1730,7 +1730,7 @@ export class Buildings {
     const st = this.st, { menu } = this.c, list = this.listSel(), P = this.c.persons;
     this.b2f8 = 0;
     if (!(await this.captainAndSlot())) return;
-    const base = 0x7f74 + this.port * 8, idx = [];
+    const base = 0x7f74, idx = [];                                        // seg0:5cc4(0): 2be62 / 2bf29 都是 sub al, al
     let n = 0;
     for (let i = 0; i < 5; i++) { const t = st.u8(base + i); if (t !== 0xff) { idx[n] = i; P[n++] = t + 0x28; } }
     for (;;) {
