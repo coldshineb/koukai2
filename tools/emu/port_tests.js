@@ -8,6 +8,7 @@ const NEWGAME = [K.down, K.enter, K.enter, K.enter, K.left, K.left, K.enter, K.l
 const KEYS = NEWGAME.concat(S.PORT_KEYS || [K.left, K.left, K.left, K.right, K.right, K.down, K.up, K.up, K.enter, K.left, K.down, K.down, K.right]);
 const TAIL = 30;                    // 最後一鍵之後再等多少次輸入查詢才截最終狀態
 // S.EXTRA_DS = [[起, 迄], ...]: 另外比對存檔區以外的 DS 範圍 (移植版為 ctx.battleDS 等 DS 鏡像, 例: 海戰工作區)
+// S.DAC_N = n: 調色盤只比前 n 色 (例: 海戰的調色盤循環 16ee 由 IRQ0 驅動, 兩邊換格的時間點不同, 只比 0..7)
 const grabEmu = c => { const d = c.s[3] * 16; return { x: (S.EXTRA_DS || []).map(([a, b]) => c.mem.slice(d + a, d + b)), st: c.mem.slice(d + 0x0ca4, d + 0x8a18), rt: Array.from(c.mem.slice(d + 0x532, d + 0x536)),
   rng: ((c.mem[d + 0xbd88] | (c.mem[d + 0xbd89] << 8) | (c.mem[d + 0xbd8a] << 16) | (c.mem[d + 0xbd8b] << 24)) >>> 0) }; };
 // 遮掉游標區 (24×24, 熱點左上; 驅動座標 y − 40) 後的 32 位元雜湊
