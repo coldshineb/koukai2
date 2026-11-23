@@ -66,6 +66,14 @@ def ds_tables(sea2):
             "fmt": {k: cs(v) for k, v in {"discHdr": 0xb910, "s": 0xb917, "cat": 0xb91a, "imp": 0xb921, "itemHdr": 0xb0e4,
                     "equip": 0xb0ed, "atk": 0xb0fa, "def": 0xb10a, "color0": 0xb11a}.items()},
         },
+        # 酒館 賭博 (1fd9:7491: 二十一點 2e8ed / 骰子 2fc60, RE_NOTES 17.9)
+        "gamble": {
+            "items": [cs(0xaf72), cs(0xaf7b)],                                  # DS:af72 / af7b 子選單
+            "ranks": [cs(0xb4f6 + o) for o in (0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 21, 23, 25)],   # DS:b4f6.. 牌面 A..K
+            "hands": ptrs(0xb5b8, 7),                                           # DS:b5b8 骰子牌型名
+            "fmt": {k: cs(v) for k, v in {"card": 0xb511, "bet": 0xb51c, "deal": 0xb534, "stand": 0xb539, "n4": 0xb53e,
+                    "d": 0xb548, "reset": 0xb54b, "keep": 0xb552, "blank4": 0xb557, "blank14": 0xb570, "hand": 0xb5a8}.items()},
+        },
         # 折抵舊船剩餘貨物重新分配 (0fea:e788 / fe57, RE_NOTES 20.9)
         "leftover": {
             "speedRate": list(b(0x06d8, 25)),                               # DS:06d8 船型速度係數 (1c0a8)
@@ -87,6 +95,8 @@ def main(sea2, assets, ls_unpack):
     wr("gfx/char.bin", b"".join(ch))
     d1 = ls_unpack(rd("DATA1.LZW")); assert len(d1[6]) == 0xf00
     wr("gfx/compass.bin", d1[6])
+    assert len(d1[9]) == 0x15c0
+    wr("gfx/gamble.bin", d1[9])          # 賭博: 撲克牌 (4 花色 + 背面, 各 0x300) 與骰子 (6 面, 各 0x120, 偏移 0xf00)
     pc = ls_unpack(rd("PORTCHIP.LZW")); assert len(pc) == 14
     wr("gfx/portchip.bin", b"".join(pc))
     pm = ls_unpack(rd("PORTMAP.LZW")); assert all(len(p) == 0x2400 for p in pm)

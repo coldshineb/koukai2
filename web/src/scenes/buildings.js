@@ -5,11 +5,12 @@
 //   0fea:b6e0 = 1b580 after() 以點陣重畫地圖區下半 (1b496)
 //   0fea:b6bc = 1b55c table() GRAPH.DAT #0x16 於 (0x68,0x88), 文字區 0x0e..0x3a
 //   seg0:7dac/7f06/7e15/7e35/7f6e 人物對話視窗 (頭像於 0x16, 0xd0)   seg0:909b 船員發言
-// 已移植: 2 造船廠 (造新船、交船、買舊船、修理、賣船、改造、工業投資、折抵舊船剩餘貨物重新分配) / 3 碼頭 (補給、出航前檢查、船塢、補給港命名; 實際出航未移植) / 1 酒館 (水手僱用 / 水手解僱 / 飲酒敘話 / 與航海者閒聊 / 酒吧女郎; 賭博未移植) / 4 旅館 (海港支持度 / 就寢; 與航海者閒聊只有「沒有人」分支) / 10 教會 / 11 占卜師 (人生運/事業運/愛情運)
+// 已移植: 2 造船廠 (造新船、交船、買舊船、修理、賣船、改造、工業投資、折抵舊船剩餘貨物重新分配) / 3 碼頭 (補給、出航前檢查、船塢、補給港命名; 實際出航未移植) / 1 酒館 (全部; 賭博在 gamble.js) / 4 旅館 (海港支持度 / 就寢; 與航海者閒聊只有「沒有人」分支) / 10 教會 / 11 占卜師 (人生運/事業運/愛情運)
 // 其他建築與子功能: 尚未移植, 進入後只顯示主控台警告
 import { NumPad } from "../ui/numpad.js";
 import { ListSelect } from "../ui/listsel.js";
 import { NameInput } from "../ui/nameinput.js";
+import { Gamble } from "./gamble.js";
 
 const bHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const B_SPEECH = Uint8Array.of(0x1b, 0x43, 0x30, 0x01, 0x1b, 0x42, 0x37, 0);   // DS:8c12
@@ -213,7 +214,7 @@ export class Buildings {
       if (!this.fleetShips()) menu.disabled |= 3;
       sel = await this.menu(items);
       if (sel !== 0xff) await [() => this.hire(), () => this.dismiss(), () => this.drink(),
-        () => this.chat(), () => this.barGirl(), () => this.tvTodo("賭博 (1fd9:7491)")][sel]();
+        () => this.chat(), () => this.barGirl(), () => (this.gambleG ??= new Gamble(this)).run()][sel]();
       this.after();
     } while (sel !== 0xff);
     palette.selectTimePalette(st.u8(0x0cad), false, st.weather);             // 0fea:98ce

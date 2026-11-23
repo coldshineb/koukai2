@@ -27,7 +27,8 @@ export async function loadPortAssets(ctx) {
   const chipNo = (await loadJSON(A + "/data/portchip.json")).chipNo;
   const transit = await loadBinary(A + "/gfx/transit.bin");          // TRANSIT.DAT 船首像
   const colony = await loadJSON(A + "/text/colony.json"), itemMes = await loadJSON(A + "/text/item_mes.json");   // 發現物 / 隨身物說明
-  return { za, chip, map, chr, compass, data, wind, chipNo, transit, colony, itemMes };
+  const gamble = await loadBinary(A + "/gfx/gamble.bin");             // DATA1 #9 賭博圖形
+  return { za, chip, map, chr, compass, data, wind, chipNo, transit, colony, itemMes, gamble };
 }
 
 export class PortScene {

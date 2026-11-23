@@ -11,7 +11,7 @@ KEEP_WORK = ("sea2", "rom8x8.bin", "newgame.bin")
 
 def want(rel):
     parts = rel.replace("\\", "/").split("/")
-    if parts[:2] == ["web", "bgm"] or "__pycache__" in parts:
+    if parts[:2] == ["web", "bgm"] or "__pycache__" in parts or parts[0] == ".git":
         return False
     if parts[:2] == ["tools", "work"]:
         return len(parts) > 2 and parts[2] in KEEP_WORK

@@ -49,7 +49,7 @@ const A = S.W + "/uw2_remake/web/assets/";
 const rdj = n => JSON.parse(fs.readFileSync(A + n, "utf8")), rdb = n => new Uint8Array(fs.readFileSync(A + n));
 const menuText = rdj("text/menu.json"), palJson = rdj("data/palettes.json"), ngData = rdj("data/newgame.json"), nodes = rdb("data/mapnodes.bin");
 const portAssets = { za: rdb("data/za_dat.bin"), chip: rdb("gfx/portchip.bin"), map: rdb("gfx/portmap.bin"), chr: rdb("gfx/char.bin"), compass: rdb("gfx/compass.bin"),
-  data: rdj("data/port.json"), wind: rdb("data/windcur.bin"), chipNo: rdj("data/portchip.json").chipNo, transit: rdb("gfx/transit.bin"), colony: rdj("text/colony.json"), itemMes: rdj("text/item_mes.json") };
+  data: rdj("data/port.json"), wind: rdb("data/windcur.bin"), chipNo: rdj("data/portchip.json").chipNo, transit: rdb("gfx/transit.bin"), colony: rdj("text/colony.json"), itemMes: rdj("text/item_mes.json"), gamble: rdb("gfx/gamble.bin") };
 const msg = f["MESSAGE.DAT"], initState = new Uint8Array(fs.readFileSync(S.W + "/uw2_remake/tools/work/newgame.bin"));
 async function runJS(rng0) {
   const scr = new U.Screen(); let polls = 0;
