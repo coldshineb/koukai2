@@ -12,7 +12,7 @@
 //         +0e 砲數  +10..+14 各距離的命中率  +15 射程  +16 戰力  +17 士氣
 //   9bc0 目前這一方 (97e0 + 8k)  9bc2 目前的船  9bef/9bf0 視窗左上 (欄 / 列)  9bf2..9bf7 風力表  9bf8 風向  9bf9 風力
 //   9bfb 結束原因 (0 = 繼續; 1 日落, 2/3/9 對話後不打, 4/5 一方全滅, 8 劇本)  9c2a/9c2c  9d3e 主角在攻方  9d40/9d42 雙方戰力
-// 尚未移植 (主控台警告): 電腦行動 a3ce、玩家指令中的 移動 / 攻擊 / 信號 / 作戰 / 情報、戰後處理 10bdf、一騎打 12998
+// 尚未移植 (主控台警告): 電腦行動 a3ce、玩家指令中的 信號 / 作戰 / 情報、接舷 e95e、戰後處理 10bdf、一騎打 12998
 import { Scenario, ENV_COMMON, ENV_HERO } from "../game/scenario.js";
 
 const btHex = s => Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16)));
@@ -21,6 +21,10 @@ const btS8 = v => (v << 24) >> 24;
 const btIdiv = (a, b) => Math.trunc(a / b);                       // 有號除法 (向零取整)
 const btImod = (a, b) => a - Math.trunc(a / b) * b;               // 有號餘數 (與被除數同號)
 const btUmin = (a, b) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);   // seg0:4d7c
+const btUmax = (a, b) => ((a & 0xffff) < (b & 0xffff) ? b & 0xffff : a & 0xffff);   // seg0:4d87
+const btUdiv32 = (a, b) => Math.floor((a >>> 0) / (b >>> 0)) >>> 0;   // seg0:38ba (32 位元無號除法)
+const btSdiv32 = (a, b) => Math.trunc((a | 0) / (b | 0)) | 0;        // seg0:3722 (32 位元有號除法)
+const btMul32 = (a, b) => Math.imul(a | 0, b | 0) >>> 0;            // seg0:37bc (32 位元乘法, 取低 32 位元)
 const btWarned = new Set();
 const btTodo = n => { if (!btWarned.has(n)) { btWarned.add(n); console.warn("尚未移植: " + n); } };
 
@@ -982,7 +986,211 @@ export class NavalBattle {
     this.msgArea();
     return 0;
   }
-  async gunnery(T) { btTodo("海戰 砲擊 (e8cc)"); }
+  // ================= e8cc 砲擊 (RE_NOTES 30.8) =================
+  // e8cc: e735 損傷 → cdcd 動畫 → 目標耐久 = 0 → e679 擊沉; 水手 = 0 → e6bb 無人船; 否則目前這方是主角艦隊時 e616(本船船長, 10) → 本船 +0e (砲彈) − 1
+  async gunnery(T) {
+    this.damage(T);                                                     // e735
+    await this.shotAnim(T);                                             // cdcd
+    const S = this.u16(T + 2);
+    if (!this.u8(S + 2)) this.sink(T);                                  // e679
+    else if (!this.u16(S)) this.unmanned(T);                            // e6bb
+    else if (this.u16(this.u16(0x9bc0) + 4) === this.heroFleet) this.gainExp(this.u16(this.u16(0x9bc2)), 0x0a);   // e616
+    const B = this.u16(0x9bc2);
+    this.set16(B + 0x0e, this.u16(B + 0x0e) - 1);
+    this.c.probe?.("e8cc");                                             // 差分測試的快照點 (原版 e91a); 遊戲中不做任何事
+  }
+  // d5e4 兩艘船的六角格距離 (d54a)
+  shipDist(A, B) { const [x, y] = this.pos(A), [tx, ty] = this.pos(B); return this.dist(x, y, tx, ty) & 0xff; }
+  // d427 能力 +1c + k: 船長是主角 ([c2ce]) 時再與職務 3 / 5 的船員 (seg0:5cee) 比, 取較大
+  bestAbil(B, k) {
+    const st = this.st, P = this.u16(B);
+    let v = st.u8(P + 0x1c + (k & 0xff));
+    if (P === this.heroRec) for (const role of [3, 5]) {
+      const n = this.sea.b.roleMember(role);
+      if (n !== 0xff) { const w = st.u8(this.person(n) + 0x1c + (k & 0xff)); if (w > v) v = w; }
+    }
+    return v;
+  }
+  // d48f 戰鬥等級 +25: 同上
+  bestLevel(B) {
+    const st = this.st, P = this.u16(B);
+    let v = st.u8(P + 0x25);
+    if (P === this.heroRec) for (const role of [3, 5]) {
+      const n = this.sea.b.roleMember(role);
+      if (n !== 0xff) { const w = st.u8(this.person(n) + 0x25); if (w > v) v = w; }
+    }
+    return v;
+  }
+  // d4e4 +30 bit2 (砲術): 船長有, 或船長是主角時職務 3 / 5 的船員有
+  gunSkill(B) {
+    const st = this.st, P = this.u16(B);
+    if (st.u8(P + 0x30) & 4) return 1;
+    if (P !== this.heroRec) return 0;
+    for (const role of [3, 5]) { const n = this.sea.b.roleMember(role); if (n !== 0xff && (st.u8(this.person(n) + 0x30) & 4)) return 1; }
+    return 0;
+  }
+  // d9de 砲擊威力 (AL = 距離 d): 乘除都照原版的 16 / 32 位元寬度
+  power(B, d) {
+    const st = this.st, S = this.u16(B + 2), P = this.u16(B);
+    const a10 = this.bestAbil(B, 0), lv = this.bestLevel(B);
+    const v8 = (btIdiv(btS16((this.bestAbil(B, 0) * lv) & 0xffff), 0x64) + (a10 >> 1)) & 0xffff;               // [bp-8]
+    const m1 = btUdiv32((this.u8(B + 0x17) * btS16(this.u16(S))) >>> 0, 0x64) & 0xffff;                       // 士氣 × 水手 / 100
+    const m = btUmin(this.u8(S + 6) >> 1, m1 >>> 1);                                                           // [bp-0a]
+    const q = btUdiv32((this.u8(B + 0x0f + (d & 0xff)) * m) >>> 0, 0x0a);                                       // 命中率[d] × m / 10
+    const r = this.gunSkill(B) ? btUdiv32((q + 0x13) >>> 0, 0x14) : btUdiv32((q + 0x27) >>> 0, 0x28);
+    let v = btUdiv32(btMul32(r, v8), 0x64) & 0xffff;
+    v = btUdiv32(btMul32(v, (this.rnd(this.bestAbil(B, 5) >> 1) + 0x32) & 0xffff), 0x64) & 0xffff;
+    v = btUmin(v, (this.rnd(st.u8(P + 0x25) >> 1) + 0x32) & 0xffff);
+    return btUmax(v, 1);
+  }
+  // e735 損傷: 威力 di; 種類 (bit0 最大耐久、bit1 推進、bit2 轉向) 依威力以亂數表決定 (跳躍表 e782 / e7ea)
+  damage(T) {
+    const st = this.st, S = this.u16(T + 2), cur = this.u16(0x9bc2);
+    const d = this.shipDist(cur, T);
+    const di = this.power(cur, d);
+    let k = 0;
+    if (di >= 0x0a || !this.rnd(5)) k = [1, 1, 1, 1, 2, 2, 2, 2, 4, 4, 4, 4, 3, 3, 5, 5, 6, 6, 7][this.rnd(0x13)];
+    if (di >= 0x14) k = [3, 3, 5, 5, 6, 6, 7][this.rnd(7)];
+    if (di >= 0x28) k = 7;
+    this.set8(S + 2, this.u8(S + 2) - btUmin(this.u8(S + 2), di));
+    this.set8(S + 2, btUmin(this.u8(S + 2), this.u8(S + 3)));
+    { const v = (this.rnd(3) + (di >>> 1)) & 0xffff; this.set16(S, this.u16(S) - btUmin(this.u16(S), v)); }
+    if (k & 1) {
+      const t = st.u8(this.typeRec(st.u8(this.shipRec(this.u8(S + 7)) + 0x0f)) + 1) >> 2;
+      this.set8(S + 3, btUmax(t, (this.u8(S + 3) - 1) & 0xffff));        // 4d87 (最大耐久 0 時是 FFFF → 寫入 FF, 照搬)
+    }
+    if (k & 2) { const v = (this.rnd(3) + (di >>> 1)) & 0xffff; this.set8(S + 5, this.u8(S + 5) - btUmin(this.u8(S + 5), v)); }
+    if (k & 4) { const v = (this.rnd(3) + (di >>> 1)) & 0xffff; this.set8(S + 4, this.u8(S + 4) - btUmin(this.u8(S + 4), v)); }
+  }
+  // 063e 遮罩 (模式 0x20f) + 3d2 圖像 (模式 3), 都在 HDAT 段
+  spr(col, y, w, h, mask, img) {
+    this.c.scr.glyphMode(col, y, w, h, this.hd.subarray(mask & 0xffff), 0x20f);
+    this.putOp(col, y, w, h, 3, this.hd, img & 0xffff);
+  }
+  restoreUnder() { this.c.win.closeNow(); }                            // c744: 還原 [0c88] 佇列最上層的畫面 (h > 16 且動畫開啟時分段還原, 結果相同)
+  // cdcd 砲擊動畫: 兩船任一在視窗內 → c853 砲彈; 目標在視窗內 → (效果音 9768 / 9804, 移植版沒有) 命中動畫 4 + 4 + 4 格
+  async shotAnim(T) {
+    const B = this.u16(0x9bc2), [x0, y0] = this.pos(B), [tx, ty] = this.pos(T), { win, sys } = this.c;
+    if (this.inView(x0, y0) || this.inView(tx, ty)) await this.trajectory(T);   // c853
+    if (!this.inView(tx, ty)) return;
+    const col = ((tx - this.u8(0x9bef)) << 2) & 0xffff, y = ((((ty - this.u8(0x9bf0)) << 5) + (btImod(tx, 2) >= 1 ? 0x10 : 0))) & 0xffff;
+    const both = async () => {
+      const o = this.rnd(2) ? 0 : 2;
+      for (let i = 0; i < 4; i++) {
+        win.save(col, y, 4, 0x20);                                      // 50c4
+        this.spr(col, y, 4, 0x20, 0x6e40 + 0x280 * i, 0x6ec0 + 0x280 * i);
+        this.spr(col + o, y + 0x0c, 2, 0x14, 0x7840 + 0xc8 * i, 0x7868 + 0xc8 * i);
+        await sys.waitTicks(8);
+        this.restoreUnder();                                            // c744
+      }
+    };
+    await both();
+    const r = this.u8(B + 0x15);
+    if (r >= 4 && this.shipDist(T, B) === r) {                          // 射程 ≥ 4 且距離 = 射程: 只有小的那一組
+      const o = this.rnd(2) ? 0 : 2;
+      for (let i = 0; i < 4; i++) {
+        win.save(col, y, 4, 0x20);
+        this.spr(col + o, y + 0x0c, 2, 0x14, 0x7840 + 0xc8 * i, 0x7868 + 0xc8 * i);
+        await sys.waitTicks(8);
+        this.restoreUnder();
+      }
+    } else {
+      for (let i = 0; i < 4; i++) {
+        win.save(col, y, 4, 0x20);
+        this.spr(col, y, 4, 0x20, 0x6e40 + 0x280 * i, 0x6ec0 + 0x280 * i);
+        await sys.waitTicks(8);
+        this.restoreUnder();
+      }
+    }
+    await both();
+  }
+  // c853 砲彈軌跡: 主軸每個計時單位走 1 點, 副軸以 32 位元定點拋物線 (0xe100 / d², 0x7080 / d, ×600); 每進入新的 8 × 8 點就存背景 (50c4)、
+  //   不在射擊者自己那格內時畫砲彈 (HDAT 7b60 / 7b68, 1 欄 × 8 行), 換格時還原 (c744)
+  async trajectory(T) {
+    const B = this.u16(0x9bc2), { win, sys } = this.c;
+    const [cx, cy] = this.pos(B), [tx, ty] = this.pos(T);
+    const X0 = (cx << 5) & 0xffff, Y0 = ((cy << 5) + (btImod(cx, 2) >= 1 ? 0x10 : 0)) & 0xffff;
+    const X1 = (tx << 5) & 0xffff, Y1 = ((ty << 5) + (btImod(tx, 2) >= 1 ? 0x10 : 0)) & 0xffff;
+    const DX = X0 > X1 ? X0 - X1 : X1 - X0, DY = Y1 >= Y0 ? Y1 - Y0 : Y0 - Y1;
+    let drawn = 0, pc, pr;                                              // [bp-2a], [bp-0c], [bp-0e]
+    const body = (x, y) => {
+      const c = x >>> 3, r = y >>> 3;
+      if (drawn && this.inView(pc >>> 2, pr >>> 2) && (pc !== c || pr !== r)) { this.restoreUnder(); drawn = 0; }
+      if (drawn || !this.inView(c >>> 2, r >>> 2) || (pc === c && pr === r)) return;
+      const col = (c - (this.u8(0x9bef) << 2) + 1) & 0xffff, yy = (y - (this.u8(0x9bf0) << 5) + 8) & 0xffff;
+      win.save(col, yy, 1, 8); drawn = 1;                               // 50c4
+      const inSrc = !(x + 8 < X0) && !(x + 8 >= X0 + 0x20) && !(y + 8 < Y0) && Y0 + 0x20 > y + 8;
+      if (!inSrc) this.spr(col, yy, 1, 8, 0x7b60, 0x7b68);
+      pc = c; pr = r;
+    };
+    if (DY <= DX) {
+      const Bq = btUdiv32(0xe100, (DX * DX) & 0xffff);                 // mul 之後高位元組被清成 0 (照搬)
+      let A = btUdiv32(0x7080, DX), acc = btMul32(Y0, 0x258);
+      const slope = btS16(btSdiv32(btMul32(Y1 >= Y0 ? 0x258 : -0x258, DY), DX) & 0xffff);
+      const step = X0 > X1 ? -1 : 1;
+      let x = X0, y = Y0; pc = x >>> 3; pr = y >>> 3;
+      for (;;) {
+        body(x, y);
+        if (x === X1) break;
+        A = (A - Bq) >>> 0; acc = (acc + ((slope - A) | 0)) >>> 0;
+        y = btUdiv32(acc, 0x258) & 0xffff;
+        await sys.waitTicks(1);
+        x = (x + step) & 0xffff;
+      }
+    } else {
+      const Bq = btUdiv32(0xe100, (DY * DY) & 0xffff);
+      let A = btUdiv32(0x7080, DY), acc = btMul32(0x258, X0);
+      const slope = btS16(btSdiv32(btMul32(X0 > X1 ? -0x258 : 0x258, DX), DY) & 0xffff);
+      const step = Y0 > Y1 ? -1 : 1;
+      let x = X0, y = Y0; pc = x >>> 3; pr = y >>> 3;
+      for (;;) {
+        body(x, y);
+        if (y === Y1) break;
+        A = (A - Bq) >>> 0; acc = (acc + ((slope - A) | 0)) >>> 0;
+        x = btUdiv32(acc, 0x258) & 0xffff;
+        await sys.waitTicks(1);
+        y = (y + step) & 0xffff;
+      }
+    }
+    if (drawn && this.inView(pc >>> 2, pr >>> 2)) { await sys.waitTicks(1); this.restoreUnder(); }
+  }
+  // e616 戰鬥經驗: 1bb9c(P +25 等級, P +28 經驗, n) 的升級次數, 每次 +20 += random(3)、+21 += random(2) (上限 100)
+  gainExp(P, n) {
+    const st = this.st, c = this.levelUp(P + 0x25, P + 0x28, P, n);
+    for (let i = 0; i < c; i++) {
+      st.set8(P + 0x20, btUmin(0x64, this.rnd(3) + st.u8(P + 0x20)));
+      st.set8(P + 0x21, btUmin(0x64, this.rnd(2) + st.u8(P + 0x21)));
+    }
+  }
+  // 1bb9c 經驗 += g; 足夠時升級 (所需 = min(等級, 18)² × 30 (1bb84), 等級 100 時經驗歸零); 有升級時 P +1c..+1f 各 + min(random(3), 100 − 值)
+  levelUp(lvA, expA, P, g) {
+    const st = this.st; let n = 0;
+    st.set16(expA, st.u16(expA) + g);
+    for (;;) {
+      const lv = st.u8(lvA), m = Math.min(lv, 0x12), need = btS16((m * m * 0x1e) & 0xffff);
+      if (need > btS16(st.u16(expA))) break;
+      if (lv === 0x64) { st.set16(expA, 0); break; }
+      n++; st.set16(expA, st.u16(expA) - need); st.set8(lvA, lv + 1);
+    }
+    if (n) for (let i = 0; i < 4; i++) st.set8(P + 0x1c + i, st.u8(P + 0x1c + i) + btUmin(this.rnd(3), (0x64 - st.u8(P + 0x1c + i)) & 0xffff));
+    return n;
+  }
+  // e679 擊沉: 主角艦隊打沉的 → e616(本船船長, 10 × 目標最大耐久); c6fa 擦掉; e5b1; 目標船位 +8 = 0 (船從艦隊消失)
+  sink(T) {
+    const S = this.u16(T + 2);
+    if (this.u16(this.u16(0x9bc0) + 4) === this.heroFleet) this.gainExp(this.u16(this.u16(0x9bc2)), (0x0a * this.u8(S + 3)) & 0xffff);
+    this.erase(T);                                                      // c6fa
+    this.untarget(T);                                                   // e5b1
+    this.set8(S + 8, 0);
+  }
+  // e6bb 無人船: 地圖格 &= 1f 後 |= 0x80 (變成障礙); 經驗同上; e5b1; c0ad 重畫所有的船
+  unmanned(T) {
+    const p = this.mapAt(...this.pos(T));
+    this.and8(p, 0x1f); this.or8(p, 0x80);
+    if (this.u16(this.u16(0x9bc0) + 4) === this.heroFleet) this.gainExp(this.u16(this.u16(0x9bc2)), (0x0a * this.u8(this.u16(T + 2) + 3)) & 0xffff);
+    this.untarget(T);
+    this.drawShips();
+  }
   async board(T) { btTodo("海戰 接舷 (e95e)"); }
   async duel(ax, T) { btTodo("一騎打 (0fea:2d1a = 12bba)"); }
 
@@ -1013,11 +1221,15 @@ export class NavalBattle {
   // e5fc: c6fa 從戰場擦掉 (視窗內重畫該格、小地圖色 5、地圖格 &= 1f) → e5b1 對方兩方以它為目標 (+0c bit7、+6) 的船解除 → +0c |= 0x40
   leaveField(B) {
     this.erase(B);                                                      // c6fa
-    let E = this.enemySide(B);                                          // e5b1
+    this.untarget(B);                                                   // e5b1
+    this.or8(B + 0x0c, 0x40);
+  }
+  // e5b1 對方兩方中以 B 為目標 (+0c bit7 且 +6 = B) 的船解除目標
+  untarget(B) {
+    let E = this.enemySide(B);
     for (let k = 0; k < 2; k++, E += 0x10)
       for (let bx = this.u16(E); bx; bx = this.u16(bx + 8))
         if ((this.u8(bx + 0x0c) & 0x80) && this.u16(bx + 6) === B) { this.set16(bx + 6, 0); this.and8(bx + 0x0c, 0x7f); }
-    this.or8(B + 0x0c, 0x40);
   }
   // c6fa 擦掉一艘船
   erase(B) {

@@ -42,8 +42,12 @@ function runEmu() {
   let setupDone = !S.PORT_SETUP;
   // S.WATCH = DS 位址: 該位元組改變時記錄當時的指令位置 (之前已執行的那條指令) 與按鍵序號, 結果在 S.watchLog
   const W8 = S.WATCH, WF = S.WATCH_FROM || 0, WD = c.s[3] * 16, wlog = S.watchLog = []; let wv = -1, wip = 0;   // WD: 遊戲的 DS (標題時)
+  // S.PROBES = [{ name, ip }]: 原版執行到 ip (映像內的線性位址) 時另取一份快照 (狀態 / DS 工作區 / 亂數 / 畫面), 與移植版 ctx.probe(name) 的快照依序比對
+  //   (兩次等待輸入之間的處理, 例: 海戰一次砲擊的亂數、損傷與動畫結束後的畫面)
+  const PR = S.PROBES || [], prE = S.probeE = [];
   c.onTick = cpu => {
     const lin = cpu.s[1] * 16 + cpu.ip;
+    if (PR.length) for (const p of PR) if (lin === L + p.ip && prE.length < 200) { const g = grabEmu(cpu); prE.push({ name: p.name, ...g, fb: S.emuFb480().slice(), mouse: { x: env.mouse.x, y: env.mouse.y }, shot: shots.length }); }
     if (W8 !== undefined) { const v = cpu.mem[WD + W8]; if (wv >= 0 && v !== wv && shots.length >= WF && wlog.length < 50) wlog.push({ ip: (wip - L).toString(16), from: wv, to: v, shot: shots.length }); wv = v; wip = lin; }
     if (!synced && lin === L + 0x4d92) { synced = true; sc.calls = 0; }
     if (!setupDone && lin === L + 0x8c53) { setupDone = true; const d = cpu.s[3] * 16, P = S.PORT_SETUP;
@@ -91,6 +95,8 @@ async function runJS(rng0) {
   const printf = (fmt, ...a) => U.cprintf(typeof fmt === "string" ? font.encode(fmt + "\0") : fmt, a, ch => con.putc(ch));
   const menuItems = n => menuText[n].replace(/^(?:\{[0-9A-F]{2}\}|[^{]){2}/, "").split("{00}").slice(0, -1).map(s => font.encode(s + "{00}"));
   Object.assign(ctx, { con, win, graph, menu, message, printf, menuItems, gfx: S.D1[14], kao: new U.Kao(f["KAO.LZW"]), newgameData: ngData, mapNodes: nodes, portAssets });
+  const prJ = S.probeJ = [];
+  if (S.PROBES?.length) ctx.probe = name => { if (prJ.length < 200) prJ.push({ name, x: (S.EXTRA_DS || []).map(([a, b]) => (ctx.battleDS || new Uint8Array(0x10000)).slice(a, b)), st: state.b.slice(0, 0x8a18 - 0x0ca4), rng: sys.rng.state, fb: scr.fb.slice(), shot: shots.length }); };
   ctx.saveFile = new U.SaveFile(new Uint8Array(save0)); ctx.saveFile.flush = () => {};   // 原版執行時會寫入 f["KOUKAI2.DAT"] (模擬磁碟), 移植版用執行前的副本
   const sc = S.makeScript(KEYS.concat([{ mouse: {} }])), shots = [];
   let synced = false;
@@ -125,6 +131,20 @@ const J = await runJS(rngTitle);
 S.emuShotsRef = null;
 S.lastRun = { E, J };                                             // 供測試後檢查 (例: 最終狀態 E.shots.at(-1).st)
 const rep = [`keys=${KEYS.length} emuShots=${E.shots.length} jsShots=${J.shots.length} emuDone=${E.done} ip=${E.ip}`];
+if (S.PROBES?.length) {                                            // 快照比對 (S.PROBES)
+  const pe = S.probeE, pj = S.probeJ;
+  rep.push(`[probe] emu ${pe.length} / js ${pj.length}`);
+  for (let i = 0; i < Math.min(pe.length, pj.length); i++) {
+    const e = pe[i], j = pj[i], sd = [];
+    for (let k = 0; k < e.st.length; k++) if (e.st[k] !== j.st[k]) sd.push((0x0ca4 + k).toString(16) + ":" + e.st[k].toString(16) + "/" + j.st[k].toString(16));
+    (S.EXTRA_DS || []).forEach(([a], r) => { for (let k = 0; k < e.x[r].length; k++) if (e.x[r][k] !== j.x[r][k]) sd.push((a + k).toString(16) + ":" + e.x[r][k].toString(16) + "/" + j.x[r][k].toString(16)); });
+    const ef = e.fb, m = e.mouse; ef[399 * 640 + 639] = j.fb[399 * 640 + 639];
+    for (let yy = m.y - 40; yy < m.y - 16; yy++) for (let xx = m.x; xx < m.x + 24; xx++) if (yy >= 0 && yy < 400 && xx < 640) ef[yy * 640 + xx] = j.fb[yy * 640 + xx];
+    let fd = 0; for (let k = 0; k < 640 * 400; k++) if (ef[k] !== j.fb[k]) fd++;
+    const ok = e.name === j.name && !sd.length && e.rng === j.rng && !fd;
+    rep.push(`${ok ? "POK " : "PFAIL"} probe ${i} ${e.name}/${j.name} @shot ${e.shot}/${j.shot} fb ${fd} state=${sd.length}${sd.length ? " " + sd.slice(0, 8).join(" ") : ""} rng ${e.rng === j.rng ? "=" : e.rng.toString(16) + "/" + j.rng.toString(16)}`);
+  }
+}
 const n = Math.min(E.shots.length, J.shots.length);
 let firstStateDiff = -1;
 for (let i = 0; i < n; i++) {
@@ -156,6 +176,6 @@ if (S.SAVE_PT) for (const i of S.SAVE_PT) if (E.shots[i]) { fs.writeFileSync(S.W
 if (S.WATCH !== undefined) rep.push('watch ' + S.WATCH.toString(16) + ': ' + JSON.stringify(S.watchLog));
 if (S.PT_DEBUG) rep.push('emu mouse: ' + E.shots.slice(0, 6).map(x => x.mouse.x + ',' + x.mouse.y).join(' '));
 // S.QUIET: 只印不一致的畫面與總計
-if (S.QUIET) { const bad = rep.filter(l => !l.startsWith("OK")); console.log(rep[0].startsWith("keys") ? rep[0] : "", bad.slice(0, 12).join("\n"), `\n[summary] ${rep.filter(l => l.startsWith("OK")).length}/${rep.filter(l => /^(OK|FAIL)/.test(l)).length} OK`); }
+if (S.QUIET) { const bad = rep.filter(l => !l.startsWith("OK") && !l.startsWith("POK")); console.log(rep[0].startsWith("keys") ? rep[0] : "", bad.slice(0, 12).join("\n"), `\n[summary] ${rep.filter(l => l.startsWith("OK")).length}/${rep.filter(l => /^(OK|FAIL)/.test(l)).length} OK` + (S.PROBES?.length ? `  [probes] ${rep.filter(l => l.startsWith("POK")).length}/${rep.filter(l => /^(POK|PFAIL)/.test(l)).length} OK` : "")); }
 else console.log(rep.join("\n"));
 })();
