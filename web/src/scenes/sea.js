@@ -5,7 +5,9 @@
 //   [bdac] 本時刻船速 speed   [bdca] 瞭望範圍 sight   [a9c8] 輸入旗標 (bit0 暫停, bit1 滑鼠按著)   [bda8] 隨身物旗標 (0x80 望遠鏡 0x18, 0x40 0x19)
 // 存檔內: 主角艦隊 [c2d4] = 2e76 + 0x85 × (主角 +2c): +0 x  +2 y (地圖格, 0..2159 / 0..1079)  +4/+6 目的地  +8/+a 中途點  +18/+19 格內位置 (0..0x3b)
 //   +1a 方位 (0..7, 8 = 停船)  [1006]/[1008] 地圖視窗左上 (地圖格)  [1005] 航行旗標 (0x80/0x40 委任, 0x20 停船, 0x18 ?)  [2e18] 出港天數  [2e19]/[2e1a] 水/糧食配給 %
-// 尚未移植 (主控台警告, 保留原版的呼叫位置): 他艦隊 (6aae / 1afe8 內的艦隊處理 = 艦隊 AI)、委任航行 (316b3 的 0fea:c0d9 / 313b1)、海上特殊事件 (30e9f 的 DS:b796 表)
+// 尚未移植 (主控台警告, 保留原版的呼叫位置): 他艦隊 (6aae / 1afe8 內的艦隊處理 = 艦隊 AI)、委任的目的地清單與自動航行 (0fea:321a / 316b3 / 313b1)、
+//   指定目的地 (2e09:310b) 與偵察 (1feae) 的地圖游標 15e14、海上特殊事件 (30e9f 的 DS:b796 表)、上陸探索 (34d54)、交涉本體 (20127)、海戰 (10f7e)、
+//   月末 18ff5 / 結束處理 1764f(0x18 / 0x19)
 import { PortScene } from "./port.js";
 import { Buildings } from "./buildings.js";
 import { Commands } from "./commands.js";
@@ -1027,8 +1029,19 @@ export class SeaScene extends PortScene {
     }
   }
 
-  // 2e09:3223 委任 — 尚未移植
-  async delegate() { seaTodo("委任 (2e09:3223)"); }
+  // 2e09:3223 = 312b3 委任: 職務 3 的第一個船員 (seg0:5cee) 沒有或 +30 bit4 (技能) = 0 → 船員 0x357/0x358 (+2f bit3), 回傳 0;
+  //   否則 0fea:321a 已發現港口清單 (清單 0x85) 選目的地 → 艦隊 +4/+6 = 港口座標, +0c = 0x4000, +1b = 0, [1005] = (&DF) | 0x80 — 清單之後尚未移植
+  async delegate() {
+    const st = this.st;
+    let ok = 0;
+    for (let i = 0; i < 0x1e; i++) {
+      const n = st.u8(0x2e1b + i); if (n === 0xff) continue;
+      if (st.u8(st.personRecord(n) + 0x2e) === 3) { if (st.u8(st.personRecord(n) + 0x30) & 0x10) ok = 1; break; }
+    }
+    if (!ok) { await this.crewSay(0x358, 0x357); return 0; }
+    seaTodo("委任 目的地清單與自動航行 (0fea:321a / 清單 0x85 / 316b3 / 313b1)");
+    return 0;
+  }
   // ================= 停船 / 出航 20ee3 =================
   async stopToggle() {
     const st = this.st, { win, con, menu } = this.c;
@@ -1101,4 +1114,60 @@ export class SeaScene extends PortScene {
   }
   // 34d54 上陸探索 (確認、MENU #0x24 上陸選單、34ccc 發現物) — 尚未移植
   async landExplore() { seaTodo("上陸探索 (34d54 / 34ccc 發現物)"); }
+
+  // ================= 命令 交涉 20a6d / 戰鬥 0fea:1181 / 偵察 1feae =================
+  // 0fea:314a = 12fea(r) 距離 <= r、出航中 (+29 bit0)、非 bit4、指揮者 (+2a) 不是主角的艦隊 → DS:0538 = 指揮者, 回傳數量
+  nearFleets(r) {
+    const st = this.st, P = this.c.persons; let n = 0;
+    for (let k = 0; k < 0x46; k++) {
+      const F = 0x2e76 + k * 0x85;
+      if (!(st.u8(F + 0x29) & 1) || (st.u8(F + 0x29) & 0x10) || st.u8(F + 0x2a) === st.u8(0x12b5)) continue;
+      if (this.near(r, seaS16(st.u16(F)), seaS16(st.u16(F + 2)))) P[n++] = st.u8(F + 0x2a);
+    }
+    return n;
+  }
+  async smallMsg(m) { const { win, message, menu } = this.c; win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0); message(m); await menu.waitPrompt(); await win.close(); }
+  // 20a6d 交涉: 附近沒有艦隊 → 0xe1, 回傳 1; 清單 0x8c 選對象 → 20127 交涉本體 (未移植); 取消 → 1
+  async negotiate() {
+    for (;;) {
+      const n = this.nearFleets(2);
+      if (!n) { await this.smallMsg(0xe1); return 1; }
+      const si = await this.b.listSel().select(0x8c, n);
+      if (si === -1) return 1;
+      seaTodo("交涉本體 (20127)");
+      return 0;
+    }
+  }
+  // 0fea:1181 = 11021 戰鬥: 時刻 < 15 或 >= 60 → 0x30d「夜間不能開戰」; 10df0 選對象 (附近沒有 → 0x30a); 與主角同國 (非 6) → 0x30e 確認; → 10f7e 海戰 (未移植)
+  async battle() {
+    const st = this.st, t = this.c.rt.time;
+    if (t < 0x0f || t >= 0x3c) { this.c.win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0); this.c.message(0x30d); await this.c.menu.waitPrompt(); await this.c.win.close(); return; }
+    for (;;) {
+      const tg = await this.battleTarget();
+      if (tg === 0xff) return;
+      const nat = Math.floor(st.u8(st.personRecord(tg) + 0x2c) / 10), hn = st.u8(this.b.hero + 0x31) & 0x0f;
+      if (nat === hn && hn !== 6) {
+        const { win, message, menu } = this.c;
+        win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0); message(0x30e);
+        const ok = await menu.yesNo(); await win.close();
+        if (!ok) continue;
+      }
+      seaTodo("海戰 (10f7e)");
+      return;
+    }
+  }
+  // 10df0 對象: 12fea(2) → 清單 3 → 1c839 人物資料 + 是/否
+  async battleTarget() {
+    for (;;) {
+      const n = this.nearFleets(2);
+      if (!n) { await this.smallMsg(0x30a); return 0xff; }
+      const si = await this.b.listSel().select(3, n);
+      await this.c.win.close();
+      if (si === -1) return 0xff;
+      this.commandsObj().personInfo(this.c.persons[si], 0x0f, 0);
+      if (await this.c.menu.yesNo()) return this.c.persons[si];
+    }
+  }
+  // 1feae 偵察: 0fea:5f74 = 15e14 地圖格游標選擇 → 港口 (「船長，那是%s港．」) / 艦隊情報 — 尚未移植
+  async scout() { seaTodo("偵察 (1feae / 15e14 地圖游標)"); }
 }

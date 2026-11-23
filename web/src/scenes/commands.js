@@ -813,9 +813,9 @@ export class Commands {
       if (!b.crewCount()) menu.disabled |= 0x20;
       const r = await this.popMenu(0xe0, items);
       switch (r) {
-        case 0: cmTodo("偵察 (1feae)"); break;                          // 在港時停用
-        case 1: cmTodo("交涉 (20a6d)"); si = 1; break;
-        case 2: cmTodo("戰鬥 (0fea:1181)"); si = 1; break;
+        case 0: await this.p.scout(); break;                            // 1feae 偵察 (以下 3 項在港時停用; scenes/sea.js)
+        case 1: si = (await this.p.negotiate()) ? 0 : 1; break;          // 20a6d 交涉
+        case 2: await this.p.battle(); si = 1; break;                   // 0fea:1181 戰鬥
         case 3: await this.formation(); break;                          // 20587
         case 4: await this.rations(); break;                            // 208af
         case 5: await this.wages(); break;                              // 20ade
