@@ -9,29 +9,55 @@ export const SONG_TO_DRIVER = [21, 19, 22, 18, 2, 3, 4, 7, 6, 5, 11, 9, 8, 10, 1
 export class BGM {
   constructor(base) {
     this.base = base; this.el = typeof Audio !== "undefined" ? new Audio() : null; if (this.el) this.el.loop = true; this.cur = null; this.enabled = true;
-    if (this.el) this.el.addEventListener?.("ended", () => { this.cur = null; });           // 只播一次的曲子播完 = 停止
+    if (this.el) this.el.addEventListener?.("ended", () => { this.cur = null; this.done(); if (this.next) this.start(); });   // 只播一次的曲子播完 = 停止
   }
   async init() { this.map = await loadJSON(this.base + "/data/bgm.json"); return this; }
+  // 原版 0:9670: 同一首播放中不重播; 不同的曲子播放中 → 先淡出, 等驅動回報停止 (AH=03) 後才播放新曲。
+  //   回傳的 Promise 在新曲開始播放時完成 (呼叫端要像原版一樣等待時 await 它)
   playFile(f, loop = true) {
-    if (!this.el || !this.enabled || !f || f === this.cur) return;
+    if (!this.el || !this.enabled || !f) return Promise.resolve();
+    if (f === this.cur && !this.fading) return Promise.resolve();
+    this.next = { f, loop };
+    if (this.cur && !this.el.paused) { if (!this.fading) this.fade(false); return this.stopped(); }
+    this.start();
+    return Promise.resolve();
+  }
+  start() {
+    const { f, loop } = this.next; this.next = null;
     this.cur = f; this.el.loop = loop; this.el.src = this.base + "/../bgm/" + f; this.el.currentTime = 0; this.el.volume = 1;
     this.el.play().catch(() => { this.pending = true; });
   }
+  // 目前的曲子停止 (含淡出完成) 時完成
+  stopped() {
+    if (!this.cur || !this.el || this.el.paused) return Promise.resolve();
+    return new Promise(r => (this.waiters ??= []).push(r));
+  }
+  done() { const w = this.waiters || []; this.waiters = []; for (const r of w) r(); }
   playSong(id) {
     const songs = this.map.songs, k = String(id);
     if (songs && k in songs) {
-      if (!songs[k]) { this.stop(); return; }                                                // FMDRV 樂曲 0: 停止
-      this.playFile(songs[k], !(this.map.once || []).includes(id));
-      return;
+      if (!songs[k]) { this.stop(); return Promise.resolve(); }                              // FMDRV 樂曲 0: 停止
+      return this.playFile(songs[k], !(this.map.once || []).includes(id));
     }
-    this.playFile(this.map.tracks?.[String(SONG_TO_DRIVER[id])]);
+    return this.playFile(this.map.tracks?.[String(SONG_TO_DRIVER[id])]);
   }
-  play(id) { this.playSong(id); }
+  play(id) { return this.playSong(id); }
   resume() { if (this.pending && this.el) { this.pending = false; this.el.play().catch(() => {}); } }
-  fadeOut() {
-    if (!this.el || !this.cur) return;
-    const el = this.el, step = () => { el.volume = Math.max(0, el.volume - 0.05); if (el.volume > 0) setTimeout(step, 50); else { el.pause(); this.cur = null; } };
+  // 0:9712 淡出停止 (外部呼叫時取消等待中的下一首)
+  fadeOut() { this.next = null; this.fade(true); }
+  fade(cancelNext) {
+    if (!this.el || !this.cur) { if (!cancelNext && this.next) this.start(); return; }
+    const el = this.el, token = this.token = (this.token || 0) + 1;
+    this.fading = true;
+    const step = () => {
+      if (token !== this.token) return;
+      el.volume = Math.max(0, el.volume - 0.05);
+      if (el.volume > 0) { setTimeout(step, 50); return; }
+      el.pause(); this.cur = null; this.fading = false;
+      this.done();
+      if (this.next) this.start();
+    };
     step();
   }
-  stop() { if (this.el) this.el.pause(); this.cur = null; }
+  stop() { this.token = (this.token || 0) + 1; this.next = null; this.fading = false; if (this.el) this.el.pause(); this.cur = null; this.done(); }
 }

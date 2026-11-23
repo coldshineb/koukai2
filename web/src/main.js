@@ -62,8 +62,8 @@ requestAnimationFrame(frame);
   // KOUKAI2.COM: FMDRV.COM → OPEN.EXE (片頭) → MAIN.EXE; 片頭播完或被跳過 (OPEN.EXE 結束) 後進入標題
   await new Opening(ctx, await loadOpeningData(ASSETS, loadBinary, loadJSON)).run();
   if (ctx.halted) return;
-  // OPEN.EXE 結束時以 AH=02 淡出音樂; MAIN.EXE 的 9670 (標題曲) 在前曲仍播放 (AH=03) 時等它停止才播放 → 這裡等淡出完成
-  while (ctx.bgm.cur && ctx.bgm.el && !ctx.bgm.el.paused) await sys.poll();
+  // OPEN.EXE 結束時以 AH=02 淡出音樂; MAIN.EXE 的 9670 (標題曲) 在前曲仍播放 (AH=03) 時等它停止才播放 → 等淡出完成
+  await ctx.bgm.stopped();
   const r = await new Title(ctx).run();          // 17546 → 171a2 → 標題選單
   if (ctx.halted || r !== 1) return;
   await new GameClock(ctx).run();                // 17546 後半 (1721f 進港) + 1623a 主迴圈
