@@ -11,6 +11,7 @@
 import { PortScene } from "./port.js";
 import { Buildings } from "./buildings.js";
 import { Commands } from "./commands.js";
+import { seaNegotiate } from "./negotiate.js";
 import { marketTradeLog } from "./market.js";
 import { WorldMap } from "../gfx/worldmap.js";
 import { CellSelect } from "../ui/cellsel.js";
@@ -1379,18 +1380,11 @@ export class SeaScene extends PortScene {
     return n;
   }
   async smallMsg(m) { const { win, message, menu } = this.c; win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0); message(m); await menu.waitPrompt(); await win.close(); }
-  // 20a6d 交涉: 附近沒有艦隊 → 0xe1, 回傳 1; 清單 0x8c 選對象 → 20127 交涉本體 (未移植); 取消 → 1
-  async negotiate() {
-    for (;;) {
-      const n = this.nearFleets(2);
-      if (!n) { await this.smallMsg(0xe1); return 1; }
-      const si = await this.b.listSel().select(0x8c, n);
-      if (si === -1) return 1;
-      seaTodo("交涉本體 (20127)");
-      return 0;
-    }
-  }
-  // 0fea:1181 = 11021 戰鬥: 時刻 < 15 或 >= 60 → 0x30d「夜間不能開戰」; 10df0 選對象 (附近沒有 → 0x30a); 與主角同國 (非 6) → 0x30e 確認; → 10f7e 海戰 (未移植)
+  // 20a6d 交涉 → 20127 (scenes/negotiate.js, 第 30.1 節)
+  async negotiate() { return seaNegotiate(this); }
+  // 10f7e 海戰 (AL, DL = 雙方指揮者, 其中一方是主角; BL、堆疊參數 = 0xff) — 尚未移植
+  async navalBattle(al, dl, bl, arg) { seaTodo("海戰 (10f7e)"); }
+  // 0fea:1181 = 11021 戰鬥: 時刻 < 15 或 >= 60 → 0x30d「夜間不能開戰」; 10df0 選對象 (附近沒有 → 0x30a); 與主角同國 (非 6) → 0x30e 確認; → 10f7e(主角, 對象, 0xff, 0xff)
   async battle() {
     const st = this.st, t = this.c.rt.time;
     if (t < 0x0f || t >= 0x3c) { this.c.win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0); this.c.message(0x30d); await this.c.menu.waitPrompt(); await this.c.win.close(); return; }
@@ -1404,7 +1398,7 @@ export class SeaScene extends PortScene {
         const ok = await menu.yesNo(); await win.close();
         if (!ok) continue;
       }
-      seaTodo("海戰 (10f7e)");
+      await this.navalBattle(st.u8(0x12b5), tg, 0xff, 0xff);
       return;
     }
   }
