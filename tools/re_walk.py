@@ -2,7 +2,7 @@
 #   walk(a, depth, why)   反組譯 a 的函式本體, 再遞迴展開它呼叫的函式 (深度 depth); 已展開過的只列一次
 #   KNOWN[線性位址] = 名稱   已知 / 已移植, 不展開
 #   SEG0_SKIP = {"4dc4", ...}  seg0 的工具函式 (不展開)
-#   本專案慣例: 1fd9 段 = 線性 0x20000 起 (1fd9:85d9 = 285d9), 其他段 = seg×16 + off
+#   位址: 線性 = seg×16 + off (1fd9:8f84 = 28d14)。早期筆記有些「1fd9:xxxx」其實是線性 2xxxx 的誤記 (例: 補給港命名 1fd9:85d9 實為線性 285d9 = 1fd9:8849), 以線性位址為準
 import re as _re
 KNOWN = {0x15a70: "personSelect 0fea:5bd0", 0x1b46e: "bMenu", 0x1b580: "bAfter", 0x1b55c: "bTable",
          0x14364: "listMenu", 0x14524: "customMenu", 0x1469c: "yesNo", 0x147ab: "wait 0fea:490b",

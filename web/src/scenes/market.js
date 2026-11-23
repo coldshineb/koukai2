@@ -1,4 +1,4 @@
-// market.js — 交易所 (MAIN.EXE 1fd9:52f9 = 252f9; MENU #6 子功能 DS:aed8 = 買進 24bd9 / 賣出 24dbf / 投資 250b6 / 物價 252cf), 見 RE_NOTES 21
+// market.js — 交易所 (MAIN.EXE 1fd9:5569 = 252f9; MENU #6 子功能 DS:aed8 = 買進 24bd9 / 賣出 24dbf / 投資 250b6 / 物價 252cf), 見 RE_NOTES 21
 // 港口經濟記錄 E = DS:6a80 + 0x25×港 ([c2dc]): +00 商業值, +02 商業投資累計, +0e..+17 各分類供給 (上限 100), +18 特產基價, +1a 特產, +1b 特產所需等級
 // 地區物價表 R = DS:78f4 + 0x80×(E +21) ([c2cc]): +00 各商品 (46 種) 賣價基準 (字), +5c 9 種買價基準 (字), +6e 9 種商品, +77 9 種所需等級
 const mHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };

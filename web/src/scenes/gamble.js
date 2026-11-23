@@ -1,4 +1,4 @@
-// gamble.js — 酒館 賭博 (MAIN.EXE 1fd9:7491 = 27491; 子功能 DS:af80 = 二十一點 2e8ed / 骰子 2fc60), 見 RE_NOTES 17.9
+// gamble.js — 酒館 賭博 (MAIN.EXE 1fd9:7701 = 27491; 子功能 DS:af80 = 二十一點 2e8ed / 骰子 2fc60), 見 RE_NOTES 17.9
 // 圖形: DATA1.LZW 第 9 項 (assets/gfx/gamble.bin, 0x15c0 bytes) 每次進入賭博時重新載入到 [c2ec]:
 //   撲克牌 花色 k (牌 / 13) 於 0x300×k (k = 4 為背面), 4 欄 × 48 行平面交錯; 骰子 v (0..5) 於 0xf00 + 0x120×v, 3 欄 × 24 行
 // 文字與格式字串: port.json gamble (tools/extract_port.py)
@@ -22,7 +22,7 @@ export class Gamble {
   // 2e09e 賭注上限 = min(現金, 500)
   maxBet() { return this.money > 500 ? 500 : this.money; }
 
-  // ================= 1fd9:7491 入口 =================
+  // ================= 1fd9:7701 入口 =================
   async run() {
     const { message, menu, palette, graph } = this.c;
     if (this.money === 0) { this.b.randomTalk(); message(0x3f2); await this.b.wait(); await this.b.closeTalk(); return; }

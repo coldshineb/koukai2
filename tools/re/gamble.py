@@ -1,4 +1,4 @@
-"""酒館 賭博 1fd9:7491 (27491): 二十一點 2e8ed / 骰子 2fc60 (DS:af80)。輸出 tools/work/re_gamble.txt。
+"""酒館 賭博 1fd9:7701 (27491): 二十一點 2e8ed / 骰子 2fc60 (DS:af80)。輸出 tools/work/re_gamble.txt。
 用法: python tools/re/gamble.py   (RE_DEPTH 預設 3)"""
 import os, io, contextlib
 HERE = os.path.dirname(os.path.abspath(__file__))

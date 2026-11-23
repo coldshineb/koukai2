@@ -5,7 +5,7 @@
 //   0fea:b6e0 = 1b580 after() 以點陣重畫地圖區下半 (1b496)
 //   0fea:b6bc = 1b55c table() GRAPH.DAT #0x16 於 (0x68,0x88), 文字區 0x0e..0x3a
 //   seg0:7dac/7f06/7e15/7e35/7f6e 人物對話視窗 (頭像於 0x16, 0xd0)   seg0:909b 船員發言
-// 已移植: 0 交易所 (market.js) / 2 造船廠 (造新船、交船、買舊船、修理、賣船、改造、工業投資、折抵舊船剩餘貨物重新分配) / 3 碼頭 (補給、出航前檢查、船塢、補給港命名; 實際出航未移植) / 1 酒館 (全部; 賭博在 gamble.js) / 4 旅館 (海港支持度 / 就寢; 與航海者閒聊只有「沒有人」分支) / 10 教會 / 11 占卜師 (人生運/事業運/愛情運)
+// 已移植: 0 交易所 (market.js) / 2 造船廠 (造新船、交船、買舊船、修理、賣船、改造、工業投資、折抵舊船剩餘貨物重新分配) / 3 碼頭 (補給、出航前檢查、船塢、補給港命名; 實際出航未移植) / 1 酒館 (全部; 賭博在 gamble.js) / 4 旅館 (全部) / 10 教會 / 11 占卜師 (全部)
 // 其他建築與子功能: 尚未移植, 進入後只顯示主控台警告
 import { NumPad } from "../ui/numpad.js";
 import { ListSelect } from "../ui/listsel.js";
@@ -536,7 +536,7 @@ export class Buildings {
     this.talkMessage2(this.st.u8(g + 0x10) !== 0xff && this.st.u8(g + 0x11) === 0 ? 0x133 : 0x134);
     await this.wait(); await this.closeTalk();
   }
-  // ================= 酒館: 酒吧女郎 1fd9:7337 (RE_NOTES 17.8) =================
+  // ================= 酒館: 酒吧女郎 1fd9:75a7 (RE_NOTES 17.8) =================
   // 先付 10 (不足 → 9076 + 0x93); MENU #14 (主角 +31 bit4 時沒有前兩項); 子功能 DS:af62 = 26941 / 26a64 / 26ece / 272c5
   // 女郎記錄 DS:2bde + 0x13×i: +0d 年齡 +0e 所在港 +0f 好感 +10 調查委託 (低 4 位 = 國家, 高 4 位 = 種類; FF = 無) +11 剩餘天數 +12 旗標 (bit0, bit4-5 = 性格)
   girlFace() { return Math.trunc((this.girl - 0x2bde) / 0x13) + 0x61; }
@@ -2139,14 +2139,38 @@ export class Buildings {
       this.after();
     } while (sel !== 0xff && sel !== 2);
   }
-  // 1fd9:8e73 與航海者閒聊
+  // 1fd9:8e73 (線性 28c03) 與航海者閒聊: 清單 0x86 → 對象發言 (7f06) → 28a7b → 796d, 直到沒有人或 Esc
   async innChat() {
-    let n = await this.innChatList();
-    while (n) {
-      this.after();
-      bTodo("與航海者閒聊 (0fea:5bd0 人物選擇 / 28a7b 對話)");
-      return;
+    const list = this.listSel();
+    for (let n = await this.innChatList(); n; n = await this.innChatList()) {
+      this.after();                                                        // 0fea:b6e0
+      const r = await list.select(0x86, n);
+      if (r === -1) return;
+      const who = this.c.persons[r] & 0xff;
+      this.talkPerson(who);
+      await this.innTalk(who);
+      await this.closeTalk();
     }
+  }
+  // 28a7b 旅館的航海者: 同艦隊 → 0x45..0x47; 艦隊 0x3c..0x45 → 0x35b/0x35c; 否則 0x48 → 自我介紹 (0x49 船長 / 0x4a 其他 / 0x4b 無所屬)
+  //   → MENU #3 前兩項 (航海者情報 264a0 / 僱用 26708 (不要求好感)), DS:b0a4
+  async innTalk(n) {
+    const st = this.st, { message, sys } = this.c;
+    this.mateNo = n; this.mate = st.personRecord(n);                       // [b0a2]→[bb38], [bd8c]→[aeea]
+    const M = this.mate, f = st.u8(M + 0x2c);
+    if (st.u8(this.hero + 0x2c) === f) { message(0x45 + sys.rng.random(3)); await this.wait(); return 0; }
+    if (f < 0x46 && f >= 0x3c) { message(0x35b + sys.rng.random(2)); await this.wait(); return 1; }
+    message(0x48); await this.wait();
+    this.talkClear();
+    if (f === 0xff) message(0x4b);
+    else {
+      const kinds = this.c.menuItems(2), r = f % 10, kind = kinds[r ? Math.trunc(r / 5) + 1 : 0], nation = this.p.nations[Math.trunc(f / 10)];
+      if (st.u8(M + 0x2e) === 1) message(0x49, nation, kind, this.dstr(M));
+      else message(0x4a, nation, kind, this.T.crewRoles[st.u8(M + 0x2e)], this.dstr(M));
+    }
+    const sel = await this.menu(this.c.menuItems(3).slice(0, 2));            // 「決鬥」不在旅館 (bl = 2)
+    if (sel !== 0xff) await [() => this.mateInfo(), () => this.mateHire(0)][sel]();
+    return 1;
   }
   // 28a16
   async innChatList() {
@@ -2270,9 +2294,16 @@ export class Buildings {
     else this.greet(st.u8(rec + 0x0f) >= 0x32 ? 0x147 : 0x148);
     await this.wait();
   }
-  async fFriend() {                                                      // 1fd9:d5d4
+  // 1fd9:d5d4 (線性 2d364) 朋友運: 船員清單 0x89 → 0x4e + 運氣 (+23) / 25, 0x319 + 忠誠 (+2b) / 25
+  async fFriend() {
+    const st = this.st;
     this.greet(0x318); await this.wait();
-    if (!this.crewCount()) return;
-    bTodo("朋友運 (0fea:5bd0 人物選擇)");
+    const n = this.crewCount();
+    if (!n) return;
+    const r = await this.listSel().select(0x89, n);
+    if (r === -1) return;
+    const P = st.personRecord(this.c.persons[r] & 0xff);
+    this.greet(0x4e + Math.trunc(st.u8(P + 0x23) / 0x19)); await this.wait();
+    this.greet(0x319 + Math.trunc(st.u8(P + 0x2b) / 0x19)); await this.wait();
   }
 }

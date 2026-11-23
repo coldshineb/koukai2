@@ -16,6 +16,8 @@ const SPACE = lsHex("20");                        // DS:a1bb
 const FMT_SHIPROW = lsHex("2534642f253464");      // DS:a1bd "%4d/%4d"
 const FMT_PERSONROW = lsHex("257381352573");    // DS:a1a6 "%s　%s"
 const FMT_SHIPROW0 = lsHex("2573a3bf");          // DS:a17e "%s號"
+const CREW_CAPTAIN = lsHex("1b4336");             // DS:a1ad
+const CREW_NORMAL = lsHex("1b4330");              // DS:a1b1 / a1b7
 const MARK_EQUIP = lsHex("2a");                   // DS:a1cf "*" 已裝備
 const MARK_NONE = lsHex("20");                    // DS:a1d1 " "
 
@@ -119,6 +121,7 @@ export class ListSelect {
       case 2: { const s = this.st.cstr(ListSelect.shipRec(this.st.u8(ListSelect.fleetSlot(this.st, v) + 7))); this.c.con.puts(s); return lsStrlen(s); }   // 14954 船名
       case 4: return this.fmtCapacity(v);
       case 7: return this.fmtShip(v);
+      case 9: return this.fmtCrew(v);
       case 8: { const s = (this.cats ??= this.c.portAssets.data.market.cats.map(lsHex))[v & 0xffff]; this.c.con.puts(s); return lsStrlen(s); }   // 14c4b DS:078e 分類
       case 13: return this.fmtItem(v);
       case 14: { const s = this.st.cstr(ListSelect.shipRec(v)); this.c.con.puts(s); return lsStrlen(s); }   // 14930 船記錄名 (造船清單: 樣板船 0x28+船型)
@@ -136,6 +139,21 @@ export class ListSelect {
     if (!s) { console.warn("清單列格式: " + name + "[" + v + "] 超出已提取的指標表"); return 0; }
     this.c.con.puts(s);
     return lsStrlen(s);
+  }
+  // 14a87 種類 9: 船員「名 (補空白到 15) 船名或職務」; 擔任艦隊船長的以顏色 6 顯示 (DS:a1ad / a1b1 / a1b5 / a1b7)
+  fmtCrew(n) {
+    const st = this.st, con = this.c.con, P = st.personRecord(n & 0xff);
+    let slot = 0xff;
+    for (let i = 0; i < 10; i++) if (st.u8(0x52d4 + i * 0x1e + 0x1b) === (n & 0xff)) slot = i;
+    con.puts(slot !== 0xff ? CREW_CAPTAIN : CREW_NORMAL);
+    const name = st.cstr(P); con.puts(name);
+    let si = lsStrlen(name);
+    for (; si < 0x0f; si++) con.puts(SPACE);
+    const s = slot !== 0xff ? st.cstr(ListSelect.shipRec(st.u8(ListSelect.fleetSlot(st, slot) + 7)))
+      : (this.roles ??= this.c.portAssets.data.tavern.crewRoles.map(lsHex))[st.u8(P + 0x2e)];
+    con.puts(s); si += lsStrlen(s);
+    con.puts(CREW_NORMAL);
+    return si;
   }
   // 149f4 種類 4: 「船名 尚可裝載量」 (DS:a19d "%15s %5d"; 已用載貨 seg0:5d36)
   fmtCapacity(slot) {
