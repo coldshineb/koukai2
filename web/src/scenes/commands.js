@@ -448,7 +448,8 @@ export class Commands {
           const k = v >= 0x3c ? 0 : v % 10 === 0 ? 0 : v % 10 < 5 ? 1 : 2;
           message(0x345, this.p.nations[Math.trunc(v / 10)], m34[k], m35[st.u16(a + 2)]);
         } else if (t === 9) message(0x17d, st.cstr(0x5f54 + st.u8(a) * 0x16 + 4));
-        else if (t === 0x0c) message(0x180, this.p.goods[st.u16(a)], st.u16(a + 4), st.u16(a + 2), st.u16(a + 6));
+        // 0x180 的 %ld 由堆疊上相鄰的兩個字組成: 低字 = +8, 高字 = +6 (原版依 +10, +6, +8 的順序推入, 照搬)
+        else if (t === 0x0c) message(0x180, this.p.goods[st.u16(a)], (st.u16(a + 4) | (st.u16(a + 2) << 16)) | 0, st.u16(a + 6));
       }
       con.setCursor(0x11, 0x148);
       let f = 0;
@@ -500,7 +501,7 @@ export class Commands {
     this.c.sys.flush();
     return k;
   }
-  // ---- 9 海港地圖 1dfaf: 港內 48×48 格縮小圖 (1d8ac: 16×16 圖塊取偶數行列成 8×8) + 各建築名 (MENU #0x3a, 7 號除外) 與外框 ----
+  // ---- 9 海港地圖 1dfaf: 港內 48×48 格縮小圖 (1d8ac: 16×16 圖塊縮成 8×8) + 各建築名 (MENU #0x3a, 7 號除外) 與外框 ----
   async portMap() {
     const st = this.st, { scr, con, palette, sys, menu } = this.c, p = this.p, S = this.S;
     await palette.fadeBlack();
@@ -537,7 +538,8 @@ export class Commands {
     bc %= 0x5a;
     for (let r = 0; r < 24; r++) for (let c = 0; c < 24; c++) {
       const px = p.tile(M[(br * 24 + r) * 0x60 + bc * 24 + c]), o = (y + r * 8) * 640 + (col + c) * 8;
-      for (let yy = 0; yy < 8; yy++) for (let xx = 0; xx < 8; xx++) fb[o + yy * 640 + xx] = px[(yy * 2) * 16 + xx * 2];
+      // 1d8ac: DS:a7b8 把每 4 個像素 (半個位元組) 縮成第 0 與第 3 個像素; 只取偶數行
+      for (let yy = 0; yy < 8; yy++) for (let xx = 0; xx < 8; xx++) fb[o + yy * 640 + xx] = px[(yy * 2) * 16 + (xx >> 1) * 4 + (xx & 1) * 3];
     }
     this.c.scr.dirty = true;
   }
