@@ -28,12 +28,45 @@ const inst0 = S.installEmuServices;
 const wrap = f => c => { if (S._cmIn || S.cmLog !== log) return; S._cmIn = 1; try { f(c); } finally { S._cmIn = 0; } };
 S.installEmuServices = (sc, od) => {
   inst0(sc, k => { ev("K"); od?.(k); });
+  const envI = S.env;
   const H = cpu.hooks, h16 = H[0x16], h33 = H[0x33], h66 = H[0x66];
   const m16 = wrap(c => { if ((c.r[0] >> 8) === 1) { C.add(1); ev("io"); } }), m33 = wrap(c => { if (c.r[0] === 3) { C.add(1); ev("io"); } });
   const m66 = wrap(c => { const ax = c.r[0], hi = ax >> 8; if (hi === 0xf0 || hi === 0xf1) { C.add(FM66); ev((ax & 0xff) === 1 ? (hi === 0xf1 ? "ts" : "ts0") : (hi === 0xf1 ? "tr" : "tr0")); } });
   H[0x16] = c => { m16(c); h16(c); };                                                      // DOSBox INT 16h: STI + 回呼 + IRET (+1)
   H[0x33] = c => { m33(c); h33(c); };                                                      // DOSBox INT 33h: JMP + 回呼 + IRET (+1)
   H[0x66] = c => { m66(c); h66(c); };
+  // S.CM.realtime: 原版的計時器 (FMDRV F0/F1) 與垂直同步 (3DAh) 改依 DOSBox 時間 (週期 / N, 再扣掉 IRQ0 佔用 S.CM.irqLoad) 計算,
+  //   用來量原版實際的節奏 (秒數)。F1 01 設定時累加器 [0123] 歸零, 之後每次 IRQ0 (4096/1193182 秒) +0x35, 進位時減一 (01d0)。
+  if (O.realtime) {
+    const PIT = 4096 / 1193181.6667 * 1000, load = O.irqLoad ?? 0.012;
+    const nowMs = () => C.T / C.max / (1 - load);
+    const irqAt = t => Math.floor(t / PIT);
+    const tm = [{ n: 0, k0: 0 }, { n: 0, k0: 0 }];
+    H[0x66] = c => {
+      const ax = c.r[0], hi = ax >> 8;
+      if (hi !== 0xf0 && hi !== 0xf1) { m66(c); h66(c); return; }
+      m66(c); envI.ret(c);
+      const T = tm[hi === 0xf1 ? 0 : 1], k = irqAt(nowMs());
+      if ((ax & 0xff) === 1) { T.n = c.r[3]; T.k0 = k; }
+      else c.r[3] = Math.max(0, T.n - Math.floor((k - T.k0) * 0x35 / 256));
+    };
+    const vga = cpu.vga, pin = vga.portIn0 || vga.portIn; vga.portIn0 = pin;
+    vga.portIn = function (p) {
+      if (p !== 0x3da) return pin.call(this, p);
+      this.attrFlip = 0;
+      const fr = C.frameP, t = (C.T / (1 - load)) % fr, line = fr / 525;
+      return (t >= C.vr[0] && t <= C.vr[1] ? 0x08 : 0) | (t >= 480 * line || (t % line) >= line * 640 / 800 ? 0x01 : 0);
+    };
+    S.cmRestoreVGA = () => { vga.portIn = pin; delete vga.portIn0; };
+  }
+  // S.CM.marks = [DS 位址, ...]: 該位元組改變時記錄 [位址, 新值, 原版時間 ms] (例: 0x2e18 出港天數、0x0535 時刻)
+  if (O.marks) {
+    const d = S.DSEG * 16, last = O.marks.map(a => cpu.mem[d + a]); S.cmMarks = [];
+    const h = H[0x16]; H[0x16] = c => { O.marks.forEach((a, i) => { const v = c.mem[d + a]; if (v !== last[i]) { last[i] = v; S.cmMarks.push([a, v, C.T / C.max / (1 - (O.irqLoad ?? 0.012)), C.game]); } });
+      // S.CM.stop(mem, DS 線性位址): 回傳 true 時結束原版 (port_tests.js 的 S.EMU_DONE)
+      if (O.stop && O.stop(c.mem, d)) { S.EMU_DONE = true; c.halted = true; return; }
+      h(c); };
+  }
 };
 // ---- 移植版 ----
 const run0 = U.Title.prototype.run;
@@ -83,6 +116,13 @@ if (O.features) {
     SP.mouseShow = function (...a) { if (this.mouse.present && this.mouse.visible === 0) fcnt[i1]++; return sh.apply(this, a); };
     SP.mouseHide = function (...a) { if (this.mouse.present && this.mouse.visible === 1) fcnt[i2]++; return hd.apply(this, a); };
     wrapped.push([SP, "mouseShow", sh], [SP, "mouseHide", hd]); }
+  // 屬性改變 ("類別.屬性="): SeaScene.item = 849a 換 WORLDMAP 項 (移植版只是指定); 舊值已定義且新值不同時算一次 (與 core/cpucost.js 相同)
+  for (const [cn, prop] of [["SeaScene", "item"]]) { const C = U[cn]; if (!C || Object.getOwnPropertyDescriptor(C.prototype, prop)) continue;
+    const id = featNames.length, slot = "\u0000" + prop; featNames.push(cn + "." + prop + "=");
+    Object.defineProperty(C.prototype, prop, { configurable: true, get() { return this[slot]; }, set(v) { const o = this[slot]; if (o !== undefined && o !== v && !this.__cmInEnter) fcnt[id]++; this[slot] = v; } });
+    wrapped.push([C.prototype, prop, undefined]);
+    // enterSea (851f) 的固定耗時已含一次 849a: 其同步部分執行中的改變不算 (與 core/cpucost.js PROP_SKIP_IN 相同)
+    const fe = C.prototype.enterSea; if (fe) { C.prototype.enterSea = function (...a) { this.__cmInEnter = true; try { return fe.apply(this, a); } finally { this.__cmInEnter = false; } }; wrapped.push([C.prototype, "enterSea", fe]); } }
   // 靜態方法 Kao.blit3 (頭像)
   if (U.Kao && U.Kao.blit3) { const g = U.Kao.blit3, id = featNames.length; featNames.push("Kao.blit3");
     U.Kao.blit3 = function (...a) { fcnt[id]++; return g.apply(this, a); }; wrapped.push([U.Kao, "blit3", g]); }
@@ -100,15 +140,18 @@ if (fcnt) {
   };
   ev = evx;
 }
+// S.CM.noLog: 不記事件 (realtime 量秒數時原版每個等待迴圈都在查詢輸入, 事件會多到記憶體不夠)
+if (O.noLog) ev = () => {};
 Object.defineProperty(U.Sys.prototype, "onIO", { configurable: true,
   get() { return this._onIO; },
   set(f) { this._onIO = f ? (s => { ev("io"); f(s); }) : f; } });
 const sstep = S.scriptStep;
-S.scriptStep = (sc, buf, push, od) => sstep(sc, buf, push, k => { if (log.side === "J") ev("K"); od?.(k); });
+// S.CM.gapAfter = [n, gap]: 送出 n 個動作之後, 每個動作之間的輸入查詢次數改為 gap (realtime 量測: 出港後長時間航行)
+S.scriptStep = (sc, buf, push, od) => { if (O.gapAfter && sc.delivered + (sc.mouseN || 0) >= O.gapAfter[0]) sc.gap = O.gapAfter[1]; return sstep(sc, buf, push, k => { if (k && k.mouse) sc.mouseN = (sc.mouseN || 0) + 1; if (log.side === "J") ev("K"); od?.(k); }); };
 S.cmUninstall = () => {
-  for (const [p, n, f] of wrapped.reverse()) p[n] = f;
+  for (const [p, n, f] of wrapped.reverse()) { if (f === undefined) delete p[n]; else p[n] = f; }
   cpu.cyc = null; S.installEmuServices = inst0; U.Title.prototype.run = run0; TP.get = tg; TP.set = ts; S.scriptStep = sstep;
-  delete U.Sys.prototype.onIO; S.cmUninstall = null;
+  delete U.Sys.prototype.onIO; S.cmRestoreVGA?.(); S.cmRestoreVGA = null; S.cmUninstall = null;
 };
 // 依 "K" (送鍵) 切段, 段內事件依序對齊
 S.cmReport = () => {

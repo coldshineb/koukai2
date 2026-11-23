@@ -61,7 +61,8 @@ function runEmu() {
       P.emuHook?.(cpu.mem, d); }                                     // 只寫原版的額外設定 (例: [0c8e] 緩衝), 與 jsHook 成對
   };
   const t0 = Date.now();
-  while (!done && Date.now() - t0 < 230000) c.run(2e7);
+  // S.EMU_DONE: 由外部 (例: cycle_measure.js 的 S.CM.stop) 提前結束原版; S.EMU_MS: 原版執行的時間上限 (預設 230 秒)
+  while (!done && !S.EMU_DONE && Date.now() - t0 < (S.EMU_MS || 230000)) c.run(2e7);
   c.onTick = null; c.halted = false;
   return { shots, done, ip: (c.s[1] * 16 + c.ip - L).toString(16) };
 }
@@ -80,7 +81,8 @@ portAssets.duel = { J: rdj("data/duel.json"), data1: rdb("gfx/duel/DATA1.LZW"), 
 const msg = f["MESSAGE.DAT"], initState = new Uint8Array(fs.readFileSync(S.W + "/uw2_remake/tools/work/newgame.bin"));
 async function runJS(rng0) {
   const scr = new U.Screen(); let polls = 0;
-  const sys = new U.Sys({ virtual: true, poll: async () => { if (++polls > 8e6) throw new Error("poll limit"); } });
+  // S.JS_SYS: 移植版改用指定的 Sys 設定 (例: cycle_realtime.js 的即時模式 { virtual: false }); 預設為測試模式 (虛擬計時器)
+  const sys = S.JS_SYS ? new U.Sys(S.JS_SYS) : new U.Sys({ virtual: true, poll: async () => { if (++polls > 8e6) throw new Error("poll limit"); } });
   sys.mouse.x = 320; sys.mouse.y = 240;
   const state = new U.GameState(initState);
   const ctx = { scr, sys, state, initState, font, ASSETS: "", options: { get animate() { return !!(state.options & 1); } } };

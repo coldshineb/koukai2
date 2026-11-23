@@ -6,6 +6,8 @@
 export const PIT_HZ = 1193181.67;
 export const TICK_HZ = PIT_HZ / 4096 * 0x35 / 256;   // 60.309
 export const TICK_MS = 1000 / TICK_HZ;                 // 16.581
+export const PIT_MS = 4096 / PIT_HZ * 1000;            // IRQ0 間隔 3.433 ms
+import { CPU } from "./cpucost.js";
 
 // seg0:4d92 rand(): 32 位元 LCG, state = state*0x41C64E6D + 0x3039, 回傳 (state>>16)&0x7fff
 export class Rng {
@@ -21,12 +23,15 @@ const SCAN_MAP = { 0x3b: 0x16, 0x3c: 0x14, 0x3d: 0x02, 0x3e: 0x19, 0x48: 0x1e, 0
 export class Timer {
   // virtual: 測試模式 — 每次讀取減一 (與模擬器的 INT 66h 測試樁相同)
   constructor(virtual = false) { this.virtual = virtual; this.count = 0; this.t0 = 0; this.n0 = 0; }
-  // 實際時間: 倒數在固定的 tick 邊界 (IRQ0) 減一, 與原版相同 — 以全域 tick 編號計算, 連續等待不會因輪詢延遲而累積誤差
-  set(n) { this.count = n & 0xffff; this.n0 = this.count; if (!this.virtual) this.t0 = Math.floor(performance.now() / TICK_MS); }  // seg0:16a8
+  // 實際時間 (RE_NOTES 32.2): FMDRV F1 01 設定時累加器 [0123] 歸零, 之後每次 IRQ0 (全域相位, 3.433 ms) +35h, 進位時減一;
+  //   時間取 core/cpucost.js 的虛擬時鐘 (含原版 CPU 執行時間), 連續等待不會因輪詢延遲而累積誤差
+  set(n) { this.count = n & 0xffff; this.n0 = this.count; if (!this.virtual) this.k0 = Math.floor(CPU.now() / PIT_MS); }  // seg0:16a8
   get() {                                                                                 // seg0:16b5
     if (this.virtual) { if (this.count) this.count--; return this.count; }
-    const el = Math.floor(performance.now() / TICK_MS) - this.t0;
-    this.count = Math.max(0, this.n0 - el); return this.count;
+    const k = Math.floor(CPU.now() / PIT_MS) - this.k0, dec = Math.floor(k * 0x35 / 256);
+    this.count = Math.max(0, this.n0 - dec);
+    if (this.count) CPU.wakeAt = (this.k0 + Math.ceil((dec + 1) * 256 / 0x35)) * PIT_MS;   // 下一次減一的時間 (Sys.poll 準時醒來)
+    return this.count;
   }
 }
 
@@ -37,7 +42,7 @@ export class Sys {
     this.keybuf = [];                    // BIOS 鍵盤緩衝 (word: scan<<8 | ascii), 最多 15
     this.mouse = { x: 320, y: 240, buttons: 0, present: true, hotspot: 0, visible: 0, shape: 0x2570 };
     this.speed = 2;                      // [0ca5] 環境設定「顯示速度」
-    this.poll = poll || (() => new Promise(r => setTimeout(r, 1)));
+    this.poll = poll || (() => CPU.sync());   // 輪詢點: 先等真實時間追上虛擬時鐘 (core/cpucost.js)
     this.onIO = null;                    // 測試用: 每次 kbhit / INT33 fn3 等效呼叫的回呼
   }
   // ---- 瀏覽器事件輸入 ----

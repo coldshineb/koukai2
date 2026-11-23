@@ -5,7 +5,7 @@
 // 片頭: web/src/game/opening.js (OPEN.EXE)。
 import { Screen, SCREEN_W, CANVAS_H } from "./core/screen.js";
 import { Font } from "./core/font.js";
-import { Sys } from "./core/sys.js";
+import { Sys, Rng, Timer } from "./core/sys.js";
 import { bindInput } from "./core/input.js";
 import { BGM } from "./core/audio.js";
 import { loadJSON, loadBinary } from "./core/assets.js";
@@ -16,6 +16,42 @@ import { TextCodec, encodeState } from "./game/data.js";
 import { Title } from "./game/title.js";
 import { GameClock } from "./game/clock.js";
 import { Opening, loadOpeningData } from "./game/opening.js";
+// 執行速度 (RE_NOTES 第 32 節): 原版在 DOSBox cycles=10500 下的耗時記帳 (?cycles=N 換基準, ?cycles=0 關閉)
+import { CPU, installCostModel } from "./core/cpucost.js";
+import { TextConsole } from "./ui/console.js";
+import { WindowSystem } from "./ui/window.js";
+import { MenuSystem } from "./ui/menu.js";
+import { Graph } from "./ui/graph.js";
+import { GraphDat } from "./gfx/graphdec.js";
+import { Kao } from "./gfx/kao.js";
+import { WorldMap } from "./gfx/worldmap.js";
+import { PlanarBuf } from "./gfx/duelanim.js";
+import { ListSelect } from "./ui/listsel.js";
+import { CellSelect } from "./ui/cellsel.js";
+import { NameInput } from "./ui/nameinput.js";
+import { NumPad } from "./ui/numpad.js";
+import { NewGame } from "./game/newgame.js";
+import { Scenario } from "./game/scenario.js";
+import { FleetAI } from "./game/fleetai.js";
+import { Monthly } from "./game/monthly.js";
+import { PortScene } from "./scenes/port.js";
+import { Buildings } from "./scenes/buildings.js";
+import { Commands } from "./scenes/commands.js";
+import { PortMove } from "./scenes/portmove.js";
+import { Market } from "./scenes/market.js";
+import { Gamble } from "./scenes/gamble.js";
+import { Palace } from "./scenes/palace.js";
+import { Office } from "./scenes/office.js";
+import { House } from "./scenes/house.js";
+import { Bank } from "./scenes/bank.js";
+import { ItemShop } from "./scenes/itemshop.js";
+import { SeaScene } from "./scenes/sea.js";
+import { NavalBattle } from "./scenes/battle.js";
+import { Duel } from "./scenes/duel.js";
+const COST_CLASSES = { Screen, Font, Sys, Rng, Timer, TextConsole, WindowSystem, MenuSystem, Graph, GraphDat, Kao, WorldMap, PlanarBuf, Palette,
+  ListSelect, CellSelect, NameInput, NumPad, GameState, Title, NewGame, Scenario, GameClock, FleetAI, Monthly,
+  PortScene, Buildings, Commands, PortMove, Market, Gamble, Palace, Office, House, Bank, ItemShop, SeaScene, NavalBattle, Duel };
+CPU.configure(location.search);
 
 const ASSETS = "./assets";
 const canvas = document.getElementById("screen");
@@ -45,12 +81,21 @@ ctx.palette.writeDAC();                // 開機時目前調色盤為全黑
 Object.assign(ctx, await createUI(ctx));
 addEventListener("pointerdown", () => ctx.bgm.resume());
 addEventListener("keydown", () => ctx.bgm.resume());
+CPU.musicProbe = () => !!(ctx.bgm.el && ctx.bgm.cur && !ctx.bgm.el.paused);   // FMDRV 播放中的 IRQ0 佔用 (32.3)
 
+// 執行速度 (RE_NOTES 32.9 A): 程式超前虛擬時鐘而睡的期間, 剛畫好的畫面要等到虛擬時間到了才顯示 (快照), 之前維持舊畫面
+CPU.capture = () => ({ fb: scr.fb.slice(), lut: scr.lut.slice(), full: scr.full ? scr.full.slice() : null });
+function presentSnap(s) {
+  const fb = scr.fb, lut = scr.lut, full = scr.full;
+  scr.fb = s.fb; scr.lut = s.lut; scr.full = s.full; scr.dirty = true; scr.present();
+  scr.fb = fb; scr.lut = lut; scr.full = full; scr.dirty = true;
+}
 function frame() {
   const m = sys.mouse;
   // [03d6] 位元組計數 (0→1 時畫出游標)
   scr.cursor = { visible: m.present && m.visible > 0 && m.visible < 0x80, x: m.x, y: m.y, gfx: ctx.gfx, shape: m.shape };
-  scr.present();
+  const g = CPU.frameGate();
+  if (g === "live") scr.present(); else if (g) presentSnap(g.snap);
   if (!ctx.halted) requestAnimationFrame(frame); else { scr.cursor = null; scr.dirty = true; scr.present(); }
 }
 requestAnimationFrame(frame);
@@ -59,6 +104,9 @@ requestAnimationFrame(frame);
   // KOUKAI2.COM: FMDRV.COM → OPEN.EXE (片頭) → MAIN.EXE; 片頭播完或被跳過 (OPEN.EXE 結束) 後進入標題
   await new Opening(ctx, await loadOpeningData(ASSETS, loadBinary, loadJSON)).run();
   if (ctx.halted) return;
+  // MAIN.EXE 起: 依記帳表記帳, 虛擬時鐘從現在開始 (片頭是另一個程式 OPEN.EXE, 沒有量測, 不記帳)
+  if (CPU.khz) installCostModel(COST_CLASSES);
+  CPU.start();
   // OPEN.EXE 結束時以 AH=02 淡出音樂; MAIN.EXE 的 9670 (標題曲) 在前曲仍播放 (AH=03) 時等它停止才播放 → 等淡出完成
   await ctx.bgm.stopped();
   const r = await new Title(ctx).run();          // 17546 → 171a2 → 標題選單

@@ -1,5 +1,6 @@
 """把差分測試需要的檔案打包成 tools/work/_sandbox_<TAG>.zip (每次用不同的 TAG, 避免複製到雲端時讀到舊檔)。
-合併腳本 / 開機腳本產生到 tools/work/ui_bundle_<TAG>.js、emu_boot_<TAG>.js, 在 zip 內以 tools/work/ui_bundle.js、emu_boot.js 的名稱放入
+合併腳本 / 開機腳本產生到 tools/work/ui_bundle_<TAG>.js、emu_boot_<TAG>.js, 在 zip 內以 tools/work/ui_bundle.js、emu_boot.js 的名稱放入;
+另含 tools/work/runf.js (make_runf.py: 測試檔登記成 session.RUNF[檔名]())
 (開機腳本以 session.BOOT_W (預設 WORKSPACE_DIR) 為 uw2_remake 的上一層)。不含 .git、web/bgm、tools/work 內除 sea2 / rom8x8.bin / newgame.bin 以外的內容。
 用法: python tools/emu/pack_sandbox_tag.py <TAG>      之後刪除: python tools/emu/pack_sandbox_tag.py <TAG> --clean"""
 import os, sys, zipfile, hashlib
@@ -22,11 +23,11 @@ def want(rel):
 
 
 def outputs(tag):
-    return [os.path.join(WORK, n) for n in (f"_sandbox_{tag}.zip", f"ui_bundle_{tag}.js", f"emu_boot_{tag}.js")]
+    return [os.path.join(WORK, n) for n in (f"_sandbox_{tag}.zip", f"ui_bundle_{tag}.js", f"emu_boot_{tag}.js", f"runf_{tag}.js")]
 
 
 def main(tag):
-    out, ub, eb = outputs(tag)
+    out, ub, eb = outputs(tag)[:3]
     g = {"__name__": "make_test_bundle"}
     exec(open(os.path.join(HERE, "make_test_bundle.py"), encoding="utf-8").read(), g)
     g["bundle"](ROOT, g["MODS"], ub, g["NAMES"])
@@ -46,6 +47,10 @@ def main(tag):
                 n += 1
         z.write(ub, "uw2_remake/tools/work/ui_bundle.js")
         z.write(eb, "uw2_remake/tools/work/emu_boot.js")
+        rf = os.path.join(WORK, f"runf_{tag}.js")                  # tools/emu/*.js 登記成 session.RUNF[檔名]() (make_runf.py)
+        gr = {"__name__": "make_runf", "__file__": os.path.join(HERE, "make_runf.py")}
+        exec(open(os.path.join(HERE, "make_runf.py"), encoding="utf-8").read(), gr)
+        gr["build"](rf); z.write(rf, "uw2_remake/tools/work/runf.js"); os.remove(rf)
     print(n + 2, "files ->", out, os.path.getsize(out), "bytes md5", hashlib.md5(open(out, "rb").read()).hexdigest())
 
 

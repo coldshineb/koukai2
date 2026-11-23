@@ -2030,6 +2030,7 @@ export class Buildings {
     this.c.scr.dirty = true;
   }
   // 27802 出航: 艦隊資料表 → 補給天數 → 是/否
+  //   積載率 = 5d36 × 100 (imul cx → DX:AX 32 位元) / 船 +14 (cwd) 經 seg0:38ba 無號長整數除法 (2793a..2793e); 不是 16 位元截斷
   async depart() {
     const st = this.st, { con, printf, message, menu, palette, scr } = this.c, anim = st.u8(0x0ca4) & 1;
     const n = this.fleetShips(), L = this.c.persons.slice(0, n);
@@ -2044,7 +2045,7 @@ export class Buildings {
       const drv = Math.trunc(crew * st.u8(M + 9) / 100), look = Math.trunc(crew * st.u8(M + 8) / 100);
       con.setCursor(0x0f, ((i + 3) * 0x18) & 0xffff);
       printf(this.WF.departRow, this.dstr(ship), drv, look, s16b(st.u16(S) - look - drv),
-        Math.trunc(s16b(this.cargoUsed(slot) * 100) / s16b(st.u16(ship + 0x14))), Math.trunc(s16b(st.u16(M)) / 10), Math.trunc(s16b(st.u16(M + 2)) / 10));
+        s16b(Math.floor((Math.imul(s16b(this.cargoUsed(slot)), 100) >>> 0) / (s16b(st.u16(ship + 0x14)) >>> 0 || 1)) & 0xffff), Math.trunc(s16b(st.u16(M)) / 10), Math.trunc(s16b(st.u16(M + 2)) / 10));
       if (!drv) noDriver = 1;
     }
     this.crewSpeaks();
