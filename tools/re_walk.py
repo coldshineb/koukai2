@@ -17,13 +17,12 @@ _done = set()
 
 
 def _lin(seg, off):
-    return 0x20000 + off if seg == 0x1fd9 else seg * 16 + off
+    return seg * 16 + off                     # 1fd9:off = 0x1fd90 + off (舊版誤用 0x20000 + off, 差 0x270)
 
 
 def _near(i):
-    bs = next(s for s in SEGS if s * 16 <= i.addr)
-    base = 0x20000 if bs == 0x1fd9 and i.addr >= 0x20000 else bs * 16
-    return base + ((i.target - base) & 0xffff)
+    bs = next(s for s in SEGS if s * 16 <= i.addr) * 16
+    return bs + ((i.target - bs) & 0xffff)    # 段內近跳躍/呼叫以 64K 回繞 (1fd9 段 = 0x1fd90..0x2fd8f)
 
 
 def body(a, n=0x2000):
