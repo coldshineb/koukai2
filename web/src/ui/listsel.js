@@ -116,7 +116,10 @@ export class ListSelect {
     switch (this.k) {
       case 0: return this.fmtShipName(v);
       case 6: return this.fmtPerson(v);
+      case 2: { const s = this.st.cstr(ListSelect.shipRec(this.st.u8(ListSelect.fleetSlot(this.st, v) + 7))); this.c.con.puts(s); return lsStrlen(s); }   // 14954 船名
+      case 4: return this.fmtCapacity(v);
       case 7: return this.fmtShip(v);
+      case 8: { const s = (this.cats ??= this.c.portAssets.data.market.cats.map(lsHex))[v & 0xffff]; this.c.con.puts(s); return lsStrlen(s); }   // 14c4b DS:078e 分類
       case 13: return this.fmtItem(v);
       case 14: { const s = this.st.cstr(ListSelect.shipRec(v)); this.c.con.puts(s); return lsStrlen(s); }   // 14930 船記錄名 (造船清單: 樣板船 0x28+船型)
       case 15: return this.fmtTable("materials", v);    // 14c96 DS:0930[v] 材質
@@ -133,6 +136,12 @@ export class ListSelect {
     if (!s) { console.warn("清單列格式: " + name + "[" + v + "] 超出已提取的指標表"); return 0; }
     this.c.con.puts(s);
     return lsStrlen(s);
+  }
+  // 149f4 種類 4: 「船名 尚可裝載量」 (DS:a19d "%15s %5d"; 已用載貨 seg0:5d36)
+  fmtCapacity(slot) {
+    const st = this.st, S = ListSelect.fleetSlot(st, slot), ship = ListSelect.shipRec(st.u8(S + 7));
+    this.c.printf(this.capFmt ??= lsHex(this.c.portAssets.data.market.fmt.listCap), st.cstr(ship), lsS16(st.u16(ship + 0x14) - this.c.cargoUsed(slot)));
+    return 0x15;
   }
   // 14c68 種類 0x0d: 隨身物 (DS:8248 + 0x14×n), 已裝備 (+13 bit4) 前面加「*」
   fmtItem(n) {

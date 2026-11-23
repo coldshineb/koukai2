@@ -66,6 +66,13 @@ def ds_tables(sea2):
             "fmt": {k: cs(v) for k, v in {"discHdr": 0xb910, "s": 0xb917, "cat": 0xb91a, "imp": 0xb921, "itemHdr": 0xb0e4,
                     "equip": 0xb0ed, "atk": 0xb0fa, "def": 0xb10a, "color0": 0xb11a}.items()},
         },
+        # 交易所 (1fd9:52f9 及子功能, RE_NOTES 21)
+        "market": {
+            "cats": ptrs(0x078e, 10),                   # DS:078e 商品分類名 (物價清單 / 0x97)
+            "catEnd": list(b(0x0784, 10)),              # DS:0784 各分類最後一個商品 + 1 (2441e)
+            "fmt": {k: cs(v) for k, v in {"buyHdr": 0xae52, "buyRow": 0xae67, "buyRow2": 0xae70, "sellHdr": 0xae79, "sellRow": 0xae96,
+                    "priceHdr": 0xaea5, "name": 0xaebf, "n5": 0xaec5, "none": 0xaec9, "n5b": 0xaecf, "sp5": 0xaed3, "listCap": 0xa19d}.items()},
+        },
         # 酒館 賭博 (1fd9:7491: 二十一點 2e8ed / 骰子 2fc60, RE_NOTES 17.9)
         "gamble": {
             "items": [cs(0xaf72), cs(0xaf7b)],                                  # DS:af72 / af7b 子選單

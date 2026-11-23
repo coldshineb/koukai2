@@ -5,12 +5,13 @@
 //   0fea:b6e0 = 1b580 after() 以點陣重畫地圖區下半 (1b496)
 //   0fea:b6bc = 1b55c table() GRAPH.DAT #0x16 於 (0x68,0x88), 文字區 0x0e..0x3a
 //   seg0:7dac/7f06/7e15/7e35/7f6e 人物對話視窗 (頭像於 0x16, 0xd0)   seg0:909b 船員發言
-// 已移植: 2 造船廠 (造新船、交船、買舊船、修理、賣船、改造、工業投資、折抵舊船剩餘貨物重新分配) / 3 碼頭 (補給、出航前檢查、船塢、補給港命名; 實際出航未移植) / 1 酒館 (全部; 賭博在 gamble.js) / 4 旅館 (海港支持度 / 就寢; 與航海者閒聊只有「沒有人」分支) / 10 教會 / 11 占卜師 (人生運/事業運/愛情運)
+// 已移植: 0 交易所 (market.js) / 2 造船廠 (造新船、交船、買舊船、修理、賣船、改造、工業投資、折抵舊船剩餘貨物重新分配) / 3 碼頭 (補給、出航前檢查、船塢、補給港命名; 實際出航未移植) / 1 酒館 (全部; 賭博在 gamble.js) / 4 旅館 (海港支持度 / 就寢; 與航海者閒聊只有「沒有人」分支) / 10 教會 / 11 占卜師 (人生運/事業運/愛情運)
 // 其他建築與子功能: 尚未移植, 進入後只顯示主控台警告
 import { NumPad } from "../ui/numpad.js";
 import { ListSelect } from "../ui/listsel.js";
 import { NameInput } from "../ui/nameinput.js";
 import { Gamble } from "./gamble.js";
+import { Market } from "./market.js";
 
 const bHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const B_SPEECH = Uint8Array.of(0x1b, 0x43, 0x30, 0x01, 0x1b, 0x42, 0x37, 0);   // DS:8c12
@@ -25,7 +26,7 @@ const bTodo = n => { if (!bWarned.has(n)) { bWarned.add(n); console.warn("尚未
 
 export class Buildings {
   constructor(scene) {
-    this.p = scene; this.c = scene.c; this.numpad = this.c.numpad ??= new NumPad(this.c); this.c.persons ??= new Array(0x50).fill(0);
+    this.p = scene; this.c = scene.c; this.numpad = this.c.numpad ??= new NumPad(this.c); this.c.cargoUsed = s => this.cargoUsed(s); this.c.persons ??= new Array(0x50).fill(0);
     const T = scene.P.data.tavern, h = a => a.map(bHex);                 // port.json (tools/extract_port.py 由 MAIN.EXE 產生)
     this.T = { liquors: h(T.liquors), liquorPrice: T.liquorPrice, titles: h(T.titles), ottomanTitles: h(T.ottomanTitles),
       stats: h(T.stats), crewRoles: h(T.crewRoles), fmt: Object.fromEntries(Object.entries(T.fmt).map(([k, v]) => [k, bHex(v)])) };
@@ -126,6 +127,7 @@ export class Buildings {
   // ---------------- 建築分派 ----------------
   async enter(k) {
     switch (k) {
+      case 0: return (this.marketM ??= new Market(this)).run();
       case 1: return this.tavern();
       case 2: return this.shipyard();
       case 3: return this.wharf();
@@ -1960,8 +1962,8 @@ export class Buildings {
     this.p.panels();
   }
   // 2c6c6 投資轉移各國支持度 (經濟 +8..+0d)
-  investSupport(amount) {
-    const st = this.st, E = this.eco, nat = st.u8(this.hero + 0x31) & 15, ind = st.u16(E + 4);
+  investSupport(amount, ind = this.st.u16(this.eco + 4)) {                    // 交易所 24f92 以商業值 (+0) 為基準
+    const st = this.st, E = this.eco, nat = st.u8(this.hero + 0x31) & 15;
     const q = Math.trunc(amount / ind);
     let v;
     if (nat !== 6) { v = umin16(q, 100 - st.u8(E + 8 + nat)) & 0xff; st.set8(E + 8 + nat, st.u8(E + 8 + nat) + v); }
