@@ -96,7 +96,7 @@ async function runJS(rng0) {
   const menuItems = n => menuText[n].replace(/^(?:\{[0-9A-F]{2}\}|[^{]){2}/, "").split("{00}").slice(0, -1).map(s => font.encode(s + "{00}"));
   Object.assign(ctx, { con, win, graph, menu, message, printf, menuItems, gfx: S.D1[14], kao: new U.Kao(f["KAO.LZW"]), newgameData: ngData, mapNodes: nodes, portAssets });
   const prJ = S.probeJ = [];
-  if (S.PROBES?.length) ctx.probe = name => { if (prJ.length < 200) prJ.push({ name, x: (S.EXTRA_DS || []).map(([a, b]) => (ctx.battleDS || new Uint8Array(0x10000)).slice(a, b)), st: state.b.slice(0, 0x8a18 - 0x0ca4), rng: sys.rng.state, fb: scr.fb.slice(), shot: shots.length }); };
+  if (S.PROBES?.length) ctx.probe = name => { if (S.PROBES.some(p => p.name === name) && prJ.length < 200) prJ.push({ name, x: (S.EXTRA_DS || []).map(([a, b]) => (ctx.battleDS || new Uint8Array(0x10000)).slice(a, b)), st: state.b.slice(0, 0x8a18 - 0x0ca4), rng: sys.rng.state, fb: scr.fb.slice(), shot: shots.length }); };
   ctx.saveFile = new U.SaveFile(new Uint8Array(save0)); ctx.saveFile.flush = () => {};   // 原版執行時會寫入 f["KOUKAI2.DAT"] (模擬磁碟), 移植版用執行前的副本
   const sc = S.makeScript(KEYS.concat([{ mouse: {} }])), shots = [];
   let synced = false;

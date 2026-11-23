@@ -12,7 +12,7 @@
 //         +0e 砲數  +10..+14 各距離的命中率  +15 射程  +16 戰力  +17 士氣
 //   9bc0 目前這一方 (97e0 + 8k)  9bc2 目前的船  9bef/9bf0 視窗左上 (欄 / 列)  9bf2..9bf7 風力表  9bf8 風向  9bf9 風力
 //   9bfb 結束原因 (0 = 繼續; 1 日落, 2/3/9 對話後不打, 4/5 一方全滅, 8 劇本)  9c2a/9c2c  9d3e 主角在攻方  9d40/9d42 雙方戰力
-// 尚未移植 (主控台警告): 電腦行動 a3ce、玩家指令中的 信號 / 作戰 / 情報、戰後處理 10bdf、一騎打 12998
+// 尚未移植 (主控台警告): 玩家指令中的 信號 / 作戰 / 情報、戰後處理 10bdf、一騎打 12998
 import { Scenario, ENV_COMMON, ENV_HERO } from "../game/scenario.js";
 
 const btHex = s => Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16)));
@@ -675,8 +675,246 @@ export class NavalBattle {
     await this.c.sys.waitTicks(8);                                      // 5998(8)
     return si;
   }
-  // a3ce 電腦行動 — 尚未移植
-  async cpuTurn() { btTodo("海戰 電腦行動 (a3ce)"); return 1; }
+  // ================= a3ce 電腦行動 (RE_NOTES 30.10) =================
+  // 三個遠端緩衝 (0x34 × 0x30, 不在 DS): [97d4] = this.mv (bit4 可到達、bit7 + 低 4 位元 = 攻擊方向)、[97d8] = mv2 (對方的威脅)、[97dc] = mv3 (攻擊價值)
+  get mv2() { return (this.c.battleMv2 ??= new Uint8Array(0x10000)); }
+  get mv3() { return (this.c.battleMv3 ??= new Uint8Array(0x10000)); }
+  // a3ce: 本船不活著 → 1; 9aaa 本方旗艦不健全 → 本船 +0c |= 8 (撤退); a263 三張圖 → a238 目的地 → e54f 路徑 → a2d5 照路徑移動 → a2a7 攻擊 → a35e
+  async cpuTurn() {
+    const cur = this.u16(0x9bc2);
+    if (!this.alive(cur)) return 1;
+    if (!this.flagHealthy()) this.or8(cur + 0x0c, 8);                  // 9aaa
+    this.cpuMaps();                                                     // a263
+    this.cpuGoal();                                                     // a238
+    this.cpuPath();                                                     // e54f
+    await this.runPath();                                               // a2d5
+    await this.cpuAttack();                                             // a2a7
+    return this.endCheck();                                             // a35e
+  }
+  // 9aaa 本方旗艦健全: 水手 > 船型 +12 × 4 / 10 (有號)、耐久 > 最大耐久 × 4 / 10 (的低位元組)、未沉
+  flagHealthy() {
+    const F = this.u16(this.u16(0x9bc0)), S = this.u16(F + 2), R = this.shipRec(this.u8(S + 7));
+    if (btIdiv(btS16((this.u16(R + 0x12) << 2) & 0xffff), 10) >= btS16(this.u16(S))) return 0;
+    if ((btIdiv(btS16((this.u8(S + 3) << 2) & 0xffff), 10) & 0xff) >= this.u8(S + 2)) return 0;
+    return this.u8(F + 0x0c) & 0x40 ? 0 : 1;
+  }
+  distTo(B, x, y) { const [bx, by] = this.pos(B); return this.dist(bx, by, x, y) & 0xff; }   // d5b6
+  // a263 + e1c6: mv 填 0x0f、mv3 / mv2 填 0; 本船位置 |= 0x10; dd88 威脅; 本船的左前 / 正前 / 右前三個方向各 de1f(原地); df41 可到達; e18d 友船
+  cpuMaps() {
+    this.mvFill(0x0f); this.mv3.fill(0, 0x2000, 0x2000 + 0x9c0); this.mv2.fill(0, 0x2000, 0x2000 + 0x9c0);
+    const cur = this.u16(0x9bc2), pts = this.movePts(cur), [x, y] = this.pos(cur), dir = this.u8(cur + 0x0a);
+    this.mv[this.mvAt(this.s16(cur + 4))] |= 0x10;
+    this.threat();                                                      // dd88
+    for (let k = 5; k < 8; k++) this.attackVal(x, y, (dir + k) % 6);   // de1f
+    this.cpuReach(this.u16(cur + 4), dir, pts, this.u8(cur + 0x0b));    // df41
+    this.allyBlock();                                                   // e18d
+  }
+  // dd88 / dd14: 對方兩方的每艘船 (不看死活) 周圍 ±5 格: 距離 d ≠ 0 時, 在它的射界內 (d8ef) → mv2 += 它的命中率[d]; d = 1 → mv2 += 它的戰力 +16 (位元組相加)
+  threat() {
+    let E = this.enemySide(this.u16(0x9bc2));
+    for (let k = 0; k < 2; k++, E = (E + 0x10) & 0xffff)
+      for (let B = this.u16(E); B; B = this.u16(B + 8)) {
+        const [x, y] = this.pos(B);
+        for (let yy = y - 5; yy <= y + 5; yy++) for (let xx = x - 5; xx <= x + 5; xx++) {
+          if (!this.inMap(xx, yy)) continue;
+          const i = this.mvAt((0x34 * yy + xx) & 0xffff), d = this.dist(x, y, xx, yy) & 0xff;
+          if (!d) continue;
+          if (this.inRange(B, x, y, xx, yy, this.u8(B + 0x0a))) this.mv2[i] += this.u8(B + 0x0f + d);
+          if (d === 1) this.mv2[i] += this.u8(B + 0x16);
+        }
+      }
+  }
+  // de1f(x, y, dir) 攻擊價值: 本船 +0c 低 2 位元 = 0 → 不做; 砲船 (+0c bit4) 砲擊 ×2 / 接舷 ×1, 否則 ×1 / ×2;
+  //   對方的每艘船 T: 本船在 (x, y) 朝 dir 時 T 在射界內 → v = T 的命中率[距離] × 倍數 (低位元組; 原版用的是目標自己的命中率); 相鄰 → v = T 的戰力 × 倍數;
+  //   v ≥ mv3 → mv3 = v、mv = dir | 0x80 (整個位元組蓋掉)
+  attackVal(x, y, dir) {
+    const cur = this.u16(0x9bc2), f = this.u8(cur + 0x0c);
+    if (!(f & 3)) return;
+    const g = f & 0x10 ? 2 : 1, b = f & 0x10 ? 1 : 2, i = this.mvAt((0x34 * y + x) & 0xffff);
+    let E = this.enemySide(cur);
+    for (let k = 0; k < 2; k++, E = (E + 0x10) & 0xffff)
+      for (let T = this.u16(E); T; T = this.u16(T + 8)) {
+        const [tx, ty] = this.pos(T), d = this.dist(x, y, tx, ty) & 0xff;
+        if (this.inRange(cur, x, y, tx, ty, dir)) {
+          const v = (this.u8(T + 0x0f + d) * g) & 0xff;
+          if (v >= this.mv3[i]) { this.mv3[i] = v; this.mv[i] = (dir | 0x80) & 0xff; }
+        }
+        if (d === 1) {
+          const v = (this.u8(T + 0x16) * b) & 0xff;
+          if (v >= this.mv3[i]) { this.mv3[i] = v; this.mv[i] = (dir | 0x80) & 0xff; }
+        }
+      }
+  }
+  // df41(p, dir, pts, mom) 可到達 (與 db20 同樣的規則): 每個可走的鄰格先 de1f(鄰格, 新方向), 再把「目前這一格」|= 0x10, 然後遞迴
+  //   (所以路徑最後一格只有在它還有可走的鄰格時才會被標成可到達, 照搬)
+  cpuReach(p, dir, pts, mom) {
+    const cur = this.u16(0x9bc2), m = btUmin(0x64, (this.inertia(cur) + mom) & 0xffff) & 0xff;
+    for (let k = 5; k < 8; k++) {
+      if (m < 0x32 && k !== 6) continue;                                // d786
+      const nd = (k + dir) % 6, [nx, ny] = this.nb(p, nd), cost = this.stepCost(cur, nd, dir);
+      if (!this.inMap(nx, ny) || (this.u8(this.mapAt(nx, ny)) & 0xe0) || cost > pts) continue;
+      this.attackVal(nx, ny, nd);                                       // de1f
+      this.mv[this.mvAt(p)] |= 0x10;
+      this.cpuReach((0x34 * ny + nx) & 0xffff, nd, (pts - cost) & 0xff, k === 6 ? m : 0);
+    }
+  }
+  // e18d / e065: 本方兩方的每艘活船 B: 它正前方那格若可到達 → mv = 0x0f; 它的 6 個鄰格中 5 個有船 (本船那格不算) 時, 剩下那格若可到達 → mv = 0x0f
+  allyBlock() {
+    const cur = this.u16(0x9bc2);
+    let E = 0x97e0 + ((this.side(cur) & 1) << 3);                       // d641
+    for (let k = 0; k < 2; k++, E = (E + 0x10) & 0xffff) for (let B = this.u16(E); B; B = this.u16(B + 8)) this.allyCells(B);
+  }
+  allyCells(B) {
+    if (!this.alive(B)) return;
+    const cur = this.u16(0x9bc2), [x, y] = this.pos(B), [cx, cy] = this.pos(cur);
+    let free = 0, n = 0;
+    for (let d = 0; d < 6; d++) {
+      const [nx, ny] = this.nb((0x34 * y + x) & 0xffff, d), si = (0x34 * ny + nx) & 0xffff;
+      if (!this.inMap(nx, ny)) continue;
+      if ((this.u8(this.mapAt(nx, ny)) & 0xe0) && !(nx === cx && ny === cy)) n++;
+      else free = si;
+      if (this.u8(B + 0x0a) === d && (this.mv[this.mvAt(si)] & 0x10)) this.mv[this.mvAt(si)] = 0x0f;
+    }
+    if (n === 5 && (this.mv[this.mvAt(free)] & 0x10)) this.mv[this.mvAt(free)] = 0x0f;
+  }
+  // a238 目的地 [9bc4]: DS:8c96 遠程函式表 [+0c & 0x0f]: 0/1 a17e、2/3 a145、4/5 a008、6/7 9fe7、8..15 9dc9 (撤退)
+  cpuGoal() {
+    const f = this.u8(this.u16(0x9bc2) + 0x0c) & 0x0f;
+    if (f < 2) this.goalSafe();
+    else if (f < 4) { const cur = this.u16(0x9bc2), T = this.u8(cur + 0x0c) & 0x80 ? this.u16(cur + 6) : this.u16(this.enemySide(cur)); this.approach(...this.pos(T)); }   // a145
+    else if (f < 6) this.goalGuard();                                   // a008
+    else if (f < 8) this.approach(...this.pos(this.u16(this.u16(0x9bc0))));   // 9fe7
+    else this.goalFlee();                                               // 9dc9
+  }
+  // a17e: 可到達的格中 威脅 mv2 最小的; 相同時離本船最遠的
+  goalSafe() {
+    const cur = this.u16(0x9bc2);
+    let bt = 0xff, bd = 0, bx = 0, by = 0;
+    for (let y = 0; y < 0x30; y++) for (let x = 0; x < 0x34; x++) {
+      const i = 0x2000 + y * 0x34 + x;
+      if (!(this.mv[i] & 0x10)) continue;
+      const d = this.distTo(cur, x, y), t = this.mv2[i];
+      if (t < bt || (t === bt && bd < d)) { bx = x; by = y; bd = d; bt = t; }
+    }
+    this.set16(0x9bc4, (by * 0x34 + bx) & 0xffff);
+  }
+  // 9eb3(tx, ty) 接近: 可到達的格中 max(到 (tx, ty) 的距離, 本船射程) 最小的; 相同時攻擊價值 mv3 > 以目前最佳值換算的門檻; 再相同時離本船最遠的
+  approach(tx, ty) {
+    const cur = this.u16(0x9bc2);
+    let b9 = 0, b8 = 0, b7 = 0xff, bx = 0, by = 0;
+    for (let y = 0; y < 0x30; y++) for (let x = 0; x < 0x34; x++) {
+      const i = 0x2000 + y * 0x34 + x;
+      if (!(this.mv[i] & 0x10)) continue;
+      const d2 = btUmax(this.dist(x, y, tx, ty) & 0xff, this.u8(cur + 0x15)) & 0xff, d4 = this.distTo(cur, x, y), v3 = this.mv3[i];
+      const a = Math.floor((((((0x0c - btUmin(d2, 0x0a)) & 0xffff) * b8) & 0xffff) * 0x0a & 0xffff) / 0x64) & 0xff;
+      const b1 = (btIdiv(a + 9, 10) * 10) & 0xff;
+      if (d2 < b7 || (d2 === b7 && (b1 < v3 || (b1 === v3 && b9 < d4)))) { bx = x; by = y; b8 = v3; b7 = d2; b9 = d4; }
+    }
+    this.set16(0x9bc4, (by * 0x34 + bx) & 0xffff);
+  }
+  // a008 護衛: 可到達的格中 到本方旗艦的距離最小的; 相同時威脅 mv2 < 門檻; 再相同時離本船最遠的
+  goalGuard() {
+    const cur = this.u16(0x9bc2), [fx, fy] = this.pos(this.u16(this.u16(0x9bc0)));
+    let b7 = 0xff, b8 = 0xff, b9 = 0, bx = 0, by = 0;
+    for (let y = 0; y < 0x30; y++) for (let x = 0; x < 0x34; x++) {
+      const i = 0x2000 + y * 0x34 + x;
+      if (!(this.mv[i] & 0x10)) continue;
+      const d2 = this.dist(x, y, fx, fy) & 0xff, d4 = this.distTo(cur, x, y), v3 = this.mv2[i];
+      const a = Math.floor((((btUmin(d2, 0x0a) * b8) & 0xffff) * 0x0a & 0xffff) / 0x64) & 0xff;
+      const b1 = (btIdiv(a + 9, 10) * 10) & 0xff;
+      if (b7 > d2 || (b7 === d2 && (b1 > v3 || (b1 === v3 && b9 < d4)))) { bx = x; by = y; b8 = v3; b7 = d2; b9 = d4; }
+    }
+    this.set16(0x9bc4, (by * 0x34 + bx) & 0xffff);
+  }
+  // 9dc9 撤退: 本船已在地圖邊緣的海格 → e5fc 離開戰場 (不設目的地); 否則 可到達的邊緣海格中離本船最遠的, 沒有時 9b4d 離 12 個角落 / 邊中點最近的格
+  goalFlee() {
+    const cur = this.u16(0x9bc2), [x0, y0] = this.pos(cur);
+    if (this.edgeSea(x0, y0)) { this.leaveField(cur); return; }
+    let be = 0, bex = 0, bey = 0;
+    const o = { best: 0xff, x: 0, y: 0 };
+    for (let y = 0; y < 0x30; y++) for (let x = 0; x < 0x34; x++) {
+      if (!(this.mv[0x2000 + y * 0x34 + x] & 0x10)) continue;
+      const d = this.distTo(cur, x, y);
+      if (this.edgeSea(x, y)) { if (be < d) { bex = x; bey = y; be = d; } }
+      else this.corner(x, y, o);
+    }
+    const tx = be ? bex : o.x, ty = be ? bey : o.y;
+    this.set16(0x9bc4, (ty * 0x34 + tx) & 0xffff);
+  }
+  // 9b4d: 12 個點 (四角、上下邊中點 0x19 / 0x1a、左右邊中點 0x17 / 0x18); 距離 < 目前最佳且該點不是陸地 → 記下
+  //   (原版判斷陸地時欄列對調, 例如 (0x33, 0) 讀 8e14 + 0x33 × 0x34 = 9870, 讀到地圖外的船記錄, 照搬)
+  corner(x, y, o) {
+    const P = [[0, 0, 0x8e14], [0x33, 0, 0x9870], [0, 0x2f, 0x8e43], [0x33, 0x2f, 0x989f], [0x19, 0, 0x9328], [0x1a, 0, 0x935c], [0, 0x17, 0x8e2b], [0, 0x18, 0x8e2c],
+      [0x33, 0x17, 0x9887], [0x33, 0x18, 0x9888], [0x19, 0x2f, 0x9357], [0x1a, 0x2f, 0x938b]];
+    for (const [tx, ty, a] of P) { const d = this.dist(x, y, tx, ty) & 0xff; if (d < o.best && !(this.u8(a) & 0x80)) { o.x = x; o.y = y; o.best = d; } }
+  }
+  // e54f 路徑: 9bc6 / 9d30 各 10 格填 0x0f、[9d3a] = 0x0f; 已在目的地 → 9bc6[0] = e447 (原地轉向); 否則 e31f 找路
+  cpuPath() {
+    for (let i = 0; i < 0x0a; i++) { this.set8(0x9bc6 + i, 0x0f); this.set8(0x9d30 + i, 0x0f); }
+    const cur = this.u16(0x9bc2), pts = this.movePts(cur);
+    this.set8(0x9d3a, 0x0f);
+    if (this.u16(cur + 4) === this.u16(0x9bc4)) this.set8(0x9bc6, this.faceDir());
+    else this.pathRec(this.u16(cur + 4), this.u8(cur + 0x0a), pts, 0x9d30, this.u8(cur + 0x0b));
+  }
+  // e447: 本格 mv bit7 → 那個攻擊方向; 否則 左前 / 正前 / 右前中離目標 (+0c bit7 ? +6 : 對方旗艦) 最近的方向
+  faceDir() {
+    const cur = this.u16(0x9bc2), v = this.mv[this.mvAt(this.s16(cur + 4))];
+    if (v & 0x80) return v & 0x0f;
+    const T = this.u8(cur + 0x0c) & 0x80 ? this.u16(cur + 6) : this.u16(this.enemySide(cur));
+    const [tx, ty] = this.pos(T), dir = this.u8(cur + 0x0a), p = this.s16(cur + 4);
+    let bd = 0xff, r = 0xff;
+    for (let k = 5; k < 8; k++) { const nd = (dir + k) % 6, [nx, ny] = this.nb(p, nd), d = this.dist(nx, ny, tx, ty) & 0xff; if (d < bd) { bd = d; r = nd; } }
+    return r;
+  }
+  // e31f 遞迴找所有走得到目的地的路 (規則同 db20, 不檢查走過的格, 指標沒有上限); 到達 → e2c9
+  pathRec(p, dir, pts, ptr, mom) {
+    if ((p & 0xffff) === this.u16(0x9bc4)) { this.pathEnd(p, dir); return; }
+    const cur = this.u16(0x9bc2), m = btUmin(0x64, (this.inertia(cur) + mom) & 0xffff) & 0xff;
+    for (let k = 5; k < 8; k++) {
+      if (m < 0x32 && k !== 6) continue;
+      const nd = (dir + k) % 6, [nx, ny] = this.nb(p, nd), cost = this.stepCost(cur, nd, dir);
+      if (!this.inMap(nx, ny) || (this.u8(this.mapAt(nx, ny)) & 0xe0) || cost > pts) continue;
+      this.set8(ptr, nd);
+      this.pathRec((0x34 * ny + nx) & 0xffff, nd, (pts - cost) & 0xff, (ptr + 1) & 0xffff, k === 6 ? m : 0);
+      this.set8(ptr, 0x0f);
+    }
+  }
+  // e2c9: 目的地沒有攻擊方向 → 轉彎次數 (e262) 比 [9d3a] 少才採用 (e2a4 複製到 9bc6); 有攻擊方向 → 抵達方向相同就採用 (後找到的蓋掉先前的)
+  pathEnd(p, dir) {
+    const n = this.turnsIn(), t = this.mv[this.mvAt(p)] & 0x0f;
+    if (t === 0x0f) { if (n < this.u8(0x9d3a)) { this.copyPath(); this.set8(0x9d3a, n); } }
+    else if (t === (dir & 0xff)) this.copyPath();
+  }
+  turnsIn() {                                                           // e262
+    let prev = this.u8(this.u16(0x9bc2) + 0x0a), n = 0;
+    for (let i = 0; this.u8(0x9d30 + i) < 6; i++) { if (i >= 0x0a) break; if (this.u8(0x9d30 + i) !== prev) n++; prev = this.u8(0x9d30 + i); }
+    return n;
+  }
+  copyPath() { for (let i = 0; i < 0x0a; i++) this.set8(0x9bc6 + i, this.u8(0x9d30 + i)); }   // e2a4
+  // a2a7: 本船活著且所在格 mv bit7 → eb22: eaad 選目標 ([9d3c]) → 1 砲擊 e8cc / 2 接舷 e95e
+  async cpuAttack() {
+    const cur = this.u16(0x9bc2);
+    if (!this.alive(cur) || !(this.mv[this.mvAt(this.s16(cur + 4))] & 0x80)) return;
+    const r = this.pickCpuTarget();
+    if (r === 1) await this.gunnery(this.u16(0x9d3c));
+    else if (r === 2) await this.board(this.u16(0x9d3c));
+  }
+  // eaad: +0c bit7 時先試指定的目標 +6; 否則 (或不行時) 對方兩方依序第一艘可打的
+  pickCpuTarget() {
+    const cur = this.u16(0x9bc2);
+    if (this.u8(cur + 0x0c) & 0x80) { const r = this.canHit(this.u16(cur + 6)); if (r) { this.set16(0x9d3c, this.u16(cur + 6)); return r; } }
+    let E = this.enemySide(cur);
+    for (let k = 0; k < 2; k++, E = (E + 0x10) & 0xffff) for (let T = this.u16(E); T; T = this.u16(T + 8)) { const r = this.canHit(T); if (r) { this.set16(0x9d3c, T); return r; } }
+    return 0;
+  }
+  // ea34: 目標活著; 砲船先看射界 (1) 再看相鄰 (2), 其他船先看相鄰再看射界
+  canHit(T) {
+    if (!this.alive(T)) return 0;
+    const cur = this.u16(0x9bc2), [x, y] = this.pos(T), [cx, cy] = this.pos(cur);
+    const gun = () => this.inRange(cur, cx, cy, x, y, this.u8(cur + 0x0a)), adj = () => (this.dist(cx, cy, x, y) & 0xff) === 1;
+    if (this.u8(cur + 0x0c) & 0x10) return gun() ? 1 : adj() ? 2 : 0;
+    return adj() ? 2 : gun() ? 1 : 0;
+  }
 
   // ================= b8b1 玩家指令 =================
   async playerTurn() {
