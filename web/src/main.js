@@ -19,11 +19,7 @@ import { Opening, loadOpeningData } from "./game/opening.js";
 
 const ASSETS = "./assets";
 const canvas = document.getElementById("screen");
-function fit() {
-  const s = Math.max(1, Math.floor(Math.min(innerWidth / SCREEN_W, innerHeight / CANVAS_H)));
-  canvas.style.width = SCREEN_W * s + "px"; canvas.style.height = CANVAS_H * s + "px";
-}
-addEventListener("resize", fit); fit();
+// 畫面大小: index.html 的 CSS 依視窗等比縮放 (4:3, 不限整數倍); 滑鼠座標由 input.js 依實際顯示大小換算
 
 const scr = new Screen(canvas);
 const sys = new Sys();
