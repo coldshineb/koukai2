@@ -991,7 +991,7 @@ export class Buildings {
   // ---------- 船隻資料 (造船廠與船塢共用) ----------
   typeRec(t) { return 0x5e28 + t * 0x0c; }                                 // seg0:5c8a
   listSel() { return (this.c.listSel ??= new ListSelect(this.c)); }
-  // 2af30 船隻資料: mode 0 = 船編號 al, 1 = 中古船 (船型 al), 2 = 新造設計 (船型 al), 3 = 船位 slot 的船
+  // 2af30 船隻資料: mode 0 = 船編號 al, 1 = 中古船 (船型 al), 2 = 新造設計 (船型 al), 3 = 船位 slot 的船 (slot ≥ 0x100 時是船位位址, 例: 海戰掳獲時對方的船位)
   shipData(al, mode, slot = 0) {
     const st = this.st, { con, printf, graph } = this.c, F = this.SY;
     let si, di, cur = 0, max = 0, turn = 0, prop = 0, load = 0, crew = 0, guns = 0;
@@ -1001,7 +1001,7 @@ export class Buildings {
       const d = Math.trunc(9 * st.u8(di + 1) / 10) & 0xffff;
       if (mode === 1) cur = max = (d - Math.trunc((d & 0xff) / 15)) & 0xff;
       else { max = d & 0xff; cur = 0; }
-    } else { const S = this.fleetSlot(slot); si = ListSelect.shipRec(st.u8(S + 7)); di = this.typeRec(st.u8(si + 0x0f)); max = st.u8(S + 3); cur = st.u8(S + 2); }
+    } else { const S = slot >= 0x100 ? slot : this.fleetSlot(slot); si = ListSelect.shipRec(st.u8(S + 7)); di = this.typeRec(st.u8(si + 0x0f)); max = st.u8(S + 3); cur = st.u8(S + 2); }
     turn = st.u8(di + 2); prop = st.u8(di + 3);
     if (mode === 2) { load = st.u16(di + 6); crew = 0; guns = 0; }
     else { load = st.u16(si + 0x14); crew = st.u16(si + 0x12); guns = st.u8(si + 0x11); }

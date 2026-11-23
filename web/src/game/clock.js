@@ -175,14 +175,32 @@ export class GameClock {
       this.portScene = new SeaScene(this.c, this.c.portAssets); this.portScene.clock = this;
     }
   }
-  // 1764f 結束處理 (只移植了 0x88 = 功能「結束遊戲」: 9888, 99f2, 清畫面, 游標 (0,0), ESC C7 ESC B0, [03ea] = 0, 清畫面 → 回到標題)
+  // 1764f 結束處理 (RE_NOTES 30.13): 9888, 99f2 ([03ea] ≠ 0 時不動作), 清畫面, 游標 (0,0), ESC C7 ESC B0 →
+  //   0x88 = 功能「結束遊戲」: [03ea] = 0, 清畫面 → 回到標題
+  //   0x1? = 遊戲結束: 9670(0x14); 訊息 0 → 0x83f8 (1552 年, 不畫圖) / 8 → 0x3f6 (沉船) / 9 → 0x3f7 (船員全滅) / 0x0a → 0x3f5 (海戰戰敗);
+  //          [03ea] = 0; GRAPH.DAT #0x3d + 74f7(0x12, 0xd8, 0x2c, 0xa8, 1) (或 74f7(0x12, 0x50, 0x2c, 0xd8, 1)), 訊息 (年 + 1、月、日、主角名、+0d、主角名、+0d),
+  //          99e8 淡入 → 等待 → 99f2 → 796d → 清畫面 → 回到標題
+  //   其他 (0x0? 結局等): 尚未移植
   async ending(code) {
-    const { scr, con } = this.c;
-    if (code !== 0x88) { clockTodo("結束處理 1764f(" + code.toString(16) + ")"); return false; }
-    await this.c.palette.fadeBlack();
+    const { scr, con, palette, bgm, graph, win, message, menu } = this.c;
+    const hi = code & 0xf0;
+    if (code !== 0x88 && hi !== 0x10) { clockTodo("結束處理 1764f(" + code.toString(16) + ")"); return false; }
+    await palette.fadeBlack();
     scr.clear(0);
     con.setCursor(0, 0); con.puts(Uint8Array.of(0x1b, 0x43, 0x37, 0x1b, 0x42, 0x30, 0));   // DS:a3d0
-    this.c.palette.ending = 0;
+    let m = 0;
+    if (hi === 0x10) { bgm.playSong(0x14); m = { 0: 0x83f8, 8: 0x3f6, 9: 0x3f7, 0x0a: 0x3f5 }[code & 0x0f] ?? 0; }
+    palette.ending = 0;
+    if (m) {
+      const st = this.st, H = st.personRecord(st.u8(0x12b5)), rt = this.rt;
+      if (m & 0x8000) await win.open(0x12, 0x50, 0x2c, 0xd8, 1);
+      else { graph.draw(0x3d, 0xb8, 0x20); await win.open(0x12, 0xd8, 0x2c, 0xa8, 1); }
+      message(m & 0x7fff, (rt.year & 0xff) + 1, rt.month & 0xff, rt.day & 0xff, st.cstr(H), st.cstr(H + 0x0d), st.cstr(H), st.cstr(H + 0x0d));
+      await palette.fadeToTarget();                                     // 99e8
+      await menu.waitPrompt();                                          // 147ab
+      await palette.fadeBlack();                                        // 99f2
+      await win.close();                                                // 796d
+    }
     scr.clear(0);
     return true;
   }

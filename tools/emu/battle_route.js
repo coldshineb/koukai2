@@ -4,6 +4,7 @@
 //   S.BATTLE = "open"   對話後停在指令選單 (之後的空動作數 S.BATTLE_IDLE, 預設 4)
 //              "stop"   指令選單 → ↓ × 5 停船 → 0x307 是否 → → 否 → 回到指令選單 (b6f2 / bca4)
 //              "tail"   指令選單之後接 S.BATTLE_TAIL 的按鍵 (移動 / 攻擊等路線, 見 docs/RE_NOTES.md 30.6 起的驗證)
+//   砲擊 / 接舷 / 電腦路線之後再接 S.BATTLE_POST 的按鍵 (戰後處理 10bdf, 30.12)
 // 比對: 存檔區 + 海戰的 DS 工作區 (S.EXTRA_DS: 8e14..97d4 戰場地圖、97e0..9bfe 各方 / 船 / 變數、9c2a..9c2d、9d3e..9d44 戰力);
 //   97d4..97df (三個戰場緩衝的遠指標, 值是原版的段位址) 不比; 調色盤只比前 8 色 (S.DAC_N; 16ee 的循環由 IRQ0 驅動)
 "use strict";
@@ -34,6 +35,7 @@ if (/^(gun|board|cpu)_?/.test(mode) && mode !== "open") {
     tail = ["enter", "l", "up", "enter", "l", "enter", "l", "up", "enter", "l", "down", "enter", "enter", "l", "up", "enter", "i", "i", "i", "i"];
     S.PROBES = [{ name: "e95e", ip: 0xea2e }];
   }
+  tail = tail.concat(S.BATTLE_POST || []);                         // 戰後處理的按鍵 (RE_NOTES 30.12 起的驗證)
   mode = "tail";
 }
 const F = 0x2e76 + 0x85 * 65;
