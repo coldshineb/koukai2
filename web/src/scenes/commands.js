@@ -423,8 +423,131 @@ export class Commands {
       await this.b.discInfo(this.c.persons[r]);
     }
   }
-  async logBook() { cmTodo("航海日誌 (1e31e)"); }
-  async portMap() { cmTodo("海港地圖 (1dfaf)"); }
+  // ---- 8 航海日誌 1e31e: 7849(0x0f,0x20,0x2a,0x140), 文字區 0x1c..; 緩衝 [0c8e] (本移植版在狀態 0x8a18) 每筆 16 bytes:
+  //   +0 日期 (日 = %31+1, 月 = /31%12+1, 年 = /372+1501; FFFF = 結束) +2 種類: 0 / 1 抵達 / 出航 (0x16e / 0x16f, +4 字, +6 港),
+  //   2 海戰 (0x345, MENU #0x34 / #0x35), 9 (0x17d, +4 港), 0x0c (0x180), 其他不顯示。每頁 6 筆, 從最後一頁開始; 前頁 / 後頁 (13762) ----
+  async logBook() {
+    const st = this.st, { win, con, printf, message, sys, menu } = this.c, S = this.S, L = 0x8a18;
+    win.shadowedSaved(0x0f, 0x20, 0x2a, 0x140, 0);
+    con.left = 0x1c; con.right--;
+    let n = 0; while (n < 0x30 && st.u16(L + n * 16) !== 0xffff) n++;
+    const last = Math.trunc((n - Math.sign(n)) / 6);                    // seg0:4dde 符號
+    let page = last;
+    con.lineH = 0x10;
+    for (;;) {
+      for (let di = 0; di < 6; di++) {
+        const e = L + (6 * page + di) * 16, w = st.u16(e);
+        if (w === 0xffff) break;
+        con.setCursor(0x11, di * 0x30 + 0x28);
+        const d = Math.trunc(w / 31), m = Math.trunc(d / 12);
+        printf(S.logDate, m + 0x5dd, d % 12 + 1, w % 31 + 1);
+        const t = st.u16(e + 2), a = e + 4;
+        if (t === 0 || t === 1) message(t ? 0x16f : 0x16e, st.u16(a), st.cstr(0x5f54 + st.u8(a + 2) * 0x16 + 4));
+        else if (t === 2) {
+          const m34 = this.c.menuItems(0x34), m35 = this.c.menuItems(0x35), v = st.u16(a);
+          const k = v >= 0x3c ? 0 : v % 10 === 0 ? 0 : v % 10 < 5 ? 1 : 2;
+          message(0x345, this.p.nations[Math.trunc(v / 10)], m34[k], m35[st.u16(a + 2)]);
+        } else if (t === 9) message(0x17d, st.cstr(0x5f54 + st.u8(a) * 0x16 + 4));
+        else if (t === 0x0c) message(0x180, this.p.goods[st.u16(a)], st.u16(a + 4), st.u16(a + 2), st.u16(a + 6));
+      }
+      con.setCursor(0x11, 0x148);
+      let f = 0;
+      if (page) { con.puts(S.logPrev); f = 1; }
+      con.setCursor(0x16, -1);
+      if (page !== last) { con.puts(S.logNext); f |= 2; }
+      if (!f) { sys.flush(); await menu.waitRelease(); await menu.waitPress(); break; }   // 131f9
+      sys.mouseShow();
+      const cnt = f === 3 ? 2 : 1, r = await this.pageMenu(f === 2 ? 0x16 : 0x11, 0x148, 4, cnt, cnt);
+      sys.mouseHide();
+      if (r === 0xff) break;
+      if (f !== 2 && r === 0) page--; else page++;
+      this.c.scr.fillCols(0x10, 0x28, 0x28, 0x130, 7);
+    }
+    con.lineH = 0x18;
+    await win.close();
+  }
+  // 13762 橫列選單 (x 欄, y, 每項寬 w 欄, 每列 cols 項, 共 count 項; 行高 [a15e] = 0x10): 1347c 點擊區 → 136cb (游標保留, 超出才歸 0)
+  async pageMenu(x, y, w, cols, count) {
+    const m = this.c.menu, R = m.rects;
+    m.lineH = 0x10; m.count = count;
+    for (let i = 0; i < count; i++) {
+      const c = i % cols, r = Math.trunc(i / cols), x0 = ((1 + w) * c + x) << 3, y0 = r * 0x10 + y;
+      R[i] = { x0, x1: x0 + (w << 3), y0, y1: y0 + m.lineH };
+    }
+    if (count <= m.cur) m.cur = 0;
+    const step = cols === 1 ? 0 : 1;
+    m.highlight(0);
+    let k;
+    do k = await this.nav134db(cols, step); while (k !== 0x0d && k !== 0x1b && k !== 0x30);
+    m.highlight(m.bracket);
+    await m.waitRelease();
+    return k === 0x1b || k === 0x30 ? 0xff : m.cur;
+  }
+  // 134db 導覽 (13412 取鍵; 與 13df0 不同: ← 在列首一律 +C−1, 不檢查範圍)
+  async nav134db(C, step) {
+    const m = this.c.menu;
+    let k = await m.getKeyFree();
+    if (k === 0x0d && m.mouseFlag && !m.hit) k = 0xff;
+    m.prev = m.cur;
+    const n = m.count;
+    switch (k) {
+      case 0x38: case 0x1e: m.cur += C <= m.cur ? -C : n - C; break;
+      case 0x1c: case 0x36: m.cur += (m.cur + 1) % C !== 0 && m.cur + 1 < n ? step : -(C - 1); break;
+      case 0x1d: case 0x34: m.cur += m.cur % C !== 0 ? -step : C - 1; break;
+      case 0x1f: case 0x32: m.cur += C + m.cur < n ? C : C - n; break;
+    }
+    if ([0x32, 0x34, 0x36, 0x38, 0x1e, 0x1f, 0x1c, 0x1d].includes(k)) m.moveHighlight();
+    this.c.sys.flush();
+    return k;
+  }
+  // ---- 9 海港地圖 1dfaf: 港內 48×48 格縮小圖 (1d8ac: 16×16 圖塊取偶數行列成 8×8) + 各建築名 (MENU #0x3a, 7 號除外) 與外框 ----
+  async portMap() {
+    const st = this.st, { scr, con, palette, sys, menu } = this.c, p = this.p, S = this.S;
+    await palette.fadeBlack();
+    const X = p.hx + p.vx, Y = p.hy + p.vy;
+    let di = Math.trunc(X / 24), si = Math.trunc(Y / 24);
+    if (X % 24 < 12 ? di !== 0 : di === 3) di--;
+    if (Y % 24 < 12 ? si !== 0 : si === 3) si--;
+    this.miniQuad(0x0c, 8, di, si); this.miniQuad(0x24, 8, di + 1, si);
+    this.miniQuad(0x0c, 0xc8, di, si + 1); this.miniQuad(0x24, 0xc8, di + 1, si + 1);
+    const clip = [0x60, 8, 0x1df, 0x187];                              // 1fd9:18de (2166e) 線段剪裁矩形 DS:aaac
+    con.puts(S.pmColor);
+    const lab = this.c.menuItems(0x3a);
+    for (let k = 0; k < 12; k++) {
+      if (k === 7) continue;
+      const len = cmStrlen(lab[k]);
+      const x = p.door[k * 2] - (len >> 1) - 24 * di + 0x0d, y = (p.door[k * 2 + 1] - 24 * si - 1) << 3;
+      if (x < 0x0c || x + len >= 0x3c || y < 8 || y >= 0x178) continue;
+      con.setCursor(x, y); con.puts(lab[k]);
+      this.clipRect((x << 3) - 2, y - 2, ((len + x) << 3) + 1, y + 0x11, 4, clip);
+      this.clipRect((x << 3) - 1, y - 1, (len + x) << 3, y + 0x10, 4, clip);
+    }
+    con.puts(S.pmColor2);
+    await palette.fadeTo(palette.table("day"));                         // 99ce(DS:a50c)
+    sys.flush(); await menu.waitRelease(); await menu.waitPress();      // 131f9
+    await palette.fadeBlack();
+    palette.selectTimePalette(this.rt.time, st.port === 0xff, st.weather);   // 1976e
+    p.clearCache(); p.drawMap();
+    await palette.fadeToTarget();
+    sys.flush();
+  }
+  // 1d710 模式 2: 地圖第 (bc, br) 塊 24×24 格以 8×8 縮小圖塊畫於 (欄 col, y)
+  miniQuad(col, y, bc, br) {
+    const p = this.p, fb = this.c.scr.fb, M = p.map;
+    bc %= 0x5a;
+    for (let r = 0; r < 24; r++) for (let c = 0; c < 24; c++) {
+      const px = p.tile(M[(br * 24 + r) * 0x60 + bc * 24 + c]), o = (y + r * 8) * 640 + (col + c) * 8;
+      for (let yy = 0; yy < 8; yy++) for (let xx = 0; xx < 8; xx++) fb[o + yy * 640 + xx] = px[(yy * 2) * 16 + xx * 2];
+    }
+    this.c.scr.dirty = true;
+  }
+  // 1fd9:1f9d 矩形外框, 4 條線各自依剪裁矩形裁切 (1fd9:171e; 水平/垂直線的裁切等於夾限座標)
+  clipRect(x0, y0, x1, y1, color, [cx0, cy0, cx1, cy1]) {
+    const s = this.c.scr;
+    const v = (x, ya, yb) => { if (x < cx0 || x > cx1) return; const a = Math.max(Math.min(ya, yb), cy0), b = Math.min(Math.max(ya, yb), cy1); if (a <= b) s.line(x, a, x, b, color); };
+    const h = (y, xa, xb) => { if (y < cy0 || y > cy1) return; const a = Math.max(Math.min(xa, xb), cx0), b = Math.min(Math.max(xa, xb), cx1); if (a <= b) s.line(a, y, b, y, color); };
+    v(x0, y0, y1); h(y1, x0, x1); v(x1, y0, y1); h(y0, x0, x1);
+  }
   // ================= 經營 1fd9:0fdc (20d6c) =================
   // MENU #0x1b (船長變更/人事變更/水手編組/水手比例/艦船銷毀/積載分配) 於 y=0x88; 沒有船 → 0,2..5 停用; 沒有船員 → 1
   // 選了項目就先畫艦隊表 (1e628, 不保存背景); 子功能結束後回到選單, 取消才結束

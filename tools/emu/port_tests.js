@@ -35,7 +35,8 @@ function runEmu() {
       // [0caf] = 0x82 (存檔後的值): 重新讀入入口表但保留位置
       cpu.mem[d + 0x0cae] = P.port; cpu.mem[d + 0x0caf] = 0x82; w16(0x0cb4, P.vx); w16(0x0cb6, P.vy); w16(0x0cb8, P.hx); w16(0x0cba, P.hy);
       if (P.time !== undefined) { cpu.mem[d + 0x0cad] = P.time; cpu.mem[d + 0x0535] = P.time; }
-      for (const [a, v] of P.poke || []) cpu.mem[d + a] = v; }
+      for (const [a, v] of P.poke || []) cpu.mem[d + a] = v;
+      P.emuHook?.(cpu.mem, d); }                                     // 只寫原版的額外設定 (例: [0c8e] 緩衝), 與 jsHook 成對
   };
   const t0 = Date.now();
   while (!done && Date.now() - t0 < 230000) c.run(2e7);
@@ -88,6 +89,7 @@ async function runJS(rng0) {
     st.set8(0x0cae, P.port); st.set8(0x0caf, 0x82); st.set16(0x0cb4, P.vx); st.set16(0x0cb6, P.vy); st.set16(0x0cb8, P.hx); st.set16(0x0cba, P.hy);
     if (P.time !== undefined) { st.set8(0x0cad, P.time); this.c.rt.time = P.time; }
     for (const [a, v] of P.poke || []) st.set8(a, v);
+    P.jsHook?.(st);
     return enter0.call(this); };
   try { const r = await new U.Title(ctx).run(); if (r === 1) await new U.GameClock(ctx).run(); } catch (e) { if (e.message !== "STOP") throw e; } finally { U.PortScene.prototype.enter = enter0; }
   return { shots, ctx };

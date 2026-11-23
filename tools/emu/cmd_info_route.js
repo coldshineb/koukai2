@@ -29,6 +29,19 @@ b(0x12b6 + 0x30, at(0x12b6 + 0x30) & 0xfd);
 for (let i = 0; i < 3; i++) b(0x7f8c + i * 7 + 6, 0x60);
 for (const [a, v] of S.CMD_POKE || []) b(a, v);
 S.PORT_SETUP = { port: 0, vx: 30, vy: 48, hx: 11, hy: 12, poke };
+// 航海日誌: [0c8e] 緩衝 (原版: 記憶體區塊 DS:bc36 + 7×handle 的 +1 = 段; 移植版: 狀態 0x8a18) 寫入 S.CMD_LOG 筆 (各種類輪流) + FFFF 結束
+if (S.CMD_MODE === "log") {
+  const L = [], n = S.CMD_LOG ?? 14, kinds = [0, 1, 2, 9, 0x0c, 2, 5];
+  for (let i = 0; i < n; i++) {
+    const t = kinds[i % kinds.length], date = 21 * 372 + (i % 12) * 31 + i * 2;
+    const e = [date, t, t === 2 ? [0x3c + (i & 3), 13 + (i % 5) * 10, 5][i % 3] : t === 9 ? i : 30 + i, t === 2 ? i % 3 : i, i * 3, i, 0, 0];
+    for (const w of e) L.push(w & 255, (w >> 8) & 255);
+  }
+  L.push(0xff, 0xff);
+  S.PORT_SETUP.emuHook = (mem, d) => { const h = mem[d + 0x0c8e] | (mem[d + 0x0c8f] << 8), r = d + 0xbc36 + 7 * h, seg = mem[r + 1] | (mem[r + 2] << 8);
+    L.forEach((v, k) => { mem[seg * 16 + k] = v; }); };
+  S.PORT_SETUP.jsHook = st => L.forEach((v, k) => st.set8(0x8a18 + k, v));
+}
 const D = n => Array(n).fill(K.down), E = K.enter, Z = K.z;
 const INFO = [K.f1,
   E, E, Z,                                                                    // 自艦隊情報
@@ -39,6 +52,8 @@ const INFO = [K.f1,
   ...D(5), E, E, E, Z,                                                        // 積載一覽表
   ...D(6), E, E, E, Z, K.esc, Z,                                              // 發現物情報
   K.esc];
-S.PORT_KEYS = S.CMD_KEYS || INFO;
+const LOG = [K.f1, ...D(8), E, Z, K.right, E, Z, K.left, E, Z, K.esc, Z, K.esc];   // 航海日誌: 前頁 / 後頁
+const MAP = [K.f1, ...D(9), E, Z, E, Z];                                               // 海港地圖 → 任意鍵 (選單隨即結束)
+S.PORT_KEYS = S.CMD_KEYS || (S.CMD_MODE === "log" ? LOG : S.CMD_MODE === "map" ? MAP : INFO);
 S.NO_EVENTS = 1;
 })();

@@ -32,6 +32,8 @@ STR = {
     # 情報: 自艦隊 1d0e8、艦船 1c1a3、人物 1c839、主公 1cc11; 清單種類 1 的列格式 149b0
     "fvColor": 0xa79c, "siColor": 0xa760, "n4": 0xa767, "siClass": 0xa76b, "siHi": 0xa771, "siMid": 0xa775,
     "piColor": 0xa785, "piStat": 0xa78c, "piTitle": 0xa794, "n3": 0xa798, "lsPad1": 0xa197, "lsTotal1": 0xa199,
+    # 航海日誌 1e31e、海港地圖 1dfaf
+    "logDate": 0xa7f6, "logPrev": 0xa803, "logNext": 0xa808, "pmColor": 0xa7e8, "pmColor2": 0xa7ef,
 }
 BYTES = {
     "fleetPos": (0xa7a4, 20),        # 1d0e8 艦隊一覽各船圖位置 (欄, 列×16)
