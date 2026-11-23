@@ -1060,10 +1060,46 @@ export class Commands {
     con.puts(S.cantUse);
     await this.waitClose();
   }
-  // 298a5 種類 7 (測量用具): 在港 → MESSAGE 0x2f4; 海上的位置計算未移植 (在港時不會走到)
-  async useNavi() {
-    if (this.st.port !== 0xff) { this.smallWin(); this.c.message(0x2f4); await this.waitClose(); return; }
-    cmTodo("海上測量位置 (298a5 後半)");
+  // 298a5 種類 7 (測量用具, BX = 隨身物記錄 R): 在港 → MESSAGE 0x2f4。海上:
+  //   主角 ([c2ce]) +30 bit4 (測量技能) 沒有 → 0x2f5 → 29852 選有技能的船員; 取消 → 主角發言 (+31 bit4 ? 0x2f6 + 0x2f8 : 0x2f7 + 0x2f9), 誤差 = random(100) + 1
+  //   經度 si = (x + 0x7bd) mod 0x870 (> 0x438 → 0x870 − si, 訊息 0x81 西經, 否則 0x80 東經) → (si / (精度 × 6)) × 精度 (精度 = R +12)
+  //   緯度 = 0x280 − y (≥ 0 → 0x7e 北緯, 否則 0x7f 南緯) → (|緯度| × 8 / (精度 × 0x39)) × 精度
+  //   誤差加在兩個值上 (原版如此: 不會測量時顯示的度數直接多 1..100 度)。兩則訊息印在同一個小視窗 (294bf) 中
+  async useNavi(R) {
+    const st = this.st, { message, sys } = this.c;
+    if (st.port !== 0xff) { this.smallWin(); message(0x2f4); await this.waitClose(); return; }
+    let err = 0;
+    const H = this.b.hero;
+    if (!(st.u8(H + 0x30) & 0x10)) {
+      this.smallWin(); message(0x2f5); await this.waitClose();
+      if (!(await this.pickSurveyor())) {
+        this.b.talkPerson(st.u8(0x12b5));                               // seg0:7f06
+        if (st.u8(H + 0x31) & 0x10) { message(0x2f6); message(0x2f8); } else { message(0x2f7); message(0x2f9); }
+        await this.waitClose();
+        err = (sys.rng.random(100) + 1) & 0xffff;
+      }
+    }
+    const F = this.p.fleet, s16 = v => (v << 16) >> 16, prec = st.u8(R + 0x12);
+    let si = s16(st.u16(F) + 0x7bd) % 0x870, di = 0x80;
+    const lat = s16(0x280 - st.u16(F + 2));
+    if (si > 0x438) { di = 0x81; si = 0x870 - si; }
+    const lon = Math.imul(Math.trunc(si / s16(prec * 6)), prec);
+    const latv = Math.imul(Math.trunc(s16(Math.abs(lat) << 3) / s16(prec * 0x39)), prec);
+    this.smallWin();
+    message(lat >= 0 ? 0x7e : 0x7f, s16(err + latv));
+    message(di, s16(err + lon));
+    await this.waitClose();
+  }
+  // 29852 選測量者: 船員清單 (0fea:2f1b) → 清單 0x89; 選到沒有技能 (+30 bit4) 的 → 0x2f3 再選; 選到有的 → 1, 取消 → 0
+  async pickSurveyor() {
+    const st = this.st, P = this.c.persons;
+    for (;;) {
+      const n = this.b.crewCount();
+      const si = await this.b.listSel().select(0x89, n);
+      if (si === -1) return 0;
+      if (st.u8(st.personRecord(P[si] & 0xff) + 0x30) & 0x10) return 1;
+      this.smallWin(); this.c.message(0x2f3); await this.waitClose();
+    }
   }
   // 29710 種類 8: 編號 0x17 時刻 (29694), 0x19 喵嗚 (296f8), 0x18/0x1a..0x1c 看得很遠 (296e0), 其他用不了 (cs:9996 跳躍表)
   async useTool(it) {

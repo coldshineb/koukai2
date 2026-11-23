@@ -1,6 +1,7 @@
 // listsel.js — 清單選擇元件 (MAIN.EXE 0fea:5bd0 = 線性 15a70 及其子函式 14d36 / 14de7 / 14e9b / 153aa / 153f3 / 155f4 / 158c4 / 15946)
 // 呼叫: select(al, count) — al 低 6 位 = 種類 k, bit7 = 結束後關閉清單視窗本身 (796d), bit6 = 回傳 persons[i] 而非索引 i
 //       項目值放在 ctx.persons ([0538] 字陣列)。Esc / 點在清單外 = -1。
+//       (筆記裡的「種類 0x85 / 0x8c / 0x89」= 種類 5 / 12 / 9 加 bit7)
 // 參數表 DS:10a8 + 10×k = {col, y, 寬, 可見列數, 捲動起點} 位於遊戲狀態內 (隨存檔保存); 拖曳標題列會改寫 col / y。
 // 列格式化函式 DS:a1d8[k] (far 指標, AX = 項目值, 回傳已輸出字數)。
 // 沿用選單引擎的狀態: cur=a160 prev=a15a count=a158 mouseFlag=a14e hit=a150 bracket=a162 rects=bdcc
@@ -119,7 +120,9 @@ export class ListSelect {
       case 0: return this.fmtShipName(v);
       case 1: return this.fmtGoodsTotal(v);
       case 6: return this.fmtPerson(v);
+      case 3: case 12: return this.fmtPerson(v);         // 1497e (DS:a190 與 a1a6 同為「%s•%s」; 戰鬥對象 / 交涉對象 = 艦隊指揮者)
       case 2: { const s = this.st.cstr(ListSelect.shipRec(this.st.u8(ListSelect.fleetSlot(this.st, v) + 7))); this.c.con.puts(s); return lsStrlen(s); }   // 14954 船名
+      case 5: { const s = this.st.cstr(0x5f54 + (((v & 0xff) * 0x16) & 0xffff) + 4); this.c.con.puts(s); return lsStrlen(s); }   // 14a3a 港口名 (seg0:5c9a(al) + 4; 委任目的地)
       case 4: return this.fmtCapacity(v);
       case 7: return this.fmtShip(v);
       case 9: return this.fmtCrew(v);
