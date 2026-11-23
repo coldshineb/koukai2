@@ -20,13 +20,19 @@ TABLES = {
     "buttons": (0xa9d8, 13 * 9, "b"),         # 21008 海上畫面按鈕 (x, y, w, h 為 int16, +8 按鍵)
     "path8": (0xae18, 24, "sb"),              # 23872 / 23a97 8 方向 (dx, dy, 成本)
     "dir3": (0xae38, 9, "b"),                 # 23a97 (3dy + dx + 4) → 方位
+    "dock12": (0xa6e8, 24, "sb"),             # 1bf79 靠港時檢查的 12 個相對位置 (dx, dy)
+    "usedShips": (0xa67e, 0x58, "b"),         # 1bd16 各地區 (E +22) 的中古船候選 8 種
+    "usedShips2": (0xa6d6, 18, "b"),          # 1bd16 依商業值的另外 2 種
+    "landDX": (0xb92e, 16, "h"), "landDY": (0xb93e, 16, "h"),   # 34ec7 上陸的 8 個位置
 }
 STR = {
     "dateColor": 0x8b8f, "n5": 0x8b96, "n5b": 0x8b9a, "n3": 0x8b9e, "day2": 0x8b28, "month": 0x8b32, "speed": 0x8b1a,
     "dialNum": 0x8c1a,
     "captain": 0xb758, "foundPort": 0xb75f, "foundVillage": 0xb76b,   # 30b34 發現
+    "assistant": 0xa652, "captainT": 0xa657, "levelUp": 0xa65c, "listSep": 0xa672, "rise": 0xa677,   # 1bc14 升級
+    "move": 0xa9c9, "stop": 0xa9d0,                                    # 20ee3 停船 / 出航
 }
-PTRS = {"months": (0x8af0, 12)}                                       # 71c6 月份字串
+PTRS = {"months": (0x8af0, 12), "statNames": (0x08f6, 4)}               # 71c6 月份字串 / 1bc14 能力名
 
 
 def ls_unpack(b):
@@ -49,7 +55,7 @@ def main(sea2, assets):
     tab = {}
     for k, (o, n, t) in TABLES.items():
         raw = b(o, n)
-        tab[k] = list(raw) if t == "b" else [x - 256 if x > 127 else x for x in raw] if t == "sb" else raw.hex()
+        tab[k] = list(raw) if t == "b" else [x - 256 if x > 127 else x for x in raw] if t == "sb" else list(struct.unpack("<%dh" % (n // 2), raw)) if t == "h" else raw.hex()
     def cs(o):
         t = b(o, 256); return t[:t.index(0)].hex()
     u16 = lambda o: struct.unpack("<H", b(o, 2))[0]

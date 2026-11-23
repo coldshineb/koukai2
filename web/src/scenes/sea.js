@@ -903,4 +903,202 @@ export class SeaScene extends PortScene {
     st.set8(0x0cb3, st.u8(0x0cb3) & 0xf0);
     sys.mouseHide(); this.b.crewSpeaks(); message(0x16c); await menu.waitPrompt(); await win.close(); sys.mouseShow();
   }
+
+  // ================= 靠港 0fea:c0d9 = 1bf79 =================
+  // 主角周圍 12 格 (DS:a6e8) 中地圖緩衝 ([03f6], 96 寬, 以區域左上為原點) 是港口圖塊 0x74 / 0x78 的: 1bb4a 找座標相同的港口 → [0cae]
+  //   → 1bf4c 確認 → [1005] |= 0x20、交易記錄 (種類 0, +4 出港天數, +6 港口) → 1bd16 到港處理 → 8c53 進港; 否 → [0cae] = FF 結束
+  //   **進港後迴圈不結束**: 繼續檢查其餘的格, 但緩衝已換成港口地圖 (原版如此, 若剛好是 0x74 / 0x78 會再問一次)
+  async dock() {
+    const st = this.st, F = this.fleet, T = this.SJ.tab.dock12;
+    let cx = (Math.trunc(this.wx(F) / 24) % 30) - 1, cy = (Math.trunc(this.wy(F) / 24) % 45) - 1;
+    cx = cx < 0 ? 0 : cx > 0x1b ? 0x1b : cx; cy = cy < 0 ? 0 : cy > 0x2a ? 0x2a : cy;
+    const rx = seaS16((this.wx(F) % 0x2d0) - 24 * cx), ry = seaS16(this.wy(F) - 24 * cy);
+    for (let k = 0; k < 12; k++) {
+      const x = T[2 * k] + rx, y = T[2 * k + 1] + ry;
+      if (x < 0 || x >= 0x60 || y < 0 || y >= 0x60) continue;
+      const t = this.map[y * 0x60 + x];
+      if (t !== 0x74 && t !== 0x78) continue;
+      st.set8(0x0cae, this.portIdAt(this.wx(F) + T[2 * k], this.wy(F) + T[2 * k + 1]) & 0xff);
+      if (!(await this.askDock())) { st.set8(0x0cae, 0xff); return; }
+      st.set8(0x1005, st.u8(0x1005) | 0x20);
+      marketTradeLog(st, this.c.rt, 0, st.u8(0x2e18), 0, 0, st.u8(0x0cae));
+      await this.arrival();                                            // 1bd16
+      await this.enter();                                              // 8c53
+    }
+  }
+  // 1bb4a 座標完全相同的港口 (130 個), 沒有 → 0xffff
+  portIdAt(x, y) {
+    const st = this.st;
+    for (let i = 0; i < 0x82; i++) { const R = 0x5f54 + i * 0x16; if (st.u16(R) === (x & 0xffff) && st.u16(R + 2) === (y & 0xffff)) return i; }
+    return 0xffff;
+  }
+  // 1bf4c 船員「要進入%s港嗎？」(0x16d) 是/否
+  async askDock() {
+    const st = this.st, { message, menu, win } = this.c;
+    this.b.crewSpeaks();
+    message(0x16d, this.b.dstr(0x5f54 + st.u8(0x0cae) * 0x16 + 4));
+    const r = await menu.yesNo();
+    await win.close();
+    return r;
+  }
+  // 1bd16 到港: 港口 +15 |= 0x50、[1005] |= 0x20、[0cb3] &= C0; 依出港天數 d 給經驗 (主角與職務 2/3 的船員 2·min(d,70)², 其他船員 min(d,100)²);
+  //   1fd9:333a 地點位元表; 港口 < 100 時更新中古船清單 DS:7f74 (3 筆 × 8: +0..+4 船型, +5 港口)
+  async arrival() {
+    const st = this.st, rng = this.c.sys.rng, port = st.u8(0x0cae);
+    st.set8(0x5f54 + port * 0x16 + 0x15, st.u8(0x5f54 + port * 0x16 + 0x15) | 0x50);
+    st.set8(0x1005, st.u8(0x1005) | 0x20);
+    st.set8(0x0cb3, st.u8(0x0cb3) & 0xc0);
+    // 9888 停止效果音
+    const a = seaUmin(st.u8(0x2e18), 0x46), b2 = seaUmin(st.u8(0x2e18), 0x64);
+    const g2 = Math.imul(b2, b2) & 0xffff, g1 = (Math.imul(a, a) << 1) & 0xffff;
+    const H = this.b.hero;
+    if (this.levelUp(H, g1)) await this.levelMsg(H, 0);
+    for (let k = 0; k < 0x1e; k++) {
+      const n = st.u8(0x2e1b + k); if (n === 0xff) continue;
+      const P = st.personRecord(n), j = st.u8(P + 0x2e);
+      if (j === 2 || j === 3) { if (this.levelUp(P, g1)) await this.levelMsg(P, 1); }
+      else if (this.levelUp(P, g2)) await this.levelMsg(P, 2);
+    }
+    this.locationBits();                                               // 1fd9:333a
+    if (port >= 0x64) return;
+    const E = 0x6a80 + port * 0x25, L = 0x7f74;
+    const ent = i => L + 8 * i, copy = (d, s0) => { for (let i = 0; i < 8; i++) st.set8(d + i, st.u8(s0 + i)); };
+    let si = 0; while (si < 3 && st.u8(ent(si) + 5) !== port) si++;
+    if (si < 3) {
+      const tmp = st.bytes(ent(si), 8).slice();
+      for (let k = si; k > 0; k--) copy(ent(k), ent(k - 1));
+      for (let i = 0; i < 8; i++) st.set8(L + i, tmp[i]);
+      return;
+    }
+    for (let k = 2; k > 0; k--) copy(ent(k), ent(k - 1));
+    st.set8(L + 5, port);
+    for (let i = 0; i < 5; i++) st.set8(L + i, 0xff);
+    const R = this.SJ.tab.usedShips, row = st.u8(E + 0x22) * 8;
+    let di = 8;
+    for (let i = 0; i < 8; i++) { const t = R[row + i]; if (t === 0xff || ((10 * st.u8(this.typeOf(t))) & 0xffff) > st.u16(E + 4)) di--; }
+    let k = 0;
+    if (di) for (let n = 0; n < 3; n++) st.set8(L + k++, R[row + (rng.random(di) & 0xff)]);
+    for (let n = 0; n < 2; n++) st.set8(L + k++, this.SJ.tab.usedShips2[rng.random(Math.floor(seaUmin(st.u16(E), 0x2a8) / 0x28) + 1) & 0xff]);
+  }
+  // 1bb9c 經驗 (+26) += g; 足夠時升級 (+24, 所需 = min(等級, 18)² × 30, 100 為上限: 經驗歸零); 有升級時 +1c..+1f 各 + min(random(3), 100 − 值)
+  levelUp(P, g) {
+    const st = this.st, rng = this.c.sys.rng;
+    let n = 0;
+    st.set16(P + 0x26, st.u16(P + 0x26) + g);
+    for (;;) {
+      const lv = st.u8(P + 0x24), need = seaS16(Math.imul(seaUmin(lv, 0x12) * seaUmin(lv, 0x12), 0x1e));
+      if (need > seaS16(st.u16(P + 0x26))) break;
+      if (lv === 0x64) { st.set16(P + 0x26, 0); break; }
+      n++; st.set16(P + 0x26, st.u16(P + 0x26) - need); st.set8(P + 0x24, lv + 1);
+    }
+    if (n) for (let i = 0; i < 4; i++) st.set8(P + 0x1c + i, st.u8(P + 0x1c + i) + seaUmin(rng.random(3), (100 - st.u8(P + 0x1c + i)) & 0xffff));
+    return n;
+  }
+  // 1bc14 升級訊息: 發言者就是本人 → 「助手」, 主角 → 「船長」, 其他 → 姓名; 「的航海等級有所提高．」+ 3 項能力各 + min(random(3), 100 − 值) (有增加的列出) + 「上昇．」
+  async levelMsg(P, kind) {
+    const st = this.st, { sys, con, printf, menu, win } = this.c, rng = sys.rng;
+    const l = con.left, r = con.right;
+    sys.mouseHide();
+    const p = this.b.crewSpeaks();
+    con.puts(p !== 0xff && st.personRecord(p) === P ? this.SS.assistant : kind === 0 ? this.SS.captainT : this.b.dstr(P));
+    con.puts(this.SS.levelUp);
+    let up = 0;
+    for (let i = 0; i < 3; i++) {
+      const v = seaUmin(rng.random(3), (100 - st.u8(P + 0x1c + i)) & 0xffff) & 0xff;
+      if (!v) continue;
+      printf(this.SS.listSep, this.SJ.statNames[i] ? seaHex(this.SJ.statNames[i]) : Uint8Array.of(0));
+      st.set8(P + 0x1c + i, st.u8(P + 0x1c + i) + v); up = 1;
+    }
+    if (up) { con.setCursor(con.x - 2, con.y); con.puts(this.SS.rise); }
+    // 9768(DS:0c2e) + 9804(0x3c) 效果音, 5998(0x14) 延遲, 9888
+    await sys.waitTicks(0x14);
+    await menu.waitPrompt(); await win.close();
+    sys.mouseShow();
+    con.left = l; con.right = r;
+  }
+  // 1fd9:333a = 230ca 地點 (x & 0x7fff, y) 所在的格在探索表 DS:0de8 有位元的, DS:1046 位元表設位元
+  locationBits() {
+    const st = this.st, N = this.c.nodesRT ?? this.c.mapNodes;
+    if (!N) return;
+    for (let i = 0; i < this.SJ.nodeCount; i++) {
+      const x = Math.floor(((N[i * 16] | (N[i * 16 + 1] << 8)) & 0x7fff) / 24), y = Math.trunc(seaS16(N[i * 16 + 2] | (N[i * 16 + 3] << 8)) / 24);
+      const a = 0x0de8 + ((y * 12) & 0xffff) + (x >> 3);
+      if (st.u8(a) & (0x80 >> (x & 7))) st.set8(0x1046 + (i >> 3), st.u8(0x1046 + (i >> 3)) | (0x80 >> (i & 7)));
+    }
+  }
+
+  // 2e09:3223 委任 — 尚未移植
+  async delegate() { seaTodo("委任 (2e09:3223)"); }
+  // ================= 停船 / 出航 20ee3 =================
+  async stopToggle() {
+    const st = this.st, { win, con, menu } = this.c;
+    win.shadowedSaved(0x10, 0xa0, 0x24, 0x48, 1);
+    if (st.u8(0x1005) & 0x20) { con.puts(this.SS.move); st.set8(0x1005, st.u8(0x1005) & 0xdf); }
+    else { con.puts(this.SS.stop); st.set8(0x1005, (st.u8(0x1005) | 0x20) & 0x7f); }
+    await menu.waitPrompt(); await win.close();
+  }
+
+  // ================= 登陸 2e09:6e37 = 34ec7 =================
+  // 主角周圍 8 個 2×2 位置 (DS:b92e / b93e, 靠視窗邊緣的方向略過) 做成點擊區 → 0fea:37d1 選擇 → [8246] = 34c53 該處的發現物
+  //   → 該處地圖格: 0x41/0x49/0x51/0x59 (0x59 時 [b8de] = 0) 或 0x7c..0x7f → 34d54 上陸; 0x74..0x7b → 靠港; < 0x74 → 0x1b9「這裡不能上陸」; >= 0x80 → 無
+  //   [1005]&0x18 時直接 34d54
+  async land() {
+    const st = this.st, F = this.fleet, { menu, message, win } = this.c;
+    if (st.u8(0x1005) & 0x18) { await this.landExplore(); return; }
+    const rx = this.wx(F) - this.vx1006, ry = this.wy(F) - this.vy1008, DX = this.SJ.tab.landDX, DY = this.SJ.tab.landDY, Pn = this.c.persons;
+    let n = 0;
+    for (let d = 0; d < 8; d++) {
+      if (d < 2 ? !(ry > 0) : d < 4 ? !(rx < 0x16) : d < 6 ? !(ry < 0x16) : !(rx > 0)) continue;
+      const x = ((rx + DX[d] + 6) << 4) & 0xffff, y = (((ry + DY[d]) << 4) + 8) & 0xffff;        // 34e8d
+      Pn[2 * n] = x; Pn[2 * n + 1] = y;
+      Object.assign(menu.rects[n], { x0: seaS16(x), x1: seaS16(x + 0x10), y0: seaS16(y), y1: seaS16(y + 0x10) });   // 34e6e
+      n++;
+    }
+    menu.count = n;                                                    // [a158]
+    const sel = await this.pickRect();                                 // 0fea:37d1
+    if (sel === 0xff) return;
+    const x = Math.trunc(seaS16(Pn[2 * sel] - 0x60) / 16), y = Math.trunc(seaS16(Pn[2 * sel + 1] - 8) / 16);
+    st.set8(0x8246, this.discNear(x, y));                              // [8246] (在存檔範圍內)
+    let cx = (Math.trunc(this.wx(F) / 24) % 30) - 1, cy = (Math.trunc(this.wy(F) / 24) % 45) - 1;
+    cx = cx < 0 ? 0 : cx > 0x1b ? 0x1b : cx; cy = cy < 0 ? 0 : cy > 0x2a ? 0x2a : cy;
+    const bx = seaS16((this.wx(F) % 0x2d0) - 24 * cx), by = seaS16(this.wy(F) - 24 * cy);
+    this.landFlag = 1;                                                 // [b8de]
+    const t = this.map[((y - ry + by) * 0x60 + (x - rx + bx)) & 0xffff] ?? 0;
+    if (t === 0x41 || t === 0x49 || t === 0x51 || t === 0x59) { if (t === 0x59) this.landFlag = 0; await this.landExplore(); }
+    else if (t < 0x74) { this.b.crewSpeaks(); message(0x1b9); await menu.waitPrompt(); await win.close(); }
+    else if (t < 0x7c) await this.dock();
+    else if (t < 0x80) await this.landExplore();
+  }
+  // 34c53 視窗座標 (x, y) 的 2×2 (含左上 1 格) 內的發現物編號, 沒有 → 0xff
+  discNear(x, y) {
+    const st = this.st;
+    for (let d = 0; d < 0x64; d++) for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) {
+      const R = 0x7f8c + d * 7;
+      if (((x - st.u16(R) + this.vx1006) & 0xffff) === a && ((this.vy1008 - st.u16(R + 2) + y) & 0xffff) === b) return d;
+    }
+    return 0xff;
+  }
+  // 0fea:37d1 = 13671 以點擊區選擇 (數字鍵 4 / 6 循環, Enter 確定, Esc / '0' 取消 → 0xff); [a160] 不重設 (超出時才歸 0)
+  async pickRect() {
+    const { sys, menu } = this.c;
+    sys.mouseShow();
+    if (menu.count <= menu.cur) menu.cur = 0;
+    menu.highlight(0);
+    let k;
+    do {
+      k = await menu.getKeyFree();                                     // 135f0 → 13412
+      if (k === 0x0d && menu.mouseFlag && !menu.hit) k = 0xff;
+      menu.prev = menu.cur;
+      if (k === 0x34) menu.cur = menu.cur > 0 ? menu.cur - 1 : menu.count - 1;
+      else if (k === 0x36) menu.cur = menu.count - 1 > menu.cur ? menu.cur + 1 : 0;
+      if (k === 0x34 || k === 0x36) menu.moveHighlight();
+      sys.flush();
+    } while (k !== 0x0d && k !== 0x1b && k !== 0x30);
+    menu.highlight(menu.bracket);
+    await menu.waitRelease();
+    sys.mouseHide();
+    return k === 0x1b || k === 0x30 ? 0xff : menu.cur;
+  }
+  // 34d54 上陸探索 (確認、MENU #0x24 上陸選單、34ccc 發現物) — 尚未移植
+  async landExplore() { seaTodo("上陸探索 (34d54 / 34ccc 發現物)"); }
 }

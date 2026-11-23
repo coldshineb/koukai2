@@ -986,10 +986,10 @@ export class Commands {
       if (!this.itemList()) menu.disabled |= 0x10;
       const r = await this.popMenu(0xe0, items);
       switch (r) {
-        case 0: cmTodo("委任 (2e09:3223)"); si = 1; break;             // 在港時停用
-        case 1: cmTodo("停船 / 出航 (20ee3)"); si = 1; break;
-        case 2: cmTodo("靠港 (1bf79)"); si = 1; break;
-        case 3: cmTodo("登陸 (34ec7)"); si = 1; break;
+        case 0: await this.p.delegate(); si = 1; break;                // 2e09:3223 委任 (以下 4 項在港時停用; scenes/sea.js)
+        case 1: await this.p.stopToggle(); si = 1; break;              // 20ee3 停船 / 出航
+        case 2: await this.p.dock(); si = 1; break;                    // 0fea:c0d9 = 1bf79 靠港
+        case 3: await this.p.land(); si = 1; break;                    // 2e09:6e37 = 34ec7 登陸
         case 4: await this.belongings(); break;                         // 29a4c (不結束)
         case 5: si = await this.functions(); break;                     // 215bd
         default: si = 1;
