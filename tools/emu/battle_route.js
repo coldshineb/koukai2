@@ -17,16 +17,23 @@ let mode = S.BATTLE || "open", preset = [], tail = S.BATTLE_TAIL;
 //   指令選單 → 移動: 左上 1 步 → 轉向上 → 上 3 步 (移動力用完, 直接問 0x300) → 是 → 走到 (25, 20) → 攻擊 0x304: 選 (22, 19) 的敵方旗艦 → e8cc 砲擊
 //   "gun_hit" 命中; "gun_sink" 目標 (艦隊 65 船位 0) 耐久 3 → 擊沉, 經驗 900 (等級 1 → 5); "gun_unmanned" 目標水手 2 → 無人船
 //   砲擊之後下一次等待輸入前電腦方已經行動, 所以另以快照 S.PROBES (原版 e91a = e8cc 結束) 比對砲擊剛結束時的狀態、亂數與畫面
-if (/^gun_/.test(mode)) {
+// 接舷路線 (RE_NOTES 30.9): 同樣的設定; 移動 左上 × 3 → 左下 (移動力用完) → 是 → (22, 23) → 攻擊: 選相鄰的 (21, 22) (艦隊 65 船位 1, 不是旗艦) → e95e 接舷
+//   "board" 白刃戰; "board_unmanned" 目標水手 3 → 無人船; 快照 S.PROBES = 原版 ea2e (e95e 結束)
+if (/^(gun|board)_?/.test(mode) && mode !== "open") {
   const SL = 0x2e76 + 0x2b, M = 0x52d4, Fs0 = 0x2e76 + 0x85 * 65 + 0x2b;
   preset = [[SL + 8, 0x11], [M + 6, 10], [M + 7, 0], [SL + 2, 50], [SL + 3, 50], [SL + 4, 120], [SL + 5, 60], [SL + 6, 100], [SL, 200], [SL + 1, 0],
-    ...(mode === "gun_sink" ? [[Fs0 + 2, 3]] : mode === "gun_unmanned" ? [[Fs0, 2], [Fs0 + 1, 0]] : [])];
-  tail = ["enter", "l", "up", "enter", "up", "enter", "up", "enter", "up", "enter", "enter", "l", "l", "l", "up", "enter", "i", "i", "i", "i"];
-  S.PROBES = [{ name: "e8cc", ip: 0xe91a }];
+    ...(mode === "gun_sink" ? [[Fs0 + 2, 3]] : mode === "gun_unmanned" ? [[Fs0, 2], [Fs0 + 1, 0]] : mode === "board_unmanned" ? [[Fs0 + 9, 3], [Fs0 + 10, 0]] : [])];
+  if (/^gun/.test(mode)) {
+    tail = ["enter", "l", "up", "enter", "up", "enter", "up", "enter", "up", "enter", "enter", "l", "l", "l", "up", "enter", "i", "i", "i", "i"];
+    S.PROBES = [{ name: "e8cc", ip: 0xe91a }];
+  } else {
+    tail = ["enter", "l", "up", "enter", "l", "enter", "l", "up", "enter", "l", "down", "enter", "enter", "l", "up", "enter", "i", "i", "i", "i"];
+    S.PROBES = [{ name: "e95e", ip: 0xea2e }];
+  }
   mode = "tail";
 }
 const F = 0x2e76 + 0x85 * 65;
-if (/^gun_/.test(S.BATTLE || "")) { w16(F, 118); w16(F + 2, 358); } else { w16(F, 119); w16(F + 2, 357); }
+if (/^(gun|board)/.test(S.BATTLE || "")) { w16(F, 118); w16(F + 2, 358); } else { w16(F, 119); w16(F + 2, 357); }
 const open = [...idle(2), K.f3, ...idle(2), K.down, K.down, E, E, E];   // 命令 → 戰鬥 → 清單第 1 項 → 是
 let keys;
 const K2 = { right: [0x4d, 0] };

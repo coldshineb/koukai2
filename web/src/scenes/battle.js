@@ -12,7 +12,7 @@
 //         +0e 砲數  +10..+14 各距離的命中率  +15 射程  +16 戰力  +17 士氣
 //   9bc0 目前這一方 (97e0 + 8k)  9bc2 目前的船  9bef/9bf0 視窗左上 (欄 / 列)  9bf2..9bf7 風力表  9bf8 風向  9bf9 風力
 //   9bfb 結束原因 (0 = 繼續; 1 日落, 2/3/9 對話後不打, 4/5 一方全滅, 8 劇本)  9c2a/9c2c  9d3e 主角在攻方  9d40/9d42 雙方戰力
-// 尚未移植 (主控台警告): 電腦行動 a3ce、玩家指令中的 信號 / 作戰 / 情報、接舷 e95e、戰後處理 10bdf、一騎打 12998
+// 尚未移植 (主控台警告): 電腦行動 a3ce、玩家指令中的 信號 / 作戰 / 情報、戰後處理 10bdf、一騎打 12998
 import { Scenario, ENV_COMMON, ENV_HERO } from "../game/scenario.js";
 
 const btHex = s => Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16)));
@@ -1191,7 +1191,74 @@ export class NavalBattle {
     this.untarget(T);
     this.drawShips();
   }
-  async board(T) { btTodo("海戰 接舷 (e95e)"); }
+  // ================= e95e 接舷 (RE_NOTES 30.9) =================
+  // 目前的船是本方旗艦且目標是主角艦隊的旗艦 (= 電腦方的旗艦接舷主角): random(15) + 船長 +21 ≥ 主角 +21 且 船長 +23 ≥ random(目標水手) → 一騎打 (電腦發起;
+  //   前後 [9c2a] = 200 − [9c2a]), 不接舷; 否則 e91f 白刃戰 → d1eb 動畫 → 目標水手 = 0 → e6bb 無人船, 否則目前這方是主角艦隊時 e616(本船船長, 10)
+  async board(T) {
+    const cur = this.u16(0x9bc2);
+    if (this.u16(this.u16(0x9bc0)) === cur) {
+      const di = this.enemySide(cur), d2 = (di + 0x10) & 0xffff;
+      if ((this.u16(di + 4) === this.heroFleet && this.u16(di) === T) || (this.u16(d2 + 4) === this.heroFleet && this.u16(d2) === T)) {
+        const a = (this.rnd(0x0f) + this.abil(cur, 5)) & 0xffff;
+        if (a >= this.st.u8(this.heroRec + 0x21)) {
+          const r = this.rnd(this.u16(this.u16(T + 2)));
+          if (this.abil(cur, 7) >= r) {
+            this.set8(0x9c2a, 0xc8 - this.u8(0x9c2a));
+            await this.duel(0, T);                                      // 0fea:2d1a(0, T)
+            this.set8(0x9c2a, 0xc8 - this.u8(0x9c2a));
+            this.c.probe?.("e95e");
+            return;
+          }
+        }
+      }
+    }
+    this.melee(T);                                                      // e91f
+    await this.boardAnim(T);                                            // d1eb
+    if (!this.u16(this.u16(T + 2))) this.unmanned(T);                    // e6bb
+    else if (this.u16(this.u16(0x9bc0) + 4) === this.heroFleet) this.gainExp(this.u16(cur), 0x0a);   // e616
+    this.c.probe?.("e95e");                                             // 差分測試的快照點 (原版 ea2e)
+  }
+  // e91f 白刃戰: 目標水手 −= min(水手, d95e(本船)); 之後 本船水手 −= min(水手, d95e(目標)) (目標的威力以減少後的水手計算)
+  melee(T) {
+    const S = this.u16(T + 2), cur = this.u16(0x9bc2);
+    let p = this.meleePower(cur);
+    this.set16(S, this.u16(S) - btUmin(this.u16(S), p));
+    const C = this.u16(cur + 2);
+    p = this.meleePower(T);
+    this.set16(C, this.u16(C) - btUmin(this.u16(C), p));
+  }
+  // d95e 白刃戰威力: di = (random(10) + 水手) × 士氣 / 100 (32 位元無號); si = random(d427(5) / 2) + 50;
+  //   a = 戰力 +16 × di (imul, 有號) / 100; v = (a × si 的低 16 位元) / 100 (mul 之後 dx 被清成 0); max(1, min(50, v))
+  meleePower(B) {
+    const S = this.u16(B + 2);
+    const di = btUdiv32((((this.rnd(0x0a) + this.u16(S)) & 0xffff) * this.u8(B + 0x17)) >>> 0, 0x64) & 0xffff;
+    const si = (this.rnd(this.bestAbil(B, 5) >> 1) + 0x32) & 0xffff;
+    const a = btUdiv32((this.u8(B + 0x16) * btS16(di)) >>> 0, 0x64) & 0xffff;
+    const v = Math.floor(((a * si) & 0xffff) / 0x64);
+    return btUmax(btUmin(0x32, v), 1);
+  }
+  // d1eb 接舷動畫: 兩船都不在視窗內 → 不畫; 否則 (效果音 9768(DS:0c02) / 9804(0x30)) 目標 → 本船 → 目標 各 8 格
+  //   ([0c86] 段 0x2e20 + 0x280 × (0, 1, 2, 3, 1, 3, 0, 2)[i]: 圖像 0x200 bytes、遮罩在其後; 每格 50c4 存背景 → 畫 → 等 2 → c744); 最後 (9888) c05d 重畫兩船
+  async boardAnim(T) {
+    const cur = this.u16(0x9bc2), { win, sys, gfx } = this.c;
+    const [cx, cy] = this.pos(cur), [tx, ty] = this.pos(T);
+    if (!this.inView(cx, cy) && !this.inView(tx, ty)) return;
+    const tab = [0, 1, 2, 3, 1, 3, 0, 2];
+    for (let k = 0; k < 3; k++) {
+      const [x, y] = k % 2 ? [cx, cy] : [tx, ty];
+      if (!this.inView(x, y)) continue;
+      const col = ((x - this.u8(0x9bef)) << 2) & 0xffff, yy = ((((y - this.u8(0x9bf0)) << 5) + (btImod(x, 2) >= 1 ? 0x10 : 0))) & 0xffff;
+      for (let i = 0; i < 8; i++) {
+        win.save(col, yy, 4, 0x20);                                     // 50c4
+        const o = (0x280 * tab[i] + 0x2e20) & 0xffff;
+        this.c.scr.glyphMode(col, yy, 4, 0x20, gfx.subarray((o + 0x200) & 0xffff), 0x20f);
+        this.putOp(col, yy, 4, 0x20, 3, gfx, o);
+        await sys.waitTicks(2);
+        this.restoreUnder();                                            // c744
+      }
+    }
+    this.drawShip(T); this.drawShip(cur);                               // c05d
+  }
   async duel(ax, T) { btTodo("一騎打 (0fea:2d1a = 12bba)"); }
 
   // b6f2 停船: c2ee → 0x307 → bca4 是否 → c2ee; 是 → 回傳 1 (本回合結束)
