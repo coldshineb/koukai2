@@ -22,6 +22,9 @@ STR = {
     "saveYear": 0xa39e,
     # 1764f 結束畫面
     "endColor": 0xa3d0,
+    # 命令: 隊形變更 20587 (2029f / 202f7)、糧食分配 208af (206dd / 20848)、酬金設定 20933
+    "fmNum": 0xa973, "fmColor": 0xa979, "fmShip": 0xa980, "fmBlank": 0xa987,
+    "rtColor": 0xa9b3, "rtColor2": 0xa998, "water": 0xa99f, "food": 0xa9a2, "pct": 0xa9a7, "wageRange": 0xa9ba,
 }
 # 注意: seg0:92f7 百分比條的顏色 DS:bafa / bafc 在 BSS (不在檔案內), 由 seg0:9376 設定 (初值 0)
 

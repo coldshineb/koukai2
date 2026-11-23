@@ -97,7 +97,175 @@ export class Commands {
   // ================= 經營 1fd9:0fdc (20d6c) =================
   async manage() { cmTodo("經營 (20d6c)"); }
   // ================= 命令 1fd9:10a8 (20e38) =================
-  async order() { cmTodo("命令 (20e38)"); }
+  // MENU #0x1c (偵察/交涉/戰鬥/隊形變更/糧食分配/酬金設定) 於 y=0xe0; 在港 → 0..2 停用; 沒有船 → 3,4; 沒有船員 → 5
+  // 偵察、隊形變更、糧食分配、酬金設定 後回到選單; 交涉 回傳 0 時、戰鬥、取消 後結束
+  async order() {
+    const st = this.st, { menu } = this.c, items = this.c.menuItems(0x1c).slice(0, 6), b = this.b;
+    let si = 0;
+    do {
+      if (st.port !== 0xff) menu.disabled |= 7;
+      if (!b.fleetShips()) menu.disabled |= 0x18;
+      if (!b.crewCount()) menu.disabled |= 0x20;
+      const r = await this.popMenu(0xe0, items);
+      switch (r) {
+        case 0: cmTodo("偵察 (1feae)"); break;                          // 在港時停用
+        case 1: cmTodo("交涉 (20a6d)"); si = 1; break;
+        case 2: cmTodo("戰鬥 (0fea:1181)"); si = 1; break;
+        case 3: await this.formation(); break;                          // 20587
+        case 4: await this.rations(); break;                            // 208af
+        case 5: await this.wages(); break;                              // 20ade
+        default: si = 1;
+      }
+    } while (!si);
+    await this.redrawMap();                                            // 20b40
+  }
+  // 20587 隊形變更: 依序指定第 1, 2, … 艘 (清單 0x80 = 船名「%s號」), Esc 取消上一個 (一個都沒選時直接到確認);
+  //   全部指定後 0xdb 是/否: 否 → 從頭開始; 是 → 2051b 依新順序交換船位 (203e9) 並整理 (20468)
+  async formation() {
+    const { win, con, message, menu } = this.c, b = this.b, P = this.c.persons;
+    for (;;) {
+      const n = b.fleetShips();
+      const nw = new Array(10).fill(0xff), old = new Array(10).fill(0xff);
+      for (let i = 0; i < n; i++) old[i] = P[i];
+      if (!n) return;
+      if (n === 1) { win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0); message(0xd9); await this.waitClose(); return; }
+      this.fmNumbers(n);                                               // 2029f
+      let si = n;
+      while (si > 0) {
+        this.fmNames(n, nw);                                           // 202f7
+        win.shadowedSaved(0x14, 0x40, 0x1e, 0x48, 0);
+        con.setCursor(-1, 0x58);                                       // seg0:4434
+        message(0xda, n - si + 1);
+        const r = await b.listSel().select(0x80, si);
+        await win.close();
+        if (r === -1) {
+          if (si >= n) break;
+          si++; nw[n - si] = 0xff;
+        } else { nw[n - si] = P[r]; si--; }
+        this.fmRemain(nw, old);                                        // 20363
+      }
+      this.fmNames(n, nw);
+      win.shadowedSaved(0x14, 0x40, 0x1e, 0x48, 0);
+      message(0xdb);
+      const yes = await menu.yesNo();
+      await win.close(); await win.close();
+      if (!yes) continue;
+      if (nw[0] !== 0xff) this.fmApply(old, nw);                       // 2051b
+      return;
+    }
+  }
+  // 2029f 編號視窗 7849(0x16, 0x90, 0x18, (n+2)×16) 與「%2d﹒」
+  fmNumbers(n) {
+    const { win, con, printf } = this.c;
+    win.shadowedSaved(0x16, 0x90, 0x18, (n + 2) << 4, 0);
+    con.setCursor(con.left, 0x90);
+    for (let si = 0; si < n; si++) { con.setCursor(con.left, (si + 10) << 4); printf(this.S.fmNum, si + 1); }
+  }
+  // 202f7 已指定的船名 (左邊界 0x18, 右邊界 0x2b; 未指定 = 16 個空白)
+  fmNames(n, nw) {
+    const st = this.st, { con, printf } = this.c, S = this.S, b = this.b;
+    con.left = 0x18; con.right = 0x2b;
+    con.puts(S.fmColor);
+    for (let si = 0; si < n; si++) {
+      con.setCursor(con.left + 4, (si + 10) << 4);
+      if (nw[si] !== 0xff) printf(S.fmShip, st.cstr(0x5892 + st.u8(b.fleetSlot(nw[si]) + 7) * 0x16)); else con.puts(S.fmBlank);
+    }
+  }
+  // 20363 [0538] = 原順序中還沒被指定的船位
+  fmRemain(nw, old) {
+    const P = this.c.persons; let k = 0;
+    for (let i = 0; old[i] !== 0xff && i < 10; i++) {
+      P[k] = old[i];
+      for (let j = 0; nw[j] !== 0xff && j < 10; j++) if (old[i] === nw[j]) P[k] = 0xff;
+      if (P[k] !== 0xff) k++;
+    }
+  }
+  // 2051b 第 i 位應為 nw[i]: 交換 old[i] 與 nw[i] 兩個船位, 並把 nw 中等於 old[i] 的那一格改成 nw[i]; 最後 20468 整理
+  fmApply(old, nw) {
+    const b = this.b;
+    for (let i = 0; i < 10; i++) {
+      if (nw[i] === 0xff || nw[i] === old[i]) continue;
+      b.swapSlots(old[i], nw[i]);
+      for (let j = 0; j < 10; j++) if (nw[j] === old[i]) { nw[j] = nw[i]; nw[i] = old[i]; break; }
+    }
+    b.compactSlots();
+  }
+  // 208af 糧食分配: 水 [2e19] / 糧食 [2e1a] 0..100%, 14524(4, 2 欄, 可取消+保留游標): 0/2 減 1, 1/3 加 1
+  async rations() {
+    const st = this.st, { con, menu, win } = this.c;
+    if (!this.b.fleetShips()) return;
+    con.puts(this.S.rtColor);
+    await this.rtParts();
+    for (;;) {
+      this.rtValues();
+      const r = await menu.customMenu(menu.count, 2, 3);
+      if (r === 0xff) break;
+      const a = r < 2 ? 0x2e19 : 0x2e1a, v = st.u8(a);
+      if (r & 1) { if (v < 100) st.set8(a, v + 1); } else if (v) st.set8(a, v - 1);
+    }
+    await win.close();
+  }
+  // 206dd 視窗 74f7(0x39, 0xe0, 0x16, 0x60, 1), 文字區 0x3b..0x4b; −/+ 按鈕 (左邊界 +5 / +0x10) 與點擊區 0..3, 第 4 區 = 視窗
+  async rtParts() {
+    const { win, con, scr, gfx, menu } = this.c, S = this.S, R = menu.rects;
+    await win.open(0x39, 0xe0, 0x16, 0x60, 1);
+    con.left = 0x3b; con.right = 0x4b;
+    con.puts(S.rtColor2);
+    con.setCursor(con.left, 0xf0); con.puts(S.water); this.barFrame(con.left + 7, 0xf4);
+    con.setCursor(con.left, 0x110); con.puts(S.food); this.barFrame(con.left + 7, 0x114);
+    for (let k = 0; k < 2; k++) {
+      const y = (k << 5) + 0xf0;
+      scr.putPlanar(con.left + 5, y, 2, 0x10, gfx, 0x390);
+      scr.putPlanar(con.left + 0x10, y, 2, 0x10, gfx, 0x410);
+    }
+    let n = 0;
+    for (let k = 0; k < 2; k++) for (let j = 0; j < 2; j++) {
+      const c = 0x0b * j + con.left;
+      R[n++] = { x0: (c + 5) << 3, x1: (c + 7) << 3, y0: (k << 5) + 0xf0, y1: (k + 8) << 5 };
+    }
+    R[n] = { x0: 0x1c8, x1: 0x278, y0: 0xe0, y1: 0x140 };
+    menu.count = n;                                                    // [a158] = 4
+  }
+  // 20848 「%3d%%」與百分比條
+  rtValues() {
+    const st = this.st, { con, printf } = this.c, S = this.S;
+    con.setCursor(con.left + 0x0d, 0x100); printf(S.pct, st.u8(0x2e19)); this.bar(con.left + 7, 0xf4, st.u8(0x2e19));
+    con.setCursor(con.left + 0x0d, 0x120); printf(S.pct, st.u8(0x2e1a)); this.bar(con.left + 7, 0x114, st.u8(0x2e1a));
+  }
+  // 20ade 酬金設定: 有船員時反覆 清單 0x89 → 20933
+  async wages() {
+    for (;;) {
+      const n = this.b.crewCount();
+      if (!n) return;
+      const r = await this.b.listSel().select(0x89, n);
+      if (r === -1) return;
+      await this.wage(this.c.persons[r]);
+    }
+  }
+  // 20933 一名船員的酬金: 忠誠 (+2b) ≥ 80 → 本人 0xdc; 否則船員 (9076 [4,3,5,2,6]) 說 0xdd (本人) / 0xde (%s = 姓名),
+  //   「（%d∼2000）」目前 = 10 × [2e39 + 序號] → 計算機 (0, 2000), 低於目前 → 0xe0 再輸入 (不再印範圍);
+  //   0xdf → 忠誠 = min(100, 忠誠 + (新 − 舊) / 5), [2e39 + 序號] = 新 / 10
+  async wage(p) {
+    const st = this.st, { message, printf } = this.c, b = this.b, S = this.S;
+    let idx = 0;
+    for (let i = 0; i < 0x1e; i++) if (st.u8(0x2e1b + i) === p) { idx = i; break; }
+    const P = st.personRecord(p);
+    if (st.u8(P + 0x2b) >= 0x50) { b.talkPerson(p); message(0xdc); await this.waitClose(); return; }
+    const di = 10 * st.u8(0x2e39 + idx);
+    const who = b.crewSpeaks([4, 3, 5, 2, 6]);                         // seg0:9076
+    if (who === p) message(0xdd); else message(0xde, st.cstr(P));
+    printf(S.wageRange, di);
+    let si;
+    for (;;) {
+      si = (await b.numpad.input(0, 2000)) & 0xffff;
+      if (who === p) b.talkClear(); else { await this.c.win.close(); b.talkPerson(p); }
+      if (di > si) { message(0xe0); await this.c.menu.waitPrompt(); continue; }
+      break;
+    }
+    message(0xdf); await this.waitClose();
+    st.set8(P + 0x2b, cmUmin(Math.trunc(((si - di) & 0xffff) / 5) + st.u8(P + 0x2b), 100));
+    st.set8(0x2e39 + idx, Math.trunc(si / 10));
+  }
 
   // ================= 航海術 1fd9:119e (20f2e) =================
   // MENU #0x1d (委任/停船/靠港/登陸/隨身物/功能), [1005] bit5 (停船中) 時 #0x2e (第 2 項改為「出航」)
