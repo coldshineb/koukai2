@@ -1,13 +1,63 @@
-"""git_commit.py — 不需要外部 git 程式的「git add -A && git commit」(純 Python, 產生標準 git 物件 / 索引 / 參照)。
+r"""git_commit.py — 不需要外部 git 程式的「git add -A && git commit」(純 Python, 產生標準 git 物件 / 索引 / 參照)。
 用法: python tools/git_commit.py "提交說明"          (在任何目錄執行皆可; 倉庫 = 本檔上一層)
       python tools/git_commit.py --init                 (建立 .git; 已存在則略過)
+身份: 依 git 的設定 (系統 / 全域 / 倉庫 [user], 環境變數 GIT_AUTHOR_*); 讀不到時不建立提交, 只暫存快照到 .git/pending_commits,
+      之後執行 python tools/git_fix_author.py 補成提交 (本工具不寫入也不猜測任何身份)。
 規則: 依 .gitignore 排除 (支援「名稱/」目錄、「*.ext」、「a/b」根目錄相對路徑, # 註解); 工作樹與上次提交相同時不提交。
 產生的倉庫可直接用一般 git 操作 (git log / status / diff)。只寫 loose 物件; 讀取 HEAD 時也支援 packed-refs。"""
 import os, sys, time, zlib, hashlib, struct, fnmatch
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 GIT = os.path.join(ROOT, ".git")
-AUTHOR = "Xiaolvshu <sb.xhsgdby@gmail.com>"
+PENDING = os.path.join(GIT, "pending_commits")      # 讀不到身份時暫存的快照 (tree + 時間 + 說明), 由 git_fix_author.py 補成提交
+
+
+def _cfg_user(path):
+    """讀 git 設定檔的 [user] name / email (含 [include] path)"""
+    out = {}
+    try:
+        lines = open(path, encoding="utf-8", errors="replace").read().splitlines()
+    except OSError:
+        return out
+    sec = ""
+    for l in lines:
+        l = l.strip()
+        if not l or l[0] in "#;":
+            continue
+        if l.startswith("["):
+            sec = l.strip("[]").strip().lower(); continue
+        if "=" not in l:
+            continue
+        k, v = [x.strip() for x in l.split("=", 1)]
+        v = v.strip('"')
+        if sec == "user" and k.lower() in ("name", "email"):
+            out[k.lower()] = v
+        elif sec == "include" and k.lower() == "path":
+            q = os.path.expanduser(v)
+            if not os.path.isabs(q):
+                q = os.path.join(os.path.dirname(path), q)
+            out.update(_cfg_user(q))
+    return out
+
+
+def identity():
+    """與 git 相同的優先序: 系統 < 全域 (XDG, ~/.gitconfig) < 倉庫; 環境變數 GIT_AUTHOR_* 最優先。讀不到回傳 None (不使用任何預設值)"""
+    u = {}
+    home = os.environ.get("HOME") or os.environ.get("USERPROFILE") or os.path.expanduser("~")
+    xdg = os.environ.get("XDG_CONFIG_HOME") or os.path.join(home, ".config")
+    files = [os.path.join(os.environ.get("ProgramFiles", r"C:\Program Files"), "Git", "etc", "gitconfig"), "/etc/gitconfig",
+             os.path.join(xdg, "git", "config"), os.environ.get("GIT_CONFIG_GLOBAL") or os.path.join(home, ".gitconfig"),
+             os.path.join(GIT, "config")]
+    for f in files:
+        u.update(_cfg_user(f))
+    name = os.environ.get("GIT_AUTHOR_NAME") or u.get("name")
+    email = os.environ.get("GIT_AUTHOR_EMAIL") or u.get("email")
+    return f"{name} <{email}>" if name and email else None
+
+
+def tz_of(t):
+    off = -time.altzone if time.localtime(t).tm_isdst > 0 else -time.timezone
+    return "%s%02d%02d" % ("+" if off >= 0 else "-", abs(off) // 3600, abs(off) % 3600 // 60)
 
 
 def init():
@@ -18,7 +68,7 @@ def init():
     open(os.path.join(GIT, "HEAD"), "w", newline="\n").write("ref: refs/heads/main\n")
     open(os.path.join(GIT, "config"), "w", newline="\n").write(
         "[core]\n\trepositoryformatversion = 0\n\tfilemode = false\n\tbare = false\n\tlogallrefupdates = true\n"
-        "\tsymlinks = false\n\tignorecase = true\n[user]\n\tname = Xiaolvshu\n\temail = sb.xhsgdby@gmail.com\n")
+        "\tsymlinks = false\n\tignorecase = true\n")
     open(os.path.join(GIT, "description"), "w", newline="\n").write("uw2_remake\n")
     return True
 
@@ -126,12 +176,35 @@ def commit(msg):
         rows.append((rel, put("blob", open(p, "rb").read()), os.stat(p)))
     tree = write_tree({r: h for r, h, _ in rows})
     write_index(rows)
-    if parent and commit_tree_of(parent) == tree:
+    pend = read_pending()
+    last = pend[-1]["tree"] if pend else (commit_tree_of(parent) if parent else None)
+    if last == tree:
         print("沒有變更, 不提交"); return parent
-    t = int(time.time()); off = -time.altzone if time.localtime(t).tm_isdst > 0 else -time.timezone
-    tz = "%s%02d%02d" % ("+" if off >= 0 else "-", abs(off) // 3600, abs(off) % 3600 // 60)
-    who = f"{AUTHOR} {t} {tz}"
-    body = f"tree {tree}\n" + (f"parent {parent}\n" if parent else "") + f"author {who}\ncommitter {who}\n\n{msg.rstrip()}\n"
+    t = int(time.time()); tz = tz_of(t)
+    me = identity()
+    if not me or pend:
+        add_pending(tree, t, tz, msg)
+        print(("讀不到 git 使用者設定 (user.name / user.email)" if not me else "前面還有待補的提交") +
+              f", 已暫存快照 {tree[:7]}: {msg.splitlines()[0]}\n  在本機執行 python tools/git_fix_author.py 以全域設定補成提交")
+        return None
+    return make_commit(ref, parent, tree, me, t, tz, msg)
+
+
+def read_pending():
+    if not os.path.exists(PENDING):
+        return []
+    import json
+    return [json.loads(l) for l in open(PENDING, encoding="utf-8") if l.strip()]
+
+
+def add_pending(tree, t, tz, msg):
+    import json
+    open(PENDING, "a", encoding="utf-8", newline="\n").write(json.dumps({"tree": tree, "time": t, "tz": tz, "msg": msg}, ensure_ascii=False) + "\n")
+
+
+def make_commit(ref, parent, tree, me, t, tz, msg, author=None):
+    who = f"{me} {t} {tz}"
+    body = f"tree {tree}\n" + (f"parent {parent}\n" if parent else "") + f"author {author or who}\ncommitter {who}\n\n{msg.rstrip()}\n"
     c = put("commit", body.encode("utf-8"))
     p = os.path.join(GIT, *ref.split("/")); os.makedirs(os.path.dirname(p), exist_ok=True)
     open(p, "w", newline="\n").write(c + "\n")
@@ -139,7 +212,7 @@ def commit(msg):
     line = f"{parent or '0' * 40} {c} {who}\tcommit{'' if parent else ' (initial)'}: {msg.splitlines()[0]}\n"
     for q in (lg, os.path.join(GIT, "logs", "HEAD")):
         open(q, "a", encoding="utf-8", newline="\n").write(line)
-    print(f"[{ref.split('/')[-1]} {c[:7]}] {msg.splitlines()[0]}  ({len(rows)} 個檔案)")
+    print(f"[{ref.split('/')[-1]} {c[:7]}] {msg.splitlines()[0]}")
     return c
 
 

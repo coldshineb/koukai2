@@ -39,3 +39,4 @@ python tools/extract.py <sea2目錄> web/assets
 ## 版本管理
 每移植完一項功能提交一次。`.gitignore` 排除 `tools/work/` 與 `web/bgm/`。
 可用一般的 git 操作，也可用 `python tools/git_commit.py "說明"`（等同 `git add -A && git commit`）。
+提交者身份一律取自本機 git 設定（`git config --global user.name / user.email`），工具不寫入也不猜測；讀不到時只暫存快照，執行 `python tools/git_fix_author.py` 會用全域設定補成提交（並把舊提交的作者改成全域設定）。
