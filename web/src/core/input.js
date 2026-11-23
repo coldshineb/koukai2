@@ -2,8 +2,19 @@
 import { keyToBios } from "./keymap.js";
 import { SCREEN_W, CANVAS_H } from "./screen.js";
 
+// 瀏覽器保留鍵 (重新整理 / 強制重新整理 / 開發者工具): 不送進遊戲、不 preventDefault。
+// 原版只看單獨的 F5 (numpad.js 0x3f = 填入最大值) 等; DOS 下 Ctrl+F5 是另一個掃描碼 (0x62), 原版本來就不當作 F5, 所以放行不影響原版操作。
+function browserReserved(e) {
+  const mod = e.ctrlKey || e.metaKey;
+  if (mod && (e.code === "F5" || e.code === "KeyR")) return true;                 // Ctrl+F5 / Ctrl+R / Ctrl+Shift+R
+  if (e.code === "F12") return true;
+  if (mod && e.shiftKey && (e.code === "KeyI" || e.code === "KeyJ" || e.code === "KeyC")) return true;
+  return false;
+}
+
 export function bindInput(canvas, sys) {
   addEventListener("keydown", e => {
+    if (browserReserved(e)) return;
     const k = keyToBios(e); if (!k) return;
     e.preventDefault();
     sys.pushKey(k[0], k[1]);              // BIOS 會自動重複, 瀏覽器 keydown 的 repeat 亦同
