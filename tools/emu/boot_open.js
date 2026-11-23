@@ -37,6 +37,9 @@ S.runOpen = function (opts = {}) {
     out.tick++;
     while (keys.length && keys[0].tick <= out.tick) { const k = keys.shift(); if (k.mouse !== undefined) env.mouse.b = k.mouse; else env.bioskeys.push((k.scan << 8) | k.ascii); }
   };
+  // INT 10h AX=1001h (設定外框色) — dosenv.js 未處理, 這裡記錄到屬性暫存器 0x11
+  const h10 = c.hooks[0x10];
+  c.hooks[0x10] = cpu => { if (cpu.r[0] === 0x1001) { env.ret(cpu); vga.attr[0x11] = cpu.r[3] >> 8; return; } h10(cpu); };
   c.hooks[0x66] = cpu => {
     env.ret(cpu); const ax = cpu.r[0], hi = ax >> 8, lo = ax & 255;
     if (hi === 0xf1) { if (lo === 1) count = cpu.r[3]; else { if (count) { record(); count--; } cpu.r[3] = count; } return; }

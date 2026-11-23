@@ -21,10 +21,11 @@ const SCAN_MAP = { 0x3b: 0x16, 0x3c: 0x14, 0x3d: 0x02, 0x3e: 0x19, 0x48: 0x1e, 0
 export class Timer {
   // virtual: 測試模式 — 每次讀取減一 (與模擬器的 INT 66h 測試樁相同)
   constructor(virtual = false) { this.virtual = virtual; this.count = 0; this.t0 = 0; this.n0 = 0; }
-  set(n) { this.count = n & 0xffff; this.n0 = this.count; if (!this.virtual) this.t0 = performance.now(); }  // seg0:16a8
+  // 實際時間: 倒數在固定的 tick 邊界 (IRQ0) 減一, 與原版相同 — 以全域 tick 編號計算, 連續等待不會因輪詢延遲而累積誤差
+  set(n) { this.count = n & 0xffff; this.n0 = this.count; if (!this.virtual) this.t0 = Math.floor(performance.now() / TICK_MS); }  // seg0:16a8
   get() {                                                                                 // seg0:16b5
     if (this.virtual) { if (this.count) this.count--; return this.count; }
-    const el = Math.floor((performance.now() - this.t0) / TICK_MS);
+    const el = Math.floor(performance.now() / TICK_MS) - this.t0;
     this.count = Math.max(0, this.n0 - el); return this.count;
   }
 }

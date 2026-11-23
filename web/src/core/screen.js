@@ -23,6 +23,8 @@ export class Screen {
     this.raw = new Uint8Array(48);
     this.lut = new Uint32Array(16);
     this.dirty = true;
+    this.full = null;                  // 片頭 (OPEN.EXE) 用: 640x480 索引畫面 (整個 VRAM 可見範圍), 設定時取代 fb + 上下黑邊
+    this.border = 0;                   // 片頭: VGA 外框色 (overscan) 索引 — 在畫布 (可見區) 之外, 僅記錄
     if (canvas) {
       this.canvas = canvas; canvas.width = SCREEN_W; canvas.height = CANVAS_H;
       this.ctx = canvas.getContext("2d", { alpha: false });
@@ -37,6 +39,12 @@ export class Screen {
       const b = dac8(this.raw[i * 3]), r = dac8(this.raw[i * 3 + 1]), g = dac8(this.raw[i * 3 + 2]);
       this.lut[i] = 0xff000000 | (b << 16) | (g << 8) | r;
     }
+    this.dirty = true;
+  }
+  // 以 6 位元 DAC 值直接設定一個顏色 (片頭 OPEN.EXE 以 17f0 逐色寫 DAC; 換算與 setPaletteRaw 相同: 4 位元值 ×4 = 6 位元)
+  setDac6(i, r, g, b) {
+    const c = v => ((v & 63) << 2) | ((v & 63) >> 4);
+    this.lut[i & 15] = 0xff000000 | (c(b) << 16) | (c(g) << 8) | c(r);
     this.dirty = true;
   }
   clear(c = 0) { this.fb.fill(c); this.dirty = true; }
@@ -197,8 +205,11 @@ export class Screen {
     if (!this.dirty && key === this.lastCursor) return;
     this.lastCursor = key;
     const fb = this.fb, out = this.out, lut = this.lut, base = Y_OFFSET * SCREEN_W;
-    out.fill(0xff000000, 0, base); out.fill(0xff000000, base + fb.length);
-    for (let i = 0; i < fb.length; i++) out[base + i] = lut[fb[i] & 15];
+    if (this.full) { const f = this.full; for (let i = 0; i < f.length; i++) out[i] = lut[f[i] & 15]; }
+    else {
+      out.fill(0xff000000, 0, base); out.fill(0xff000000, base + fb.length);
+      for (let i = 0; i < fb.length; i++) out[base + i] = lut[fb[i] & 15];
+    }
     if (key) this.drawCursor(cur);
     this.ctx.putImageData(this.img, 0, 0);
     this.dirty = false;

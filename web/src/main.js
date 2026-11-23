@@ -2,6 +2,7 @@
 // 架構: 遊戲邏輯是一個 async 程式, 所有等待輸入/計時的迴圈都 await sys.poll();
 //       畫面由 requestAnimationFrame 呈現 (原版直接寫 VRAM, 隨寫隨顯)。
 // 與原版的差異: 依需求移除說明書密碼確認 (2e09:7cec)。
+// 片頭: web/src/game/opening.js (OPEN.EXE)。
 import { Screen, SCREEN_W, CANVAS_H } from "./core/screen.js";
 import { Font } from "./core/font.js";
 import { Sys } from "./core/sys.js";
@@ -14,6 +15,7 @@ import { GameState } from "./game/state.js";
 import { TextCodec, encodeState } from "./game/data.js";
 import { Title } from "./game/title.js";
 import { GameClock } from "./game/clock.js";
+import { Opening, loadOpeningData } from "./game/opening.js";
 
 const ASSETS = "./assets";
 const canvas = document.getElementById("screen");
@@ -57,6 +59,9 @@ function frame() {
 requestAnimationFrame(frame);
 
 (async () => {
+  // KOUKAI2.COM: FMDRV.COM → OPEN.EXE (片頭) → MAIN.EXE; 片頭播完或被跳過 (OPEN.EXE 結束) 後進入標題
+  await new Opening(ctx, await loadOpeningData(ASSETS, loadBinary, loadJSON)).run();
+  if (ctx.halted) return;
   const r = await new Title(ctx).run();          // 17546 → 171a2 → 標題選單
   if (ctx.halted || r !== 1) return;
   await new GameClock(ctx).run();                // 17546 後半 (1721f 進港) + 1623a 主迴圈
