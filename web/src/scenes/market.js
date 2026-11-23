@@ -1,5 +1,5 @@
 // market.js — 交易所 (MAIN.EXE 1fd9:5569 = 252f9; MENU #6 子功能 DS:aed8 = 買進 24bd9 / 賣出 24dbf / 投資 250b6 / 物價 252cf), 見 RE_NOTES 21
-// 港口經濟記錄 E = DS:6a80 + 0x25×港 ([c2dc]): +00 商業值, +02 商業投資累計, +0e..+17 各分類供給 (上限 100), +18 特產基價, +1a 特產, +1b 特產所需等級
+// 港口經濟記錄 E = DS:6a80 + 0x25×港 ([c2dc]): +00 商業值, +02 商業投資累計, +0e..+17 各分類物價指數 (0..100; 物價畫面顯示 指數 + 50), +18 特產基價, +1a 特產, +1b 特產所需等級
 // 地區物價表 R = DS:78f4 + 0x80×(E +21) ([c2cc]): +00 各商品 (46 種) 賣價基準 (字), +5c 9 種買價基準 (字), +6e 9 種商品, +77 9 種所需等級
 const mHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const mS16 = v => (v << 16) >> 16;
@@ -40,7 +40,7 @@ export class Market {
     else v = Math.trunc((this.sup(st.u8(E + 0x1a)) + 50) * mS16(st.u16(E + 0x18)) / 100);
     return Math.trunc(((v & 0xffff) * (this.license() ? 10 : 12)) / 10) & 0xffff;
   }
-  // 24c88 賣價: 特產 = (供給 + 50) × 特產基價 / 200, 其他 = (供給 + 50) × 地區賣價基準[g] / 100
+  // 24c88 賣價: 特產 = (物價指數 + 50) × 特產基價 / 200, 其他 = (物價指數 + 50) × 地區賣價基準[g] / 100
   sellPrice(g) {
     const st = this.st, E = this.E;
     if (st.u8(E + 0x1a) === g) return Math.trunc((this.sup(g) + 50) * mS16(st.u16(E + 0x18)) / 200) & 0xffff;
@@ -164,7 +164,7 @@ export class Market {
     const g = ((v & 0xff) < 9 && st.u8(R + 0x6e + v) !== 0xff) ? st.u8(R + 0x6e + v) : st.u8(E + 0x1a);
     await this.buyQty(g, at);
   }
-  // 244fd 買入: 選船 (清單 0x84) → 數量 (載貨空間與現金的較小者) → 寫入貨物欄, 供給上升
+  // 244fd 買入: 選船 (清單 0x84) → 數量 (載貨空間與現金的較小者) → 寫入貨物欄, 物價指數上升
   async buyQty(code, price) {
     const st = this.st, b = this.b, E = this.E, list = b.listSel();
     const n = b.fleetShips();
