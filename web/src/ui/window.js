@@ -63,12 +63,12 @@ export class WindowSystem {
   }
   put(col, y, off) { this.scr.putPlanar(col, y, 1, 8, this.gfx, off); }
   // seg0:7925 標籤框 (x, w 欄; y, h 像素): 文字區 x+2..x+w−3、游標 (x+2, y+8) → 50c4 保存 → 7878: 以 DS:8b52 (AA×4 / 55×4) 每 2 行逐欄
-  //   覆寫 (02a7 模式 0) 成黑白點陣, 再以 7264 (水平 / 垂直線 = 09aa 填矩形) 畫 下邊、右邊 色 0, 上邊、左邊 色 7 (3119b「請指定目的地」)
+  //   AND 疊加 (03ca → 02a7 模式 2 = 034d, 底圖變暗), 再以 7264 (水平 / 垂直線 = 09aa 填矩形) 畫 下邊、右邊 色 0, 上邊、左邊 色 7 (3119b「請指定目的地」)
   labelBox(x, y, w, h) {
     const c = this.con, s = this.scr;
     c.right = w + x - 3; c.left = x + 2; c.setCursor(x + 2, y + 8);
     this.save(x, y, w, h);
-    for (let r = 0; r < h; r += 2) for (let i = 0; i < w; i++) s.putPlanar(x + i, y + r, 1, 2, SHADOW_B);
+    for (let r = 0; r < h; r += 2) for (let i = 0; i < w; i++) this.andPattern(x + i, y + r, SHADOW_B);
     const X0 = x << 3, X1 = ((x + w) << 3) - 1, Y1 = h + y - 1;
     s.fillRectPx(X0, Y1, X1, Y1, 0);
     s.fillRectPx(X1, y, X1, Y1, 0);

@@ -436,8 +436,8 @@ export class SeaScene extends PortScene {
   }
 
   // ================= 委任航行的路線 (1fd9 段 231c7..241c2, 艦隊 AI 共用) =================
-  // 艦隊記錄: +4/+6 目的地  +8/+a 中途點  +0c 字: 低 3 位元 = 目前的路線格 (0..3), 字遮罩 DS:ae30 = 8000/4000/2000/1000 = 路線格 0..3 已填;
-  //   +0d 另作旗標: 80 中途點有效, 40 需重新搜尋路線, 20 直接駛向目的地, 08 路線已到目的地的地點, 02 重設誤差 +0e  (與路線格遮罩重疊, 原版如此)
+  // 艦隊記錄: +4/+6 目的地  +8/+a 中途點  +0c: 低 3 位元 = 目前的路線格 (0..3), bit4..7 (DS:ae30 = 80/40/20/10) = 路線格 0..3 已填;
+  //   +0d 旗標: 80 中途點有效, 40 需重新搜尋路線, 20 直接駛向目的地, 08 路線已到目的地的地點, 02 重設誤差 +0e
   //   +0e 直線步進的誤差累計  +10..+17 路線格 0..3 的地點編號  +1b 種類 (委任時 0)
   // 地點表 [0c96] (DATA1 #4, 每筆 16 bytes: +0 x (bit15 = 已探索, enterSea 設定), +2 y, +4..+0b 4 個鄰點 (FFFF = 無), +0c..+0f 4 個距離)
   pt(a) { const st = this.st; return { get x() { return st.u16(a); }, set x(v) { st.set16(a, v); }, get y() { return st.u16(a + 2); }, set y(v) { st.set16(a + 2, v); } }; }
@@ -479,9 +479,9 @@ export class SeaScene extends PortScene {
     if (st.u8(F + 0x0d) & 8) { st.set8(F + 0x0d, st.u8(F + 0x0d) | 0x20); return 1; }
     return this.routeSearch(F);
   }
-  // 24206 / 24112: 清掉路線格 di 的遮罩, 目前格 = (di + 1) & 3, +0d |= 2; +0c 低位元組 & F0 = 0 時 +0d |= 40 (原版以低位元組判斷, 與遮罩所在的高位元組不同)
+  // 24206 / 24112: 清掉路線格 di 的遮罩, 目前格 = (di + 1) & 3, +0d |= 2; 路線格都空了 (+0c & F0 = 0) 時 +0d |= 40 (重新搜尋)
   nextNode(F, di) {
-    const st = this.st, AE = [0x8000, 0x4000, 0x2000, 0x1000];
+    const st = this.st, AE = [0x80, 0x40, 0x20, 0x10];
     let c = st.u16(F + 0x0c) & ~AE[di] & 0xffff;
     c = (c & 0xfff8) | ((di + 1) & 3) | 0x200;
     st.set16(F + 0x0c, c);
@@ -577,7 +577,7 @@ export class SeaScene extends PortScene {
   //   主角艦隊只走已探索 (+1 bit7) 的地點; 擴展到起點後由起點沿「距離 + 邊長 = 本點距離」的鄰點走回, 最多 4 個 (起點本身距離 0 時不算)
   //   → 從目前路線格起找第一個空格 (DS:ae30 遮罩), 依序填入, 遇到目的地的地點時 +0d |= 8; 最後 +0d &= BF。起點 = 目的地的地點且距離 0 → +0d |= 28
   routeSearch(F) {
-    const st = this.st, N = this.c.nodesRT, AE = [0x8000, 0x4000, 0x2000, 0x1000];
+    const st = this.st, N = this.c.nodesRT, AE = [0x80, 0x40, 0x20, 0x10];
     const link = (n, k) => this.nodeW(n, 4 + 2 * k), cost = (n, k) => N?.[((n << 4) + 0x0c + k) & 0xffff] ?? 0;
     const s0 = this.nearestNode(st.u16(F), st.u16(F + 2)), start = s0 & 0x7fff;
     const goal = this.nearestNode(st.u16(F + 4), st.u16(F + 6)) & 0x7fff;

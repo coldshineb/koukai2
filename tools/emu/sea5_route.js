@@ -39,6 +39,23 @@ if (mode === "scout") {
     K.f3, ...idle(2), E, ...click(0x60 + 3 * 16 + 8, 8 + 5 * 16 + 8), E,   // 滑鼠點艦隊 5
     ...click(600, 300), X, ...idle(2)];
 }
+//   "dest"   舵輪中央 '5' (2e09:310b 指定目的地): 「請指定目的地」→ 游標左移 4 格 (114, 358) → 自動航行 (+0c = 6000) → 到達 →
+//            靠港檢查 (附近沒有港口) → 再次指定目的地 → Esc (停船)。S.SEA5_IDLE = 自動航行的空動作數
+//   "deleg"  航海術 委任 (船員 9 = 職務 3、+30 bit4): 已發現港口清單 → 第 2 項 塞維爾 → 地點路線 (232a6) + 區域內中途點 (240a7 / 23a97 模式 1)
+//            → 到達 → 靠港「是」→ 進港
+const K5 = [0x06, 0x35];
+if (mode === "dest") {
+  keys = [...idle(2), K5, ...idle(2), K.left, K.left, K.left, K.left, E, ...idle(S.SEA5_IDLE ?? 60), X, ...idle(4)];
+}
+if (mode === "deleg") {
+  mates([[8, 2], [9, 3]]);
+  keys = [...idle(2), K.f4, ...idle(2), E, K.down, E, ...idle(S.SEA5_IDLE ?? 300), E, ...idle(6)];
+}
+//   "deleg0" 委任到清單第 1 項 里斯本 (出港處): 起點與目的地的最近地點相同 → 直接駛向 (+0d |= 20); 目的地是陸地 → 23e19 換成附近的海 → 到達 → 靠港「是」
+if (mode === "deleg0") {
+  mates([[8, 2], [9, 3]]);
+  keys = [...idle(2), K.f4, ...idle(2), E, E, ...idle(S.SEA5_IDLE ?? 40), E, ...idle(8)];
+}
 for (const [a, v] of S.SEA5_POKE || []) b(a, v);
 S.SEA_POKE = poke; S.SEA_KEYS = S.SEA5_KEYS || keys;
 })();
