@@ -1,5 +1,5 @@
 # extract_fleet.py — 月末 / 年末結算與艦隊 AI 用的常數表 → web/assets/data/fleet.json (可重複執行)
-#   MAIN.EXE DGROUP 內的表 (見 TABLES; 用途見 docs/RE_NOTES.md 第 29 節) 與 NAME.TBL (185a7 新人物的名 / 姓: 6 國 × 16 筆 × 26 bytes = 名 13 + 姓 13)
+#   MAIN.EXE DGROUP 內的表 (見 TABLES; 用途見 docs/RE_NOTES.md 第 29 節)、DS:0000..0ca4 常數區 (dsLow) 與 NAME.TBL (185a7 新人物的名 / 姓: 6 國 × 16 筆 × 26 bytes = 名 13 + 姓 13)
 # 用法: python tools/extract_fleet.py <sea2 目錄> <web/assets 目錄>   (或 exec 後呼叫 main(sea2, assets))
 import json, os, struct, sys
 
@@ -25,7 +25,8 @@ def main(sea2, assets):
         raw = img[DS + o:DS + o + n]
         tab[k] = list(raw) if t == "b" else list(struct.unpack("<%dH" % (n // 2), raw)) if t == "w" else raw.hex()
     names = open(os.path.join(sea2, "NAME.TBL"), "rb").read()
-    out = {"tab": tab, "names": names.hex()}
+    # DS:0000..0ca4 (存檔區之前的常數區): 原版在表外讀取時用到 (例: 航向 FF 時 1ae55 讀 DS:0718+FF、1acbf 讀 DS:06d8 + 8k + 帆種)
+    out = {"tab": tab, "names": names.hex(), "dsLow": img[DS:DS + 0x0ca4].hex()}
     p = os.path.join(assets, "data", "fleet.json")
     json.dump(out, open(p, "w", encoding="utf-8"), ensure_ascii=False)
     print("->", p, {k: len(v) for k, v in tab.items()}, "NAME.TBL", len(names), "bytes")

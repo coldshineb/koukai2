@@ -1623,8 +1623,15 @@ export class SeaScene extends PortScene {
   //   各船: 風向差 k = |wDir − 航向| 的帆種係數 × 推進力 × wStr / 150 → + 指揮者 +24 × v / 10 (上限 30) → × 指揮者 +1d / 75 (上限 40),
   //   k = 3..5 再 × 轉向力 / 100; 取最小 (至少 2); 再依 |cA − 航向|: 0..1 或 ≥ 7 → + min(40 − v, cB), 3..5 → − min(v − 1, cB);
   //   wStr = 0 且沒有縱帆船 → 0 (與 314eb 不同: 沒有水手與載重項, 也沒有縱帆船至少 3 的風力)
+  // DS 位元組: 存檔區 (0ca4..8a18) 讀遊戲狀態, 其他讀 MAIN.EXE 的 DS 初值 (assets/data/fleet.json dsLow; 原版在表外讀取時用到, 例: 航向 FF)
+  dsb(a) {
+    a &= 0xffff;
+    if (a >= 0x0ca4 && a < 0x8a18) return this.st.u8(a);
+    const D = (this.dsLow ??= Uint8Array.from((this.P.fleet?.dsLow ?? "").match(/../g) ?? [], h => parseInt(h, 16)));
+    return D[a] ?? 0;
+  }
   fleetSpeed(F, wDir, wStr, cB, cA) {
-    const st = this.st, T = this.SJ.tab.windSpeed, P = st.personRecord(st.u8(F + 0x2a));
+    const st = this.st, P = st.personRecord(st.u8(F + 0x2a));
     const lv = st.u8(P + 0x24), sk = st.u8(P + 0x1d), hd = st.u8(F + 0x1a);
     let best = 0xff, fore = 0;
     const k = Math.abs(seaS16(wDir - hd)) & 0xff, k2 = Math.abs(seaS16(cA - hd)) & 0xff, beat = k >= 3 && k <= 5;
@@ -1634,7 +1641,7 @@ export class SeaScene extends PortScene {
       const ship = this.shipRec(st.u8(S + 7));
       if (!(st.u8(ship + 0x10) & 0x10)) fore = (fore - 1) & 0xff;
       const t = this.typeOf(st.u8(ship + 0x0f));
-      let v = Math.trunc(seaS16(Math.imul((T[((k * 8) & 0xffff) + st.u8(t + 9)] ?? 0) * st.u8(S + 5), wStr)) / 0x96) & 0xff;
+      let v = Math.trunc(seaS16(Math.imul(this.dsb(0x06d8 + ((k * 8) & 0xffff) + st.u8(t + 9)) * st.u8(S + 5), wStr)) / 0x96) & 0xff;   // DS:06d8 表 (航向 FF 時讀到表外)
       v = seaUmin(0x1e, (Math.trunc(seaS16(Math.imul(v, lv)) / 10) + v) & 0xffff) & 0xff;
       v = seaUmin(0x28, Math.trunc(seaS16(Math.imul(v, sk)) / 0x4b) & 0xffff) & 0xff;
       if (beat) v = Math.trunc((st.u8(S + 4) * v) / 100) & 0xff;

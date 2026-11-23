@@ -13,7 +13,7 @@
 //   9bc0 目前這一方 (97e0 + 8k)  9bc2 目前的船  9bef/9bf0 視窗左上 (欄 / 列)  9bf2..9bf7 風力表  9bf8 風向  9bf9 風力
 //   9bfb 結束原因 (0 = 繼續; 1 日落, 2/3/9 對話後不打, 4/5 一方全滅, 8 劇本)  9c2a/9c2c  9d3e 主角在攻方  9d40/9d42 雙方戰力
 // 尚未移植 (主控台警告): 電腦行動 a3ce、玩家指令中的 移動 / 攻擊 / 信號 / 作戰 / 情報、戰後處理 10bdf、一騎打 12998
-import { Scenario } from "../game/scenario.js";
+import { Scenario, ENV_COMMON, ENV_HERO } from "../game/scenario.js";
 
 const btHex = s => Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16)));
 const btS16 = v => (v << 16) >> 16;
@@ -109,7 +109,13 @@ export class NavalBattle {
     await this.fadeIn();                                                // bcfa
     // 劇本: 2e09:55c2(0xa1, [0d56]) / 2e09:5546、2e09:5481(0xa1, [0de0]) / 2e09:53f0 — 劇本要求時 [9bfb] = 8, 不打
     let si = 0;
-    if (!this.c.noEvents) btTodo("海戰開始時的劇本檢查 (2e09:55c2 / 5481)");
+    if (!this.c.noEvents) {
+      const sc = (this.c.events ??= new Scenario(this.c)); sc.scene = this.sea;
+      const no = () => { this.set8(0x9bfb, 8); return 0xffff; };
+      if ((await sc.check(ENV_HERO, 0xa1, st.u16(0x0d56) & 0xff)) && !(await sc.run(ENV_HERO))) return no();
+      si = await sc.check(ENV_COMMON, 0xa1, st.u16(0x0de0) & 0xff);
+      if (si && !(await sc.run(ENV_COMMON))) return no();
+    }
     if (st.u16(0x0de6) === 0 && st.u16(0x0d5c) === 0) {
       if (await this.parley(si)) return 0xffff;                         // fcdb
     }
@@ -179,7 +185,8 @@ export class NavalBattle {
         this.set16(si, this.person(cap)); this.set16(si + 2, S); this.set16(si + 4, 0); this.set16(si + 6, 0); this.set16(si + 8, 0);
         this.set8(si + 0x0a, 0); this.set8(si + 0x0b, 0);
         let mo;
-        if (F === hf) mo = (100 - st.u8(this.crew(i) + 8) - st.u8(this.crew(i) + 9)) & 0xff;
+        // 主角艦隊: 100 − 船員 +8 − 船員 +9; 原版第二次呼叫 5c38 時 AL 還是 +9 的值, 所以 +8 取的是「船員 (+9 的值)」的 (照搬)
+        if (F === hf) { const v9 = st.u8(this.crew(i) + 9); mo = (100 - st.u8(this.crew(v9) + 8) - v9) & 0xff; }
         else mo = st.u8(this.shipRec(this.u8(S + 7)) + 0x10) & 0x10 ? 0x19 : 0x32;
         this.set8(si + 0x17, mo);
         this.shipStats(si, E, first);                                    // f259
@@ -546,15 +553,87 @@ export class NavalBattle {
     await this.closeAllWin();
     return di;
   }
-  // fa5b 對方開戰: MENU #0x36 (交戰 / 撤離 / 投降)
+  // fa5b 對方開戰: 對方說話 (海盜 0x331 / 任務 3 埋伏 0x332 / 其他 0x333) → 船員 909b: 0x334 (我方較弱) / 0x335 → MENU #0x36 (交戰 / 撤離 / 投降)
+  //   撤離: random(150) < 主角 +24 + +23 → 0x336, [9bfb] = 3 (不打); 否則 0x338 (照打)
+  //   投降: 一般 → 0x339, 現金 × 2 / 3, 貨物剩 2/3; 海盜 → 0x33a, 現金 < 1000 → 0x33b 現金 +1000 (原版如此), < 10000 → 0x33c, 否則 0x33d 現金 = 5000, 貨物全失; [9bfb] = 9
   async parleyEnemy() {
-    btTodo("被攻擊時的開戰對話 (fa5b)");
-    return 0;
+    const st = this.st, { message, menu, sys } = this.c, b = this.sea.b, nations = this.sea.nations;
+    let di = 0;
+    const si = this.person(this.u8(0x97e6));
+    let f = st.u8(si + 0x2c);
+    if ((st.u8(si + 0x31) & 0x0f) === 6) f = 0x3c;
+    await this.talkWin(1, si);
+    if (Math.floor(f / 10) === 6) message(0x331);
+    else if (st.u8(this.fleetOf(f) + 0x1b) === 3) message(0x332, st.cstr(this.heroRec + 0x0d), nations[Math.floor(st.u8(si + 0x2c) / 10)]);
+    else message(0x333, nations[st.u8(this.heroRec + 0x31) & 0x0f]);
+    await menu.waitPrompt();
+    b.crewSpeaks();                                                     // 909b
+    message(((this.u16(0x9d40) * 3) & 0xffff) >>> 1 >= this.u16(0x9d42) ? 0x335 : 0x334);
+    const r = await menu.popupMenu(this.c.menuItems(0x36), 0);          // 2e09:57aa(0x36) + 0fea:46ec (3 項)
+    await b.closeTalk();                                                // 796d
+    if (r === 1) {
+      b.crewSpeaks();
+      const x = this.rnd(0x96), H = this.heroRec;
+      if (st.u8(H + 0x24) + st.u8(H + 0x23) > x) { message(0x336); this.set8(0x9bfb, 3); di = 1; }
+      else message(0x338);
+      await menu.waitPrompt(); await b.closeTalk();
+    } else if (r === 2) {
+      await this.talkWin(1, si);
+      let keep;
+      if (Math.floor(f / 10) !== 6) {
+        message(0x339);
+        b.money = Math.trunc(((b.money * 2) | 0) / 3);                  // seg0:3722
+        keep = 2;
+      } else {
+        message(0x33a); await menu.waitPrompt();
+        await this.talkWin(1, si);
+        const m = b.money;
+        if (m < 1000) { message(0x33b); b.money = m + 1000; }
+        else if (m < 10000) message(0x33c);
+        else { message(0x33d); b.money = 5000; }
+        keep = 0;
+      }
+      await menu.waitPrompt();
+      for (let i = 0; i < 10; i++) {
+        if ((st.u8(this.slot(i) + 8) & 0x30) !== 0x10) continue;
+        const M = this.crew(i);
+        for (let k = 0; k < 5; k++) {
+          const v = btIdiv(btS16(st.u16(M + 0x0c + 2 * k)) * keep, 3);
+          st.set16(M + 0x0c + 2 * k, v);
+          if (!(v & 0xffff)) st.set8(M + 0x16 + k, 0xff);
+        }
+      }
+      this.set8(0x9bfb, 9); di = 1;
+    }
+    await this.closeAllWin();
+    return di;
   }
-  // f89e 雙方戰力差距大 ([9d40] + 20 ≤ [9d42]) 時, 主角方旗艦之後忠誠 (+2b) < 40 的船長帶船離隊
+  // f89e 雙方戰力差距大 ([9d40] + 20 ≤ [9d42]) 時, 主角方旗艦之後忠誠 (+2b) < 40 的船長帶船離隊:
+  //   劇本視窗 2 + 頭像, 0x313 + (+2f >> 6) (%s = +0d), 關閉視窗; eb3f 船長離開艦隊 (船員欄清除、5deb 移除船、+2e = 0、+2c = FF、+2d = random(54) + 3); 從船鏈與地圖移除
   async desert() {
     if (((this.u16(0x9d40) + 0x14) & 0xffff) > this.u16(0x9d42)) return;
-    btTodo("開戰時船長離隊 (f89e)");
+    const st = this.st, { message, menu } = this.c;
+    let E = 0x97e0;
+    for (let dx = 0; dx < 4; dx++, E += 8) if (this.u16(E + 4) === this.heroFleet) break;
+    let prev = this.u16(E);
+    for (let si = this.u16(prev + 8); si; si = this.u16(prev + 8)) {
+      const P = this.u16(si);
+      if (st.u8(P + 0x2b) >= 0x28) { prev = si; continue; }
+      const sc = await this.talkWin(2, P);
+      message(0x313 + (st.u8(P + 0x2f) >> 6), st.cstr(P + 0x0d));
+      await menu.waitPrompt();
+      await sc.op_win_close();                                          // 2e09:3cce
+      this.leave(this.heroSlotIndex(si));                               // eb9e → eb3f
+      this.set16(prev + 8, this.u16(si + 8));
+      this.and8(0x8e14 + this.u16(si + 4), 0x1f);
+    }
+  }
+  // eb3f 主角艦隊第 i 艘的船長離隊
+  leave(i) {
+    const st = this.st, M = this.crew(i), cap = st.u8(M + 0x1b), P = this.person(cap);
+    for (let k = 0; k < 0x1e; k++) if (st.u8(0x2e1b + k) === cap) st.set8(0x2e1b + k, 0xff);
+    this.sea.b.removeShip(i);                                           // seg0:5deb
+    st.set8(P + 0x2e, 0); st.set8(P + 0x2c, 0xff); st.set8(P + 0x2d, this.rnd(0x36) + 3);
   }
 
   // ================= fe9a 主迴圈 =================

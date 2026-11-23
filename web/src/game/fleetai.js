@@ -414,9 +414,8 @@ export class FleetAI {
   // ================= 海上每個時刻 1afe8 =================
   // 1ae55 走一步 (沒有海流): 擋住回傳 1
   step(F, dir, speed) {
-    const st = this.st, sea = this.sea, Tb = sea.SJ.tab;
-    if (dir > 7) faTodo("1ae55 方向 > 7 (原版讀到 DS:0718 表外)");
-    const ex = faS8(Tb.dirX[dir] ?? 0), ey = faS8(Tb.dirY[dir] ?? 0), sp = faS8(speed);
+    const st = this.st, sea = this.sea;
+    const ex = faS8(sea.dsb(0x0718 + dir)), ey = faS8(sea.dsb(0x0720 + dir)), sp = faS8(speed);   // 路線失敗時方向 = FF, 原版照樣讀 DS:0718 / 0720 表外
     const ax = (ex * sp) & 0xff, ay = (ey * sp) & 0xff;
     const nx = (ax + st.u8(F + 0x18)) & 0xff, ny = (ay + st.u8(F + 0x19)) & 0xff;
     let di = faImod(st.u16(F), 0x2d0), y2 = faS16(st.u16(F + 2)), b6 = 0, b7 = 0, out = 0;

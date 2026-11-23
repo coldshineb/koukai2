@@ -4,6 +4,8 @@
 //             (第 1 晚跨月: 月末 18ff5 含換季 178a8、之後每晚 70 支艦隊各跑一次 1ac19) → 走兩步
 //   "year"    同上但 12 月 31 日: 月末 + 年末 16126 → 再就寢 1 次
 //   "seamonth" 由 sea_depart_route 出港 (3 月 31 日時刻 0x3a 進港), 船員 8 (薪水 5) → 海上跨月 (薪水訊息 0x23e) → 繼續航行
+//   "launch"  同 "month", 另寫入: 艦隊 2 不在海上 (+29 = 0) 且有 5 艘船 (範本 0x28)、人物 110..119 的記錄釋放 (+31 = 0)
+//             → 月末 1897e / 18824 / 18772 派提督出港、18aee / 185a7 產生新人物 (NAME.TBL)
 // 執行順序: 本檔 → (seamonth 時) sea_depart_route.js → port_tests.js。都會設 S.FLEET_AI = 1 (兩邊都執行艦隊 AI)。
 // S.FLEET_SLEEPS 覆寫就寢次數; S.FLEET_POKE 額外寫入
 "use strict";
@@ -14,7 +16,12 @@ const mode = S.FLEET_MODE || "month";
 const poke = [], b = (a, v) => poke.push([a, v]);
 const idle = n => Array(n).fill({ mouse: {} });
 S.FLEET_AI = 1;
-if (mode === "month" || mode === "year") {
+if (mode === "launch") {
+  const F2 = 0x2e76 + 0x85 * 2; b(F2 + 0x29, 0);
+  for (let j = 0; j < 10; j++) { const S2 = F2 + 0x2b + 9 * j; b(S2 + 8, j < 5 ? 0x10 : 0); b(S2 + 7, 0x28); b(S2 + 2, 10); b(S2 + 3, 10); }
+  for (let p = 110; p < 120; p++) b(0x12b6 + 0x32 * p + 0x31, 0);
+}
+if (mode === "month" || mode === "year" || mode === "launch") {
   b(0x0cab, mode === "year" ? 11 : 2); b(0x0cac, 30);
   for (const [a, v] of S.FLEET_POKE || []) b(a, v);
   const SLEEP = [K.up, K.up, K.enter];                                // 進旅館 → 選單往上繞到「就寢」→ Enter
