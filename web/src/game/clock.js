@@ -1,14 +1,14 @@
 // clock.js — 遊戲主迴圈與時間推進 (MAIN.EXE 0FEA 段 1623a..162e1, 1b2ba, 1b1d2, 1a011, 1603c/16003; 1fd9:32c4)
 // 時間: 年 [0532]  月 [0533] (0..11)  日 [0534]  時刻 [0535] (0..71, 每格 20 分鐘); 存檔內的起點 [0caa..0cad]
 // 每個時刻: 1a011 風向/天候 → 1b1d2 (港口: 調色盤 + 港口行動, 回傳消耗的時刻) → 艦隊 AI (每格處理一支艦隊, 1ac19)
-//
-// 尚未移植 (見 docs/RE_NOTES.md 第 15 節; 目前以 console.warn 標出, 不改狀態):
-//   1ac19 艦隊 AI   18ff5 月末   16126 年末
+// 艦隊 AI 1ac19 → game/fleetai.js、月末 18ff5 / 年末 16126 → game/monthly.js (docs/RE_NOTES.md 第 29 節)
 // 海上部分 (出海 851f、海上時刻 1fd9:13c1 / 1afe8 / 2e09:38ec、海上移動 6cfc / 2e09:2f3d、每日 195b6、天候 19a99 / 19f48、劇本 2e09:55c2) → scenes/sea.js
 import { loadPortAssets } from "../scenes/port.js";
 import { SeaScene } from "../scenes/sea.js";
 import { Scenario, ENV_HERO } from "./scenario.js";
 import { Title } from "./title.js";
+import { faFleet } from "./fleetai.js";
+import { Monthly } from "./monthly.js";
 
 const clockWarned = new Set();
 const clockTodo = name => { if (!clockWarned.has(name)) { clockWarned.add(name); console.warn("尚未移植: " + name); } };
@@ -17,6 +17,14 @@ export class GameClock {
   constructor(ctx) { this.c = ctx; }
   get st() { return this.c.state; }
   get rt() { return this.c.rt; }
+  get monthly() { const ai = this.portScene.ai; return this.mon?.ai === ai ? this.mon : (this.mon = new Monthly(ai)); }
+  // 1b2ba: [c2ea] = k、1ac19(艦隊 k) — 測試時 ctx.noFleetAI (原版的 1ac19 改成直接返回) 兩邊都略過
+  async fleetDaily(k) {
+    if (this.c.noFleetAI) return;
+    const ai = this.portScene.ai;
+    ai.v.c2ea = k;
+    await ai.daily(faFleet(k));
+  }
   // 1b39a 中止旗標 (月/日/時刻 >= F0)
   abort() { const r = this.rt; return r.month >= 0xf0 || r.day >= 0xf0 || r.time >= 0xf0; }
   // 16003 閏年: 原版只在 (1500+年) 同時被 4 與 100 整除且 %400==0 時才算閏年 (照搬)
@@ -101,12 +109,12 @@ export class GameClock {
       if (st.u8(0x0cad) !== 0 || t % 12 === 0) await this.weather();
       await this.slot();
       if (this.abort()) return;
-      for (; t < this.rt.time; t++) if (t < 0x46) clockTodo("艦隊 AI (1ac19)");
+      for (; t < this.rt.time; t++) if (t < 0x46) await this.fleetDaily(t);
       if (!this.c.palette.ending && st.port === 0xff) { await this.portScene.seaTick(); await this.portScene.discover(); }   // 6cfc / 2e09:2f3d
     }
     if (this.c.palette.ending) return;
     await this.dayEnd();                                                             // 19717
-    for (t = 0; t < st.u8(0x0cad); t++) if (t < 0x46) clockTodo("艦隊 AI (1ac19)");
+    for (t = 0; t < st.u8(0x0cad); t++) if (t < 0x46) await this.fleetDaily(t);
   }
   // 19717 一天結束
   async dayEnd() {
@@ -192,10 +200,10 @@ export class GameClock {
         this.portScene.seaMonth();                                                   // 71c6
         this.rt.day = st.day;
         while (!palette.ending && this.rt.day < days) { this.portScene.seaDay(); await this.day(); this.rt.day++; }   // 71f0
-        if (!palette.ending && !this.abort()) clockTodo("月末處理 (18ff5)");
+        if (!palette.ending && !this.abort()) await this.monthly.monthEnd();                        // 18ff5
         this.rt.month++;
       }
-      if (!palette.ending && !this.abort()) clockTodo("年末處理 (16126)");
+      if (!palette.ending && !this.abort()) this.monthly.yearEnd();                                  // 16126
       if (palette.ending) break;
     }
   }

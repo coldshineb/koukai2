@@ -16,5 +16,5 @@ S.PORT_SETUP = { port: 0, vx: 42, vy: 56, hx: 12, hy: 12, poke, time: S.SEA_TIME
 const idle = Array(S.SEA_IDLE ?? 6).fill({ mouse: {} });
 S.PORT_KEYS = [K.up, K.enter, K.enter, ...(S.SEA_KEYS || idle)];
 S.NO_EVENTS = 1;
-S.NO_FLEETS = 1;                     // 他艦隊 (艦隊 AI) 兩邊都略過
+S.NO_FLEETS = S.FLEET_AI ? 0 : 1;    // 他艦隊 (艦隊 AI) 兩邊都略過; S.FLEET_AI (fleet_route.js) 時兩邊都執行
 })();

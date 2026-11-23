@@ -7,7 +7,8 @@ const K = { down: [0x50, 0], up: [0x48, 0], left: [0x4b, 0], right: [0x4d, 0], e
 const NEWGAME = [K.down, K.enter, K.enter, K.enter, K.left, K.left, K.enter, K.left, K.left, K.enter, K.enter];
 const KEYS = NEWGAME.concat(S.PORT_KEYS || [K.left, K.left, K.left, K.right, K.right, K.down, K.up, K.up, K.enter, K.left, K.down, K.down, K.right]);
 const TAIL = 30;                    // 最後一鍵之後再等多少次輸入查詢才截最終狀態
-const grabEmu = c => { const d = c.s[3] * 16; return { st: c.mem.slice(d + 0x0ca4, d + 0x8a18), rt: Array.from(c.mem.slice(d + 0x532, d + 0x536)),
+// S.EXTRA_DS = [[起, 迄], ...]: 另外比對存檔區以外的 DS 範圍 (移植版為 ctx.battleDS 等 DS 鏡像, 例: 海戰工作區)
+const grabEmu = c => { const d = c.s[3] * 16; return { x: (S.EXTRA_DS || []).map(([a, b]) => c.mem.slice(d + a, d + b)), st: c.mem.slice(d + 0x0ca4, d + 0x8a18), rt: Array.from(c.mem.slice(d + 0x532, d + 0x536)),
   rng: ((c.mem[d + 0xbd88] | (c.mem[d + 0xbd89] << 8) | (c.mem[d + 0xbd8a] << 16) | (c.mem[d + 0xbd8b] << 24)) >>> 0) }; };
 // 遮掉游標區 (24×24, 熱點左上; 驅動座標 y − 40) 後的 32 位元雜湊
 function fbHash(fb, ms) {
@@ -31,7 +32,8 @@ function runEmu() {
     const tp = S.TELEPORT?.[shots.length - 1]; if (tp) for (const [a, v] of tp) c.mem[S.DSEG * 16 + a] = v;              // S.TELEPORT[畫面序號] = [[DS 位址, 值], ...]
     if (!sc.keys.length) { done = true; c.halted = true; } });
   S.env = saveEnv; S._H16 = sH16; S._H33 = sH33;
-  c.mem[L + 0x1ac19] = 0xcb;
+  // S.FLEET_AI: 艦隊 AI (1ac19, game/fleetai.js) 兩邊都執行; 否則原版的 1ac19 改成直接返回, 移植版同樣略過 (ctx.noFleetAI)
+  if (!S.FLEET_AI) c.mem[L + 0x1ac19] = 0xcb;
   // 劇本事件檢查 (2e09:5481 / 2e09:55c2) 尚未移植: 測試建築時以 S.NO_EVENTS 讓原版一律回傳「沒有事件」
   if (S.NO_EVENTS) for (const o of [0x33511, 0x33652]) { c.mem[L + o] = 0x31; c.mem[L + o + 1] = 0xc0; c.mem[L + o + 2] = 0xcb; }                       // 艦隊 AI (1ac19) 尚未移植: 兩邊都略過, 以便單獨驗證港口與建築
   // 他艦隊 (艦隊 AI) 尚未移植: S.NO_FLEETS 時原版的 6aae (區域內他艦隊) 直接返回, 1afe8 不處理任何他艦隊 (1b048 jne → nop), 移植版同樣略過
@@ -65,7 +67,8 @@ const menuText = rdj("text/menu.json"), palJson = rdj("data/palettes.json"), ngD
 const portAssets = { za: rdb("data/za_dat.bin"), chip: rdb("gfx/portchip.bin"), map: rdb("gfx/portmap.bin"), chr: rdb("gfx/char.bin"), compass: rdb("gfx/compass.bin"),
   data: rdj("data/port.json"), wind: rdb("data/windcur.bin"), chipNo: rdj("data/portchip.json").chipNo, transit: rdb("gfx/transit.bin"), colony: rdj("text/colony.json"), itemMes: rdj("text/item_mes.json"), gamble: rdb("gfx/gamble.bin"), commands: rdj("data/commands.json") };
 portAssets.data.bld2 = rdj("data/buildings2.json");                 // 王宮/事務所/住宅/銀行/道具店 (port.js loadPortAssets 同一項)
-Object.assign(portAssets, { worldmap: rdb("gfx/worldmap.bin"), seachip: rdb("gfx/seachip.bin"), seacompass: rdb("gfx/seacompass.bin"), sea: rdj("data/sea.json") });   // 海上 (loadPortAssets 同一組)
+Object.assign(portAssets, { worldmap: rdb("gfx/worldmap.bin"), seachip: rdb("gfx/seachip.bin"), seacompass: rdb("gfx/seacompass.bin"), sea: rdj("data/sea.json"), fleet: rdj("data/fleet.json") });   // 海上 (loadPortAssets 同一組)
+Object.assign(portAssets, { hdat: rdb("gfx/hdat.bin"), battle: rdj("data/battle.json") });   // 海戰 (loadPortAssets 同一組)
 const msg = f["MESSAGE.DAT"], initState = new Uint8Array(fs.readFileSync(S.W + "/uw2_remake/tools/work/newgame.bin"));
 async function runJS(rng0) {
   const scr = new U.Screen(); let polls = 0;
@@ -74,7 +77,7 @@ async function runJS(rng0) {
   const state = new U.GameState(initState);
   const ctx = { scr, sys, state, initState, font, ASSETS: "", options: { get animate() { return !!(state.options & 1); } } };
   // 劇本: S.NO_EVENTS 時原版的事件檢查被改成直接返回, 移植版也略過; 其餘情況兩邊都執行劇本 VM
-  ctx.noEvents = !!S.NO_EVENTS; ctx.noFleets = !!S.NO_FLEETS;
+  ctx.noEvents = !!S.NO_EVENTS; ctx.noFleets = !!S.NO_FLEETS; ctx.noFleetAI = !S.FLEET_AI;
   const lazy = dir => new Proxy({}, { get: (o, k) => (o[k] ??= rdj(`${dir}${k}.json`)) });
   ctx.scenarioData = { vm: rdj("scenario/vm.json"), snr: lazy("scenario/snr"), mes: lazy("text/snr") };
   ctx.palette = new U.Palette(scr, sys, U.paletteTables(palJson));
@@ -96,7 +99,7 @@ async function runJS(rng0) {
     if (k && k.mouse) { if ('x' in k.mouse) s.mouse.x = k.mouse.x; if ('y' in k.mouse) s.mouse.y = k.mouse.y; if ('b' in k.mouse) s.mouse.buttons = k.mouse.b; }
     let fb = scr.fb.slice(), fh;
     if (S.FB_HASH) { const R = S.emuShotsRef, n = shots.length, e = R?.[n]; fh = fbHash(fb, Array.from({ length: (S.CURSOR_LAG ?? 1) + 1 }, (_, k) => R?.[n - k]?.mouse)); if (!e?.fb) fb = null; }
-    shots.push({ fb, fh, dac: Array.from(scr.raw), st: state.b.slice(0, 0x8a18 - 0x0ca4), rt: ctx.rt ? [ctx.rt.year, ctx.rt.month, ctx.rt.day, ctx.rt.time] : [], rng: sys.rng.state });
+    shots.push({ fb, fh, x: (S.EXTRA_DS || []).map(([a, b]) => (ctx.battleDS || new Uint8Array(0x10000)).slice(a, b)), dac: Array.from(scr.raw), st: state.b.slice(0, 0x8a18 - 0x0ca4), rt: ctx.rt ? [ctx.rt.year, ctx.rt.month, ctx.rt.day, ctx.rt.time] : [], rng: sys.rng.state });
     { const tp = S.TELEPORT?.[shots.length - 1]; if (tp) for (const [a, v] of tp) state.set8(a, v); }
     if (!sc.keys.length) throw new Error("STOP");
   });
@@ -126,8 +129,9 @@ let firstStateDiff = -1;
 for (let i = 0; i < n; i++) {
   const e = E.shots[i], j = J.shots[i];
   if (!e.fb || !j.fb) {                                              // S.FB_HASH: 只比雜湊
-    let dd = 0; for (let k = 0; k < 16; k++) if (e.dac[k * 3] !== j.dac[k * 3 + 1] * 4 || e.dac[k * 3 + 1] !== j.dac[k * 3 + 2] * 4 || e.dac[k * 3 + 2] !== j.dac[k * 3] * 4) dd++;
+    let dd = 0; for (let k = 0; k < (S.DAC_N ?? 16); k++) if (e.dac[k * 3] !== j.dac[k * 3 + 1] * 4 || e.dac[k * 3 + 1] !== j.dac[k * 3 + 2] * 4 || e.dac[k * 3 + 2] !== j.dac[k * 3] * 4) dd++;
     const sd = []; for (let k = 0; k < e.st.length; k++) if (e.st[k] !== j.st[k]) sd.push((0x0ca4 + k).toString(16) + ":" + e.st[k].toString(16) + "/" + j.st[k].toString(16));
+    (S.EXTRA_DS || []).forEach(([a], r) => { for (let k = 0; k < e.x[r].length; k++) if (e.x[r][k] !== j.x[r][k]) sd.push((a + k).toString(16) + ":" + e.x[r][k].toString(16) + "/" + j.x[r][k].toString(16)); });
     if (sd.length && firstStateDiff < 0) firstStateDiff = i;
     const ok = e.fh === j.fh && !dd && !sd.length && e.rng === j.rng && (i < NEWGAME.length || e.rt.join() === j.rt.join());
     rep.push(`${ok ? "OK  " : "FAIL"} #${String(i).padStart(2)} ${i < KEYS.length ? JSON.stringify(KEYS[i]) : "end"} fb ${e.fh === j.fh ? "=" : "≠"} dac=${dd} state=${sd.length}${sd.length ? " " + sd.slice(0, 8).join(" ") : ""} rng ${e.rng === j.rng ? "=" : e.rng.toString(16) + "/" + j.rng.toString(16)} rt ${e.rt}/${j.rt}`);
@@ -139,8 +143,9 @@ for (let i = 0; i < n; i++) {
   for (const m of Array.from({ length: (S.CURSOR_LAG ?? 1) + 1 }, (_, k) => E.shots[i - k]?.mouse)) if (m) for (let yy = m.y - 40; yy < m.y - 16; yy++) for (let xx = m.x; xx < m.x + 24; xx++)
     if (yy >= 0 && yy < 400 && xx < 640) e.fb[yy * 640 + xx] = j.fb[yy * 640 + xx];
   const d = S.cmp(e.fb, j.fb);
-  let dd = 0; for (let k = 0; k < 16; k++) if (e.dac[k * 3] !== j.dac[k * 3 + 1] * 4 || e.dac[k * 3 + 1] !== j.dac[k * 3 + 2] * 4 || e.dac[k * 3 + 2] !== j.dac[k * 3] * 4) dd++;
+  let dd = 0; for (let k = 0; k < (S.DAC_N ?? 16); k++) if (e.dac[k * 3] !== j.dac[k * 3 + 1] * 4 || e.dac[k * 3 + 1] !== j.dac[k * 3 + 2] * 4 || e.dac[k * 3 + 2] !== j.dac[k * 3] * 4) dd++;
   const sd = []; for (let k = 0; k < e.st.length; k++) if (e.st[k] !== j.st[k]) sd.push((0x0ca4 + k).toString(16) + ":" + e.st[k].toString(16) + "/" + j.st[k].toString(16));
+    (S.EXTRA_DS || []).forEach(([a], r) => { for (let k = 0; k < e.x[r].length; k++) if (e.x[r][k] !== j.x[r][k]) sd.push((a + k).toString(16) + ":" + e.x[r][k].toString(16) + "/" + j.x[r][k].toString(16)); });
   if (sd.length && firstStateDiff < 0) firstStateDiff = i;
   if (d.n) { fs.writeFileSync(S.W + `/uw2_remake/tools/work/pt_emu_${i}.idx`, Buffer.from(e.fb)); fs.writeFileSync(S.W + `/uw2_remake/tools/work/pt_js_${i}.idx`, Buffer.from(j.fb)); fs.writeFileSync(S.W + `/uw2_remake/tools/work/pt_dac_${i}.json`, JSON.stringify(e.dac)); }
   const ok = !d.n && !dd && !sd.length && e.rng === j.rng && (i < NEWGAME.length || e.rt.join() === j.rt.join());

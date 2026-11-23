@@ -177,3 +177,5 @@ if __name__ == "__main__":
     extract_newgame.main(sea2, out)
     import extract_port                     # 港口場景原始資料
     extract_port.main(sea2, out, uw2lib.ls_unpack)
+    import extract_battle                   # 海戰: HDAT.PUT、DS 常數 (scenes/battle.js)
+    extract_battle.main(sea2, out)

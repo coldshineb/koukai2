@@ -12,9 +12,11 @@ import { PortScene } from "./port.js";
 import { Buildings } from "./buildings.js";
 import { Commands } from "./commands.js";
 import { seaNegotiate } from "./negotiate.js";
+import { NavalBattle } from "./battle.js";
 import { marketTradeLog } from "./market.js";
 import { WorldMap } from "../gfx/worldmap.js";
 import { CellSelect } from "../ui/cellsel.js";
+import { FleetAI } from "../game/fleetai.js";
 
 const seaHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const seaS16 = v => (v << 16) >> 16;
@@ -33,11 +35,13 @@ export class SeaScene extends PortScene {
     this.seaMonths = S.months.map(seaHex);                              // DS:8af0 月份字串
     this.wm = new WorldMap(P.worldmap, S);
     this.seaBuf = new Uint8Array(0x2400);                                // [03f4]:[03f6]
-    this.region = 0xffff; this.item = 0; this.bda6 = 0; this.bdaa = 0;
+    this.region = 0xffff; this.item = 0xff; this.bda6 = 0; this.bdaa = 0;   // DS 初值: [06c8] = FFFF、[06ca] = FF、[bda6] = [bdaa] = 0
     this.speed = 0; this.sight = 0; this.a9c8 = 0; this.bda8 = 0; this.btnX = 0; this.btnY = 0;
   }
   get fleet() { return 0x2e76 + ((0x85 * this.st.u8(this.st.personRecord(this.st.hero) + 0x2c)) & 0xffff); }   // [c2d4] (162e3)
   get b() { return (this.buildings ??= new Buildings(this)); }
+  get ai() { return (this.fleetAI ??= new FleetAI(this)); }             // 艦隊 AI (game/fleetai.js)
+  get mapBuf() { return this.map || this.seaBuf; }                      // [03f6]: 在港時是港口地圖 (艦隊 AI 的陸地判斷照樣讀它, 原版如此)
   slotOf(i) { return i < 10 ? (this.fleet + 0x2b + 9 * i) & 0xffff : 0x572a + 9 * i; }   // seg0:5c58
   crewOf(i) { return 0x52d4 + ((0x1e * i) & 0xffff); }                                    // seg0:5c38
   shipRec(n) { return 0x5892 + ((0x16 * n) & 0xffff); }                                   // seg0:5c7a
@@ -91,7 +95,7 @@ export class SeaScene extends PortScene {
     const { palette, sys, graph, state: st, con } = this.c;
     if (palette.ending) { await palette.fadeBlack(); return; }
     // 地點表 [0c96] (DATA1 #4, [bd7e] = DATA1 #5 筆): DS:1046 位元表中已探索的地點 +1 |= 0x80 (執行期緩衝, 不在存檔內)
-    const N = (this.c.nodesRT ??= Uint8Array.from(this.c.mapNodes ?? new Uint8Array(0)));
+    const N = this.nodes;
     for (let i = 0; i < this.SJ.nodeCount; i++) if ((st.u8(0x1046 + (i >> 3)) & (0x80 >> (i & 7))) && N.length > i * 16 + 1) N[i * 16 + 1] |= 0x80;
     this.bda8 = 0;
     for (let i = 0; i < 0x14; i++) { const v = st.u8(0x2e57 + i); if (v === 0x18) this.bda8 |= 0x80; else if (v === 0x19) this.bda8 |= 0x40; }
@@ -153,8 +157,8 @@ export class SeaScene extends PortScene {
       }
     }
   }
-  // 6aae 區域改變時處理區域內的他艦隊 (目標位置 0fea:a22a 等) — 屬於艦隊 AI, 尚未移植
-  fleetsRegion() { seaTodo("他艦隊進入區域 (6aae, 艦隊 AI)"); }
+  // 6aae 區域改變時處理區域內的他艦隊 (game/fleetai.js regionChange)
+  fleetsRegion() { if (!this.c.noFleets) this.ai.regionChange(); }
   viewOffset() {
     this.bdba = ((this.vy1008 - this.bdaa) * 0x60 + (this.vx1006 % 0x2d0) - this.bda6) & 0xffff;
   }
@@ -251,7 +255,7 @@ export class SeaScene extends PortScene {
   }
   // 3135c (x, y) 的 2×2 地圖格中有 >= 0x34 的圖塊 (陸地)
   landAt(x, y) {
-    const o = ((seaS16(y) - this.bdaa) * 0x60 + (seaS16(x) % 0x2d0) - this.bda6) & 0xffff, B = this.seaBuf, g = i => B[i & 0xffff] ?? 0;
+    const o = ((seaS16(y) - this.bdaa) * 0x60 + (seaS16(x) % 0x2d0) - this.bda6) & 0xffff, B = this.mapBuf, g = i => B[i & 0xffff] ?? 0;
     return g(o) >= 0x34 || g(o + 1) >= 0x34 || g(o + 0x60) >= 0x34 || g(o + 0x61) >= 0x34 ? 1 : 0;
   }
 
@@ -404,18 +408,9 @@ export class SeaScene extends PortScene {
     return 1;
   }
 
-  // ================= 1afe8 他艦隊的海上移動 (艦隊 AI) =================
-  // 每支艦隊先查一次滑鼠右鍵 (按下 → [a9c8] |= 1 暫停); 主角與未出航 (+29 bit0 = 0) 的略過; 其他的移動屬於艦隊 AI, 尚未移植
-  async fleetsMove() {
-    const { sys, palette } = this.c, st = this.st;
-    for (let k = 0; k < 0x46 && !palette.ending; k++) {
-      if (sys.mouseEvent() === 0x82) this.a9c8 |= 1;
-      const F = 0x2e76 + k * 0x85;
-      if (F === this.fleet || !(st.u8(F + 0x29) & 1)) continue;
-      if (this.c.noFleets) continue;                                    // 測試: 原版 1b048 改成不處理
-      seaTodo("他艦隊的海上移動 (1afe8, 艦隊 AI)");
-    }
-  }
+  // ================= 1afe8 他艦隊的海上移動 (艦隊 AI, game/fleetai.js seaTick) =================
+  // 每支艦隊先查一次滑鼠右鍵 (按下 → [a9c8] |= 1 暫停); 主角與未出航 (+29 bit0 = 0) 的略過
+  async fleetsMove() { await this.ai.seaTick(); }
 
   // ================= 2e09:38ec = 3197c 主角艦隊移動 =================
   // 316b3 本時刻航向: 委任 ([1005]&0xc0) → 自動航行; 停船 (0x20) → 8; 否則 +1a
@@ -443,7 +438,9 @@ export class SeaScene extends PortScene {
   // 地點表 [0c96] (DATA1 #4, 每筆 16 bytes: +0 x (bit15 = 已探索, enterSea 設定), +2 y, +4..+0b 4 個鄰點 (FFFF = 無), +0c..+0f 4 個距離)
   pt(a) { const st = this.st; return { get x() { return st.u16(a); }, set x(v) { st.set16(a, v); }, get y() { return st.u16(a + 2); }, set y(v) { st.set16(a + 2, v); } }; }
   ptLocal(x, y) { const o = { _x: x & 0xffff, _y: y & 0xffff, get x() { return this._x; }, set x(v) { this._x = v & 0xffff; }, get y() { return this._y; }, set y(v) { this._y = v & 0xffff; } }; return o; }
-  nodeW(n, off) { const N = this.c.nodesRT, o = ((n << 4) + off) & 0xffff; return ((N?.[o] ?? 0) | ((N?.[o + 1] ?? 0) << 8)) & 0xffff; }
+  // 地點表 [0c96]: 開始新遊戲 / 讀檔 (1667a) 時由 DATA1 #4 載入, 港內的艦隊 AI 也會用到 (出海前就要有)
+  get nodes() { return (this.c.nodesRT ??= Uint8Array.from(this.c.mapNodes ?? new Uint8Array(0))); }
+  nodeW(n, off) { const N = this.nodes, o = ((n << 4) + off) & 0xffff; return ((N[o] ?? 0) | ((N[o + 1] ?? 0) << 8)) & 0xffff; }
   // 313b1 自動航行的方向: 到達目的地 → 8; 241c2 失敗 → −1 (0xffff); 目標 = 中途點 (+0d&80) / 目的地 (&20) / 目前路線格的地點;
   //   以 Bresenham 式誤差 (+0e) 在長軸上每步前進、短軸依誤差前進 → DS:b7da[3 dy + dx + 4] (與 ae38 相同的表)
   autoSteer(F) {
@@ -578,7 +575,7 @@ export class SeaScene extends PortScene {
   //   主角艦隊只走已探索 (+1 bit7) 的地點; 擴展到起點後由起點沿「距離 + 邊長 = 本點距離」的鄰點走回, 最多 4 個 (起點本身距離 0 時不算)
   //   → 從目前路線格起找第一個空格 (DS:ae30 遮罩), 依序填入, 遇到目的地的地點時 +0d |= 8; 最後 +0d &= BF。起點 = 目的地的地點且距離 0 → +0d |= 28
   routeSearch(F) {
-    const st = this.st, N = this.c.nodesRT, AE = [0x80, 0x40, 0x20, 0x10];
+    const st = this.st, N = this.nodes, AE = [0x80, 0x40, 0x20, 0x10];
     const link = (n, k) => this.nodeW(n, 4 + 2 * k), cost = (n, k) => N?.[((n << 4) + 0x0c + k) & 0xffff] ?? 0;
     const s0 = this.nearestNode(st.u16(F), st.u16(F + 2)), start = s0 & 0x7fff;
     const goal = this.nearestNode(st.u16(F + 4), st.u16(F + 6)) & 0x7fff;
@@ -730,7 +727,7 @@ export class SeaScene extends PortScene {
     const buf = (this.pathBuf ??= new Uint16Array(0x8000)); buf.fill(0);
     const left = (this.item * 0x2d0 + this.bda6) & 0xffff, top = this.bdaa & 0xffff;
     const sx = (st.u16(F) - left) & 0xff, sy = (st.u16(F + 2) - top) & 0xff, tx = (T.x - left) & 0xff, ty = (T.y - top) & 0xff;
-    for (let y = 0; y < 72; y++) for (let x = 0; x < 72; x++) buf[y * 72 + x] = this.seaBuf[y * 0x60 + x] >= 0x34 ? 0x801 : 0x800;
+    for (let y = 0; y < 72; y++) for (let x = 0; x < 72; x++) buf[y * 72 + x] = this.mapBuf[y * 0x60 + x] >= 0x34 ? 0x801 : 0x800;
     const ti = ty * 72 + tx;
     if (buf[ti] > 0x800) return 0;
     buf[ti] = 0;
@@ -1382,8 +1379,8 @@ export class SeaScene extends PortScene {
   async smallMsg(m) { const { win, message, menu } = this.c; win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0); message(m); await menu.waitPrompt(); await win.close(); }
   // 20a6d 交涉 → 20127 (scenes/negotiate.js, 第 30.1 節)
   async negotiate() { return seaNegotiate(this); }
-  // 10f7e 海戰 (AL, DL = 雙方指揮者, 其中一方是主角; BL、堆疊參數 = 0xff) — 尚未移植
-  async navalBattle(al, dl, bl, arg) { seaTodo("海戰 (10f7e)"); }
+  // 10f7e 海戰 (AL, DL = 雙方指揮者, 其中一方是主角; BL、堆疊參數 = 雙方援軍, 0xff = 沒有) → scenes/battle.js (第 30 節)
+  async navalBattle(al, dl, bl, arg) { return new NavalBattle(this).run(al, dl, bl, arg); }
   // 0fea:1181 = 11021 戰鬥: 時刻 < 15 或 >= 60 → 0x30d「夜間不能開戰」; 10df0 選對象 (附近沒有 → 0x30a); 與主角同國 (非 6) → 0x30e 確認; → 10f7e(主角, 對象, 0xff, 0xff)
   async battle() {
     const st = this.st, t = this.c.rt.time;

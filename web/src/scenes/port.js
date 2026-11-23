@@ -33,7 +33,9 @@ export async function loadPortAssets(ctx) {
   // 海上 (scenes/sea.js, tools/extract_sea.py): WORLDMAP 格碼、DATA1 #11 海上圖塊與船隻精靈、#7 羅盤指針、表與字串
   const [worldmap, seachip, seacompass, sea] = await Promise.all([loadBinary(A + "/gfx/worldmap.bin"), loadBinary(A + "/gfx/seachip.bin"),
     loadBinary(A + "/gfx/seacompass.bin"), loadJSON(A + "/data/sea.json")]);
-  return { za, chip, map, chr, compass, data, wind, chipNo, transit, colony, itemMes, gamble, commands, worldmap, seachip, seacompass, sea };
+  const [hdat, battle] = await Promise.all([loadBinary(A + "/gfx/hdat.bin"), loadJSON(A + "/data/battle.json")]);   // 海戰 (scenes/battle.js, tools/extract_battle.py)
+  const fleet = await loadJSON(A + "/data/fleet.json");                // 月末 / 艦隊 AI 常數表與 NAME.TBL (tools/extract_fleet.py)
+  return { za, chip, map, chr, compass, data, wind, chipNo, transit, colony, itemMes, gamble, commands, worldmap, seachip, seacompass, sea, fleet, hdat, battle };
 }
 
 export class PortScene {
