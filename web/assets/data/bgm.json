@@ -1,32 +1,533 @@
 {
- "note": "原版曲目編號 -> PS版音檔; 對應關係待 D2.MML/MAIN.EXE 播放呼叫逆向後校正, 目前為依序暫定",
- "tracks": {
-  "1": "ps1_01.mp3",
-  "2": "ps1_02.mp3",
-  "3": "ps1_03.mp3",
+ "note": "遊戲內曲目編號 (MAIN.EXE 0:9670 的參數 0..0x17, 經 DS:8c20 轉成 FMDRV 樂曲編號) → PS 版音檔。依據: (1) D2.MML 解出的音符合成旋律與 PS mp3 的移調不變 chroma 比對 (tools/re/bgm_match.py, 主要看固定速度比互相關 rigid 與前後兩半一致性); (2) MAIN.EXE/OPEN.EXE/END.EXE 的播放呼叫與劇本 CA 命令的場景 (tools/re/bgm.py, bgm_scenario.py)。詳見 docs/RE_NOTES.md 第 23 節。值為 null = 原版送 FMDRV 樂曲 0 (停止)。",
+ "songs": {
+  "0": "ps1_01.mp3",
+  "1": "ps1_23.mp3",
+  "2": "ps1_24.mp3",
+  "3": "ps1_02.mp3",
   "4": "ps1_04.mp3",
-  "5": "ps1_05.mp3",
-  "6": "ps1_06.mp3",
-  "7": "ps1_07.mp3",
-  "8": "ps1_08.mp3",
-  "9": "ps1_09.mp3",
-  "10": "ps1_10.mp3",
-  "11": "ps1_11.mp3",
-  "12": "ps1_12.mp3",
-  "13": "ps1_13.mp3",
-  "14": "ps1_14.mp3",
-  "15": "ps1_15.mp3",
-  "16": "ps1_16.mp3",
-  "17": "ps1_17.mp3",
-  "18": "ps1_18.mp3",
-  "19": "ps1_19.mp3",
-  "20": "ps1_20.mp3",
-  "21": "ps1_21.mp3",
-  "22": "ps1_22.mp3",
-  "23": "ps1_23.mp3",
-  "24": "ps1_24.mp3",
-  "25": "ps1_25.mp3",
-  "26": "ps1_26.mp3",
-  "27": "ps1_27.mp3"
+  "5": "ps1_06.mp3",
+  "6": "ps1_05.mp3",
+  "7": "ps1_09.mp3",
+  "8": "ps1_07.mp3",
+  "9": "ps1_08.mp3",
+  "10": "ps1_03.mp3",
+  "11": "ps1_16.mp3",
+  "12": "ps1_19.mp3",
+  "13": "ps1_20.mp3",
+  "14": "ps1_22.mp3",
+  "15": "ps1_21.mp3",
+  "16": "ps1_11.mp3",
+  "17": "ps1_14.mp3",
+  "18": "ps1_15.mp3",
+  "19": "ps1_10.mp3",
+  "20": "ps1_25.mp3",
+  "21": "ps1_13.mp3",
+  "22": null,
+  "23": null
+ },
+ "once": [
+  21
+ ],
+ "opening": {
+  "song": 0,
+  "driver": 21,
+  "file": "ps1_01.mp3",
+  "title": "Opening",
+  "source": "OPEN.EXE 08590 以 AH=00 登記內嵌樂曲資料 (091a:0002, 1 曲, 與 D2.MML 樂曲 21 = 遊戲曲目 0 逐位元組相同)。場景 0 (DS:0b9a[0] = 05348) 的 053eb 呼叫 4980(0) → AH=01 AL=1 播放並 49e4(1) 開啟重播, 之後各場景不換曲; 場景 11 (08204) 的 08408 以 49e4(0) 關閉重播 (本遍播完即停), 08460 以 4a0b(28h) 淡出; 片頭結束 (0876b) 與中途按鍵跳過 (04ee4) 以 4a0b(14h) 淡出。"
+ },
+ "ending": [
+  {
+   "song": 1,
+   "driver": 19,
+   "file": "ps1_23.mp3",
+   "title": "Duke",
+   "source": "END.EXE 01613: 359f(0) → AH=01 AL=1 (內嵌第 1 曲 = D2.MML 樂曲 19)"
+  },
+  {
+   "song": 2,
+   "driver": 22,
+   "file": "ps1_24.mp3",
+   "title": "Close to Home",
+   "source": "END.EXE 009b6: 359f(1) → AH=01 AL=2 (內嵌第 2 曲 = D2.MML 樂曲 22)"
+  }
+ ],
+ "scenes": {
+  "0": "片頭 (OPEN.EXE 053eb 播放其內嵌的第 1 曲 = 與 D2.MML 樂曲 21 逐位元組相同); MAIN.EXE 不播放",
+  "1": "結局前段 (END.EXE 01613 播放內嵌第 1 曲 = D2.MML 樂曲 19)",
+  "2": "結局後段/工作人員名單 (END.EXE 009b6 播放內嵌第 2 曲 = D2.MML 樂曲 22, 約 241 秒)",
+  "3": "標題畫面 (171a2); 劇本中主角回家/家人場面 (CA 03, 20 處)",
+  "4": "約翰 (主角 0) 的海上音樂 (出海 0851f: 曲目 = [12b5]+4); 劇本中彈魯特琴的場面",
+  "5": "卡特琳娜 (主角 1) 的海上音樂; 劇本中卡特琳娜登場",
+  "6": "奧托 (主角 2) 的海上音樂",
+  "7": "恩斯特 (主角 3) 的海上音樂 (劇本中皮耶德登場時也用這個編號, 見筆記)",
+  "8": "皮耶德 (主角 4) 的海上音樂 (劇本只在 SNR4 用 1 次)",
+  "9": "阿蘭/阿里 (主角 5) 的海上音樂",
+  "10": "港口: 伊比利、北歐、地中海 (1b3b6, 港口記錄 +21h 文化圈 0..2)",
+  "11": "港口: 北非、西非、亞美利加、東非 (文化圈 3,5,6,7,8)",
+  "12": "港口: 伊斯蘭、中東 (文化圈 4,9)",
+  "13": "港口: 印度 (文化圈 10)",
+  "14": "港口: 東南亞、東亞 (文化圈 11,12)",
+  "15": "補給港 (港口編號 ≥ 100)",
+  "16": "海戰開始 (0fcf9, 由海上遭遇 10f7e 呼叫); 劇本中敵人出現/決鬥前的緊張場面",
+  "17": "海戰勝利 (敵旗艦投降) 後, 擄獲敵艦處理 (10762)",
+  "18": "王宮 (進入建築 5, 1b6ba)",
+  "19": "酒館 (進入建築 1, 1b6ba); 劇本中事件結束的閒談場面 (32 處)",
+  "20": "遊戲結束: 旗艦沉沒/海戰失利/暴風雨沉船/船員全滅/退休 (1091b, 1764f); 劇本中的悲傷場面",
+  "21": "海戰勝利短曲, 只播一次 (106fe: 9670(0x15) 後 96eb(0) 關閉重播); 劇本 CA 15 同樣只播一次",
+  "22": "FMDRV 樂曲 0 = 停止 (程式中未使用)",
+  "23": "FMDRV 樂曲 0 = 停止 (程式中未使用)"
+ },
+ "evidence": {
+  "0": {
+   "driver": 21,
+   "file": "ps1_01.mp3",
+   "title": "Opening",
+   "rigid": 0.7595,
+   "second": [
+    "ps1_21.mp3",
+    0.3248
+   ],
+   "margin": 0.4347,
+   "tempo_ratio": 1.4142,
+   "shift": 0,
+   "halves": [
+    "ps1_01.mp3",
+    "ps1_01.mp3"
+   ],
+   "dtw_best": "ps1_01.mp3",
+   "confidence": "高"
+  },
+  "1": {
+   "driver": 19,
+   "file": "ps1_23.mp3",
+   "title": "Duke",
+   "rigid": 0.7944,
+   "second": [
+    "ps1_04.mp3",
+    0.4806
+   ],
+   "margin": 0.3138,
+   "tempo_ratio": 1.5874,
+   "shift": 0,
+   "halves": [
+    "ps1_23.mp3",
+    "ps1_23.mp3"
+   ],
+   "dtw_best": "ps1_23.mp3",
+   "confidence": "高"
+  },
+  "2": {
+   "driver": 22,
+   "file": "ps1_24.mp3",
+   "title": "Close to Home",
+   "rigid": 0.6777,
+   "second": [
+    "ps1_18.mp3",
+    0.4075
+   ],
+   "margin": 0.2702,
+   "tempo_ratio": 1.6339,
+   "shift": 0,
+   "halves": [
+    "ps1_24.mp3",
+    "ps1_18.mp3"
+   ],
+   "dtw_best": "ps1_24.mp3",
+   "confidence": "中高"
+  },
+  "3": {
+   "driver": 18,
+   "file": "ps1_02.mp3",
+   "title": "Opening Menu",
+   "rigid": 0.7048,
+   "second": [
+    "ps1_11.mp3",
+    0.394
+   ],
+   "margin": 0.3108,
+   "tempo_ratio": 1.0293,
+   "shift": 0,
+   "halves": [
+    "ps1_02.mp3",
+    "ps1_02.mp3"
+   ],
+   "dtw_best": "ps1_02.mp3",
+   "confidence": "高"
+  },
+  "4": {
+   "driver": 2,
+   "file": "ps1_04.mp3",
+   "title": "Caprice for Lute",
+   "rigid": 0.7248,
+   "second": [
+    "ps1_27.mp3",
+    0.4355
+   ],
+   "margin": 0.2893,
+   "tempo_ratio": 1.3348,
+   "shift": 0,
+   "halves": [
+    "ps1_04.mp3",
+    "ps1_04.mp3"
+   ],
+   "dtw_best": "ps1_04.mp3",
+   "confidence": "高"
+  },
+  "5": {
+   "driver": 3,
+   "file": "ps1_06.mp3",
+   "title": "Theme of Catalina",
+   "rigid": 0.7474,
+   "second": [
+    "ps1_26.mp3",
+    0.3176
+   ],
+   "margin": 0.4298,
+   "tempo_ratio": 1.0595,
+   "shift": 0,
+   "halves": [
+    "ps1_06.mp3",
+    "ps1_06.mp3"
+   ],
+   "dtw_best": "ps1_06.mp3",
+   "confidence": "高"
+  },
+  "6": {
+   "driver": 4,
+   "file": "ps1_05.mp3",
+   "title": "Theme of Otto",
+   "rigid": 0.6073,
+   "second": [
+    "ps1_15.mp3",
+    0.394
+   ],
+   "margin": 0.2133,
+   "tempo_ratio": 1.4557,
+   "shift": 0,
+   "halves": [
+    "ps1_05.mp3",
+    "ps1_05.mp3"
+   ],
+   "dtw_best": "ps1_26.mp3",
+   "confidence": "高"
+  },
+  "7": {
+   "driver": 7,
+   "file": "ps1_09.mp3",
+   "title": "Theme of Ernest",
+   "rigid": 0.6894,
+   "second": [
+    "ps1_11.mp3",
+    0.3089
+   ],
+   "margin": 0.3805,
+   "tempo_ratio": 1.0,
+   "shift": 0,
+   "halves": [
+    "ps1_09.mp3",
+    "ps1_09.mp3"
+   ],
+   "dtw_best": "ps1_09.mp3",
+   "confidence": "高"
+  },
+  "8": {
+   "driver": 6,
+   "file": "ps1_07.mp3",
+   "title": "Theme of Pietro",
+   "rigid": 0.7105,
+   "second": [
+    "ps1_18.mp3",
+    0.3801
+   ],
+   "margin": 0.3304,
+   "tempo_ratio": 1.2241,
+   "shift": 0,
+   "halves": [
+    "ps1_07.mp3",
+    "ps1_07.mp3"
+   ],
+   "dtw_best": "ps1_07.mp3",
+   "confidence": "高"
+  },
+  "9": {
+   "driver": 5,
+   "file": "ps1_08.mp3",
+   "title": "Theme of Ali",
+   "rigid": 0.8166,
+   "second": [
+    "ps1_05.mp3",
+    0.466
+   ],
+   "margin": 0.3506,
+   "tempo_ratio": 1.2241,
+   "shift": 0,
+   "halves": [
+    "ps1_08.mp3",
+    "ps1_08.mp3"
+   ],
+   "dtw_best": "ps1_08.mp3",
+   "confidence": "高"
+  },
+  "10": {
+   "driver": 11,
+   "file": "ps1_03.mp3",
+   "title": "Mast in the Mist",
+   "rigid": 0.6179,
+   "second": [
+    "ps1_20.mp3",
+    0.3715
+   ],
+   "margin": 0.2464,
+   "tempo_ratio": 1.2241,
+   "shift": 0,
+   "halves": [
+    "ps1_03.mp3",
+    "ps1_03.mp3"
+   ],
+   "dtw_best": "ps1_03.mp3",
+   "confidence": "高"
+  },
+  "11": {
+   "driver": 9,
+   "file": "ps1_16.mp3",
+   "title": "Empty Eyes",
+   "rigid": 0.6653,
+   "second": [
+    "ps1_07.mp3",
+    0.3053
+   ],
+   "margin": 0.36,
+   "tempo_ratio": 1.4557,
+   "shift": 8,
+   "halves": [
+    "ps1_16.mp3",
+    "ps1_16.mp3"
+   ],
+   "dtw_best": "ps1_16.mp3",
+   "confidence": "高"
+  },
+  "12": {
+   "driver": 8,
+   "file": "ps1_19.mp3",
+   "title": "Moslem Dance",
+   "rigid": 0.5687,
+   "second": [
+    "ps1_21.mp3",
+    0.4659
+   ],
+   "margin": 0.1028,
+   "tempo_ratio": 1.0,
+   "shift": 0,
+   "halves": [
+    "ps1_19.mp3",
+    "ps1_19.mp3"
+   ],
+   "dtw_best": "ps1_19.mp3",
+   "confidence": "中高"
+  },
+  "13": {
+   "driver": 10,
+   "file": "ps1_20.mp3",
+   "title": "The Mahout",
+   "rigid": 0.5959,
+   "second": [
+    "ps1_21.mp3",
+    0.4623
+   ],
+   "margin": 0.1336,
+   "tempo_ratio": 1.4557,
+   "shift": 0,
+   "halves": [
+    "ps1_01.mp3",
+    "ps1_20.mp3"
+   ],
+   "dtw_best": "ps1_20.mp3",
+   "confidence": "中"
+  },
+  "14": {
+   "driver": 1,
+   "file": "ps1_22.mp3",
+   "title": "Land of Luxury",
+   "rigid": 0.5953,
+   "second": [
+    "ps1_01.mp3",
+    0.5468
+   ],
+   "margin": 0.0485,
+   "tempo_ratio": 1.5874,
+   "shift": 0,
+   "halves": [
+    "ps1_01.mp3",
+    "ps1_22.mp3"
+   ],
+   "dtw_best": "ps1_01.mp3",
+   "confidence": "中"
+  },
+  "15": {
+   "driver": 13,
+   "file": "ps1_21.mp3",
+   "title": "Supply Port",
+   "rigid": 0.7928,
+   "second": [
+    "ps1_01.mp3",
+    0.4797
+   ],
+   "margin": 0.3131,
+   "tempo_ratio": 1.2241,
+   "shift": 0,
+   "halves": [
+    "ps1_21.mp3",
+    "ps1_21.mp3"
+   ],
+   "dtw_best": "ps1_21.mp3",
+   "confidence": "高"
+  },
+  "16": {
+   "driver": 14,
+   "file": "ps1_11.mp3",
+   "title": "The Chase",
+   "rigid": 0.4683,
+   "second": [
+    "ps1_18.mp3",
+    0.3245
+   ],
+   "margin": 0.1438,
+   "tempo_ratio": 0.9439,
+   "shift": 0,
+   "halves": [
+    "ps1_11.mp3",
+    "ps1_11.mp3"
+   ],
+   "dtw_best": "ps1_11.mp3",
+   "confidence": "高"
+  },
+  "17": {
+   "driver": 15,
+   "file": "ps1_14.mp3",
+   "title": "Capturing Enemies' Ships",
+   "rigid": 0.5549,
+   "second": [
+    "ps1_24.mp3",
+    0.3671
+   ],
+   "margin": 0.1878,
+   "tempo_ratio": 1.4557,
+   "shift": 0,
+   "halves": [
+    "ps1_14.mp3",
+    "ps1_14.mp3"
+   ],
+   "dtw_best": "ps1_07.mp3",
+   "confidence": "高"
+  },
+  "18": {
+   "driver": 16,
+   "file": "ps1_15.mp3",
+   "title": "Royal Palace",
+   "rigid": 0.6519,
+   "second": [
+    "ps1_18.mp3",
+    0.3105
+   ],
+   "margin": 0.3414,
+   "tempo_ratio": 1.0595,
+   "shift": 0,
+   "halves": [
+    "ps1_15.mp3",
+    "ps1_15.mp3"
+   ],
+   "dtw_best": "ps1_15.mp3",
+   "confidence": "高"
+  },
+  "19": {
+   "driver": 20,
+   "file": "ps1_10.mp3",
+   "title": "Fiddler's Green",
+   "rigid": 0.4644,
+   "second": [
+    "ps1_16.mp3",
+    0.2835
+   ],
+   "margin": 0.1809,
+   "tempo_ratio": 1.1554,
+   "shift": 0,
+   "halves": [
+    "ps1_10.mp3",
+    "ps1_10.mp3"
+   ],
+   "dtw_best": "ps1_10.mp3",
+   "confidence": "高"
+  },
+  "20": {
+   "driver": 17,
+   "file": "ps1_25.mp3",
+   "title": "Defeated",
+   "rigid": 0.8683,
+   "second": [
+    "ps1_18.mp3",
+    0.4282
+   ],
+   "margin": 0.4401,
+   "tempo_ratio": 1.3348,
+   "shift": 0,
+   "halves": [
+    "ps1_25.mp3",
+    "ps1_25.mp3"
+   ],
+   "dtw_best": "ps1_25.mp3",
+   "confidence": "高"
+  },
+  "21": {
+   "driver": 12,
+   "file": "ps1_13.mp3",
+   "title": "Victory in Naval Battle",
+   "method": "jingle (頭尾對齊)",
+   "ps13": {
+    "corr": 0.363,
+    "corr_shift": 1,
+    "dtw": 0.296,
+    "dtw_shift": 1
+   },
+   "ps12": {
+    "corr": 0.283,
+    "corr_shift": 9,
+    "dtw": 0.357,
+    "dtw_shift": 9
+   },
+   "confidence": "中"
+  }
+ },
+ "tracks": {
+  "1": "ps1_22.mp3",
+  "2": "ps1_04.mp3",
+  "3": "ps1_06.mp3",
+  "4": "ps1_05.mp3",
+  "5": "ps1_08.mp3",
+  "6": "ps1_07.mp3",
+  "7": "ps1_09.mp3",
+  "8": "ps1_19.mp3",
+  "9": "ps1_16.mp3",
+  "10": "ps1_20.mp3",
+  "11": "ps1_03.mp3",
+  "12": "ps1_13.mp3",
+  "13": "ps1_21.mp3",
+  "14": "ps1_11.mp3",
+  "15": "ps1_14.mp3",
+  "16": "ps1_15.mp3",
+  "17": "ps1_25.mp3",
+  "18": "ps1_02.mp3",
+  "19": "ps1_23.mp3",
+  "20": "ps1_10.mp3",
+  "21": "ps1_01.mp3",
+  "22": "ps1_24.mp3"
+ },
+ "tracks_note": "FMDRV 樂曲編號 (D2.MML 第 n 曲) → PS 音檔; audio.js 在 songs 沒有該編號時才用 (SONG_TO_DRIVER 轉換)",
+ "unused_ps": {
+  "ps1_12.mp3": "Victory in Duel: DOS 版單挑沒有播放音樂的呼叫 (勝負後沿用當時的曲子), 也沒有對應的 FM 曲",
+  "ps1_17.mp3": "Storm: DOS 版海上天候 1 (暴風雨, 海上用夜間調色盤) 時不換 BGM, 而是在 FMDRV 效果音聲部持續發一個音 (0851f/16b3f/213c5: 天候 [0cb3]&15 = 1 時 9768(DS:0c5a) 設效果音色 + 9804(30h) 發音, 9888 停止), 沒有對應的 FM 樂曲",
+  "ps1_18.mp3": "Sleep: DOS 版旅館就寢沒有播放音樂的呼叫; 沒有對應的 FM 曲",
+  "ps1_26.mp3": "Extra Track 01: 沒有對應的 FM 曲 (與 22 首 FM 曲的最高分都低於各曲的正確對應)",
+  "ps1_27.mp3": "Extra Track 02: 同上"
  }
 }

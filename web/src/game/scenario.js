@@ -283,7 +283,7 @@ export class Scenario {
     const r = await this.c.menu.listMenu(0x3c, 0x50, items, 0);
     this.setVar(v, r & 0xff);
   }
-  async op_music({ song }) { this.c.bgm.playSong(song); if (song === 0x15) this.c.bgm.stop?.(); }                // 31e67: 9670 / 96eb(0)
+  async op_music({ song }) { this.c.bgm.playSong(song); }    // 31e67: 9670(b); b=0x15 時 96eb(0) 關閉重播 = 只播一次 (bgm.json "once" 處理)
   async op_yes_no({ flag }) { this.setFlag(flag, await this.c.menu.yesNo()); }                                    // 323df
   // ---------------- 資料 ----------------
   // 31f0b 記錄位址
