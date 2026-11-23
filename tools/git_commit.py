@@ -1,7 +1,8 @@
 r"""git_commit.py — 不需要外部 git 程式的「git add -A && git commit」(純 Python, 產生標準 git 物件 / 索引 / 參照)。
 用法: python tools/git_commit.py "提交說明"          (在任何目錄執行皆可; 倉庫 = 本檔上一層)
       python tools/git_commit.py --init                 (建立 .git; 已存在則略過)
-身份: 依 git 的設定 (系統 / 全域 / 倉庫 [user], 環境變數 GIT_AUTHOR_*); 讀不到時不建立提交, 只暫存快照到 .git/pending_commits,
+身份: 依 git 的設定 (系統 / 全域 / 倉庫 [user], 環境變數 GIT_AUTHOR_*); 都讀不到時沿用目前 HEAD 提交的提交者 (由使用者本機 git 依全域設定產生);
+      連 HEAD 都沒有時不建立提交, 只暫存快照到 .git/pending_commits,
       之後執行 python tools/git_fix_author.py 補成提交 (本工具不寫入也不猜測任何身份)。
 規則: 依 .gitignore 排除 (支援「名稱/」目錄、「*.ext」、「a/b」根目錄相對路徑, # 註解); 工作樹與上次提交相同時不提交。
 產生的倉庫可直接用一般 git 操作 (git log / status / diff)。只寫 loose 物件; 讀取 HEAD 時也支援 packed-refs。"""
@@ -52,7 +53,42 @@ def identity():
         u.update(_cfg_user(f))
     name = os.environ.get("GIT_AUTHOR_NAME") or u.get("name")
     email = os.environ.get("GIT_AUTHOR_EMAIL") or u.get("email")
-    return f"{name} <{email}>" if name and email else None
+    if name and email:
+        return f"{name} <{email}>"
+    return head_identity()
+
+
+def head_identity():
+    """讀不到設定檔時 (例: 執行環境無權讀取使用者目錄的 .gitconfig), 沿用目前 HEAD 提交的提交者。
+    該提交由使用者本機的 git / git_fix_author.py 依全域設定產生, 所以就是使用者的全域身份; 沒有 HEAD 時回傳 None"""
+    ref = head_ref() or "refs/heads/main"; h = read_ref(ref)
+    if not h:
+        return None
+    p = os.path.join(GIT, "objects", h[:2], h[2:])
+    if not os.path.exists(p):
+        return None
+    raw = zlib.decompress(open(p, "rb").read()); body = raw[raw.index(b"\0") + 1:].decode("utf-8", "replace")
+    for l in body.split("\n\n", 1)[0].split("\n"):
+        if l.startswith("committer "):
+            return l[10:].rsplit(" ", 2)[0]
+    return None
+
+
+class _Lock:
+    """簡單的檔案鎖 (同時有多個工作在提交時, 避免 main 互相覆蓋)"""
+    def __enter__(self):
+        self.p = os.path.join(GIT, "commit.lock")
+        for _ in range(600):
+            try:
+                open(self.p, "x").close(); return self
+            except FileExistsError:
+                if time.time() - os.path.getmtime(self.p) > 120:
+                    os.remove(self.p); continue
+                time.sleep(0.2)
+        raise RuntimeError("等不到 .git/commit.lock")
+    def __exit__(self, *a):
+        try: os.remove(self.p)
+        except OSError: pass
 
 
 def tz_of(t):
@@ -169,6 +205,21 @@ def commit_tree_of(sha):
 
 
 def commit(msg):
+    with _Lock():
+        return _commit(msg)
+
+
+def flush_pending(ref, parent, me):
+    """把暫存的快照依序補成提交 (身份 = me, 時間與說明照快照記錄)"""
+    pend = read_pending()
+    for q in pend:
+        parent = make_commit(ref, parent, q["tree"], me, q["time"], q["tz"], q["msg"])
+    if pend and os.path.exists(PENDING):
+        os.remove(PENDING)
+    return parent
+
+
+def _commit(msg):
     ref = head_ref() or "refs/heads/main"; parent = read_ref(ref)
     rows = []
     for rel in files():
@@ -176,12 +227,14 @@ def commit(msg):
         rows.append((rel, put("blob", open(p, "rb").read()), os.stat(p)))
     tree = write_tree({r: h for r, h, _ in rows})
     write_index(rows)
+    me = identity()
+    if me and read_pending():
+        parent = flush_pending(ref, parent, me)
     pend = read_pending()
     last = pend[-1]["tree"] if pend else (commit_tree_of(parent) if parent else None)
     if last == tree:
         print("沒有變更, 不提交"); return parent
     t = int(time.time()); tz = tz_of(t)
-    me = identity()
     if not me or pend:
         add_pending(tree, t, tz, msg)
         print(("讀不到 git 使用者設定 (user.name / user.email)" if not me else "前面還有待補的提交") +
