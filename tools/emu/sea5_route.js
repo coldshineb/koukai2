@@ -56,6 +56,19 @@ if (mode === "deleg0") {
   mates([[8, 2], [9, 3]]);
   keys = [...idle(2), K.f4, ...idle(2), E, E, ...idle(S.SEA5_IDLE ?? 40), E, ...idle(8)];
 }
+//   "chart"  情報 航海圖 (1dace): 世界全圖 → Enter (主角所在格) → 2 × 2 海域格 → 按鍵 → 全圖 → 上移 10 格 (未探索 → 重選) → Enter → Esc;
+//            再開一次以滑鼠點全圖上主角附近 → 按鍵 → 點全圖外 (= Esc) → Esc
+//   "mapitem" 隨身物 種類 0x0c 地圖 (1dd76): 隨身物 0x50 (+12 = 發現物 S.SEA5_DISC, 預設 0) → 使用 → X 記號的 2 × 2 海域格 → 按鍵 → Esc
+if (mode === "chart") {
+  const M = (x, y, bt) => ({ mouse: { x, y, b: bt } }), click = (x, y) => [M(x, y + 40, 0), M(x, y + 40, 1), M(x, y + 40, 0)];
+  keys = [...idle(2), K.f1, ...idle(2), ...D(7), E, ...idle(2), E, ...idle(2), E, ...idle(2),
+    ...Array(10).fill(K.up), E, ...idle(2), X, ...idle(2), X, ...idle(2),
+    K.f1, ...idle(2), ...D(7), E, ...idle(2), ...click(0x32 + 6 * 35 + 3, 0x32 + 6 * 15 + 3), ...idle(2), E, ...idle(2), ...click(10, 380), ...idle(2), X, ...idle(3)];
+}
+if (mode === "mapitem") {
+  inv([0x50]); b(0x8248 + 0x50 * 0x14 + 0x12, S.SEA5_DISC ?? 0);
+  keys = [...idle(2), K.f4, ...idle(2), ...D(4), E, E, K.down, E, ...idle(2), E, ...idle(2), X, X, ...idle(3)];
+}
 for (const [a, v] of S.SEA5_POKE || []) b(a, v);
 S.SEA_POKE = poke; S.SEA_KEYS = S.SEA5_KEYS || keys;
 })();

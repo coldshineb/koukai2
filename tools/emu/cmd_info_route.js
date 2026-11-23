@@ -54,6 +54,13 @@ const INFO = [K.f1,
   K.esc];
 const LOG = [K.f1, ...D(8), E, Z, K.right, E, Z, K.left, E, Z, K.esc, Z, K.esc];   // 航海日誌: 前頁 / 後頁
 const MAP = [K.f1, ...D(9), E, Z, E, Z];                                               // 海港地圖 → 任意鍵 (選單隨即結束)
-S.PORT_KEYS = S.CMD_KEYS || (S.CMD_MODE === "log" ? LOG : S.CMD_MODE === "map" ? MAP : INFO);
+// S.CMD_MODE = "chart": 航海圖 (1dace, 在港分支: 84de / 88e9 / 港口外框): [100e] = 1、里斯本附近的海域格 (第 13..15 列, 第 4..7 欄) 設為已探索
+//   → 世界全圖 → Enter (主角所在格) → 任意鍵 → 全圖 → Esc → Esc
+// S.CMD_MODE = "mapitem": 航海術 → 隨身物 0x50 (地圖, +12 = 發現物 0) 使用 (1dd76, 在港分支) → 任意鍵 → Esc → Esc
+if (S.CMD_MODE === "chart") { w16(0x100e, 1); for (let r = 13; r <= 15; r++) b(0x0de8 + 12 * r, 0x0f); }
+if (S.CMD_MODE === "mapitem") { for (let i = 0; i < 20; i++) b(0x2e57 + i, i ? 0xff : 0x50); b(0x8248 + 0x50 * 0x14 + 0x12, 0); }
+const CHART = [K.f1, ...D(7), E, Z, E, Z, Z, K.esc, Z, K.esc, Z];
+const MAPITEM = [K.f4, ...D(4), E, E, K.down, E, Z, Z, K.esc, K.esc, Z];
+S.PORT_KEYS = S.CMD_KEYS || (S.CMD_MODE === "log" ? LOG : S.CMD_MODE === "map" ? MAP : S.CMD_MODE === "chart" ? CHART : S.CMD_MODE === "mapitem" ? MAPITEM : INFO);
 S.NO_EVENTS = 1;
 })();

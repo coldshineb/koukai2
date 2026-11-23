@@ -1420,6 +1420,138 @@ export class SeaScene extends PortScene {
       if (await this.c.menu.yesNo()) return this.c.persons[si];
     }
   }
+  // ================= 情報 航海圖 0fea:dc2e = 1dace、隨身物 地圖 0fea:ded6 = 1dd76 =================
+  // 1d8ac(0x80): 128 個海上圖塊 (DATA1 #11) 縮成 8 × 8 (取偶數行, 每 4 個像素取第 0 與第 3 個: DS:a7b8 表), 每塊 32 bytes (8 行 × 4 平面);
+  //   只轉 3 個平面, 第 4 平面一律 FF (原版如此; 顏色 8..15 由航海圖調色盤 DS:a700 決定)
+  chartTiles() {
+    const C = this.P.seachip, A = this.SJ.tab.shrink, T = new Uint8Array(0x80 * 32);
+    for (let t = 0; t < 0x80; t++) for (let r = 0; r < 8; r++) {
+      for (let p = 0; p < 3; p++) {
+        const o = t * 128 + p * 32 + r * 4, b1 = C[o], b2 = C[o + 1];
+        T[(t * 8 + r) * 4 + p] = (A[b1 >> 4] << 6) | (A[b1 & 15] << 4) | (A[b2 >> 4] << 2) | A[b2 & 15];
+      }
+      T[(t * 8 + r) * 4 + 3] = 0xff;
+    }
+    return T;
+  }
+  // 1d710(欄 col, y, 世界欄 bc, 列 br, 縮圖表 T, 模式): 模式 0 = 航海圖 (該海域格未探索 → 0906 以色 9 填 0x18 欄 × 0xc0 行; 否則 22d62 解碼),
+  //   模式 1 = 地圖類隨身物 (22f17 解碼, 不看探索); 以該格為中心的區域解碼後取該格的 24 × 24 圖塊, 每塊以 03ca 畫 1 欄 × 8 行
+  //   (區域靠邊時 [bp-6] / [bp-8] = 0 或 0x30); 世界欄 mod 90, WORLDMAP 項 = 3 × (列 / 45) + 欄 / 30 (改變時 849a)
+  chartQuad(col, y, bc, br, T, mode) {
+    const st = this.st, scr = this.c.scr;
+    bc %= 0x5a;
+    if (mode === 0 && !(st.u8(0x0de8 + ((12 * br) & 0xffff) + (bc >> 3)) & (0x80 >> (bc & 7)))) { scr.fillCols(col, y, 0x18, 0xc0, 9); return; }
+    const it = (3 * Math.trunc(br / 0x2d) + Math.trunc(bc / 0x1e)) & 0xff;
+    if (it !== this.item) this.item = it;                              // 849a
+    let ox = 0x18, oy = 0x18, r = (br % 0x2d) - 1, c = (bc % 0x1e) - 1;
+    if (c < 0) { c = 0; ox = 0; } else if (c > 0x1b) { ox = 0x30; c = 0x1b; }
+    if (r < 0) { r = 0; oy = 0; } else if (r > 0x2a) { oy = 0x30; r = 0x2a; }
+    if (mode === 0) this.decodeRegion(0x1e * r + c);                   // 1fd9:2fd2
+    else this.wm.decodeChart(st, this.item, 0x1e * r + c, this.seaBuf);   // 1fd9:3187
+    for (let rr = 0; rr < 0x18; rr++) for (let cc = 0; cc < 0x18; cc++)
+      scr.putPlanar(col + cc, y + rr * 8, 1, 8, T, this.seaBuf[0x60 * (oy + rr) + ox + cc] << 5);
+  }
+  // 1fd9:1f2a 水平 XOR 線 (逐點 seg0:0b33, 剪裁矩形 DS:aaac)
+  xorLine(x0, y, x1, color) {
+    const [cx0, cy0, cx1, cy1] = this.c.clip ?? [0, 0, 0x27f, 0x18f], fb = this.c.scr.fb;
+    if (y < cy0 || y > cy1) return;
+    for (let x = Math.max(x0, cx0); x <= Math.min(x1, cx1); x++) fb[y * 640 + x] ^= color & 15;
+    this.c.scr.dirty = true;
+  }
+  // 1d9be 世界全圖: 淡出 → GRAPH.DAT #0x19 (5b5d) → 未探索的海域格 (DS:0de8) 以 6 × 6 色 0xd 蓋住 (畫面欄 = 世界欄 + [06d5] (= 30) mod 90) →
+  //   主角位置 ((x + 720) mod 2160 − 12) / 4、(y − 12) / 4 起 6 條 XOR 色 0xb 的橫線 → 99ce(DS:a700) 航海圖調色盤
+  async worldView() {
+    const st = this.st, { palette, graph, scr } = this.c, F = this.fleet;
+    await palette.fadeBlack();                                         // 99f2
+    graph.draw(0x19, 0, 0);
+    for (let r = 0; r < 0x2d; r++) {
+      let si = 0x5a - 0x1e;
+      for (let c = 0; c < 0x5a; c++) {
+        if (!(st.u8(0x0de8 + 12 * r + (si >> 3)) & (0x80 >> (si & 7)))) scr.fillRectPxPlanes(6 * c + 0x32, 6 * r + 0x32, 6 * c + 0x37, 6 * r + 0x37, 0x0d, 4);   // 1fd9:227c
+        si = (si + 1) % 0x5a;
+      }
+    }
+    const x = Math.trunc((((0x18 * 0x1e + st.u16(F)) % 0x870) - 0x0c) / 4) + 0x32;
+    let y = Math.trunc((seaS16(st.u16(F + 2)) - 0x0c) / 4) + 0x32;
+    for (let i = 0; i < 6; i++, y++) this.xorLine(x, y, x + 5, 0x0b);
+    await palette.fadeTo(palette.table("chart"));                      // 99ce(DS:a700)
+  }
+  // 0fea:dc2e = 1dace 航海圖: 在港時先讀海上圖塊 (84de, [06ca] = FF); 世界全圖上以 0fea:5f74 (90 × 45 格, 格寬 −6 = 1 格游標, 起點 = 主角所在) 選格 →
+  //   該格與右、下 共 2 × 2 格都未探索 → 重選 (游標回到上次的格); 否則 淡出、清畫面 (07f7)、外框 (5a91: 在港 #3/#5 + 8894, 海上 #2/#4 + 日期 / 8067 / 8fbf)、
+  //   1d710 畫 2 × 2 個海域格 (模式 0) → 航海圖調色盤 → 等按鍵 (131f9) → 淡出 → 1d9be → 99ce → 再選。取消後: 在港 88e9 + 外框 + 8894 + 羅盤指針;
+  //   海上 還原 [06ca] (849a)、重新解碼目前區域、外框、舵輪指針 (95f2) → 1976e → 2103 + 1fac → 淡入
+  async chart() {
+    const st = this.st, { palette, sys, graph, scr, menu } = this.c, F = this.fleet;
+    const item0 = this.item, needle0 = this.needle, inPort = this.port !== 0xff;
+    if (inPort) this.item = 0xff;                                      // 84de (移植版的 seachip 常駐)
+    const T = this.chartTiles();                                       // 1d8ac(0x80)
+    await this.worldView();                                            // 1d9be
+    let init = Math.trunc(st.u16(F + 2) / 0x18) * 0x5a + Math.trunc(((0x1e * 0x18 + st.u16(F)) % 0x870) / 0x18);
+    for (;;) {
+      const r = await this.cellSel().select(0x32, 0x32, 0x5a, -6, 6, 0x2d, init);
+      if (r === -1) break;
+      const col = ((r % 0x5a) - 0x1e + 0x5a) % 0x5a, row = Math.trunc(r / 0x5a);
+      let seen = 0;
+      for (let yy = row; yy < row + 2; yy++) for (let xx = col; xx < col + 2; xx++) seen |= st.u8(0x0de8 + 12 * yy + (xx >> 3)) & (0x80 >> (xx & 7));
+      if (!seen) continue;
+      init = r;
+      await palette.fadeBlack();                                       // 99f2
+      scr.clear(0);                                                    // 07f7
+      if (inPort) { graph.draw8(st.options & 0x80 ? 3 : 5, 0, 0); this.panels(); }
+      else { graph.draw8(st.options & 0x80 ? 2 : 4, 0, 0); this.seaDate(); this.seaPanel(); this.dials(); }
+      this.chartQuad(0x0c, 8, col, row, T, 0); this.chartQuad(0x24, 8, col + 1, row, T, 0);
+      this.chartQuad(0x0c, 0xc8, col, row + 1, T, 0); this.chartQuad(0x24, 0xc8, col + 1, row + 1, T, 0);
+      await palette.fadeTo(palette.table("chart"));                    // 99ce(DS:a700)
+      sys.flush(); await menu.waitRelease(); await menu.waitPress();   // 131f9
+      await palette.fadeBlack();
+      await this.worldView();
+      await palette.fadeTo(palette.table("chart"));
+    }
+    await palette.fadeBlack();
+    if (inPort) { this.loadPort(); graph.draw8(st.options & 0x80 ? 3 : 5, 0, 0); this.panels(); this.compass(0xff); this.compass(needle0); }   // 88e9 / 5a91 / 8894 / 94fa
+    else {
+      if (this.item !== item0) this.item = item0;                      // 849a
+      this.decodeRegion(this.region);                                  // 1fd9:2fd2([06c8])
+      graph.draw8(st.options & 0x80 ? 2 : 4, 0, 0);
+      this.helm(0xff); this.helm(needle0);                             // 95f2
+    }
+    palette.selectTimePalette(this.time, !inPort, st.u8(0x0cb3));      // 1976e
+    this.clearCache(); this.drawMap();                                 // 2103 + 1fac
+    await palette.fadeToTarget();                                      // 99e8
+    sys.flush();                                                       // 3fae
+  }
+  // 0fea:ded6 = 1dd76 隨身物 種類 0x0c 地圖 (it = 隨身物編號): 縮圖表的圖塊 0x7c..0x7f 改成在圖塊 0x41 (海) 上畫 X 記號
+  //   (DS:a7c8 / a7cf 兩條斜線: 平面 1 OR, 其他平面 AND NOT) → 發現物 (隨身物 +12 → DS:7f8c + 7 × n) 所在的 2 × 2 海域格
+  //   (x mod 24 < 12 時往左一格, y mod 24 < 12 且列 ≠ 0 時往上一格) 以 1d710 模式 1 畫在地圖視窗 → 航海圖調色盤 → 等按鍵 →
+  //   在港 88e9 / 海上 還原 [06ca] 與區域 → 淡出 → 1976e → 2103 + 1fac → 淡入 (不重畫外框與面板)
+  async mapItem(it) {
+    const st = this.st, { palette, sys, menu } = this.c, item0 = this.item, inPort = this.port !== 0xff;
+    if (inPort) this.item = 0xff;                                      // 84de
+    await palette.fadeBlack();                                         // 99f2
+    const T = this.chartTiles(), A = this.SJ.tab.chartX;               // 1d8ac(0x80)
+    for (let dx = 0; dx < 2; dx++) for (let di = 0; di < 8; di++) for (let si = 0; si < 4; si++) {
+      const src = T[0x41 * 32 + di * 4 + si], a = A[dx * 8 + di], b = A[dx * 8 - di + 7], o = (dx * 8 + di) * 4 + si;
+      if (si === 1) { T[0x7c * 32 + o] = src | a; T[0x7e * 32 + o] = src | b; }
+      else { T[0x7c * 32 + o] = src & ~a & 0xff; T[0x7e * 32 + o] = src & ~b & 0xff; }
+    }
+    const R = 0x7f8c + ((st.u8(0x8248 + ((it * 0x14) & 0xffff) + 0x12) * 7) & 0xffff);   // seg0:5cde → +12 → seg0:5cce
+    const x = seaS16(st.u16(R)), y = seaS16(st.u16(R + 2));
+    let di = Math.trunc(x / 0x18), si = Math.trunc(y / 0x18);
+    if (x % 0x18 < 0x0c) di += 0x59;
+    if (y % 0x18 < 0x0c && si) si--;
+    this.chartQuad(0x0c, 8, di, si, T, 1); this.chartQuad(0x24, 8, di + 1, si, T, 1);
+    this.chartQuad(0x0c, 0xc8, di, si + 1, T, 1); this.chartQuad(0x24, 0xc8, di + 1, si + 1, T, 1);
+    await palette.fadeTo(palette.table("chart"));                      // 99ce(DS:a700)
+    sys.flush(); await menu.waitRelease(); await menu.waitPress();     // 131f9
+    if (inPort) this.loadPort();                                       // 88e9
+    else { if (this.item !== item0) this.item = item0; this.decodeRegion(this.region); }
+    await palette.fadeBlack();
+    palette.selectTimePalette(this.time, !inPort, st.u8(0x0cb3));      // 1976e
+    this.clearCache(); this.drawMap();                                 // 2103 + 1fac
+    await palette.fadeToTarget();                                      // 99e8
+    sys.flush();                                                       // 3fae
+  }
+
   // 1feae 偵察: 1fd9c 選格 → 港口 (已顯示訊息) / 沒有 → 再選; 艦隊 → 指揮者的資料視窗 7849(0x0f, 0x20, 0x21, 0xd8, 1):
   //   「名•姓」、國名 (DS:08de; 國籍 6 時 = 指揮者編號 mod 6) + 艦隊種類 (MENU #0x27: 艦隊編號 mod 10 = 0 → 0, 1..4 → 1, 5..9 → 2)、
   //   速度 (1acbf / 2, 呼叫端把風力 / 風向、海流方向 / 強度對調傳入, 原版如此)、航向 (MENU #0x28[+1a])、各船名 (兩欄, 行高 [8a1e] = 0x10)

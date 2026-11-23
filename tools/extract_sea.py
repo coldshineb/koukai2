@@ -24,6 +24,8 @@ TABLES = {
     "usedShips": (0xa67e, 0x58, "b"),         # 1bd16 各地區 (E +22) 的中古船候選 8 種
     "usedShips2": (0xa6d6, 18, "b"),          # 1bd16 依商業值的另外 2 種
     "landDX": (0xb92e, 16, "h"), "landDY": (0xb93e, 16, "h"),   # 34ec7 上陸的 8 個位置
+    "shrink": (0xa7b8, 16, "b"),              # 1d8ac 4 像素 → 2 像素 (取第 0 與第 3 個)
+    "chartX": (0xa7c8, 16, "b"),              # 1dd76 地圖類隨身物的 X 記號 (a7c8 / a7cf)
 }
 STR = {
     "dateColor": 0x8b8f, "n5": 0x8b96, "n5b": 0x8b9a, "n3": 0x8b9e, "day2": 0x8b28, "month": 0x8b32, "speed": 0x8b1a,

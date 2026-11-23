@@ -83,6 +83,33 @@ export class WorldMap {
       }
     }
   }
+  // 1fd9:3187 = 22f17 隨身物 地圖 (1d710 模式 1) 用的解碼: 與 22d62 相同先寫底圖 (22b19) 與海岸接邊 (22028), 之後
+  //   港口碼 (0x10 / 0x12) 一律改成海 (左邊是 0x59 時用 0x59), 發現物碼 0x11 與 >= 0x13 一律寫 [03fc] 的 4 個圖塊 (不看是否已發現)
+  //   緯度色只在碼列 0 與 24 時更新 (原版以 mod 24 判斷, 22d62 是 mod 12), 所以第 2 列海域格沿用第 1 列的顏色, 第 3 列用第 2 列的
+  decodeChart(st, item, idx, buf) {
+    const codes = this.cells(item, idx), ct = this.ct;
+    for (let r = 0, si = 0, k = 0; r < 36; r++, si += 0x78) for (let c = 0; c < 36; c++, k++, si += 2) {
+      const v = codes[k];
+      if (v >= 0x10) {
+        const t = v * 4, f = a => (a >= 0x34 ? a : 0);
+        buf[si] = f(ct[t]); buf[si + 0x60] = f(ct[t + 2]); buf[si + 1] = f(ct[t + 1]); buf[si + 0x61] = f(ct[t + 3]);
+      } else {
+        buf[si] = v & 8 ? 0x41 : 0; buf[si + 0x60] = v & 2 ? 0x41 : 0; buf[si + 1] = v & 4 ? 0x41 : 0; buf[si + 0x61] = v & 1 ? 0x41 : 0;
+      }
+    }
+    let di = Math.trunc(idx / 30);
+    this.coast(buf, di);                                                           // 22028
+    let sea = 0;
+    for (let r = 0, si = 0, k = 0; r < 36; r++, si += 0x78) {
+      if (r % 0x18 === 0) { sea = di === 0 || di === 0x2c ? 0x51 : di >= 0x0e && di <= 0x1e ? 0x41 : 0x49; di++; }
+      for (let c = 0; c < 36; c++, k++, si += 2) {
+        const v = codes[k];
+        if (v < 0x10) continue;
+        if (v === 0x10 || v === 0x12) { const fill = buf[si - 1] === 0x59 ? 0x59 : sea; buf[si] = fill; buf[si + 1] = fill; buf[si + 0x60] = fill; buf[si + 0x61] = fill; }
+        else { const t = v * 4; buf[si] = ct[t]; buf[si + 1] = ct[t + 1]; buf[si + 0x60] = ct[t + 2]; buf[si + 0x61] = ct[t + 3]; }
+      }
+    }
+  }
   // 22028 海岸自動接邊: 72×72 的每格依「陸地 (>= 0x29)」的 8 鄰格 (超出範圍時取最近的格) 組成遮罩
   //   N=1 NE=2 E=4 SE=8 S=0x10 SW=0x20 W=0x40 NW=0x80; 表 [03f8] 第 (中心是海 ? 0x100 : 0) + 遮罩 項; 0 → 圖塊 0
   //   否則 + 0x18 (上/左/右/下 有圖塊 0x59; 上與左是本次已改寫的值) 或 + 緯度偏移 (第 0 / 44 列海域 0x10, 第 14..30 列 0, 其他 8)

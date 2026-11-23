@@ -121,7 +121,7 @@ export class Commands {
         case 4: await this.cargoInfos(); break;                                    // 0fea:d848 = 1d6e8
         case 5: await this.cargoList(); break;                                     // 0fea:d866 = 1cf02
         case 6: await this.discInfos(); break;                                     // 0fea:d86b = 1d084
-        case 7: cmTodo("航海圖 (0fea:dc2e = 1dace, 世界地圖)"); break;
+        case 7: await p.chart(); break;                                            // 0fea:dc2e = 1dace (scenes/sea.js)
         case 8: await this.logBook(); break;                                       // 0fea:e47e = 1e31e
         case 9: await this.portMap(); di = 1; break;                               // 0fea:e10f = 1dfaf
         default: di = 1;
@@ -1044,7 +1044,7 @@ export class Commands {
       case 7: return this.useNavi(R);
       case 8: return this.useTool(it);
       case 9: return this.useMedicine(it);
-      case 0x0c: cmTodo("地圖類隨身物 (0fea:ded6 = 1dd76, 世界地圖繪製)"); return;
+      case 0x0c: return this.p.mapItem(it);                                       // 0fea:ded6 = 1dd76 (scenes/sea.js)
       default: return this.cantUse(t);
     }
   }
