@@ -10,7 +10,7 @@
 // 計時: FMDRV INT 66h 倒數 (F1 01 設定 / F1 00 讀取, 1 tick = 16.58 ms) → sys.timer。
 // 跳過: 4f0d 系等待中按 Enter/空白鍵/滑鼠單鍵、4fd5 系等待中按 Esc → 4ee4 (音樂淡出、畫面淡黑) → 8747 結束程式。
 // 音樂: OPEN.EXE 內含自己的 FM 樂曲資料 (091a:0002, 以 INT 66h AH=0 載入), 場景 0 播放其中第 0 首 (驅動曲號 1)。
-//   網頁版以 BGM 介面播放 bgm.map.opening (對應的 PS 版音檔由 BGM 對齊工作決定)。
+//   該曲與 D2.MML 樂曲 21 (= 遊戲曲目 0) 逐位元組相同 (RE_NOTES 第 23 節), 網頁版以 BGM playSong(0) 播放。
 
 // ---------------- VGA 平面模型 (硬體行為, 與開發用模擬器 tools/emu/x86emu.js 的 VGA 相同) ----------------
 export class OpVGA {
@@ -279,11 +279,12 @@ export class Opening {
   playSong(n) {                                                      // 4980
     if (!this.musicOn || !(this.flags & 4) || n > 0x17) return;
     if (this.musicStatus()) { if (this.song === n) return; this.musicFade(0x14); while (this.musicStatus()); }
-    const f = this.bgm?.map?.opening;                                // fn 1 (曲號 n+1) / fn 4(1)
-    if (f && this.bgm.playFile) this.bgm.playFile(f);
+    // fn 1 (FMDRV 樂曲 n+1) + 49e4(1) 開啟重播: OPEN.EXE 內嵌樂曲 = D2.MML 樂曲 21 = 遊戲曲目 0 (RE_NOTES 第 23 節) → BGM 曲目 0 (循環)
+    this.bgm?.playSong?.(n);
+    this.musicFlag(1);
     this.song = n;
   }
-  musicFlag(v) { }                                                   // 49e4 (fn 4: 驅動旗標 [05d6], 網頁版無對應)
+  musicFlag(v) { if (this.bgm?.el) this.bgm.el.loop = !!v; }        // 49e4 (fn 4: 重播旗標; 0 = 本遍播完即停)
   musicFade(speed) { if (this.musicOn) this.bgm?.fadeOut?.(); }      // 4a0b (fn 2)
 
   // ================= 繪圖函式庫 (0000..1000 段, 與 MAIN.EXE 同一套組合語言庫) =================

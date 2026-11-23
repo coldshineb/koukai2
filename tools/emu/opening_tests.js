@@ -22,7 +22,7 @@ S.runOpenJS = async function (opts = {}) {
   let polls = 0;
   const sys = new U.Sys({ virtual: true, poll: async () => { if (++polls > 2e8) throw new Error("poll limit"); } });
   const out = { ticks: [], frames: {}, music: [], tick: 0 };
-  const bgm = { map: { opening: "opening" }, playFile(f) { out.music.push({ tick: out.tick, op: "play", f }); }, fadeOut() { out.music.push({ tick: out.tick, op: "fade" }); } };
+  const bgm = { playSong(n) { out.music.push({ tick: out.tick, op: "play", n }); }, fadeOut() { out.music.push({ tick: out.tick, op: "fade" }); } };
   const op = new U.Opening({ scr, sys, bgm, font }, opts.data || S.openData());
   const keys = (opts.keys || []).slice().sort((a, b) => a.tick - b.tick);
   const keep = new Set(opts.keep || []);
@@ -68,6 +68,7 @@ S.OPEN_ROUTES = {
   "esc@300": [{ tick: 300, scan: 0x01, ascii: 0x1b }],                 // 場景 0 的 4fd5 等待 (Esc 才有效)
   "enter@300": [{ tick: 300, scan: 0x1c, ascii: 0x0d }],               // 同上: Enter 被讀掉但不跳過
   "enter@2600": [{ tick: 2600, scan: 0x1c, ascii: 0x0d }],             // 4f0d 系等待: Enter 跳過
+  "esc@2600": [{ tick: 2600, scan: 0x01, ascii: 0x1b }],               // 同上: Esc 被讀掉但不跳過
   "space@6000": [{ tick: 6000, scan: 0x39, ascii: 0x20 }],
   "click@4200": [{ tick: 4200, mouse: 1 }, { tick: 4201, mouse: 0 }],
 };
