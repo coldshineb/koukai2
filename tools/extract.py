@@ -179,3 +179,5 @@ if __name__ == "__main__":
     extract_port.main(sea2, out, uw2lib.ls_unpack)
     import extract_battle                   # 海戰: HDAT.PUT、DS 常數 (scenes/battle.js)
     extract_battle.main(sea2, out)
+    import extract_duel                     # 一騎打: DATA1 / IAP / IAE 動畫檔、DS 常數 (scenes/duel.js)
+    extract_duel.main(sea2, out)

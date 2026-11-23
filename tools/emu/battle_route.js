@@ -36,6 +36,8 @@ if (/^(gun|board|cpu)_?/.test(mode) && mode !== "open") {
     S.PROBES = [{ name: "e95e", ip: 0xea2e }];
   }
   tail = tail.concat(S.BATTLE_POST || []);                         // 戰後處理的按鍵 (RE_NOTES 30.12 起的驗證)
+  if (S.BATTLE_TAIL_FULL) tail = S.BATTLE_TAIL_FULL;                // 整段換掉 (duel_route.js: 同樣的設定, 另一串按鍵)
+  if (S.DUEL_PROBES) S.PROBES = [...(S.PROBES || []), ...S.DUEL_PROBES];   // duel_route.js 的一騎打快照點
   mode = "tail";
 }
 const F = 0x2e76 + 0x85 * 65;
@@ -48,6 +50,6 @@ else if (mode === "stop") keys = [...open, E, E, ...idle(2), K.down, K.down, K.d
 else if (mode === "tail") keys = [...open, E, E, ...idle(2), ...tail.map(k => typeof k === "string" ? (k[0] === "i" ? { mouse: {} } : { ...K, ...K2, l: [0x4b, 0] }[k]) : k)];   // S.BATTLE_TAIL: 指令選單之後的按鍵 ("down"/"up"/"right"/"l"(左)/"enter"/"esc"/"i" 空動作)
 for (const [a, v] of [...preset, ...(S.BATTLE_POKE || [])]) b(a, v);
 S.SEA_POKE = poke; S.SEA_KEYS = S.BATTLE_KEYS || keys; S.SEA_TIME = S.BATTLE_TIME ?? 0x18;
-S.EXTRA_DS = [[0x8e14, 0x97d4], [0x97e0, 0x9bfe], [0x9c2a, 0x9c2e], [0x9d3e, 0x9d44]];   // 9bfe..9c29 / 9c2e..9d2f 是 MAIN.EXE 的常數 (移植版在開戰時才建立 DS 鏡像)
+S.EXTRA_DS = [[0x8e14, 0x97d4], [0x97e0, 0x9bfe], [0x9c2a, 0x9c2e], [0x9d3e, 0x9d44], ...(S.EXTRA_DS_MORE || [])];   // EXTRA_DS_MORE: duel_route.js   // 9bfe..9c29 / 9c2e..9d2f 是 MAIN.EXE 的常數 (移植版在開戰時才建立 DS 鏡像)
 S.DAC_N = 8;
 })();

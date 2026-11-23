@@ -13,6 +13,7 @@ import { loadBinary, loadJSON } from "../core/assets.js";
 import { Buildings } from "./buildings.js";
 import { Commands } from "./commands.js";
 import { Scenario, ENV_COMMON, ENV_HERO } from "../game/scenario.js";
+import { loadDuelAssets } from "./duel.js";
 
 const pHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const P_MAP_W = 96, P_VIEW = 24, P_VIEW_X = 96, P_VIEW_Y = 8;
@@ -35,7 +36,8 @@ export async function loadPortAssets(ctx) {
     loadBinary(A + "/gfx/seacompass.bin"), loadJSON(A + "/data/sea.json")]);
   const [hdat, battle] = await Promise.all([loadBinary(A + "/gfx/hdat.bin"), loadJSON(A + "/data/battle.json")]);   // 海戰 (scenes/battle.js, tools/extract_battle.py)
   const fleet = await loadJSON(A + "/data/fleet.json");                // 月末 / 艦隊 AI 常數表與 NAME.TBL (tools/extract_fleet.py)
-  return { za, chip, map, chr, compass, data, wind, chipNo, transit, colony, itemMes, gamble, commands, worldmap, seachip, seacompass, sea, fleet, hdat, battle };
+  const duel = await loadDuelAssets(A, loadBinary, loadJSON);         // 一騎打: DATA1 / IAP / IAE、DS 常數 (scenes/duel.js, tools/extract_duel.py)
+  return { za, chip, map, chr, compass, data, wind, chipNo, transit, colony, itemMes, gamble, commands, worldmap, seachip, seacompass, sea, fleet, hdat, battle, duel };
 }
 
 export class PortScene {

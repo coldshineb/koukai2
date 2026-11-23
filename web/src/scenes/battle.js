@@ -12,8 +12,9 @@
 //         +0e 砲數  +10..+14 各距離的命中率  +15 射程  +16 戰力  +17 士氣
 //   9bc0 目前這一方 (97e0 + 8k)  9bc2 目前的船  9bef/9bf0 視窗左上 (欄 / 列)  9bf2..9bf7 風力表  9bf8 風向  9bf9 風力
 //   9bfb 結束原因 (0 = 繼續; 1 日落, 2/3/9 對話後不打, 4/5 一方全滅, 8 劇本)  9c2a/9c2c  9d3e 主角在攻方  9d40/9d42 雙方戰力
-// 尚未移植 (主控台警告): 一騎打 12998
+// 一騎打 12998 以下: scenes/duel.js (RE_NOTES 30.16..30.18)
 import { Scenario, ENV_COMMON, ENV_HERO } from "../game/scenario.js";
+import { duelInBattle } from "./duel.js";
 import { marketTradeLog } from "./market.js";
 
 const btHex = s => Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16)));
@@ -1827,7 +1828,7 @@ export class NavalBattle {
     }
     this.drawShip(T); this.drawShip(cur);                               // c05d
   }
-  async duel(ax, T) { btTodo("一騎打 (0fea:2d1a = 12bba)"); }
+  async duel(ax, T) { return duelInBattle(this, ax, T); }             // 0fea:2d1a = 12bba (scenes/duel.js)
 
   // b6f2 停船: c2ee → 0x307 → bca4 是否 → c2ee; 是 → 回傳 1 (本回合結束)
   async cmdStop() {

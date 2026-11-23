@@ -6,6 +6,7 @@
 import { loadJSON } from "../core/assets.js";
 import { STATE_BASE, STATE_END } from "./state.js";
 import { faFleet } from "./fleetai.js";
+import { duelFromScenario } from "../scenes/duel.js";
 
 const scS16 = v => (v << 16) >> 16;
 const scUmin = (a, b) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);   // seg0:4d7c
@@ -170,7 +171,7 @@ export class Scenario {
       switch (n) {
         case 1: { const F = 0x2e76 + st.u8(st.personRecord(st.hero) + 0x2c) * 0x85; v = Math.trunc(scS16(st.u16(F)) / 24) + Math.trunc(scS16(st.u16(F + 2)) / 24) * 90; break; }
         case 2: v = r.year; break; case 3: v = r.month; break; case 4: v = r.day; break;
-        case 5: v = st.u8(0x0cae); break; case 6: v = this.duelResult ?? 0; break; case 7: v = r.time; break;
+        case 5: v = st.u8(0x0cae); break; case 6: v = this.duelHp(); break; case 7: v = r.time; break;
       }
       this.setVar("var" in ins.dst ? ins.dst.var : ins.dst.ptr, v);
       return;
@@ -422,7 +423,13 @@ export class Scenario {
   async op_barmaid_love({ girl, amount }) { const g = 0x2bde + 0x13 * girl; this.st.set8(g + 0x0f, scUmin(this.st.u8(g + 0x0f) + amount, 100)); }   // 32790
   // 320ba D1 v: 變數的低位元組 = 艦隊編號 → 33aaf 依任務恢復目的地 (game/fleetai.js resume)
   async op_d1({ var: v }) { const k = this.getVar(v) & 0xff; if (this.scene?.ai) this.scene.ai.resume(faFleet(k)); else scTodo("劇本命令 D1 (艦隊移動 33aaf)"); }
-  async op_duel() { scTodo("劇本命令 E8 (一騎打 0fea:2ca9)"); }
+  // 32377 E8 一騎打: 31dbb → 0fea:2ca9(1, 主角, 對手) → 外框 / 8894 / 8ebc([b876]) / 99e8 (scenes/duel.js)
+  async op_duel({ person }) { await duelFromScenario(this, person); }
+  // 系統變數 6 (32d4a) = [9c2a] 一騎打的體力條 (海戰的 DS 鏡像; 還沒有時是 MAIN.EXE 的初值)
+  duelHp() {
+    if (this.c.battleDS) return this.c.battleDS[0x9c2a];
+    const h = (this.scene?.P ?? {}).battle?.ds?.["9bfe"]; return h ? parseInt(h.substr((0x9c2a - 0x9bfe) * 2, 2), 16) : 0;
+  }
   async op_picture() { scTodo("劇本命令 CB (EVENT*.DAT 插圖)"); }
   async op_ending() { scTodo("劇本命令 F4 (結局 0fea:77af)"); return false; }
 }
