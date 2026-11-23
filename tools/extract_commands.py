@@ -25,6 +25,10 @@ STR = {
     # 命令: 隊形變更 20587 (2029f / 202f7)、糧食分配 208af (206dd / 20848)、酬金設定 20933
     "fmNum": 0xa973, "fmColor": 0xa979, "fmShip": 0xa980, "fmBlank": 0xa987,
     "rtColor": 0xa9b3, "rtColor2": 0xa998, "water": 0xa99f, "food": 0xa9a2, "pct": 0xa9a7, "wageRange": 0xa9ba,
+    # 經營: 人事變更 1ea99 / 1eae1、水手編組 1ed8c / 1edcc、水手比例 1f141 / 1f036
+    "pAssist": 0xa857, "pAccount": 0xa864, "pBosun": 0xa871, "pPad0": 0xa881, "pPad1": 0xa883, "pPad2": 0xa885,
+    "slColor": 0xa887, "slRest": 0xa88e, "slColor2": 0xa89b, "slNum": 0xa8a2,
+    "rColor": 0xa8cc, "rDrive": 0xa8d3, "rWatch": 0xa8d8, "rDeck": 0xa8dd, "rNum": 0xa8a8,
 }
 # 注意: seg0:92f7 百分比條的顏色 DS:bafa / bafc 在 BSS (不在檔案內), 由 seg0:9376 設定 (初值 0)
 

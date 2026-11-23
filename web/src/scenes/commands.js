@@ -95,7 +95,256 @@ export class Commands {
   // ================= 情報 1fd9:0e33 (20bc3) =================
   async info() { cmTodo("情報 (20bc3)"); }
   // ================= 經營 1fd9:0fdc (20d6c) =================
-  async manage() { cmTodo("經營 (20d6c)"); }
+  // MENU #0x1b (船長變更/人事變更/水手編組/水手比例/艦船銷毀/積載分配) 於 y=0x88; 沒有船 → 0,2..5 停用; 沒有船員 → 1
+  // 選了項目就先畫艦隊表 (1e628, 不保存背景); 子功能結束後回到選單, 取消才結束
+  async manage() {
+    const { menu } = this.c, items = this.c.menuItems(0x1b).slice(0, 6), b = this.b;
+    let si = 0;
+    do {
+      if (!b.fleetShips()) menu.disabled |= 0x3d;
+      if (!b.crewCount()) menu.disabled |= 2;
+      const r = await this.popMenu(0x88, items);
+      if (r !== 0xff) b.fleetTable();
+      switch (r) {
+        case 0: await this.captains(); break;                           // 1ea39
+        case 1: await this.personnel(); break;                          // 1ed2d
+        case 2: await this.sailors(); break;                            // 1ef45
+        case 3: await this.ratios(); break;                             // 1f33d
+        case 4: await this.scrap(); this.p.clearCache(); this.p.drawMap(); b.fleetTable(); break;   // 1f4ae
+        case 5: await b.distribute(new Array(9).fill(0xff), new Array(9).fill(0)); break;           // 1fc43 → 與 1fcf7 相同的迴圈
+        default: si = 1;
+      }
+    } while (!si);
+    await this.redrawMap();                                            // 20b40
+  }
+  // 1e8b5 艦隊表各列的點擊區 (x 0x88..0x1b8, 第 i 列 y = (i+3)×0x18) 與第 n 區 (整張表); [8a28] = 0x0f
+  fleetRects() {
+    const { menu, con } = this.c, R = menu.rects, n = this.b.fleetShips();
+    menu.count = n;
+    for (let i = 0; i < n; i++) R[i] = { x0: 0x88, x1: 0x1b8, y0: (i + 3) * 0x18, y1: i * 0x18 + 0x58 };
+    R[n] = { x0: 0x78, x1: 0x1d0, y0: 0x20, y1: (0x18 * n + 0x50) & 0xffff };
+    con.bg = 0x0f;
+    return n;
+  }
+  winE2() { this.c.win.shadowedSaved(0x10, 0xa0, 0x24, 0x48, 1); }       // 1e89e
+  winBot() { this.c.win.shadowedSaved(0x1e, 0x120, 0x1c, 0x48, 1); }     // 1edb5
+  // 1ea39 船長變更: 選船 → 清單 0x89 (主角 + 船員, 12d8c) → 1e921; Esc 時主角必須是某艘船的船長 (1e9d6), 否則 0xe2 並繼續
+  async captains() {
+    const { menu } = this.c, b = this.b;
+    for (;;) {
+      const n = this.fleetRects();
+      const r = await menu.customMenu(n, 1, 1);
+      if (r === 0xff) { if (await this.heroCaptain()) return; continue; }
+      const slot = this.c.persons[r];
+      const s = await b.listSel().select(0x89, b.captainPool());
+      if (s === -1) continue;
+      this.setCaptain(slot, this.c.persons[s]);
+      b.fleetTable();
+    }
+  }
+  // 1e9d6
+  async heroCaptain() {
+    const st = this.st, b = this.b;
+    for (let i = 0; i < 10; i++) if ((st.u8(b.fleetSlot(i) + 8) & 0x30) === 0x10 && st.u8(b.crewData(i) + 0x1b) === st.hero) return 1;
+    this.winE2(); this.c.message(0xe2); await this.waitClose();
+    return 0;
+  }
+  // 1e921 船位 slot 的船長改為 p: p 的職務是 1 或 2 且已是另一艘船的船長 → 兩船互換船長 (職務不變);
+  //   否則原船長職務 (不是 1 時) 改 6, p 的職務 (不是 1 時) 改 2
+  setCaptain(slot, p) {
+    const st = this.st, b = this.b, M = b.crewData(slot), oldP = st.personRecord(st.u8(M + 0x1b)), P = st.personRecord(p);
+    let other = 0;
+    if (st.u8(P + 0x2e) === 1 || st.u8(P + 0x2e) === 2) {
+      for (let i = 0; i < 10; i++) if ((st.u8(b.fleetSlot(i) + 8) & 0x30) === 0x10 && st.u8(b.crewData(i) + 0x1b) === p) { other = b.crewData(i); break; }
+    }
+    if (other) st.set8(other + 0x1b, st.u8(M + 0x1b));
+    else {
+      if (st.u8(oldP + 0x2e) !== 1) st.set8(oldP + 0x2e, 6);
+      if (st.u8(P + 0x2e) !== 1) st.set8(P + 0x2e, 2);
+    }
+    st.set8(M + 0x1b, p);
+  }
+  // 1ed2d 人事變更: 視窗 1ea99 (助手/會計/水手長), 1e79f 由船員職務 3/4/5 取得現任 (DS:a87e/a87f/a880, 最後一個為準);
+  //   沒有船員 → 0xe5; 否則 1eae1 → 14524(3, 1, 1) → 1ec2b
+  async personnel() {
+    const st = this.st, { win, con, menu, message } = this.c, S = this.S;
+    win.shadowedSaved(0x12, 0x60, 0x1c, 0x60, 1);
+    con.puts(S.pAssist); con.setCursor(con.left, 0x88); con.puts(S.pAccount); con.setCursor(con.left, 0xa0); con.puts(S.pBosun);
+    this.posts = [0xff, 0xff, 0xff];
+    for (let i = 0; i < 0x1e; i++) {
+      const n = st.u8(0x2e1b + i); if (n === 0xff) continue;
+      const r = st.u8(st.personRecord(n) + 0x2e); if (r >= 3 && r <= 5) this.posts[r - 3] = n;
+    }
+    // 沒有船員: 0xe5 後只關閉訊息視窗就返回, 人事變更視窗留在畫面與視窗堆疊上 (照搬; 選單已停用此項, 實際走不到)
+    if (!this.b.crewCount()) { this.winE2(); message(0xe5); await menu.waitPrompt(); await win.close(); return; }
+    for (;;) {
+      this.postRows();
+      const r = await menu.customMenu(menu.count, 1, 1);
+      if (r === 0xff) break;
+      await this.setPost(r);
+    }
+    await win.close();
+  }
+  // 1eae1 現任者姓名 (補空白到 12 字) 與點擊區 0..2, 第 3 區 = 視窗
+  postRows() {
+    const st = this.st, { con, menu } = this.c, S = this.S, R = menu.rects;
+    con.left = 0x14; con.right = 0x2b;
+    menu.count = 3;
+    const ys = [0x70, 0x88, 0xa0], pads = [S.pPad0, S.pPad1, S.pPad2];
+    for (let k = 0; k < 3; k++) {
+      R[k] = k === 0 ? { x0: 0xa0, x1: 0x160, y0: 0x70, y1: 0x80 } : { x0: con.left << 3, x1: (con.left + 0x18) << 3, y0: ys[k], y1: ys[k] + 0x10 };
+      con.setCursor(k === 0 ? 0x20 : con.left + 0x0c, ys[k]);
+      let n = 0;
+      if (this.posts[k] !== 0xff) { const nm = st.cstr(st.personRecord(this.posts[k])); con.puts(nm); n = cmStrlen(nm); }
+      for (; n < 0x0c; n++) con.puts(pads[k]);
+    }
+    R[3] = { x0: 0x90, x1: 0x170, y0: 0x60, y1: 0xc0 };
+  }
+  // 1ec2b 職位 k: 清單 0x89 → 船長 (職務 2) 不行 0xe3; 原本擔任 3/4/5 的職位空出; 現任者 (< 0x78) 職務改 6; 新任職務 = k+3 → 0xe4
+  async setPost(k) {
+    const st = this.st, { message } = this.c, b = this.b, roles = b.T.crewRoles;
+    const s = await b.listSel().select(0x89, b.crewCount());
+    if (s === -1) return;
+    const cur = k < 3 ? this.posts[k] : 0, p = this.c.persons[s], P = st.personRecord(p), r = st.u8(P + 0x2e);
+    if (r === 2) { this.winE2(); message(0xe3, st.cstr(P), roles[3 + k]); await this.waitClose(); return; }
+    if (r >= 3 && r <= 5) this.posts[r - 3] = 0xff;
+    if (cur < 0x78) st.set8(st.personRecord(cur) + 0x2e, 6);
+    st.set8(P + 0x2e, k + 3);
+    if (k < 3) this.posts[k] = p;
+    this.winE2(); message(0xe4, st.cstr(P), roles[st.u8(P + 0x2e)]); await this.waitClose();
+  }
+  // 1ef45 水手編組: 剩餘水手 [a898] / 其士氣 [a89a] 從 0 開始; 視窗 1ed8c; 選船 → 1edf9; Esc 時還有剩 → 0xe7 是/否
+  async sailors() {
+    const { win, con, menu, message, printf } = this.c, S = this.S;
+    this.pool = 0; this.poolMorale = 0;
+    win.shadowedSaved(0x3c, 0x10, 0x0e, 0x48, 1);
+    con.puts(S.slColor); con.puts(S.slRest);
+    for (;;) {
+      con.right = 0x47; con.left = 0x3e; con.setCursor(0x3e, 0x38); con.puts(S.slColor2); printf(S.slNum, this.pool);   // 1edcc
+      const n = this.fleetRects();
+      const r = await menu.customMenu(n, 1, 1);
+      if (r === 0xff) {
+        if (!this.pool) break;
+        this.winBot(); message(0xe7);
+        const yes = await menu.yesNo(); await win.close();
+        if (yes) break;
+        continue;
+      }
+      await this.assignSailors(this.c.persons[r]);
+      this.b.fleetTable();
+    }
+    await win.close();
+  }
+  // 1edf9 一艘船的水手數 (0..min(現有 + 剩餘, 最多水手)); 士氣依人數加權平均 (seg0:38ba 長整數除法)
+  async assignSailors(slot) {
+    const st = this.st, { win, message } = this.c, b = this.b;
+    const M = b.crewData(slot), S = b.fleetSlot(slot), ship = 0x5892 + st.u8(S + 7) * 0x16;
+    const di = st.u16(S), mor = st.u8(M + 0x1c), pool = this.pool, pm = this.poolMorale;
+    const max = cmUmin(di + pool, st.u16(ship + 0x12));
+    this.winBot(); message(0xe6, st.cstr(ship), max);
+    const si = (await b.numpad.input(0, max)) & 0xffff;
+    await win.close();
+    st.set16(S, si);
+    this.pool = (pool - si + di) & 0xffff;
+    st.set8(M + 0x1c, 0);
+    if (si) st.set8(M + 0x1c, di < si ? Math.trunc((mor * di + (si - di) * pm) / si) : mor);
+    this.poolMorale = 0;
+    if (this.pool) this.poolMorale = (di < si ? pm : Math.trunc((pm * pool + (di - si) * mor) / this.pool)) & 0xff;
+  }
+  // 1f33d 水手比例: 選船 → 1f25a
+  async ratios() {
+    const { menu } = this.c;
+    for (;;) {
+      const n = this.fleetRects();
+      const r = await menu.customMenu(n, 1, 1);
+      if (r === 0xff) return;
+      await this.ratio(this.c.persons[r]);
+      this.b.fleetTable();
+    }
+  }
+  // 1f25a 駕駛 (+9) / 瞭望 (+8) / 甲板 (其餘) 比例: 74f7(0x39,0xe0,0x16,0x80,1), 6 個 −/+ 區 (1efa6) + 第 6 區 = 視窗
+  async ratio(slot) {
+    const st = this.st, { win, con, scr, gfx, menu } = this.c, S = this.S, M = this.b.crewData(slot), R = menu.rects;
+    await win.open(0x39, 0xe0, 0x16, 0x80, 1);
+    let n = 0;
+    for (let row = 0; row < 3; row++) for (let j = 0; j < 2; j++) {
+      const c = 0x0b * j + con.left;
+      R[n++] = { x0: (c + 5) << 3, x1: (c + 7) << 3, y0: (row << 5) + 0xf0, y1: (row + 8) << 5 };
+    }
+    R[n] = { x0: 0x1c8, x1: 0x278, y0: 0xe0, y1: 0x160 };
+    menu.count = n;
+    con.puts(S.rColor);                                                // 1f141 (DS:a8cc)
+    const labels = [S.rDrive, S.rWatch, S.rDeck];
+    for (let k = 0; k < 3; k++) { con.setCursor(con.left, 0xf0 + (k << 5)); con.puts(labels[k]); this.barFrame(con.left + 7, 0xf4 + (k << 5)); }
+    for (let k = 0; k < 3; k++) {
+      const y = (k << 5) + 0xf0;
+      scr.putPlanar(con.left + 5, y, 2, 0x10, gfx, 0x390);
+      scr.putPlanar(con.left + 0x10, y, 2, 0x10, gfx, 0x410);
+    }
+    for (;;) {
+      this.ratioValues(slot);
+      const r = await menu.customMenu(menu.count, 2, 3);
+      if (r === 0xff) break;
+      const a = st.u8(M + 8), b9 = st.u8(M + 9), rest = (100 - a - b9) & 0xff;
+      if (r <= 1) { const t = [b9, a, rest]; this.ratioStep(r, t); st.set8(M + 8, t[1]); st.set8(M + 9, t[0]); }
+      else if (r <= 3) { const t = [a, rest, b9]; this.ratioStep(r, t); st.set8(M + 8, t[0]); st.set8(M + 9, t[2]); }
+      else if (r <= 5) { const t = [rest, b9, a]; this.ratioStep(r, t); st.set8(M + 8, t[2]); st.set8(M + 9, t[1]); }
+    }
+    await win.close();
+  }
+  // 1f227: 奇數 → t0 +1 (≤ 100), 由 t1 扣 (t1 為 0 時改由 t2 扣); 偶數 → t0 −1 (≥ 0), t1 +1
+  ratioStep(r, t) {
+    if (r & 1) { if (t[0] < 100) { t[0]++; if (t[1]) t[1]--; else t[2] = (t[2] - 1) & 0xff; } }
+    else if (t[0]) { t[0]--; t[1] = (t[1] + 1) & 0xff; }
+  }
+  // 1f036 「%4d人:%3d%%」(人數 = 比例 × 水手 / 100, seg0:3722) 與百分比條
+  ratioValues(slot) {
+    const st = this.st, { con, printf } = this.c, S = this.S, M = this.b.crewData(slot), s0 = (st.u16(this.b.fleetSlot(slot)) << 16) >> 16;
+    const v9 = st.u8(M + 9), v8 = st.u8(M + 8);
+    con.setCursor(con.left + 6, 0x100); const a = Math.trunc(v9 * s0 / 100); printf(S.rNum, a, v9); this.bar(con.left + 7, 0xf4, v9);
+    con.setCursor(con.left + 6, 0x120); const c = Math.trunc(v8 * s0 / 100); printf(S.rNum, c, v8); this.bar(con.left + 7, 0x114, v8);
+    con.setCursor(con.left + 6, 0x140); const v = 100 - v8 - v9; printf(S.rNum, s0 - c - a, v); this.bar(con.left + 7, 0x134, v);
+  }
+  // 1f4ae 艦船銷毀: 只有 1 艘 → 0xd9; 選船 (已銷毀的不列入, 1f38a) → 1f43a; 結束時船長為 FF 的船位 +8 = 0
+  async scrap() {
+    const st = this.st, { menu, message } = this.c, b = this.b;
+    if (b.fleetShips() === 1) { this.c.win.shadowedSaved(0x10, 0xa0, 0x24, 0x80, 1); message(0xd9); await this.waitClose(); return; }
+    for (;;) {
+      const n = this.scrapRects();
+      const r = await menu.customMenu(n, 1, 1);
+      if (r === 0xff) break;
+      await this.scrapShip(this.c.persons[r]);
+      b.fleetTable();
+    }
+    for (let i = 0; i < 10; i++) {
+      const S = b.fleetSlot(i);
+      if ((st.u8(S + 8) & 0x30) === 0x10 && st.u8(b.crewData(i) + 0x1b) === 0xff) st.set8(S + 8, 0);
+    }
+  }
+  // 1f38a 尚未銷毀 (+1b bit7 = 0) 的船: 點擊區位置仍依艦隊表的列, [0538] 重新排緊
+  scrapRects() {
+    const st = this.st, { menu } = this.c, b = this.b, R = menu.rects, P = this.c.persons, n = b.fleetShips();
+    let k = 0;
+    for (let si = 0; si < n; si++) {
+      if (st.u8(b.crewData(P[si]) + 0x1b) & 0x80) continue;
+      R[k] = { x0: 0x88, x1: 0x1b8, y0: (si + 3) * 0x18, y1: si * 0x18 + 0x58 };
+      P[k] = P[si]; k++;
+    }
+    R[k] = { x0: 0x78, x1: 0x1d0, y0: 0x20, y1: (0x18 * k + 0x50) & 0xffff };
+    menu.count = k;
+    return k;
+  }
+  // 1f43a 主角的船 → 0xe9; 否則 0xea (%s 船名) 是/否 → 1f41d: seg0:5deb 移除後 +8 = 0x10 (表上顯示「銷毀完畢」直到離開)
+  async scrapShip(slot) {
+    const st = this.st, { message, menu } = this.c, b = this.b, M = b.crewData(slot), ship = 0x5892 + st.u8(b.fleetSlot(slot) + 7) * 0x16;
+    this.c.win.shadowedSaved(0x10, 0xa0, 0x24, 0x80, 1);
+    if (st.u8(M + 0x1b) === st.hero) { message(0xe9); await menu.waitPrompt(); }
+    else {
+      message(0xea, st.cstr(ship));
+      if (await menu.yesNo()) { b.removeShip(slot); st.set8(b.fleetSlot(slot) + 8, 0x10); }
+    }
+    await this.c.win.close();
+  }
   // ================= 命令 1fd9:10a8 (20e38) =================
   // MENU #0x1c (偵察/交涉/戰鬥/隊形變更/糧食分配/酬金設定) 於 y=0xe0; 在港 → 0..2 停用; 沒有船 → 3,4; 沒有船員 → 5
   // 偵察、隊形變更、糧食分配、酬金設定 後回到選單; 交涉 回傳 0 時、戰鬥、取消 後結束
