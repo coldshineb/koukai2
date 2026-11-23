@@ -8,6 +8,10 @@
 #     t07fc    DS:07fc 同上 (word 表): 0f259 的倍率
 #     coast    0ebce 依 8 鄰格的陸地位元 (bit7 左上 .. bit0 右下) 選海岸圖塊的分歧鏈 (ec77..ed4d, 以 dec / sub / jcc 逐一比較),
 #              由 MAIN.EXE 的機器碼直接求值: {位元組合: 圖塊值}, 其他組合不改
+#     ds["8cd6"]  DS:8cd6..8e13 (情報 / 信號 / 作戰的字串 8cd6..8de7、遠程函式表; 8cd6..8d17 雖在存檔區的位址範圍內,
+#                 移植版的狀態在 8a18 起放交易記錄, 所以字串放在 DS 鏡像)
+#     shipNames   DS:091c 船鏈序號的名稱 (旗艦、１號艦 … ９號艦), 10 個 C 字串
+#     str         DS:a779 / a780 (1c652 對方船隻資料的色碼與「\n%s\n」)
 # 用法: python extract_battle.py <sea2 目錄> <web/assets 目錄>
 import json, os, shutil, struct, sys
 
@@ -51,11 +55,15 @@ def main(sea2, assets):
     b = lambda o, n: img[DS + o:DS + o + n]
     os.makedirs(os.path.join(assets, "gfx"), exist_ok=True)
     shutil.copyfile(os.path.join(sea2, "HDAT.PUT"), os.path.join(assets, "gfx", "hdat.bin"))
+    cs = lambda o: img[DS + o:img.index(b"\0", DS + o)].hex()          # DS 上的 C 字串
+    w = lambda o: struct.unpack("<H", b(o, 2))[0]
     J = {
-        "ds": {"9bfe": b(0x9bfe, 0x9d30 - 0x9bfe).hex()},
+        "ds": {"9bfe": b(0x9bfe, 0x9d30 - 0x9bfe).hex(), "8cd6": b(0x8cd6, 0x8e14 - 0x8cd6).hex()},
         "t07ec": [b(0x07ec + 2 * i, 1)[0] for i in range(8)],
         "t07fc": [b(0x07fc + 2 * i, 1)[0] for i in range(8)],
         "coast": {str(k): v for k, v in sorted(coast_table(img).items())},
+        "shipNames": [cs(w(0x091c + 2 * i)) for i in range(10)],
+        "str": {"a779": cs(0xa779), "a780": cs(0xa780)},
     }
     json.dump(J, open(os.path.join(assets, "data", "battle.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     print("battle.json", len(J["coast"]), "coast entries; hdat.bin", os.path.getsize(os.path.join(assets, "gfx", "hdat.bin")))
