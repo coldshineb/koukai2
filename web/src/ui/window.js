@@ -50,6 +50,8 @@ export class WindowSystem {
   // seg0:7849 保存 (w+1)x(h+4) 背景後畫帶陰影視窗
   shadowedSaved(x, y, w, h, style = 0) {
     this.save(x, y, w + 1, h + 4);
+    const top = this.stack[this.stack.length - 1];
+    if (top) { top.frameW = w; top.frameH = h; top.hasShadow = true; }
     this.shadowed(x, y, w, h, style);
   }
   put(col, y, off) { this.scr.putPlanar(col, y, 1, 8, this.gfx, off); }

@@ -571,10 +571,20 @@ export class Screen {
         this.ctx.fillRect(0, 0, VIEW_W, VIEW_H);
         for (const w of stack) {
           const sx = Math.max(0, w.x * 8), sy = Math.max(0, w.y);
-          const sw = Math.min(SCREEN_W - sx, w.w * 8 + 8), sh = Math.min(SCREEN_H - sy, w.h + 4);
+          const sw = Math.min(SCREEN_W - sx, (w.frameW ?? w.w) * 8);
+          const sh = Math.min(SCREEN_H - sy, w.frameH ?? w.h);
           if (sw <= 0 || sh <= 0) continue;
           const dx = LEGACY_OFF_X + sx * LEGACY_SCALE, dy = sy * LEGACY_SCALE;
           const dw = sw * LEGACY_SCALE, dh = sh * LEGACY_SCALE;
+          // 以現代柔和投影包覆視窗本體，不再從底層裁切舊像素陰影區
+          this.ctx.save();
+          this.ctx.shadowColor = "rgba(0, 0, 0, 0.55)";
+          this.ctx.shadowBlur = 18;
+          this.ctx.shadowOffsetX = 0;
+          this.ctx.shadowOffsetY = 6;
+          this.ctx.fillStyle = "rgba(0, 0, 0, 1)";
+          this.ctx.fillRect(dx, dy, dw, dh);
+          this.ctx.restore();
           this.ctx.imageSmoothingEnabled = true;
           this.ctx.drawImage(this.hdCanvas, sx * HD_SCALE, sy * HD_SCALE, sw * HD_SCALE, sh * HD_SCALE, dx, dy, dw, dh);
           this.ctx.imageSmoothingEnabled = false;
