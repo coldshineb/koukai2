@@ -127,6 +127,8 @@ export class ListSelect {
       case 7: return this.fmtShip(v);
       case 9: return this.fmtCrew(v);
       case 8: { const s = (this.cats ??= this.c.portAssets.data.market.cats.map(lsHex))[v & 0xffff]; this.c.con.puts(s); return lsStrlen(s); }   // 14c4b DS:078e 分類
+      case 10: return this.fmtRepair(v);
+      case 11: return this.fmtWater(v);
       case 13: return this.fmtItem(v);
       case 14: { const s = this.st.cstr(ListSelect.shipRec(v)); this.c.con.puts(s); return lsStrlen(s); }   // 14930 船記錄名 (造船清單: 樣板船 0x28+船型)
       case 15: return this.fmtTable("materials", v);    // 14c96 DS:0930[v] 材質
@@ -165,6 +167,26 @@ export class ListSelect {
     const st = this.st, S = ListSelect.fleetSlot(st, slot), ship = ListSelect.shipRec(st.u8(S + 7));
     this.c.printf(this.capFmt ??= lsHex(this.c.portAssets.data.market.fmt.listCap), st.cstr(ship), lsS16(st.u16(ship + 0x14) - this.c.cargoUsed(slot)));
     return 0x15;
+  }
+  // 148c1 種類 0x0a: 船名 (上陸 修理 3453b; 耐久 < 最大、轉向 < 船型 +2 或推進 < 船型 +3 時以 DS:a183 顏色 2), DS:a187「%s？」, DS:a18c 顏色 0; 回傳 名稱長 + 2
+  fmtRepair(slot) {
+    const st = this.st, S = ListSelect.fleetSlot(st, slot), ship = ListSelect.shipRec(st.u8(S + 7)), T = 0x5e28 + st.u8(ship + 0x0f) * 0x0c;
+    const s = (this.seaStr ??= Object.fromEntries(Object.entries(this.c.portAssets.sea.str).map(([k, h]) => [k, lsHex(h)])));
+    if (st.u8(S + 2) < st.u8(S + 3) || st.u8(T + 2) > st.u8(S + 4) || st.u8(T + 3) > st.u8(S + 5)) this.c.con.puts(s.lsMark);
+    this.c.printf(s.lsShip, st.cstr(ship));
+    this.c.con.puts(s.lsColor0);
+    return lsStrlen(st.cstr(ship)) + 2;
+  }
+  // 14bc1 種類 0x0b: 船名 (艦隊船位 [c2d4] + 2b + 9×n, 不經 5c58) 以 DS:a1c5 補到 0x11 字, DS:a1c7「%4d/%4d」= 水 / 10、水 / 10 + 尚可裝載量; 回傳 0x1a (上陸 補水 345b2)
+  fmtWater(slot) {
+    const st = this.st, con = this.c.con, M = 0x52d4 + (slot & 0xff) * 0x1e;
+    const S = (0x2e76 + st.u8(st.personRecord(st.hero) + 0x2c) * 0x85 + 0x2b + Math.imul(9, lsS16(slot))) & 0xffff, ship = ListSelect.shipRec(st.u8(S + 7));
+    const s = (this.seaStr ??= Object.fromEntries(Object.entries(this.c.portAssets.sea.str).map(([k, h]) => [k, lsHex(h)])));
+    con.puts(st.cstr(ship));
+    for (let n = lsStrlen(st.cstr(ship)); n < 0x11; n++) con.puts(s.lsPad);
+    const free = lsS16(-(this.c.cargoUsed(slot) - st.u16(ship + 0x14))), w = lsDiv(lsS16(st.u16(M)), 10);
+    this.c.printf(s.lsWater, w, lsS16(w + free));
+    return 0x1a;
   }
   // 14c68 種類 0x0d: 隨身物 (DS:8248 + 0x14×n), 已裝備 (+13 bit4) 前面加「*」
   fmtItem(n) {

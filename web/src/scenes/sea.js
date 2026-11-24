@@ -7,8 +7,7 @@
 //   +1a 方位 (0..7, 8 = 停船)  [1006]/[1008] 地圖視窗左上 (地圖格)  [1005] 航行旗標 (0x80/0x40 委任, 0x20 停船, 0x18 ?)  [2e18] 出港天數  [2e19]/[2e1a] 水/糧食配給 %
 // 階段 5 後半 (docs/RE_NOTES.md 第 28 節): 委任 / 指定目的地 / 自動航行 (1fd9 段的地點路線, 艦隊 AI 共用)、偵察、航海圖、隨身物 地圖
 // 他艦隊 (6aae / 1afe8 = 艦隊 AI) → game/fleetai.js (第 29 節)
-// 尚未移植 (主控台警告, 保留原版的呼叫位置): 海上特殊事件 (30e9f 的 DS:b796 表)、上陸探索 (34d54)、
-//   交涉本體 (20127)、海戰 (10f7e)、結束處理 1764f(0x18 / 0x19)
+// 上陸探索 (34d54 / 34ccc) → scenes/land.js、海上特殊地點 (30e9f / 31047) → 本檔 seaEvent / monsterRead (第 36 節)
 import { PortScene } from "./port.js";
 import { Buildings } from "./buildings.js";
 import { Commands } from "./commands.js";
@@ -18,6 +17,7 @@ import { marketTradeLog } from "./market.js";
 import { WorldMap } from "../gfx/worldmap.js";
 import { CellSelect } from "../ui/cellsel.js";
 import { FleetAI } from "../game/fleetai.js";
+import { Land } from "./land.js";
 
 const seaHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const seaS16 = v => (v << 16) >> 16;
@@ -820,7 +820,7 @@ export class SeaScene extends PortScene {
       if (st.u16(0x1012 + 4 * i) !== st.u16(F) || st.u16(0x1014 + 4 * i) !== st.u16(F + 2)) continue;
       st.set16(0x1012 + 4 * i, 0); st.set16(0x1014 + 4 * i, 0);
       await this.seaEvent(st.u8(0x103a + i));                          // 30e9f
-      // 之後原版把 (位置, 事件) 寫進 MONSTER.DAT 第 [1044] 筆 (5 bytes) — 移植版不寫檔
+      this.monsterRead(i);                                             // 31047
       st.set8(0x1044, st.u8(0x1044) + 1);
       return;
     }
@@ -887,8 +887,83 @@ export class SeaScene extends PortScene {
     sys.mouseShow();
     con.left = l; con.right = r;
   }
-  // 30e9f 海上特殊地點 (DS:b796 表的 10 個函式) — 尚未移植
-  async seaEvent(n) { seaTodo("海上特殊地點事件 (30e9f, DS:b796[" + n + "])"); }
+  // 31047: 以唯讀開 MONSTER.DAT (0fea:6114, 開不了時原版顯示錯誤並結束程式), lseek 到第 [1044] 筆 (5 bytes), 讀 4 bytes 到 DS:1012 + 4i (x, y)、
+  //   1 byte 到 DS:103a + i (事件編號) — 用過的地點換成檔案裡的下一個; 讀到檔尾以後讀不到, 該地點維持 (0, 0) (RE_NOTES 36.2)
+  monsterRead(i) {
+    const st = this.st, M = this.P.monster; let pos = st.u8(0x1044) * 5;
+    for (let k = 0; k < 4; k++, pos++) if (pos < M.length) st.set8(0x1012 + 4 * i + k, M[pos]);
+    if (pos < M.length) st.set8(0x103a + i, M[pos]);
+  }
+  // 30e9f 海上特殊地點事件 n: 先執行 DS:b796[n] 的函式 (回傳 0 = 沒有發生, 什麼都不顯示); 發生時效果音 DS:0c44 兩次 (各 0x1e tick, 中間 0x14),
+  //   30b1e 視窗「船長！不得了啦！快看海面上！」, 再兩段訊息 (n + 0xff) × 2 + i 各自一個視窗, 8067 重畫, 9888
+  async seaEvent(n) {
+    const { sys, con, message, win, menu } = this.c, sfx = this.c.sfx;
+    sys.mouseHide();                                                   // 4ee7
+    if (this.seaEventFn(n & 0xff)) {
+      const l = con.left, r = con.right;                               // [8a20] / [8a22]
+      sfx?.voice(0x0c44); sfx?.note(0x30); await sys.waitTicks(0x1e); sfx?.off(); await sys.waitTicks(0x14);
+      sfx?.voice(0x0c44); sfx?.note(0x30); await sys.waitTicks(0x1e); sfx?.off();
+      win.shadowedSaved(0x10, 0xa0, 0x24, 0x80, 0);                    // 30b1e
+      con.puts(this.SS.seaEvent); await menu.waitPrompt(); await win.close();   // DS:b777, 490b, 796d
+      for (let i = 0; i < 2; i++) {
+        win.shadowedSaved(0x10, 0xa0, 0x24, 0x80, 0);
+        message((((n & 0xff) + 0xff) * 2 + i) & 0xffff); await menu.waitPrompt(); await win.close();   // 3377e
+      }
+      con.left = l; con.right = r;
+      this.seaPanel();                                                 // 8067
+      sfx?.off();                                                      // 30f71
+    }
+    sys.mouseShow();                                                   // 4ecf
+  }
+  // DS:b796 的 10 個函式 (回傳 1 = 發生)
+  seaEventFn(n) {
+    const st = this.st, H = st.u8(0x12b5);
+    // 事件 2 / 5 / 8: 從第 9 艘往前找第一艘「有船且船長不是主角」的 (10 艘都不是 → 0)
+    const other = () => { for (let i = 9; i >= 0; i--) if ((st.u8(this.slotOf(i) + 8) & 0x30) === 0x10 && st.u8(this.crewOf(i) + 0x1b) !== H) return i; return -1; };
+    const has = i => (st.u8(this.slotOf(i) + 8) & 0x30) === 0x10;
+    switch (n) {
+      case 0:                                                          // 30c10: 348ff(0x19, 0) 各船水手 −25% (不顯示損失)
+        for (let i = 0; i < 10; i++) if (has(i)) {
+          const S = this.slotOf(i), p = seaS16(Math.imul(0x19, seaS16(st.u16(S))) & 0xffff);   // imul 後只用低 16 位元 (cwd)
+          st.set16(S, st.u16(S) + Math.trunc(p / -100));
+        }
+        return 1;
+      case 1: {                                                        // 30c1d: 主角 + 船員 (12d8c → [0538]) 各 +20 −= min(+20, 10)
+        const cnt = this.b.captainPool(), L = this.c.persons;
+        for (let i = 0; i < cnt; i++) { const P = st.personRecord(L[i] & 0xff); st.set8(P + 0x20, st.u8(P + 0x20) - seaUmin(st.u8(P + 0x20), 10)); }
+        return 1;
+      }
+      case 2: {                                                        // 30c6a: 那艘船離隊 (+8 &= EF), 船長 +2e = 6, 船長欄 = FF
+        const i = other(); if (i < 0) return 0;
+        const S = this.slotOf(i), M = this.crewOf(i);
+        st.set8(S + 8, st.u8(S + 8) & 0xef); st.set8(st.personRecord(st.u8(M + 0x1b)) + 0x2e, 6); st.set8(M + 0x1b, 0xff);
+        return 1;
+      }
+      case 3: return 1;                                                // 30cce: 沒有效果
+      case 4: {                                                        // 30cd2: 有船的船位 (12c8a → [0538]) 士氣 +1c += min(10, 100 − +1c)
+        const cnt = this.b.fleetShips(), L = this.c.persons;
+        for (let i = 0; i < cnt; i++) { const M = this.crewOf(L[i] & 0xff); st.set8(M + 0x1c, st.u8(M + 0x1c) + seaUmin(10, 100 - st.u8(M + 0x1c))); }
+        return 1;
+      }
+      case 5: { const i = other(); if (i < 0) return 0; const S = this.slotOf(i); st.set8(S + 5, st.u8(S + 5) >> 1); return 1; }   // 30d24
+      case 6:                                                          // 30d75: 各船 +16..+1a = FF、+0c..+14 (5 字) = 0, 每艘之後 0fea:9d01 (19ba1, 只計算)
+        for (let i = 0; i < 10; i++) if (has(i)) {
+          const M = this.crewOf(i);
+          for (let k = 0; k < 5; k++) { st.set8(M + 0x16 + k, 0xff); st.set16(M + 0x0c + 2 * k, 0); }
+        }
+        return 1;
+      case 7:                                                          // 30dd9: 各船士氣 +1c −= min(+1c, 10)
+        for (let i = 0; i < 10; i++) if (has(i)) { const M = this.crewOf(i); st.set8(M + 0x1c, st.u8(M + 0x1c) - seaUmin(st.u8(M + 0x1c), 10)); }
+        return 1;
+      case 8: {                                                        // 30e29: 那艘船 +2 >>= 1, 0fea:83f9 艦隊重算
+        const i = other(); if (i < 0) return 0;
+        const S = this.slotOf(i); st.set8(S + 2, st.u8(S + 2) >> 1); this.fleetDurability(this.fleet);
+        return 1;
+      }
+      case 9: { const P = this.b.hero; st.set8(P + 0x23, st.u8(P + 0x23) - seaUmin(st.u8(P + 0x23), 0x1e)); return 1; }   // 30e83: 主角 +23 −= min(+23, 30)
+    }
+    return 0;                                                          // 表外: 原版會跳到表後的位址 (正常不會發生)
+  }
 
   // ================= 每日 195b6 (只在海上) =================
   async seaDaily() {
@@ -1364,8 +1439,8 @@ export class SeaScene extends PortScene {
     sys.mouseHide();
     return k === 0x1b || k === 0x30 ? 0xff : menu.cur;
   }
-  // 34d54 上陸探索 (確認、MENU #0x24 上陸選單、34ccc 發現物) — 尚未移植
-  async landExplore() { seaTodo("上陸探索 (34d54 / 34ccc 發現物)"); }
+  // 34d54 上陸探索 (確認、MENU #0x24 上陸選單、34ccc 發現物) → scenes/land.js (RE_NOTES 第 36 節)
+  async landExplore() { await new Land(this).run(); }
 
   // ================= 命令 交涉 20a6d / 戰鬥 0fea:1181 / 偵察 1feae =================
   // 0fea:314a = 12fea(r) 距離 <= r、出航中 (+29 bit0)、非 bit4、指揮者 (+2a) 不是主角的艦隊 → DS:0538 = 指揮者, 回傳數量

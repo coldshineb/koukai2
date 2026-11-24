@@ -36,6 +36,8 @@ const LIST = [
   { name: "sea_depart_route", files: ["sea_depart_route.js", "port_tests.js"], set: LONG },
   ...M("storm_route", "STORM_MODE", ["run", "start"], SEA, LONG),                                   // 海上暴風雨 (效果音 0c5a, RE_NOTES 35.6)
   { name: "worldmap_tests (接在出海之後)", files: ["worldmap_tests.js"], plain: true },
+  ...M("land_route", "LAND_MODE", ["cant", "no", "leave", "camp", "repair", "nomat", "water", "water0", "treasure", "disc_ok", "disc_fail", "disc_native", "nofood",
+    "ev0", "ev1", "ev2", "ev2b", "ev3", "ev4", "ev5", "ev5b", "ev6", "ev7", "ev8", "ev8b", "ev9"], SEA, LONG),               // 上陸探索 / 海上特殊地點 (RE_NOTES 36.10)
   ...M("sea5_route", "SEA5", ["navi", "navi2", "scout", "dest", "deleg", "deleg0", "chart", "mapitem"], SEA, m => (m === "scout" ? { CURSOR_LAG: 4 } : m === "chart" ? { CURSOR_LAG: 10 } : LONG)),   // scout / chart 照原設定不用 FB_HASH (雜湊模式的游標遮罩與完整比對不同, scout 會差 3 張)
   ...M("battle_route", "BATTLE", ["open", "stop", "tail", "gun_sink", "gun_unmanned", "board_unmanned", "cpu_long"], SEA, LONG),
   ...M("duel_route", "DUEL", ["cpu", "tail"], ["battle_route.js", ...SEA], LONG),

@@ -38,7 +38,8 @@ export async function loadPortAssets(ctx) {
   const [hdat, battle] = await Promise.all([loadBinary(A + "/gfx/hdat.bin"), loadJSON(A + "/data/battle.json")]);   // 海戰 (scenes/battle.js, tools/extract_battle.py)
   const fleet = await loadJSON(A + "/data/fleet.json");                // 月末 / 艦隊 AI 常數表與 NAME.TBL (tools/extract_fleet.py)
   const duel = await loadDuelAssets(A, loadBinary, loadJSON);         // 一騎打: DATA1 / IAP / IAE、DS 常數 (scenes/duel.js, tools/extract_duel.py)
-  return { za, chip, map, chr, compass, data, wind, chipNo, transit, colony, itemMes, gamble, commands, worldmap, seachip, seacompass, sea, fleet, hdat, battle, duel };
+  const monster = await loadBinary(A + "/data/monster.bin");          // MONSTER.DAT 原檔 (海上特殊地點的後續地點, 唯讀; RE_NOTES 36.2)
+  return { za, chip, map, chr, compass, data, wind, chipNo, transit, colony, itemMes, gamble, commands, worldmap, seachip, seacompass, sea, fleet, hdat, battle, duel, monster };
 }
 
 export class PortScene {

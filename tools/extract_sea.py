@@ -36,6 +36,10 @@ STR = {
     # 1feae 偵察 (艦隊資料: 名•姓 / 國名+種類 / 速度 / 航向 / 船名「%-14s」/ 換行)、1fd9c 港口、3119b 指定目的地
     "scName": 0xa93b, "scNation": 0xa943, "scSpeed": 0xa949, "scHead": 0xa95b, "scShip": 0xa96b, "nl": 0xa971,
     "scPort": 0xa92a, "destPrompt": 0xb7be,
+    "seaEvent": 0xb777,                                                # 30e9f 海上特殊地點「船長！不得了啦！快看海面上！」
+    "landDur": 0xb8e2, "landTurn": 0xb8e7, "landProp": 0xb8ec, "landHdr": 0xb8f1,   # 340f5 / 341cd 修理視窗 (RE_NOTES 36.4)
+    "landV1": 0xb8f8, "landV2": 0xb900, "landV3": 0xb908,               # 341cd 「%3d/%3d」× 3
+    "lsMark": 0xa183, "lsShip": 0xa187, "lsColor0": 0xa18c, "lsPad": 0xa1c5, "lsWater": 0xa1c7,   # 清單種類 0x0a (148c1) / 0x0b (14bc1)
 }
 PTRS = {"months": (0x8af0, 12), "statNames": (0x08f6, 4)}               # 71c6 月份字串 / 1bc14 能力名
 
@@ -69,6 +73,7 @@ def main(sea2, assets):
            "str": {k: cs(v) for k, v in STR.items()}}
     for k, (o, n) in PTRS.items():
         out[k] = [cs(u16(o + 2 * i)) for i in range(n)]
+    open(os.path.join(assets, "data", "monster.bin"), "wb").write(open(os.path.join(sea2, "MONSTER.DAT"), "rb").read())   # 31047 唯讀 (原樣)
     p = os.path.join(assets, "data", "sea.json")
     json.dump(out, open(p, "w", encoding="utf-8"), ensure_ascii=False)
     print("->", p, "worldmap", len(codes), "bytes; seachip", len(d1[11]), "seacompass", len(d1[7]))

@@ -19,6 +19,7 @@ const SC_KINDS = [[0x117a, 0x20], [0x125a, 0x0e], [0x12ae, 0], [0x12b6, 0x32], [
   [0x2e76, 0x85], [0x52d4, 0x1e], [0x5892, 0x16], [0x5e28, 0x0c], [0x5f54, 0x16], [0x6a80, 0x25], [0x78f4, 0x80], [0x7f74, 8],
   [0x7f8c, 7], [0x8248, 0x14], null, [0xbd06, 2]];
 const SC_STRBUF = 0x041e, SC_STRLEN = 0x100;
+const SC_COLONY = 0xbb64;                                                  // DS:bb64 COLONY.DAT 記錄緩衝 (0xb1 bytes, 種類 18)
 const scWarned = new Set();
 const scTodo = n => { if (!scWarned.has(n)) { scWarned.add(n); console.warn("尚未移植: " + n); } };
 
@@ -55,6 +56,7 @@ export class Scenario {
     if (a >= SC_STRBUF && a < SC_STRBUF + SC_STRLEN) return this.str[a - SC_STRBUF];
     if (a >= 0x0532 && a < 0x0536) { const r = this.c.rt; return [r.year, r.month, r.day, r.time][a - 0x0532] & 0xff; }
     if (a >= 0x0538 && a < 0x0538 + 0x100) { const p = this.c.persons || [], i = (a - 0x0538) >> 1; return ((p[i] ?? 0) >> ((a & 1) * 8)) & 0xff; }
+    if (a >= SC_COLONY && a < SC_COLONY + 0xb1) return this.extra[a];
     scTodo("劇本讀取 DS:" + a.toString(16));
     return this.extra[a];
   }
@@ -293,9 +295,16 @@ export class Scenario {
   recordAddr(kind, i, field) {
     let base = 0;
     if (kind === 7) base = i < 10 ? 0x2e76 + this.st.u8(this.st.personRecord(this.st.hero) + 0x2c) * 0x85 + 0x2b + 9 * i : 0x572a + 9 * i;
-    else if (kind === 18) { scTodo("劇本 COLONY.DAT 記錄 (31f0b 種類 18)"); base = 0xbb64; }
+    else if (kind === 18) { this.colonyRead(i); base = SC_COLONY; }
     else if (kind < 20) { const [b, n] = SC_KINDS[kind]; base = b + n * i; }
     return (base + field) & 0xffff;
+  }
+  // 32064 種類 18: 開 COLONY.DAT (DS:0a74), lseek 到 索引 × 0xb1, 讀 0xb1 bytes 到 DS:bb64, 關閉 (RE_NOTES 36.7); 索引 ≥ 100 讀不到 → 緩衝保留舊內容
+  colonyRead(i) {
+    const c = this.c, col = c.portAssets?.colony;
+    if (!col || i >= col.length) return;
+    const r = (c._colony ??= [])[i] ??= c.font.encode(col[i]);         // ui/listsel.js ListSelect.colonyRec 同一份快取
+    for (let k = 0; k < 0xb1; k++) this.extra[SC_COLONY + k] = r[k] ?? 0;
   }
   async op_addr({ var: v, kind, index, field }) { this.setVar(v, this.recordAddr(kind, index, field)); }
   async op_addr_var({ var: v, kind, index_var, field }) { this.setVar(v, this.recordAddr(kind, this.getVar(index_var) & 0xff, field)); }

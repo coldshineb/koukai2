@@ -83,6 +83,7 @@ const portAssets = { za: rdb("data/za_dat.bin"), chip: rdb("gfx/portchip.bin"), 
 portAssets.data.bld2 = rdj("data/buildings2.json");                 // 王宮/事務所/住宅/銀行/道具店 (port.js loadPortAssets 同一項)
 Object.assign(portAssets, { worldmap: rdb("gfx/worldmap.bin"), seachip: rdb("gfx/seachip.bin"), seacompass: rdb("gfx/seacompass.bin"), sea: rdj("data/sea.json"), fleet: rdj("data/fleet.json") });   // 海上 (loadPortAssets 同一組)
 Object.assign(portAssets, { hdat: rdb("gfx/hdat.bin"), battle: rdj("data/battle.json") });   // 海戰 (loadPortAssets 同一組)
+portAssets.monster = rdb("data/monster.bin");                          // MONSTER.DAT (海上特殊地點, loadPortAssets 同一項)
 portAssets.duel = { J: rdj("data/duel.json"), data1: rdb("gfx/duel/DATA1.LZW"), iae: rdb("gfx/duel/IAE1.LZW"), iap: [1, 2, 3, 4, 5, 6].map(i => rdb(`gfx/duel/IAP${i}.LZW`)) };   // 一騎打 (loadPortAssets 同一組)
 const msg = f["MESSAGE.DAT"], initState = new Uint8Array(fs.readFileSync(S.W + "/uw2_remake/tools/work/newgame.bin"));
 async function runJS(rng0) {
