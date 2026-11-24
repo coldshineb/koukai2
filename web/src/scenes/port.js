@@ -15,6 +15,7 @@ import { Commands } from "./commands.js";
 import { Scenario, ENV_COMMON, ENV_HERO } from "../game/scenario.js";
 import { loadDuelAssets } from "./duel.js";
 import { PortMove } from "./portmove.js";
+import { GameConst, OptionFlag, TreatyFlag } from "../model/flags.ts";
 
 const pHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const P_MAP_W = 96, P_VIEW = 24, P_VIEW_X = 96, P_VIEW_Y = 8;
@@ -61,23 +62,24 @@ export class PortScene {
     this.tileCache = new Map();
   }
   get st() { return this.c.state; }
-  get port() { return this.st.u8(0x0cae); }
-  // ---- 狀態欄位 (DS 位址) ----
-  get vx() { return pS16(this.st.u16(0x0cb4)); } set vx(v) { this.st.set16(0x0cb4, v); }
-  get vy() { return pS16(this.st.u16(0x0cb6)); } set vy(v) { this.st.set16(0x0cb6, v); }
-  get hx() { return pS16(this.st.u16(0x0cb8)); } set hx(v) { this.st.set16(0x0cb8, v); }
-  get hy() { return pS16(this.st.u16(0x0cba)); } set hy(v) { this.st.set16(0x0cba, v); }
+  get m() { return this.c.state.model; }
+  get port() { return this.m.globals.port; }
+  // ---- 狀態欄位 (具名存取) ----
+  get vx() { return pS16(this.m.globals.portViewX); } set vx(v) { this.m.globals.portViewX = v; }
+  get vy() { return pS16(this.m.globals.portViewY); } set vy(v) { this.m.globals.portViewY = v; }
+  get hx() { return pS16(this.m.globals.heroWinX); } set hx(v) { this.m.globals.heroWinX = v; }
+  get hy() { return pS16(this.m.globals.heroWinY); } set hy(v) { this.m.globals.heroWinY = v; }
   npc(i) { const a = 0x0cbc + i * 3; return { x: this.st.u8(a), y: this.st.u8(a + 1), d: this.st.u8(a + 2) }; }
   setNpc(i, k, v) { this.st.set8(0x0cbc + i * 3 + k, v); }
   get time() { return this.c.rt.time; }
 
   // ================= 進港 seg0:8c53 =================
   async enter() {
-    const { palette, sys, graph, state: st } = this.c;
+    const { palette, sys, graph, state: st } = this.c, g = this.m.globals;
     if (palette.ending) { await palette.fadeBlack(); return; }
-    if (st.u8(0x0caf) !== this.port) {
+    if (g.lastPort !== this.port) {
       this.loadZa();                                                  // 88a7
-      if (st.u8(0x0caf) === 0xff) {
+      if (g.lastPort === GameConst.EMPTY_SLOT) {
         const ex = this.door[6], ey = this.door[7];                   // [090a]/[090b] = 第 3 個入口 (碼頭)
         this.vy = ey - 13; this.vx = ex - 12;
         if (this.vx < 0) this.vx = 0; else if (this.vx >= 0x48) this.vx = 0x48;
@@ -85,7 +87,7 @@ export class PortScene {
         this.hx = ex - this.vx; this.hy = ey - this.vy + 1;
         this.initNpcs();                                              // 8b3b
       }
-      st.set8(0x0caf, this.port);
+      g.lastPort = this.port;
       this.talkCool = 10;
     } else this.loadZa();                                             // (移植版沒有常駐的 DS:0904, 每次進港重新取得)
     this.loadPort();                                                  // 88e9
@@ -125,10 +127,10 @@ export class PortScene {
       this.setNpc(si + 4, 0, x + 2); this.setNpc(si + 4, 1, y + 1); this.setNpc(si + 4, 2, si);
       if (si === 2) { this.setNpc(si, 0, x); this.setNpc(si, 1, y); this.setNpc(si + 4, 0, 0xff); this.setNpc(si + 4, 1, 0xff); }
     }
-    const st = this.st, nation = st.u8(0x5f54 + this.port * 0x16 + 0x15) & 7;
+    const m = this.m, nation = m.port(this.port).region & 7;
     if (this.night() || nation >= 6) return;
-    const di = st.u8(st.personRecord(st.hero) + 0x31) & 15;
-    if (!(st.u8(0x117a + nation * 0x20 + di + 0x12) & 0x10)) return;
+    const di = m.heroPerson().face & 15;
+    if (!(m.country(nation).getTreaties(di) & TreatyFlag.BLOCKADE)) return;
     if (this.door[6] - this.hx !== this.vx) return;
     if (this.door[7] - this.hy - this.vy + 1 !== 0) return;
     for (let si = 0; si < 3; si++) {
@@ -142,7 +144,7 @@ export class PortScene {
   // 1b3b6 依地區播放港口音樂
   portBgm() {
     const T = [0, 0, 0, 1, 2, 1, 1, 1, 1, 2, 3, 4, 4];               // 堆疊上的 13 bytes 表
-    const song = this.port < 100 ? T[this.st.u8(0x6a80 + this.port * 0x25 + 0x21)] + 10 : 15;
+    const song = this.port < 100 ? T[this.m.portEconomy(this.port).priceRegion] + 10 : 15;
     this.c.bgm.playSong(song);
   }
 
@@ -232,7 +234,7 @@ export class PortScene {
   panels() { const s = this.c.sys; s.mouseHide(); this.panel(); this.panel(); s.mouseShow(); }
   // 869f 日期 / 時刻 / 聲望 / 現金 / 港口情報
   panel() {
-    const { con, printf, message } = this.c, st = this.st, F = this.F, rt = this.c.rt, P = this.port;
+    const { con, printf, message } = this.c, m = this.m, g = m.globals, F = this.F, rt = this.c.rt, P = this.port;
     con.puts(F.color);
     con.setCursor(6, 0x10); printf(F.year, rt.year + 1);
     con.setCursor(3, 0x28); printf(F.date, this.months[rt.month], rt.day + 1);
@@ -240,22 +242,22 @@ export class PortScene {
     const t = rt.time;
     printf(F.clock, ((Math.floor(t / 3) + 11) % 12) + 1, (t % 3) * 20, t >= 0x24 ? 0x50 : 0x41);
     con.left = 5; con.lineH = 0x28; con.right = 0x4f;
-    const H = 0x125a + st.hero * 0x0e;
-    let fame = st.u16(H); if (st.u16(H + 2) > fame) fame = st.u16(H + 2); if (st.u16(H + 4) > fame) fame = st.u16(H + 4);
+    const hd = m.heroInfo();
+    let fame = hd.tradeFame; if (hd.pirateFame > fame) fame = hd.pirateFame; if (hd.adventureFame > fame) fame = hd.adventureFame;
     con.setCursor(6, 0xf8); printf(F.fame, fame);
     con.setCursor(5, 0x140);
-    const money = (st.u16(0x12ae) | (st.u16(0x12b0) << 16)) | 0;
+    const money = g.money;
     printf(F.money, money % 10000, Math.trunc(money / 10000));       // 金幣 = 餘數, 金塊 = 萬位
     con.lineH = 0x10; con.left = 0x3d; con.setCursor(0x3d, 8);
-    if (P < 100) { message(0x181 + st.u8(0x6a80 + P * 0x25 + 0x21)); con.puts(F.empty); } else con.puts(F.supply);
+    if (P < 100) { message(0x181 + m.portEconomy(P).priceRegion); con.puts(F.empty); } else con.puts(F.supply);
     this.c.scr.fillCols(0x3d, 0x18, 0x12, 0x10, 7);
-    printf(F.portName, st.portName(P));
+    printf(F.portName, m.port(P).nameBytes);
     if (P < 100) {
       con.left = 0x46; con.lineH = 0x20;
-      const E = 0x6a80 + P * 0x25;
+      const E = m.portEconomy(P);
       con.setCursor(0x46, 0x60);
-      let sum = 0; for (let i = 0; i < 10; i++) sum += st.u8(E + 0x0e + i);
-      printf(F.economy, pS16(st.u16(E)), st.u16(E + 2), pS16(st.u16(E + 4)), st.u16(E + 6), Math.trunc(sum / 10) + 0x32);
+      let sum = 0; for (let i = 0; i < 10; i++) sum += E.getPrices(i);
+      printf(F.economy, pS16(E.commerce), E.commerceInvest, pS16(E.industry), E.industryInvest, Math.trunc(sum / 10) + 50);
     }
     con.lineH = 0x18;
   }
@@ -339,31 +341,31 @@ export class PortScene {
   }
   // 64c6 與行人交談
   async talk(code) {
-    const { sys, win, menu, message } = this.c, st = this.st, P = this.port, R = 0x5f54 + P * 0x16, E = 0x6a80 + P * 0x25;
+    const { sys, win, menu, message } = this.c, m = this.m, P = this.port, port = m.port(P);
     sys.mouseHide();
     win.shadowedSaved(0x10, 0xa0, 0x24, 0x80, 0);
-    const nation = st.u8(R + 0x15) & 7;
+    const nation = port.region & 7;
     switch (code) {
       case 1: message(0x282 + P); break;
       case 2: message((this.c.rt.day % 10) + 0x276); break;
       case 3: {
-        const T = 0x7f74; let k = 0;
-        while (k < 5 && st.u8(T + k) === 0xff) k++;
-        if (k < 5) message(0x280, st.cstr(0x5892 + (st.u8(T + k) + 0x28) * 0x16)); else message(0x281);
+        const cache = m.usedShipCache(0); let k = 0;
+        while (k < 5 && cache.getShipTypes(k) === GameConst.EMPTY_SLOT) k++;
+        if (k < 5) message(0x280, m.ship(cache.getShipTypes(k) + 40).nameBytes); else message(0x281);
         break; }
       case 4: message(nation + 0x26f); break;
       case 5:
-        if (P >= 100) { message(0x242, st.cstr(R + 4)); break; }
-        if (this.isCapital()) { message(0x243, this.nations[nation], st.cstr(R + 4)); break; }
-        if (nation !== 6) message(0x244, this.nations[nation], st.u8(R + 0x15) & 0x80 ? this.F.colony : this.F.ally, st.cstr(R + 4));
-        else message(0x245, st.cstr(R + 4));
+        if (P >= 100) { message(0x242, port.nameBytes); break; }
+        if (this.isCapital()) { message(0x243, this.nations[nation], port.nameBytes); break; }
+        if (nation !== 6) message(0x244, this.nations[nation], port.region & 0x80 ? this.F.colony : this.F.ally, port.nameBytes);
+        else message(0x245, port.nameBytes);
         break;
       case 6: message((P % 3) + 0x26b); break;
-      case 7: message(0x26e, this.nations[st.u8(st.personRecord(st.hero) + 0x31) & 15]); break;
+      case 7: message(0x26e, this.nations[m.heroPerson().face & 15]); break;
       case 8: {
         message(0x268);
-        const g = st.u8(E + 0x1a);
-        if (g !== 0xff) message(0x269, this.goods[g]); else message(0x26a);
+        const g = m.portEconomy(P).specialtyGood;
+        if (g !== GameConst.EMPTY_SLOT) message(0x269, this.goods[g]); else message(0x26a);
         break; }
     }
     sys.flush();
@@ -374,7 +376,7 @@ export class PortScene {
     sys.mouseShow();
   }
   // 0fea:b578 = 1b418: 本港是否為某國首都
-  isCapital() { for (let i = 0; i < 6; i++) if (this.st.u8(0x117a + i * 0x20 + 0x0a) === this.port) return true; return false; }
+  isCapital() { for (let i = 0; i < 6; i++) if (this.m.country(i).capitalPort === this.port) return true; return false; }
 
   // ================= 主角移動 66be =================
   async move(dir) {
@@ -475,11 +477,11 @@ export class PortScene {
     if (!((r1 && r2) || k === 4)) { sys.mouseHide(); this.portBgm(); this.redraw(); sys.mouseShow(); return cost; }   // 1b7ef → 1b8ab
     sys.mouseHide();
     // 1b7fc: 港口所屬國對主角聲望不足時的入場檢查 (碼頭/造船廠/教會/商館?/10 號除外)
-    const st = this.st, H = 0x125a + st.hero * 0x0e, nation = st.u8(0x5f54 + this.port * 0x16 + 0x15) & 7;
-    if (![5, 7, 3, 10].includes(k) && nation !== 6 && st.u8(H + 6 + nation) < 0x50) {
-      if (sys.rng.random(3) === 0 && sys.rng.random(100) > st.u8(H + 6 + nation) + 0x14) {
-        await this.refused(nation, H);                                 // 1b5c1
-        if (this.port !== 0xff) { this.portBgm(); this.redraw(); }
+    const m = this.m, hd = m.heroInfo(), nation = m.port(this.port).region & 7;
+    if (![5, 7, 3, 10].includes(k) && nation !== 6 && hd.getCountryStanding(nation) < 80) {
+      if (sys.rng.random(3) === 0 && sys.rng.random(100) > hd.getCountryStanding(nation) + 20) {
+        await this.refused(nation, hd);                                // 1b5c1
+        if (this.port !== GameConst.EMPTY_SLOT) { this.portBgm(); this.redraw(); }
         sys.mouseShow(); return cost;
       }
       (this.buildings ??= new Buildings(this)).crewSpeaks();          // 909b 船員: 「這是%s的港口, 留點神」
@@ -487,25 +489,25 @@ export class PortScene {
       await this.c.menu.waitPrompt(); await this.c.win.close();
     }
     await this.building(k);                                           // DS:a612[k]
-    if (this.port !== 0xff) { this.portBgm(); this.redraw(); }
+    if (this.port !== GameConst.EMPTY_SLOT) { this.portBgm(); this.redraw(); }
     sys.mouseShow();
     return cost;
   }
   // 1b5c1 入場被拒: 可疑的人靠近 → 被包圍; (主角 +21) + (主角 +25) × (+21) / 100 ≥ random(150) 時逃脫,
   //   否則沒收 3/4 現金, 而且對該國聲望 **加** 20 (原版寫 add byte [H+6+國], 14h; 照搬); 現金改變後不重畫面板 (之後的 1b1a3 才重畫)
-  async refused(nation, H) {
-    const b = (this.buildings ??= new Buildings(this)), { sys, message, menu, win } = this.c, st = this.st, P = b.hero;
+  async refused(nation, hd) {
+    const b = (this.buildings ??= new Buildings(this)), { sys, message, menu, win } = this.c, m = this.m, hero = m.heroPerson();
     b.crewSpeaks(); message(0x347); await menu.waitPrompt(); await win.close();
-    b.greet(0x348, b.dstr(P + 0x0d)); await menu.waitPrompt();
-    let si = st.u8(P + 0x21);
-    b.talkPerson(st.hero);
-    const r = sys.rng.random(0x96);
-    si = (si + Math.trunc((st.u8(P + 0x25) * si) / 100)) & 0xffff;
+    b.greet(0x348, hero.familyNameBytes); await menu.waitPrompt();
+    let si = hero.getStats(5);
+    b.talkPerson(m.globals.hero);
+    const r = sys.rng.random(150);
+    si = (si + Math.trunc((hero.battleLevel * si) / 100)) & 0xffff;
     if (si < r) {
       message(0x349); await menu.waitPrompt();
       b.greet(0x34d); await menu.waitPrompt();
       b.money = (b.money - Math.trunc(Math.imul(b.money, 3) / 4)) | 0;         // _ldiv(現金 × 3, 4)
-      st.set8(H + 6 + nation, (st.u8(H + 6 + nation) + 0x14) & 0xff);
+      hd.setCountryStanding(nation, (hd.getCountryStanding(nation) + 20) & 0xff);
     } else {
       message(0x34a); await menu.waitPrompt(); await win.close();
       b.crewSpeaks(); message(0x34b); await menu.waitPrompt();
