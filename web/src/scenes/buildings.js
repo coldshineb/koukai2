@@ -18,6 +18,9 @@ import { Office } from "./office.js";
 import { House } from "./house.js";
 import { Bank } from "./bank.js";
 import { ItemShop } from "./itemshop.js";
+import { CPU } from "../core/cpucost.js";
+import { COST_TABLE } from "../core/cpucost_table.js";
+const WIPE_CYC = COST_TABLE.find(r => r[0] === "Buildings" && r[1] === "wipe")?.[2].n || 0;   // seg0:2260 清除畫面的量測週期
 
 const bHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const B_SPEECH = Uint8Array.of(0x1b, 0x43, 0x30, 0x01, 0x1b, 0x42, 0x37, 0);   // DS:8c12
@@ -2013,8 +2016,11 @@ export class Buildings {
     return r;
   }
   // seg0:2260 清除畫面 (欄 12..59, y 8..391): 16 步, 偶數行由每 16 像素組的第 7 像素往左、奇數行由第 8 像素往右逐點清成 0
+  //   網頁版: 原版這 16 步之間沒有計時等待, 靠慢 CPU 逐步呈現 (約 0.3 秒, 記帳表 Buildings.wipe); 整段耗時已在呼叫時記帳,
+  //   這裡把每步畫完的畫面依比例排在虛擬時間上 (CPU.hold) 讓瀏覽器逐步顯示。不改畫面內容, 測試模式 (capture = null) 不受影響
   wipe() {
     const fb = this.c.scr.fb;
+    const total = CPU.active && CPU.khz ? WIPE_CYC / (CPU.khz * (1 - CPU.irqLoad)) : 0, t0 = CPU.v - total;
     let dx = 0xfffe, cx = 0x7fff;
     for (let step = 0; step < 16; step++) {
       for (let y = 8; y < 8 + 0x180; y++) {
@@ -2026,6 +2032,7 @@ export class Buildings {
           }
       }
       dx = (dx << 1) & 0xffff; cx >>= 1;
+      if (total) CPU.hold(t0 + total * (step + 1) / 16);
     }
     this.c.scr.dirty = true;
   }
