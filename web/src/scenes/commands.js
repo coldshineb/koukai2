@@ -94,6 +94,22 @@ export class Commands {
   smallWin() { this.c.win.shadowedSaved(0x12, 0x30, 0x1c, 0x60, 0); }
   async waitClose() { await this.c.menu.waitPrompt(); await this.c.win.close(); }   // 0fea:490b + 796d
 
+  // 暫時切回 640×400 高畫質相容層執行尚未改寫為獨立 16:9 卡片的舊式全屏子畫面，確保 100% 可見且可操作
+  async withLegacyScreen(fn) {
+    const { scr } = this.c;
+    const prevWide = scr.wideRenderer;
+    const prevDialog = scr.wideDialog;
+    scr.wideRenderer = null;
+    scr.wideDialog = null;
+    scr.dirty = true;
+    try {
+      return await fn();
+    } finally {
+      scr.wideRenderer = prevWide;
+      scr.wideDialog = prevDialog;
+      scr.dirty = true;
+    }
+  }
   // ================= 情報 1fd9:0e33 (20bc3) =================
   // MENU #0x1a (自艦隊/艦船/人物/主公/積載情報/積載一覽表/發現物/航海圖/航海日誌/海港地圖) 於 y=0x30
   // 停用: 沒有船 → 0,1,4,5; 有船但都沒載貨 (20b6a, 只在進入時算一次) → 4,5; [100e] = 0 → 7; 日誌 [0c8e] 首字 = FFFF → 8; 海上 → 9;
@@ -117,12 +133,12 @@ export class Commands {
           palette.selectTimePalette(this.rt.time, st.port === 0xff, st.weather); await palette.fadeToTarget();
           break;
         case 2: await this.personInfos(); p.clearCache(); p.drawMap(); break;     // 0fea:d81f = 1d6bf
-        case 3: await this.lordInfo(); p.clearCache(); p.drawMap(); break;         // 0fea:d843 = 1cc11
-        case 4: await this.cargoInfos(); break;                                    // 0fea:d848 = 1d6e8
-        case 5: await this.cargoList(); break;                                     // 0fea:d866 = 1cf02
-        case 6: await this.discInfos(); break;                                     // 0fea:d86b = 1d084
-        case 7: await p.chart(); break;                                            // 0fea:dc2e = 1dace (scenes/sea.js)
-        case 8: await this.logBook(); break;                                       // 0fea:e47e = 1e31e
+        case 3: await this.withLegacyScreen(async () => { await this.lordInfo(); p.clearCache(); p.drawMap(); }); break;         // 0fea:d843 = 1cc11
+        case 4: await this.withLegacyScreen(() => this.cargoInfos()); break;                                    // 0fea:d848 = 1d6e8
+        case 5: await this.withLegacyScreen(() => this.cargoList()); break;                                     // 0fea:d866 = 1cf02
+        case 6: await this.withLegacyScreen(() => this.discInfos()); break;                                     // 0fea:d86b = 1d084
+        case 7: await this.withLegacyScreen(() => p.chart()); break;                                            // 0fea:dc2e = 1dace (scenes/sea.js)
+        case 8: await this.withLegacyScreen(() => this.logBook()); break;                                       // 0fea:e47e = 1e31e
         case 9: await this.portMap(); di = 1; break;                               // 0fea:e10f = 1dfaf
         default: di = 1;
       }
@@ -656,36 +672,102 @@ export class Commands {
     this.c.sys.flush();
     return k;
   }
-  // ---- 9 海港地圖 1dfaf: 港內 48×48 格縮小圖 (1d8ac: 16×16 圖塊縮成 8×8) + 各建築名 (MENU #0x3a, 7 號除外) 與外框 ----
+  // ---- 9 海港地圖 1dfaf: 原生 16:9 現代浮動港內小地圖 (直接繪製 HD PNG 圖塊 + 原版建築標籤 + 主角位置) ----
   async portMap() {
-    const st = this.st, { scr, con, palette, sys, menu } = this.c, p = this.p, S = this.S;
-    await palette.fadeBlack();
+    const { scr, sys, menu, art, codec } = this.c, p = this.p;
+    const sheet = art?.sheetMeta?.(p.chipSetName || "portchip_0");
+    const sheetImg = sheet ? art.getImage(`${art.baseUrl}/${sheet.path}`) : null;
+    const lab = this.c.menuItems(0x3a);
+    const dec = bts => { let e = bts.indexOf(0); if (e < 0) e = bts.length; return codec ? codec.decode(bts.subarray(0, e)).replace(/\{[0-9A-F]{2}\}/g, "").trim() : ""; };
+
     const X = p.hx + p.vx, Y = p.hy + p.vy;
     let di = Math.trunc(X / 24), si = Math.trunc(Y / 24);
     if (X % 24 < 12 ? di !== 0 : di === 3) di--;
     if (Y % 24 < 12 ? si !== 0 : si === 3) si--;
-    this.miniQuad(0x0c, 8, di, si); this.miniQuad(0x24, 8, di + 1, si);
-    this.miniQuad(0x0c, 0xc8, di, si + 1); this.miniQuad(0x24, 0xc8, di + 1, si + 1);
-    const clip = [0x60, 8, 0x1df, 0x187];                              // 1fd9:18de (2166e) 線段剪裁矩形 DS:aaac
-    con.puts(S.pmColor);
-    const lab = this.c.menuItems(0x3a);
-    for (let k = 0; k < 12; k++) {
-      if (k === 7) continue;
-      const len = cmStrlen(lab[k]);
-      const x = p.door[k * 2] - (len >> 1) - 24 * di + 0x0d, y = (p.door[k * 2 + 1] - 24 * si - 1) << 3;
-      if (x < 0x0c || x + len >= 0x3c || y < 8 || y >= 0x178) continue;
-      con.setCursor(x, y); con.puts(lab[k]);
-      this.clipRect((x << 3) - 2, y - 2, ((len + x) << 3) + 1, y + 0x11, 4, clip);
-      this.clipRect((x << 3) - 1, y - 1, (len + x) << 3, y + 0x10, 4, clip);
+    const startCol = Math.max(0, Math.min(48, di * 24));
+    const startRow = Math.max(0, Math.min(48, si * 24));
+    const tilePx = 11;
+    const mapPx = 48 * tilePx; // 528×528
+    const boxW = mapPx + 36, boxH = mapPx + 66;
+    const bx = Math.round((1280 - boxW) / 2), by = Math.round((720 - boxH) / 2);
+    const mx = bx + 18, my = by + 48;
+
+    const drawFn = ctx => {
+      ctx.save();
+      ctx.fillStyle = "rgba(5, 11, 22, 0.58)";
+      ctx.fillRect(0, 0, 1280, 720);
+      ctx.fillStyle = "rgba(12, 26, 46, 0.96)";
+      ctx.strokeStyle = "rgba(214, 174, 96, 0.88)";
+      ctx.lineWidth = 2;
+      ctx.fillRect(bx, by, boxW, boxH);
+      ctx.strokeRect(bx, by, boxW, boxH);
+
+      ctx.font = '700 17px "Noto Serif TC", "Microsoft JhengHei", serif';
+      ctx.fillStyle = "#f2d89b";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      const portName = dec(this.st.model.port(p.port).nameBytes);
+      ctx.fillText(portName, bx + 18, by + 24);
+
+      if (sheet && sheetImg) {
+        ctx.imageSmoothingEnabled = false;
+        const M = p.map;
+        for (let r = 0; r < 48; r++) {
+          const mr = startRow + r;
+          for (let c = 0; c < 48; c++) {
+            const mc = startCol + c;
+            const t = M[mr * 96 + mc];
+            const sx = (t % sheet.cols) * sheet.tileW;
+            const sy = Math.floor(t / sheet.cols) * sheet.tileH;
+            ctx.drawImage(sheetImg, sx, sy, sheet.tileW, sheet.tileH, mx + c * tilePx, my + r * tilePx, tilePx, tilePx);
+          }
+        }
+      }
+
+      // 主角位置標記
+      const hx = mx + (X - startCol) * tilePx + tilePx / 2;
+      const hy = my + (Y - startRow) * tilePx + tilePx / 2;
+      ctx.fillStyle = "#ff4d4d";
+      ctx.beginPath();
+      ctx.arc(hx, hy, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // 建築標籤 (100% 原版 MENU #0x3a)
+      ctx.font = '700 12px "Noto Serif TC", "Microsoft JhengHei", serif';
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      for (let k = 0; k < 12; k++) {
+        if (k === 7) continue;
+        const dx = p.door[k * 2], dy = p.door[k * 2 + 1];
+        if (dx < startCol || dx >= startCol + 48 || dy < startRow || dy >= startRow + 48) continue;
+        const text = dec(lab[k]);
+        if (!text) continue;
+        const lx = mx + (dx - startCol) * tilePx + tilePx / 2;
+        const ly = Math.max(my + 12, my + (dy - startRow) * tilePx - 10);
+        const tw = ctx.measureText(text).width + 12;
+        ctx.fillStyle = "rgba(8, 18, 34, 0.88)";
+        ctx.fillRect(lx - tw / 2, ly - 9, tw, 18);
+        ctx.strokeStyle = "rgba(232, 194, 114, 0.9)";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(lx - tw / 2, ly - 9, tw, 18);
+        ctx.fillStyle = "#fff4d6";
+        ctx.fillText(text, lx, ly + 1);
+      }
+      ctx.restore();
+    };
+
+    scr.wideOverlays.push(drawFn);
+    scr.dirty = true;
+    try {
+      sys.flush(); await menu.waitRelease(); await menu.waitPress(); await menu.waitRelease();
+    } finally {
+      const idx = scr.wideOverlays.indexOf(drawFn);
+      if (idx >= 0) scr.wideOverlays.splice(idx, 1);
+      scr.dirty = true;
     }
-    con.puts(S.pmColor2);
-    await palette.fadeTo(palette.table("day"));                         // 99ce(DS:a50c)
-    sys.flush(); await menu.waitRelease(); await menu.waitPress();      // 131f9
-    await palette.fadeBlack();
-    palette.selectTimePalette(this.rt.time, st.port === 0xff, st.weather);   // 1976e
-    p.clearCache(); p.drawMap();
-    await palette.fadeToTarget();
-    sys.flush();
   }
   // 1d710 模式 2: 地圖第 (bc, br) 塊 24×24 格以 8×8 縮小圖塊畫於 (欄 col, y)
   miniQuad(col, y, bc, br) {
@@ -715,15 +797,20 @@ export class Commands {
       if (!b.fleetShips()) menu.disabled |= 0x3d;
       if (!b.crewCount()) menu.disabled |= 2;
       const r = await this.popMenu(0x88, items);
-      if (r !== 0xff) b.fleetTable();
-      switch (r) {
-        case 0: await this.captains(); break;                           // 1ea39
-        case 1: await this.personnel(); break;                          // 1ed2d
-        case 2: await this.sailors(); break;                            // 1ef45
-        case 3: await this.ratios(); break;                             // 1f33d
-        case 4: await this.scrap(); this.p.clearCache(); this.p.drawMap(); b.fleetTable(); break;   // 1f4ae
-        case 5: await b.distribute(new Array(9).fill(0xff), new Array(9).fill(0)); break;           // 1fc43 → 與 1fcf7 相同的迴圈
-        default: si = 1;
+      if (r !== 0xff) {
+        await this.withLegacyScreen(async () => {
+          b.fleetTable();
+          switch (r) {
+            case 0: await this.captains(); break;                           // 1ea39
+            case 1: await this.personnel(); break;                          // 1ed2d
+            case 2: await this.sailors(); break;                            // 1ef45
+            case 3: await this.ratios(); break;                             // 1f33d
+            case 4: await this.scrap(); this.p.clearCache(); this.p.drawMap(); b.fleetTable(); break;   // 1f4ae
+            case 5: await b.distribute(new Array(9).fill(0xff), new Array(9).fill(0)); break;           // 1fc43 → 與 1fcf7 相同的迴圈
+          }
+        });
+      } else {
+        si = 1;
       }
     } while (!si);
     await this.redrawMap();                                            // 20b40
@@ -971,8 +1058,8 @@ export class Commands {
         case 0: await this.p.scout(); break;                            // 1feae 偵察 (以下 3 項在港時停用; scenes/sea.js)
         case 1: si = (await this.p.negotiate()) ? 0 : 1; break;          // 20a6d 交涉
         case 2: await this.p.battle(); si = 1; break;                   // 0fea:1181 戰鬥
-        case 3: await this.formation(); break;                          // 20587
-        case 4: await this.rations(); break;                            // 208af
+        case 3: await this.withLegacyScreen(() => this.formation()); break;                          // 20587
+        case 4: await this.withLegacyScreen(() => this.rations()); break;                            // 208af
         case 5: await this.wages(); break;                              // 20ade
         default: si = 1;
       }
@@ -1148,8 +1235,8 @@ export class Commands {
         case 1: await this.p.stopToggle(); si = 1; break;              // 20ee3 停船 / 出航
         case 2: await this.p.dock(); si = 1; break;                    // 0fea:c0d9 = 1bf79 靠港
         case 3: await this.p.land(); si = 1; break;                    // 2e09:6e37 = 34ec7 登陸
-        case 4: await this.belongings(); break;                         // 29a4c (不結束)
-        case 5: si = await this.functions(); break;                     // 215bd
+        case 4: await this.withLegacyScreen(() => this.belongings()); break;                         // 29a4c (不結束)
+        case 5: si = await this.withLegacyScreen(() => this.functions()); break;                     // 215bd
         case 6: si = await PortMove.choose(this); break;                 // 擴充功能: 港內移動 (scenes/portmove.js)
         default: si = 1;
       }

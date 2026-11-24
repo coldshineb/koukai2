@@ -58,9 +58,41 @@ export class Buildings {
     return codec ? codec.decode(Uint8Array.from(raw)).replace(/\{[0-9A-F]{2}\}/g, "").trim() : "";
   }
   // ---------------- 共用 ----------------
+  beginWideTalk(portraitId = null, prefix = "") {
+    const { con, scr, codec } = this.c;
+    if (!scr.wideRenderer || !codec) return false;
+    if (this._wideTalk) this.endWideTalk();
+    const origPutc = con.putc;
+    const raw = [];
+    let esc = 0;
+    const sync = () => {
+      const body = codec.decode(Uint8Array.from(raw)).replace(/\{[0-9A-F]{2}\}/g, "").trim();
+      const text = prefix ? (body ? `${prefix}\n${body}` : prefix) : body;
+      scr.wideDialog = { text, portraitId, waiting: false };
+      scr.dirty = true;
+    };
+    con.putc = ch => {
+      ch &= 0xff;
+      if (esc) { esc = (esc === 1 && ch === 0x3d) ? 2 : (esc === 2 ? 3 : 0); return; }
+      if (ch === 0x1b) { esc = 1; return; }
+      if (ch >= 0x20 || ch === 0x0a) { raw.push(ch); sync(); }
+    };
+    this._wideTalk = { origPutc, raw, portraitId, prefix, sync };
+    sync();
+    return true;
+  }
+  endWideTalk() {
+    if (!this._wideTalk) return false;
+    this.c.con.putc = this._wideTalk.origPutc;
+    this._wideTalk = null;
+    this.c.scr.wideDialog = null;
+    this.c.scr.dirty = true;
+    return true;
+  }
   greet(n, ...args) {                                                    // seg0:8f03
     const { sys, win, con, message, scr } = this.c;
     if (scr.wideRenderer && this.c.codec) {
+      if (this._wideTalk) this.endWideTalk();
       scr.wideDialog = { text: this.captureMessage(n, ...args), portraitId: null, waiting: false };
       scr.dirty = true;
       return;
@@ -102,12 +134,24 @@ export class Buildings {
   // seg0:7f06 人物 n 發言 (>= 0x78 為隨機無名人物)
   talkPerson(n) {
     const { kao, scr, sys, state: st } = this.c;
+    if (scr.wideRenderer && this.c.codec) {
+      let faceId = null;
+      if (n < 0x78) {
+        const face = st.u8(st.personRecord(n) + 0x1a);
+        if (face < 0x80) faceId = face;
+      }
+      this.beginWideTalk(faceId);
+      return;
+    }
     if (n >= 0x78) { this.talkWindow(0x14, 0xc0); kao.drawRandomType(scr, sys.rng, sys.rng.random(0x3fff) | 0xc000, 0x16, 0xd0); return; }
     this.talkWindow(0x14, 0xc0);
     kao.drawPerson(scr, st.bytes(st.personRecord(n), 0x32), 0x16, 0xd0);
   }
   // seg0:7e35 指定種類與部件的無名人物
-  talkFace(type, parts) { this.talkWindow(0x14, 0xc0); this.c.kao.drawComposed(this.c.scr, type, parts, 0x16, 0xd0); }
+  talkFace(type, parts) {
+    if (this.c.scr.wideRenderer && this.c.codec) { this.beginWideTalk(null); return; }
+    this.talkWindow(0x14, 0xc0); this.c.kao.drawComposed(this.c.scr, type, parts, 0x16, 0xd0);
+  }
   // seg0:909b → 9010: 依職位優先序 [3,4,5,2,6] 找艦隊中的船員發言
   crewSpeaks(order = [3, 4, 5, 2, 6]) {
     const st = this.st; let who = 0xff;
@@ -146,20 +190,26 @@ export class Buildings {
   }
   // ---------------- 建築分派 ----------------
   async enter(k) {
-    switch (k) {
-      case 0: return (this.marketM ??= new Market(this)).run();
-      case 1: return this.tavern();
-      case 2: return this.shipyard();
-      case 3: return this.wharf();
-      case 4: return this.inn();
-      case 5: return (this.palaceM ??= new Palace(this)).run();            // palace.js
-      case 6: return (this.officeM ??= new Office(this)).run();            // office.js
-      case 7: return (this.houseM ??= new House(this)).run();              // house.js
-      case 8: return (this.bankM ??= new Bank(this)).run();                // bank.js (夏洛克銀行)
-      case 9: return (this.itemM ??= new ItemShop(this)).run();            // itemshop.js
-      case 10: return this.church();
-      case 11: return this.fortune();
-      default: bTodo(["交易所", "酒館", "造船廠", "碼頭", "旅館", "王宮", "事務所", "住宅", "銀行?", "道具店", "教會", "占卜師"][k] + " (1fd9 段建築 " + k + ")");
+    try {
+      switch (k) {
+        case 0: return await (this.marketM ??= new Market(this)).run();
+        case 1: return await this.tavern();
+        case 2: return await this.shipyard();
+        case 3: return await this.wharf();
+        case 4: return await this.inn();
+        case 5: return await (this.palaceM ??= new Palace(this)).run();            // palace.js
+        case 6: return await (this.officeM ??= new Office(this)).run();            // office.js
+        case 7: return await (this.houseM ??= new House(this)).run();              // house.js
+        case 8: return await (this.bankM ??= new Bank(this)).run();                // bank.js (夏洛克銀行)
+        case 9: return await (this.itemM ??= new ItemShop(this)).run();            // itemshop.js
+        case 10: return await this.church();
+        case 11: return await this.fortune();
+        default: bTodo(["交易所", "酒館", "造船廠", "碼頭", "旅館", "王宮", "事務所", "住宅", "銀行?", "道具店", "教會", "占卜師"][k] + " (1fd9 段建築 " + k + ")");
+      }
+    } finally {
+      this.endWideTalk();
+      this.c.scr.wideDialog = null;
+      this.c.scr.dirty = true;
     }
   }
   // ================= 1 酒館 1fd9:78f5 =================
@@ -180,7 +230,12 @@ export class Buildings {
   payMoney(v) { if ((v >>> 0) > (this.money >>> 0)) return 0; this.money = (this.money - v) | 0; this.p.panels(); return 1; }   // 25515
   // seg0:7eac 酒吧女郎頭像 (具名頭像 face) 與姓名
   talkGirl(face, rec) {
-    const { kao, scr, printf } = this.c;
+    const { kao, scr, printf, codec } = this.c;
+    if (scr.wideRenderer && codec) {
+      const nm = codec.decode(this.dstr(rec)).replace(/\0.*$/, "").trim();
+      this.beginWideTalk(face, nm);
+      return;
+    }
     this.talkWindow(0x14, 0xc0);
     kao.drawNamed(scr, face, 0x16, 0xd0);
     printf(this.T.fmt.girlName, this.dstr(rec));
@@ -188,6 +243,11 @@ export class Buildings {
   // seg0:7ffc 對話視窗下半的訊息
   talkMessage2(n, ...args) {
     const { sys, con, scr } = this.c;
+    if (this._wideTalk) {
+      this._wideTalk.raw.length = 0;
+      this.c.message(n, ...args);
+      return;
+    }
     sys.mouseHide();
     con.right = 0x38; con.left = 0x1f; con.setCursor(0x1f, 0xe8);
     con.puts(this.T.fmt.talk2);
@@ -197,23 +257,45 @@ export class Buildings {
   }
   // seg0:7f6e 清除對話視窗文字區 (發言者不變)
   talkClear() {
+    if (this._wideTalk) {
+      this._wideTalk.raw.length = 0;
+      this._wideTalk.sync();
+      return;
+    }
     const { con, scr } = this.c;
     con.right = 0x38; con.left = 0x1f; con.setCursor(0x1f, 0xd0);
     con.puts(B_COLOR);
     scr.fillCols(0x1f, 0xd0, 0x1b, 0x70, 7);
   }
-  async closeTalk() { await this.c.win.close(); }                           // seg0:796d
+  async closeTalk() {
+    if (this.endWideTalk()) return;
+    await this.c.win.close();
+  }                           // seg0:796d
   todo(n) { bTodo(n); }
   // ---------- 對話視窗 (上方 = 主角/對象, 下方 = 店家/路人) ----------
   // seg0:7ed8 上方視窗 (0x0d, 0x10) 人物 n 發言; n >= 0x78 為隨機無名人物 (7df5)
   talkTop(n) {
     const { kao, scr, sys, state: st } = this.c;
+    if (scr.wideRenderer && this.c.codec) {
+      let faceId = null;
+      if (n < 0x78) {
+        const face = st.u8(st.personRecord(n) + 0x1a);
+        if (face < 0x80) faceId = face;
+      }
+      this.beginWideTalk(faceId);
+      return;
+    }
     this.talkWindow(0x0d, 0x10);
     if (n >= 0x78) kao.drawRandomType(scr, sys.rng, sys.rng.random(0x3fff) | 0xc000, 0x0f, 0x20);
     else kao.drawPerson(scr, st.bytes(st.personRecord(n), 0x32), 0x0f, 0x20);
   }
   // seg0:7f34 清除上方視窗文字區
   talkClearTop() {
+    if (this._wideTalk) {
+      this._wideTalk.raw.length = 0;
+      this._wideTalk.sync();
+      return;
+    }
     const { con, scr } = this.c;
     con.right = 0x31; con.left = 0x18; con.setCursor(0x18, 0x20);
     con.puts(this.T.fmt.talk3);

@@ -279,10 +279,14 @@ export class Screen {
     }
     this.dirty = true;
   }
-  // 以 6 位元 DAC 值直接設定一個顏色 (片頭 OPEN.EXE 以 17f0 逐色寫 DAC; 換算與 setPaletteRaw 相同: 4 位元值 ×4 = 6 位元)
+  // 以 6 位元 DAC 值直接設定一個顏色 (片頭 OPEN.EXE / 結局 END.EXE 以逐色寫 DAC; 同步更新 raw 避免 maxPal 誤判為全黑)
   setDac6(i, r, g, b) {
+    const idx = i & 15;
     const c = v => ((v & 63) << 2) | ((v & 63) >> 4);
-    this.lut[i & 15] = 0xff000000 | (c(b) << 16) | (c(g) << 8) | c(r);
+    this.raw[idx * 3] = (b >> 2) & 15;
+    this.raw[idx * 3 + 1] = (r >> 2) & 15;
+    this.raw[idx * 3 + 2] = (g >> 2) & 15;
+    this.lut[idx] = 0xff000000 | (c(b) << 16) | (c(g) << 8) | c(r);
     this.dirty = true;
   }
   clear(c = 0) {

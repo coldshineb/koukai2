@@ -2,6 +2,7 @@
 import { ListSelect } from "../ui/listsel.js";
 import { marketTradeLog } from "./market.js";
 import { DS, OFF } from "../model/schema_views.ts";
+import { WorkDS } from "../model/flags.ts";
 import { domS16, domUmin16 } from "../domain/economy.ts";
 import { runWideTableSelect } from "../canvas_ui/wide_table.ts";
 
@@ -249,31 +250,86 @@ class WharfMixin {
   // 27802 出航: 艦隊資料表 → 補給天數 → 是/否
   //   積載率 = 5d36 × 100 (imul cx → DX:AX 32 位元) / 船 +14 (cwd) 經 seg0:38ba 無號長整數除法 (2793a..2793e); 不是 16 位元截斷
   async depart() {
-    const st = this.st, { con, printf, message, menu, palette, scr } = this.c, anim = st.u8(DS.OPTIONS) & 1;
+    const st = this.st, { con, printf, message, menu, palette, scr, codec } = this.c, anim = st.u8(DS.OPTIONS) & 1;
     const n = this.fleetShips(), L = this.c.persons.slice(0, n);
-    if (anim) this.wipe(); else { await palette.fadeBlack(); scr.fillCols(0x0c, 8, 0x30, 0x180, 0); }
-    this.winText(0x0d, 0x20, 0x2e, ((n + 2) * 0x18) & 0xffff);
-    con.setCursor(0x1e, 0x30); con.puts(this.WF.departHdr);
     let noDriver = 0, crewT = 0, waterT = 0, foodT = 0;
-    for (let i = 0; i < n; i++) {
-      const slot = L[i], M = this.crewData(slot), S = this.fleetSlot(slot), ship = this.shipOf(slot);
-      const crew = domS16(st.u16(S));
-      waterT = (waterT + st.u16(M)) & 0xffff; foodT = (foodT + st.u16(M + 2)) & 0xffff; crewT = (crewT + st.u16(S)) & 0xffff;
-      const drv = Math.trunc(crew * st.u8(M + 9) / 100), look = Math.trunc(crew * st.u8(M + 8) / 100);
-      con.setCursor(0x0f, ((i + 3) * 0x18) & 0xffff);
-      printf(this.WF.departRow, this.dstr(ship), drv, look, domS16(st.u16(S) - look - drv),
-        domS16(Math.floor((Math.imul(domS16(this.cargoUsed(slot)), 100) >>> 0) / (domS16(st.u16(ship + 0x14)) >>> 0 || 1)) & 0xffff), Math.trunc(domS16(st.u16(M)) / 10), Math.trunc(domS16(st.u16(M + 2)) / 10));
-      if (!drv) noDriver = 1;
+    let wideDepartDraw = null;
+    if (scr.wideRenderer && codec) {
+      const dec = bts => { let e = bts.indexOf(0); if (e < 0) e = bts.length; return codec.decode(bts.subarray(0, e)).replace(/\{[0-9A-F]{2}\}/g, "").trim(); };
+      const hdr = dec(this.WF.departHdr);
+      const rows = [];
+      for (let i = 0; i < n; i++) {
+        const slot = L[i], M = this.crewData(slot), S = this.fleetSlot(slot), ship = this.shipOf(slot);
+        const crew = domS16(st.u16(S));
+        waterT = (waterT + st.u16(M)) & 0xffff; foodT = (foodT + st.u16(M + 2)) & 0xffff; crewT = (crewT + st.u16(S)) & 0xffff;
+        const drv = Math.trunc(crew * st.u8(M + 9) / 100), look = Math.trunc(crew * st.u8(M + 8) / 100);
+        const deck = domS16(st.u16(S) - look - drv);
+        const loadPct = domS16(Math.floor((Math.imul(domS16(this.cargoUsed(slot)), 100) >>> 0) / (domS16(st.u16(ship + 0x14)) >>> 0 || 1)) & 0xffff);
+        const w = Math.trunc(domS16(st.u16(M)) / 10), f = Math.trunc(domS16(st.u16(M + 2)) / 10);
+        rows.push({ name: dec(this.dstr(ship)), stat: `${drv}/${look}/${deck}  ${loadPct}%  ${w}  ${f}` });
+        if (!drv) noDriver = 1;
+      }
+      wideDepartDraw = c2d => {
+        c2d.save();
+        const x = 540, y = 82, w = 704, h = Math.min(428, 64 + rows.length * 36);
+        c2d.fillStyle = "rgba(10, 22, 40, 0.95)";
+        c2d.strokeStyle = "rgba(214, 174, 96, 0.85)";
+        c2d.lineWidth = 1.5;
+        c2d.fillRect(x, y, w, h);
+        c2d.strokeRect(x, y, w, h);
+        c2d.font = '700 15px "Noto Serif TC", "Microsoft JhengHei", serif';
+        c2d.fillStyle = "#f2d89b";
+        c2d.textAlign = "left";
+        c2d.textBaseline = "middle";
+        c2d.fillText(hdr, x + 18, y + 24, w - 36);
+        for (let i = 0; i < rows.length; i++) {
+          const ry = y + 54 + i * 34;
+          c2d.fillStyle = "#fff4d6";
+          c2d.textAlign = "left";
+          c2d.fillText(rows[i].name, x + 18, ry, 240);
+          c2d.font = '600 14px "Consolas", monospace';
+          c2d.fillStyle = "#d8e4f2";
+          c2d.textAlign = "right";
+          c2d.fillText(rows[i].stat, x + w - 18, ry);
+          c2d.font = '700 15px "Noto Serif TC", "Microsoft JhengHei", serif';
+        }
+        c2d.restore();
+      };
+      scr.wideOverlays.push(wideDepartDraw);
+      scr.dirty = true;
+    } else {
+      if (anim) this.wipe(); else { await palette.fadeBlack(); scr.fillCols(0x0c, 8, 0x30, 0x180, 0); }
+      this.winText(0x0d, 0x20, 0x2e, ((n + 2) * 0x18) & 0xffff);
+      con.setCursor(0x1e, 0x30); con.puts(this.WF.departHdr);
+      for (let i = 0; i < n; i++) {
+        const slot = L[i], M = this.crewData(slot), S = this.fleetSlot(slot), ship = this.shipOf(slot);
+        const crew = domS16(st.u16(S));
+        waterT = (waterT + st.u16(M)) & 0xffff; foodT = (foodT + st.u16(M + 2)) & 0xffff; crewT = (crewT + st.u16(S)) & 0xffff;
+        const drv = Math.trunc(crew * st.u8(M + 9) / 100), look = Math.trunc(crew * st.u8(M + 8) / 100);
+        con.setCursor(0x0f, ((i + 3) * 0x18) & 0xffff);
+        printf(this.WF.departRow, this.dstr(ship), drv, look, domS16(st.u16(S) - look - drv),
+          domS16(Math.floor((Math.imul(domS16(this.cargoUsed(slot)), 100) >>> 0) / (domS16(st.u16(ship + 0x14)) >>> 0 || 1)) & 0xffff), Math.trunc(domS16(st.u16(M)) / 10), Math.trunc(domS16(st.u16(M + 2)) / 10));
+        if (!drv) noDriver = 1;
+      }
     }
+    const clearDepartOverlay = () => {
+      if (wideDepartDraw) {
+        const idx = scr.wideOverlays.indexOf(wideDepartDraw);
+        if (idx >= 0) scr.wideOverlays.splice(idx, 1);
+        wideDepartDraw = null;
+        scr.dirty = true;
+      }
+    };
     this.crewSpeaks();
-    const fail = async m => { message(m); if (!anim) await palette.fadeToTarget(); await this.wait(); await this.closeTalk(); return 0; };
+    const fail = async m => { message(m); if (!anim && !wideDepartDraw) await palette.fadeToTarget(); await this.wait(); await this.closeTalk(); clearDepartOverlay(); return 0; };
     if (noDriver) return fail(0x39);
     const days = Math.trunc(domUmin16(waterT, foodT) / (crewT || 1));
     if (!days) return fail(0x3b);
     if (days >= 10 && days <= 0xb4) message(0x3d, days); else message(days >= 10 ? 0x3a : 0x3c);
-    if (!anim) await palette.fadeToTarget();
+    if (!anim && !wideDepartDraw) await palette.fadeToTarget();
     const ok = await menu.yesNo();
     await this.closeTalk();
+    clearDepartOverlay();
     if (!ok) return 0;
     // 27a0c 出港: 0fea:e3e5 記錄 (種類 1, +4 天數, +6 港口) → [2e18] = 0 (出港天數), 方位 = 8 (停船) → 4fe3 清滑鼠移動量 → [1005] &= DF
     //   → 0fea:9348 / 9401 (扣一天的糧食與水) → 851f 進入海上 → [0caf] = FF, 回傳 1 (碼頭選單結束)

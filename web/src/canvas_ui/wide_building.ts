@@ -1,6 +1,7 @@
-// canvas_ui/wide_building.ts — 原生 16:9 (1280×720) 現代 Canvas 2D 建築內景畫布
-// 取代 1993 重複磚塊底紋 wallpaper(1)，大尺寸居中展示高清建築內景並保留頂部港名/金幣資訊。
+// canvas_ui/wide_building.ts — 原生 16:9 (1280×720) 現代港內浮動建築視窗
+// 直接在港口地圖上彈出建築視窗（不黑屏、不切換全螢幕場景），保留原版建築名/港名/金幣與高清建築插圖。
 import { VIEW_W, VIEW_H } from "../core/screen.js";
+import { renderWidePort } from "./wide_world.ts";
 
 function decodeCstr(codec: any, bytes: Uint8Array): string {
   if (!codec || !bytes) return "";
@@ -19,59 +20,76 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.closePath();
 }
 
-export function renderWideBuilding(ctx: CanvasRenderingContext2D, portScene: any, bldPicId: number) {
+export function renderWideBuilding(
+  ctx: CanvasRenderingContext2D,
+  scr: any,
+  portScene: any,
+  buildingKind: number,
+  bldPicId: number,
+) {
   const c = portScene.c;
   const m = c.state.model;
   const art = c.art;
 
+  // 1. 背景保留即時港口地圖，覆蓋柔暗半透明遮罩（零黑屏過場）
+  renderWidePort(ctx, scr, portScene);
   ctx.save();
-  // 深海木質溫潤背景漸層
-  const bg = ctx.createRadialGradient(VIEW_W * 0.42, VIEW_H * 0.42, 60, VIEW_W * 0.5, VIEW_H * 0.5, VIEW_W * 0.72);
-  bg.addColorStop(0, "#19304d");
-  bg.addColorStop(0.6, "#0d1b30");
-  bg.addColorStop(1, "#060d18");
-  ctx.fillStyle = bg;
+  ctx.fillStyle = "rgba(5, 11, 22, 0.56)";
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 
-  // 頂部精簡狀態條 (100% 原版港名/金塊/金幣)
+  // 2. 中央浮動現代建築主視窗 (底部預留空間給 wideDialog)
+  const wx = 56, wy = 66, ww = VIEW_W - 112, wh = 468;
+  ctx.shadowColor = "rgba(0, 0, 0, 0.65)";
+  ctx.shadowBlur = 30;
+  ctx.shadowOffsetY = 10;
+  roundRect(ctx, wx, wy, ww, wh, 14);
+  const bg = ctx.createLinearGradient(wx, wy, wx, wy + wh);
+  bg.addColorStop(0, "rgba(15, 31, 54, 0.96)");
+  bg.addColorStop(1, "rgba(8, 17, 32, 0.98)");
+  ctx.fillStyle = bg;
+  ctx.fill();
+  ctx.shadowColor = "transparent";
+  ctx.strokeStyle = "rgba(214, 174, 96, 0.85)";
+  ctx.lineWidth = 1.6;
+  ctx.stroke();
+
+  // 3. 頂部標題欄 (100% 原版建築名 + 港名 + 金塊/金幣)
+  const bldLabels = c.menuItems?.(0x3a);
+  const bldName = bldLabels?.[buildingKind] ? decodeCstr(c.codec, bldLabels[buildingKind]) : "";
   const portName = decodeCstr(c.codec, m.port(portScene.port).nameBytes);
   const money = m.globals.money;
   const bars = Math.trunc(money / 10000);
   const gold = money % 10000;
 
-  roundRect(ctx, 18, 14, VIEW_W - 36, 46, 8);
-  ctx.fillStyle = "rgba(10, 21, 37, 0.88)";
-  ctx.fill();
-  ctx.strokeStyle = "rgba(208, 169, 94, 0.65)";
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = "rgba(214, 174, 96, 0.32)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(wx + 18, wy + 48);
+  ctx.lineTo(wx + ww - 18, wy + 48);
   ctx.stroke();
 
-  ctx.font = '700 17px "Noto Serif TC", "Microsoft JhengHei", serif';
+  ctx.font = '700 18px "Noto Serif TC", "Microsoft JhengHei", serif';
   ctx.fillStyle = "#f2d89b";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.fillText(portName, 36, 38);
+  ctx.fillText(bldName ? `${portName} · ${bldName}` : portName, wx + 24, wy + 25);
 
   ctx.font = '600 14px "Noto Serif TC", "Microsoft JhengHei", serif';
   ctx.textAlign = "right";
   ctx.fillStyle = "#f2d89b";
-  ctx.fillText(`金塊 ${bars}    金幣 ${gold}`, VIEW_W - 36, 38);
+  ctx.fillText(`金塊 ${bars}    金幣 ${gold}`, wx + ww - 24, wy + 25);
 
-  // 中央偏左高清建築內景畫框 (136×112 等比放大至 408×336)
+  // 4. 左側高清建築插圖框 (136×112 -> 384×316)
   const entry = art?.graphEntry?.("GRAPH.DAT", bldPicId);
   const img = entry ? art.getImage(`${art.baseUrl}/${entry.path}`) : null;
-  const bw = 408, bh = 336;
-  const bx = 96, by = 88;
+  const bw = 384, bh = 316;
+  const bx = wx + 28, by = wy + 72;
 
-  ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
-  ctx.shadowBlur = 24;
-  ctx.shadowOffsetY = 8;
-  roundRect(ctx, bx - 6, by - 6, bw + 12, bh + 12, 10);
-  ctx.fillStyle = "#2b1c0e";
+  roundRect(ctx, bx - 4, by - 4, bw + 8, bh + 8, 10);
+  ctx.fillStyle = "#1b140c";
   ctx.fill();
-  ctx.shadowColor = "transparent";
-  ctx.strokeStyle = "#cfa85b";
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = "rgba(214, 174, 96, 0.8)";
+  ctx.lineWidth = 1.5;
   ctx.stroke();
 
   if (img) {

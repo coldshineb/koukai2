@@ -206,10 +206,13 @@ export class PortScene {
   }
   // 1b1a3 重畫地圖與主角
   redraw() {
+    this.c.scr.wideDialog = null;
+    this.c.scr.wideOverlays.length = 0;
     this.clearCache();
     this.drawMap();
     this.drawHero(this.hx, this.hy, 2);
     if (this.port !== 0xff) this.c.scr.wideRenderer = (ctx, scr) => renderWidePort(ctx, scr, this);
+    this.c.scr.dirty = true;
   }
   // 9453 羅盤指針 (compass.png)
   needleDraw(base) {
@@ -266,19 +269,14 @@ export class PortScene {
       s.glyphMode(k * 16 + 20, r * 64 + 8, 8, 0x20, g.subarray(0x3da0), mode);
     }
   }
-  // 8ebc 進入建築: 16:9 現代建築內景畫布 (保留寬螢幕模式使所有建築內選單/清單/確認框全為現代 Canvas UI)
+  // 8ebc 進入建築: 直接在港內彈出 16:9 現代浮動建築視窗（零黑屏過場）
   async interior(k) {
-    const { palette, sys, scr, art } = this.c;
+    const { scr, art } = this.c;
     const picId = k === 10 && this.colonyChurch() ? 0x14 : k + 6;
     const entry = art?.graphEntry?.("GRAPH.DAT", picId);
     if (entry) await art.loadImage(`${art.baseUrl}/${entry.path}`);
-    scr.setAtmosphere?.({ active: false });
-    await palette.fadeBlack();
-    sys.mouseHide();
-    scr.clear(0);
-    scr.wideRenderer = ctx => renderWideBuilding(ctx, this, picId);
-    sys.mouseShow();
-    await palette.fadeToTarget();
+    scr.wideRenderer = (ctx, s) => renderWideBuilding(ctx, s, this, k, picId);
+    scr.dirty = true;
   }
   // 1fd9:ce07 CHIP_NO.DAT[港] == 2
   colonyChurch() { return this.port < 100 && this.P.chipNo[this.port] === 2; }
@@ -484,9 +482,10 @@ export class PortScene {
         if (this.port !== GameConst.EMPTY_SLOT) { this.portBgm(); this.redraw(); }
         sys.mouseShow(); return cost;
       }
-      (this.buildings ??= new Buildings(this)).crewSpeaks();          // 909b 船員: 「這是%s的港口, 留點神」
+      const b = (this.buildings ??= new Buildings(this));
+      b.crewSpeaks();          // 909b 船員: 「這是%s的港口, 留點神」
       this.c.message(0x346, this.nations[nation]);
-      await this.c.menu.waitPrompt(); await this.c.win.close();
+      await this.c.menu.waitPrompt(); await b.closeTalk();
     }
     await this.building(k);                                           // DS:a612[k]
     if (this.port !== GameConst.EMPTY_SLOT) { this.portBgm(); this.redraw(); }
@@ -496,8 +495,8 @@ export class PortScene {
   // 1b5c1 入場被拒: 可疑的人靠近 → 被包圍; (主角 +21) + (主角 +25) × (+21) / 100 ≥ random(150) 時逃脫,
   //   否則沒收 3/4 現金, 而且對該國聲望 **加** 20 (原版寫 add byte [H+6+國], 14h; 照搬); 現金改變後不重畫面板 (之後的 1b1a3 才重畫)
   async refused(nation, hd) {
-    const b = (this.buildings ??= new Buildings(this)), { sys, message, menu, win } = this.c, m = this.m, hero = m.heroPerson();
-    b.crewSpeaks(); message(0x347); await menu.waitPrompt(); await win.close();
+    const b = (this.buildings ??= new Buildings(this)), { sys, message, menu } = this.c, m = this.m, hero = m.heroPerson();
+    b.crewSpeaks(); message(0x347); await menu.waitPrompt(); await b.closeTalk();
     b.greet(0x348, hero.familyNameBytes); await menu.waitPrompt();
     let si = hero.getStats(5);
     b.talkPerson(m.globals.hero);
@@ -509,16 +508,27 @@ export class PortScene {
       b.money = (b.money - Math.trunc(Math.imul(b.money, 3) / 4)) | 0;         // _ldiv(現金 × 3, 4)
       hd.setCountryStanding(nation, (hd.getCountryStanding(nation) + 20) & 0xff);
     } else {
-      message(0x34a); await menu.waitPrompt(); await win.close();
+      message(0x34a); await menu.waitPrompt(); await b.closeTalk();
       b.crewSpeaks(); message(0x34b); await menu.waitPrompt();
     }
-    await win.close();
+    await b.closeTalk();
   }
   // 建築內部 (1fd9 段, DS:a612[k]) — scenes/buildings.js
   async building(k) { return (this.buildings ??= new Buildings(this)).enter(k); }
   // 1b58d 關門了
   async closed() {
-    const { sys, win, menu, message } = this.c;
+    const { sys, win, menu, message, scr, con, codec } = this.c;
+    if (scr.wideRenderer && codec) {
+      const saved = con.putc, raw = []; let esc = 0;
+      con.putc = ch => { ch &= 0xff; if (esc) { esc = (esc === 1 && ch === 0x3d) ? 2 : (esc === 2 ? 3 : 0); return; } if (ch === 0x1b) { esc = 1; return; } if (ch >= 0x20 || ch === 0x0a) raw.push(ch); };
+      try { message(0x2fd); } finally { con.putc = saved; }
+      scr.wideDialog = { text: codec.decode(Uint8Array.from(raw)).replace(/\{[0-9A-F]{2}\}/g, "").trim(), portraitId: null, waiting: false };
+      scr.dirty = true;
+      await menu.waitPrompt();
+      scr.wideDialog = null;
+      scr.dirty = true;
+      return;
+    }
     sys.mouseHide();
     win.shadowedSaved(0x1c, 0x30, 0x14, 0x30, 0);
     message(0x2fd);

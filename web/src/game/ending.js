@@ -810,6 +810,12 @@ export class Ending {
   }
   // ---- 01a8 main (INT 65h 的值直接作為參數: v3 = AH=3, v4 = AH=4, v5 = AH=5 核對值, name = AH=2 的字串 (名 + 空白 + 姓, 0 結尾)) ----
   async run({ v3 = 0, v4 = 0, v5 = 0, name = new Uint8Array([0]) } = {}) {
+    // 離開寬螢幕港口/海上渲染，避免 wideRenderer 蓋住結局原版畫面
+    this.scr.wideRenderer = null;
+    this.scr.wideDialog = null;
+    this.scr.wideOverlays.length = 0;
+    this.scr.setAtmosphere?.({ active: false });
+    this.scr.clear(0);
     // 001b8 / 001df 1.pat / 2.pat 開檔 (Font 已載入); 73f3 / 017a 磁碟代號與檔名
     this.sw(0x1fc2, v3); this.sw(0x1fd4, v4);
     const chk = v5 & 0xffff;
