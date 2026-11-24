@@ -49,21 +49,39 @@ export class Buildings {
   captureMessage(n, ...args) {
     return captureConsoleText(this.c, () => this.c.message(n, ...args));
   }
+  // 解析人物頭像規格：同時支援具名頭像 (0..127)、人物拼合頭像 (rec[0x1b] & 0xc0) 與隨機無名頭像 (n >= 0x78)
+  resolvePersonPortrait(n) {
+    const { sys, state: st } = this.c;
+    if (n >= 0x78) {
+      return {
+        portraitId: null,
+        portraitComposed: { type: sys.rng.random(7), parts: sys.rng.random(0x3fff) | 0xc000 },
+      };
+    }
+    const rec = st.bytes(st.personRecord(n), 0x32);
+    const parts = rec[0x1a] | (rec[0x1b] << 8);
+    if (rec[0x1b] & 0xc0) {
+      return { portraitId: null, portraitComposed: { type: rec[0x31] & 15, parts } };
+    }
+    return { portraitId: parts & 0x7f, portraitComposed: null };
+  }
   // ---------------- 共用 ----------------
-  beginWideTalk(portraitId = null, prefix = "") {
+  beginWideTalk(portrait = null, prefix = "") {
     const { con, scr, codec } = this.c;
     if (!scr.wideRenderer || !codec) return false;
     if (this._wideTalk) this.endWideTalk();
+    const portraitId = typeof portrait === "number" ? portrait : (portrait?.portraitId ?? null);
+    const portraitComposed = (portrait && typeof portrait === "object") ? (portrait.portraitComposed ?? null) : null;
     const origPutc = con.putc;
     const raw = [];
     const sync = () => {
       const body = codec.decode(Uint8Array.from(raw)).replace(/\{[0-9A-F]{2}\}/g, "").trim();
       const text = prefix ? (body ? `${prefix}\n${body}` : prefix) : body;
-      scr.wideDialog = { text, portraitId, waiting: false };
+      scr.wideDialog = { text, portraitId, portraitComposed, waiting: false };
       scr.dirty = true;
     };
     con.putc = createEscStripper(b => { raw.push(b); sync(); });
-    this._wideTalk = { origPutc, raw, portraitId, prefix, sync };
+    this._wideTalk = { origPutc, raw, portraitId, portraitComposed, prefix, sync };
     sync();
     return true;
   }
@@ -127,12 +145,7 @@ export class Buildings {
   talkPerson(n) {
     const { kao, scr, sys, state: st } = this.c;
     if (scr.wideRenderer && this.c.codec) {
-      let faceId = null;
-      if (n < 0x78) {
-        const face = st.u8(st.personRecord(n) + 0x1a);
-        if (face < 0x80) faceId = face;
-      }
-      this.beginWideTalk(faceId);
+      this.beginWideTalk(this.resolvePersonPortrait(n));
       return;
     }
     if (n >= 0x78) { this.talkWindow(0x14, 0xc0); kao.drawRandomType(scr, sys.rng, sys.rng.random(0x3fff) | 0xc000, 0x16, 0xd0); return; }
@@ -141,7 +154,10 @@ export class Buildings {
   }
   // seg0:7e35 指定種類與部件的無名人物
   talkFace(type, parts) {
-    if (this.c.scr.wideRenderer && this.c.codec) { this.beginWideTalk(null); return; }
+    if (this.c.scr.wideRenderer && this.c.codec) {
+      this.beginWideTalk({ portraitId: null, portraitComposed: { type, parts } });
+      return;
+    }
     this.talkWindow(0x14, 0xc0); this.c.kao.drawComposed(this.c.scr, type, parts, 0x16, 0xd0);
   }
   // seg0:909b → 9010: 依職位優先序 [3,4,5,2,6] 找艦隊中的船員發言
@@ -269,12 +285,7 @@ export class Buildings {
   talkTop(n) {
     const { kao, scr, sys, state: st } = this.c;
     if (scr.wideRenderer && this.c.codec) {
-      let faceId = null;
-      if (n < 0x78) {
-        const face = st.u8(st.personRecord(n) + 0x1a);
-        if (face < 0x80) faceId = face;
-      }
-      this.beginWideTalk(faceId);
+      this.beginWideTalk(this.resolvePersonPortrait(n));
       return;
     }
     this.talkWindow(0x0d, 0x10);
@@ -295,8 +306,15 @@ export class Buildings {
   }
   // seg0:7e15 下方視窗, 隨機無名人物
   randomTalk() {
-    if (this.c.scr.wideRenderer && this.c.codec) { this.beginWideTalk(null); return; }
-    const { kao, scr, sys } = this.c; this.talkWindow(0x14, 0xc0); kao.drawRandomType(scr, sys.rng, sys.rng.random(0x3fff) | 0xc000, 0x16, 0xd0);
+    const { kao, scr, sys } = this.c;
+    if (scr.wideRenderer && this.c.codec) {
+      this.beginWideTalk({
+        portraitId: null,
+        portraitComposed: { type: sys.rng.random(7), parts: sys.rng.random(0x3fff) | 0xc000 },
+      });
+      return;
+    }
+    this.talkWindow(0x14, 0xc0); kao.drawRandomType(scr, sys.rng, sys.rng.random(0x3fff) | 0xc000, 0x16, 0xd0);
   }
   async shipInfo(slot) {
     const st = this.st, { palette, con, printf, graph } = this.c;

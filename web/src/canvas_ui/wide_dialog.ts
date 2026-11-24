@@ -5,6 +5,7 @@ import { UI_FONT } from "./text_util.ts";
 export interface WideDialogState {
   text: string;
   portraitId: number | null; // 0..127 具名頭像，null 為無頭像
+  portraitComposed?: { type: number; parts: number } | null; // 5 層拼合頭像 (無名人物 / 隨機航海士)
   waiting: boolean;
 }
 

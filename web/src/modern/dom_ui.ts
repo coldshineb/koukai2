@@ -9,24 +9,25 @@ export function hasDom(): boolean {
   return typeof document !== "undefined" && !!document.body;
 }
 
-/** 渲染任意人物頭像（同時支援具名頭像 kao_NNN.png 與 5 層拼合隨機頭像 kao_parts_a..e.png） */
-export async function getPersonPortraitSrc(art: any, rec: Uint8Array): Promise<string | null> {
-  if (!art || !rec || rec.length < 0x32) return null;
-  const parts = rec[0x1a] | (rec[0x1b] << 8);
-  if (!(rec[0x1b] & 0xc0)) {
-    return art.portraitUrl?.(parts & 0x7f) ?? null;
-  }
-  if (!hasDom()) return null;
-  const s = Math.max(0, Math.min(6, rec[0x31] & 15));
-  const key = `${s}_${parts}`;
+/** 渲染 5 層拼合隨機頭像 (kao_parts_a..e.png)，快取命中時同步回傳 dataURL */
+export function getComposedPortraitCached(type: number, parts: number): string | null {
+  const s = Math.max(0, Math.min(6, type & 0xffff));
+  return composedCache.get(`${s}_${parts & 0xffff}`) ?? null;
+}
+
+export async function getComposedPortraitSrc(art: any, type: number, parts: number): Promise<string | null> {
+  if (!art || !hasDom()) return null;
+  const s = Math.max(0, Math.min(6, type & 0xffff));
+  const p = parts & 0xffff;
+  const key = `${s}_${p}`;
   if (composedCache.has(key)) return composedCache.get(key)!;
 
   const layers: [string, number, number][] = [
-    ["a", parts & 7, 0],
-    ["b", (parts >> 3) & 7, 33],
-    ["c", (parts >> 8) & 7, 21],
-    ["d", (parts >> 6) & 3, 29],
-    ["e", (parts >> 11) & 7, 45],
+    ["a", p & 7, 0],
+    ["b", (p >> 3) & 7, 33],
+    ["c", (p >> 8) & 7, 21],
+    ["d", (p >> 6) & 3, 29],
+    ["e", (p >> 11) & 7, 45],
   ];
   const imgs = await Promise.all(
     layers.map(async ([k]) => {
@@ -56,6 +57,16 @@ export async function getPersonPortraitSrc(art: any, rec: Uint8Array): Promise<s
   const dataUrl = cv.toDataURL();
   composedCache.set(key, dataUrl);
   return dataUrl;
+}
+
+/** 渲染任意人物頭像（同時支援具名頭像 kao_NNN.png 與 5 層拼合隨機頭像 kao_parts_a..e.png） */
+export async function getPersonPortraitSrc(art: any, rec: Uint8Array): Promise<string | null> {
+  if (!art || !rec || rec.length < 0x32) return null;
+  const parts = rec[0x1a] | (rec[0x1b] << 8);
+  if (!(rec[0x1b] & 0xc0)) {
+    return art.portraitUrl?.(parts & 0x7f) ?? null;
+  }
+  return getComposedPortraitSrc(art, rec[0x31] & 15, parts);
 }
 
 function pushModalLock() {
@@ -534,15 +545,20 @@ export function runDomControls(title: string, rows: {
 let dialogEl: HTMLElement | null = null;
 let lastDialogKey = "";
 
-export function syncDomDialog(art: any, d: { text: string; portraitId: number | null; waiting: boolean } | null) {
+export function syncDomDialog(
+  art: any,
+  d: { text: string; portraitId: number | null; portraitComposed?: { type: number; parts: number } | null; waiting: boolean } | null,
+) {
   if (!hasDom()) return;
   const host = document.getElementById("uw2-overlay");
   if (!host) return;
-  if (!d || (!d.text && d.portraitId === null)) {
+  const pc = d?.portraitComposed ?? null;
+  if (!d || (!d.text && d.portraitId === null && !pc)) {
     if (dialogEl) { dialogEl.remove(); dialogEl = null; lastDialogKey = ""; }
     return;
   }
-  const key = `${d.portraitId ?? ""}|${d.waiting ? 1 : 0}|${d.text}`;
+  const pcKey = pc ? `${pc.type}_${pc.parts}` : "";
+  const key = `${d.portraitId ?? ""}|${pcKey}|${d.waiting ? 1 : 0}|${d.text}`;
   if (key === lastDialogKey && dialogEl) return;
   lastDialogKey = key;
 
@@ -552,7 +568,20 @@ export function syncDomDialog(art: any, d: { text: string; portraitId: number | 
     host.appendChild(dialogEl);
   }
   dialogEl.innerHTML = "";
-  if (d.portraitId !== null && d.portraitId >= 0 && d.portraitId < 128) {
+  if (pc) {
+    const img = document.createElement("img");
+    img.className = "uw2-portrait-img";
+    const cached = getComposedPortraitCached(pc.type, pc.parts);
+    if (cached) {
+      img.src = cached;
+    } else {
+      const expectKey = key;
+      void getComposedPortraitSrc(art, pc.type, pc.parts).then(src => {
+        if (src && lastDialogKey === expectKey) img.src = src;
+      });
+    }
+    dialogEl.appendChild(img);
+  } else if (d.portraitId !== null && d.portraitId >= 0 && d.portraitId < 128) {
     const url = art?.portraitUrl?.(d.portraitId);
     if (url) {
       const img = document.createElement("img");
