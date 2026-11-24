@@ -113,8 +113,7 @@ export class SeaScene extends PortScene {
     sys.mouseHide();
     // 9630: [03d5] 恆為 1, 不動作
     con.right = 0x50;                                                  // [8a22]
-    const n = st.options & 0x80 ? 2 : 4;                               // GRAPH.DAT #4 航海畫面外框 ([0ca4]&80 時 #2)
-    graph.draw8(n, 0, 0); graph.draw8(n, 0, 0);
+    this.c.scr.clear(0);
     this.seaDate();                                                    // 71ad / 71c6 / 71f0
     this.clearCache();                                                 // 2103
     this.region = 0xffff;

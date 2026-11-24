@@ -52,6 +52,7 @@ export class Commands {
   //   關: seg0:063e 以 [0c86]+0 (全 FF) 模式 0x107 (XOR 色 7) 反白
   press(n) {
     const { scr, gfx, art } = this.c, y = 0x48 + 0x50 * n;
+    if (scr.wideRenderer) return;
     this.pressSave = scr.saveRegion(0x4d * 8, y, 24, 0x50);
     if (this.st.options & 1) {
       art?.drawSheetTile(scr, "hud_buttons", n, 0x4d * 8, y);
@@ -59,7 +60,7 @@ export class Commands {
   }
   // seg0:937e 還原 (2997)
   release(n) {
-    if (!this.pressSave) return;
+    if (this.c.scr.wideRenderer || !this.pressSave) return;
     this.c.scr.restoreRegion(this.pressSave, 0, 0x48 + 0x50 * n, 0x50);
   }
   // 20b0c 右側選單 (y, 項目)
