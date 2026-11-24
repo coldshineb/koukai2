@@ -4,6 +4,15 @@
 const S = session;
 // ---- 腳本輸入: 鍵盤緩衝空了且 kbhit 被呼叫 gap 次後, 才送下一個按鍵 (JS 端 Sys.onKbhit 用同一規則) ----
 S.makeScript = (keys, gap = 40) => ({ keys: keys.slice(), gap, calls: 0, delivered: 0, frames: [] });
+// 滑鼠移動量 (INT 33h fn 0Bh, RE_NOTES 38.4): S.MICKEY 時, 腳本移動滑鼠的像素差 × 比例 (fn 0Fh 設定的每 8 像素 mickey 數, 驅動預設 8 / 16) / 8
+//   累加到 m.mdx / m.mdy (原版 dosenv 的 fn 0Bh 與移植版 Sys.mickeys 讀後歸零); 兩邊用同一個公式。沒有 S.MICKEY 時移動量恆 0 (之前的路線不受影響)
+S.mickeyAdd = (m, nx, ny, rx, ry) => {
+  if (!S.MICKEY) return;
+  if (!m._mk) { m._mk = 1; return; }                                  // 路線第一次移動滑鼠只定位 (兩邊開始時的位置不同)
+  if (nx !== undefined) m.mdx = (m.mdx | 0) + Math.trunc((nx - m.x) * rx / 8);
+  if (ny !== undefined) m.mdy = (m.mdy | 0) + Math.trunc((ny - m.y) * ry / 8);
+};
+const emuMouse = (M, k) => { S.mickeyAdd(M, k.x, k.y, M.rx ?? 8, M.ry ?? 16); Object.assign(M, k); };
 S.scriptStep = (sc, buf, push, onDeliver) => {
   sc.calls++;
   if (!buf.length && sc.keys.length && sc.calls >= sc.gap) {
@@ -27,14 +36,14 @@ S.installEmuServices = (script, onDeliver) => {
   S._H16 ??= c.hooks[0x16]; const H16 = S._H16;
   c.hooks[0x16] = cpu => {
     if ((cpu.r[0] >> 8) === 1 && script) S.scriptStep(script, env.bioskeys, (sc, as) => env.bioskeys.push((sc << 8) | as),
-      k => { if (k.mouse) Object.assign(env.mouse, k.mouse); onDeliver?.(k); });
+      k => { if (k.mouse) emuMouse(env.mouse, k.mouse); onDeliver?.(k); });
     H16(cpu);
   };
   // INT 33h fn 3 亦推進腳本 (滑鼠動作也排在同一序列)
   S._H33 ??= c.hooks[0x33]; const H33 = S._H33;
   c.hooks[0x33] = cpu => {
     if (cpu.r[0] === 3 && script) S.scriptStep(script, env.bioskeys, (sc, as) => env.bioskeys.push((sc << 8) | as),
-      k => { if (k.mouse) Object.assign(env.mouse, k.mouse); onDeliver?.(k); });
+      k => { if (k.mouse) emuMouse(env.mouse, k.mouse); onDeliver?.(k); });
     H33(cpu);
   };
 };

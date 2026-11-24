@@ -193,7 +193,8 @@ class DOSEnv {
       case 4: M.x = r[1]; M.y = r[2]; return;
       case 5: case 6: r[0] = M.b; r[3] = 0; r[1] = M.x; r[2] = M.y; return;
       case 7: M.minX = r[1]; M.maxX = r[2]; return; case 8: M.minY = r[1]; M.maxY = r[2]; return;
-      case 0x0b: r[1] = 0; r[2] = 0; return;
+      case 0x0b: r[1] = (M.mdx | 0) & 0xffff; r[2] = (M.mdy | 0) & 0xffff; M.mdx = 0; M.mdy = 0; return;   // 移動量 (測試工具 S.MICKEY 時才會累加, 否則恆 0)
+      case 0x0f: M.rx = r[1]; M.ry = r[2]; return;                                                       // mickey / 8 像素比例 (seg0:5022)
       default: return;
     }
   }

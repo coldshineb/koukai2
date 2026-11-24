@@ -101,7 +101,35 @@ export class MenuSystem {
     if (this.level !== 0 && this.inRect(this.rects[bx])) await this.dragWindow();
     return 0;
   }
-  async dragWindow() { /* TODO: 13adc 拖曳選單視窗 (XOR 外框跟隨滑鼠, 放開後重畫), 待移植 */ }
+  // 13adc 拖曳第 1 / 2 層視窗 (RE_NOTES 38.1): 關掉視窗 → 按住期間 XOR 外框 (1fd9:1fed, 色 7) 跟隨滑鼠 → 放開後以該層的繪製函式在新位置重開
+  //   層表 DS:a158 + 0x0c×層 = {x, y, x 上限, y 上限, 繪製}; 框寬 = 0x280 − x 上限, 框高 = 0x190 − y 上限
+  async dragWindow() {
+    const L = this.levels[this.level], s = this.sys;
+    const si = this.lastX - L.x, di = this.lastY - L.y;
+    if (!this.inRect(this.rects[this.count])) return;
+    s.mouseHide(); await this.win.close(); s.mouseShow();                    // 4ee7 / 796d / 4ecf
+    const w = 0x280 - L.xmax, h = 0x190 - L.ymax;
+    let px = -1, py = -1;
+    const box = () => { s.mouseHide(); this.scr.xorRect(px, py, px + w - 1, py + h - 1, 7); s.mouseShow(); };   // 1fd9:1fed
+    while (s.mouseAny()) {                                                   // 507e (原版迴圈內沒有等待)
+      const m = s.mousePos();                                                // 4efa
+      const x = (m.x > si ? umin(m.x - si, L.xmax) : 0) & 0xfff8, y = m.y > di ? umin(m.y - di, L.ymax) : 0;
+      if (x !== px || y !== py) {
+        if (px >= 0) box();
+        px = x; py = y; box();
+      }
+      await s.poll();
+    }
+    if (px >= 0) box();
+    let { x, y } = s.mousePos();                                             // 放開後重新讀位置: x > si 才減 (否則保持滑鼠座標本身, 原版如此)
+    if (x > si) x -= si;
+    if (y > di) y -= di;
+    L.x = umin(x, L.xmax); L.y = umin(y, L.ymax);                            // 不再對齊 8
+    s.mouseHide();
+    if (this.level === 1) this.drawPopup(); else this.drawYesNo();           // far [a160 + 0x0c×層]: 0fea:3ad4 = 13974 / 0fea:3ba7 = 13a47
+    this.highlight(this.bracket);                                            // 13278([a162])
+    s.mouseShow();
+  }
   // 13d80 取得一個按鍵 (滑鼠按下時追蹤到放開)
   async getKey() {
     this.lastX = this.lastY = -1;

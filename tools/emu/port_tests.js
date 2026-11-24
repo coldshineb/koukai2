@@ -26,7 +26,7 @@ function fbHash(fb, ms) {
 async function runEmu() {
   S.restoreTitle();
   const env = S.titleEnv, c = env.cpu, shots = [];
-  Object.assign(env.mouse, { x: 0x27f, y: 0x18f + 0x28, b: 0 });       // 標題時的滑鼠位置 (1752c), 上一次測試可能移動過
+  Object.assign(env.mouse, { x: 0x27f, y: 0x18f + 0x28, b: 0, _mk: 0, mdx: 0, mdy: 0 });       // 標題時的滑鼠位置 (1752c), 上一次測試可能移動過
   const sc = S.makeScript(KEYS.concat([{ mouse: {} }]));            // 最後一個空動作 = 收尾截圖點
   let synced = false, done = false;
   const saveEnv = S.env, sH16 = S._H16, sH33 = S._H33; S.env = env; S._H16 = S._H33 = undefined;
@@ -124,7 +124,7 @@ async function runJS(rng0) {
   const r0 = sys.rng.rand.bind(sys.rng);
   sys.rng.rand = () => { if (!synced && ctx.menu.count === 4 && ctx.menu.level === 0) { synced = true; sc.calls = 0; sys.rng.state = rng0; } return r0(); };
   sys.onIO = s => S.scriptStep(sc, s.keybuf, (a, b) => s.pushKey(a, b), k => {
-    if (k && k.mouse) { if ('x' in k.mouse) s.mouse.x = k.mouse.x; if ('y' in k.mouse) s.mouse.y = k.mouse.y; if ('b' in k.mouse) s.mouse.buttons = k.mouse.b; }
+    if (k && k.mouse) { S.mickeyAdd(s.mouse, k.mouse.x, k.mouse.y, s.mickeyRatio?.[0] ?? 8, s.mickeyRatio?.[1] ?? 16); if ('x' in k.mouse) s.mouse.x = k.mouse.x; if ('y' in k.mouse) s.mouse.y = k.mouse.y; if ('b' in k.mouse) s.mouse.buttons = k.mouse.b; }
     let fb = scr.fb.slice(), fh;
     if (S.FB_HASH) { const R = S.emuShotsRef, n = shots.length, e = R?.[n]; fh = fbHash(fb, Array.from({ length: (S.CURSOR_LAG ?? 1) + 1 }, (_, k) => R?.[n - k]?.mouse)); if (!e?.fb) fb = null; }
     if (S.SHOT_RANGE && (shots.length < S.SHOT_RANGE[0] || shots.length >= S.SHOT_RANGE[1]) && sc.keys.length) shots.push({ skip: true });
