@@ -1759,6 +1759,16 @@
     }
   },
   "sheets": {
+    "hud_buttons": {
+      "path": "sheets/hud_buttons.png",
+      "w": 96,
+      "h": 80,
+      "tileW": 24,
+      "tileH": 80,
+      "cols": 4,
+      "rows": 1,
+      "count": 4
+    },
     "portchip_0": {
       "path": "sheets/portchip_0.png",
       "w": 256,
@@ -1849,6 +1859,16 @@
       "rows": 8,
       "count": 128
     },
+    "sea_ships": {
+      "path": "sheets/sea_ships.png",
+      "w": 256,
+      "h": 128,
+      "tileW": 32,
+      "tileH": 32,
+      "cols": 8,
+      "rows": 4,
+      "count": 32
+    },
     "compass": {
       "path": "sheets/compass.png",
       "w": 160,
@@ -1872,12 +1892,22 @@
     "naval_battle": {
       "path": "sheets/naval_battle.png",
       "w": 256,
-      "h": 256,
+      "h": 64,
       "tileW": 32,
       "tileH": 32,
       "cols": 8,
-      "rows": 8,
-      "count": 61
+      "rows": 2,
+      "count": 13
+    },
+    "battle_ships": {
+      "path": "sheets/battle_ships.png",
+      "w": 192,
+      "h": 128,
+      "tileW": 32,
+      "tileH": 32,
+      "cols": 6,
+      "rows": 4,
+      "count": 24
     },
     "gamble_cards": {
       "path": "sheets/gamble_cards.png",
@@ -2766,5 +2796,398 @@
         "h": 40
       }
     ]
+  },
+  "graph": {
+    "GRAPH.DAT": [
+      {
+        "path": "graph/g1_00.png",
+        "w": 144,
+        "h": 56
+      },
+      {
+        "path": "graph/g1_01.png",
+        "w": 136,
+        "h": 152
+      },
+      {
+        "path": "graph/g1_02.png",
+        "w": 640,
+        "h": 400
+      },
+      {
+        "path": "graph/g1_03.png",
+        "w": 640,
+        "h": 400
+      },
+      {
+        "path": "graph/g1_04.png",
+        "w": 640,
+        "h": 400
+      },
+      {
+        "path": "graph/g1_05.png",
+        "w": 640,
+        "h": 400
+      },
+      {
+        "path": "buildings/building_00.png",
+        "w": 136,
+        "h": 112
+      },
+      {
+        "path": "buildings/building_01.png",
+        "w": 136,
+        "h": 112
+      },
+      {
+        "path": "buildings/building_02.png",
+        "w": 136,
+        "h": 112
+      },
+      {
+        "path": "buildings/building_03.png",
+        "w": 136,
+        "h": 112
+      },
+      {
+        "path": "buildings/building_04.png",
+        "w": 136,
+        "h": 112
+      },
+      {
+        "path": "buildings/building_05.png",
+        "w": 136,
+        "h": 112
+      },
+      {
+        "path": "buildings/building_06.png",
+        "w": 136,
+        "h": 112
+      },
+      {
+        "path": "buildings/building_07.png",
+        "w": 136,
+        "h": 112
+      },
+      {
+        "path": "buildings/building_08.png",
+        "w": 136,
+        "h": 112
+      },
+      {
+        "path": "buildings/building_09.png",
+        "w": 136,
+        "h": 112
+      },
+      {
+        "path": "buildings/building_10.png",
+        "w": 136,
+        "h": 112
+      },
+      {
+        "path": "buildings/building_11.png",
+        "w": 136,
+        "h": 112
+      },
+      {
+        "path": "buildings/building_12.png",
+        "w": 136,
+        "h": 112
+      },
+      {
+        "path": "buildings/building_13.png",
+        "w": 136,
+        "h": 112
+      },
+      {
+        "path": "buildings/building_14.png",
+        "w": 136,
+        "h": 112
+      },
+      {
+        "path": "buildings/building_15.png",
+        "w": 136,
+        "h": 112
+      },
+      {
+        "path": "graph/g1_22.png",
+        "w": 368,
+        "h": 152
+      },
+      {
+        "path": "backgrounds/duel_bg.png",
+        "w": 640,
+        "h": 400
+      },
+      {
+        "path": "graph/g1_24.png",
+        "w": 480,
+        "h": 176
+      },
+      {
+        "path": "backgrounds/worldmap.png",
+        "w": 640,
+        "h": 400
+      },
+      {
+        "path": "graph/g1_26.png",
+        "w": 224,
+        "h": 400
+      },
+      {
+        "path": "backgrounds/gamble_bg.png",
+        "w": 640,
+        "h": 400
+      },
+      {
+        "path": "ships/ship_00.png",
+        "w": 128,
+        "h": 96
+      },
+      {
+        "path": "ships/ship_01.png",
+        "w": 128,
+        "h": 96
+      },
+      {
+        "path": "ships/ship_02.png",
+        "w": 128,
+        "h": 96
+      },
+      {
+        "path": "ships/ship_03.png",
+        "w": 128,
+        "h": 96
+      },
+      {
+        "path": "ships/ship_04.png",
+        "w": 128,
+        "h": 96
+      },
+      {
+        "path": "ships/ship_05.png",
+        "w": 128,
+        "h": 96
+      },
+      {
+        "path": "ships/ship_06.png",
+        "w": 128,
+        "h": 96
+      },
+      {
+        "path": "ships/ship_07.png",
+        "w": 128,
+        "h": 96
+      },
+      {
+        "path": "ships/ship_08.png",
+        "w": 128,
+        "h": 96
+      },
+      {
+        "path": "ships/ship_09.png",
+        "w": 128,
+        "h": 96
+      },
+      {
+        "path": "ships/ship_10.png",
+        "w": 128,
+        "h": 96
+      },
+      {
+        "path": "ships/ship_11.png",
+        "w": 128,
+        "h": 96
+      },
+      {
+        "path": "ships/ship_12.png",
+        "w": 128,
+        "h": 96
+      },
+      {
+        "path": "ships/ship_13.png",
+        "w": 128,
+        "h": 96
+      },
+      {
+        "path": "ships/ship_14.png",
+        "w": 128,
+        "h": 96
+      },
+      {
+        "path": "ships/ship_15.png",
+        "w": 128,
+        "h": 96
+      },
+      {
+        "path": "ships/ship_16.png",
+        "w": 128,
+        "h": 96
+      },
+      {
+        "path": "ships/ship_17.png",
+        "w": 128,
+        "h": 96
+      },
+      {
+        "path": "ships/ship_18.png",
+        "w": 128,
+        "h": 96
+      },
+      {
+        "path": "ships/ship_19.png",
+        "w": 128,
+        "h": 96
+      },
+      {
+        "path": "ships/ship_20.png",
+        "w": 128,
+        "h": 96
+      },
+      {
+        "path": "ships/ship_21.png",
+        "w": 128,
+        "h": 96
+      },
+      {
+        "path": "ships/ship_22.png",
+        "w": 128,
+        "h": 96
+      },
+      {
+        "path": "ships/ship_23.png",
+        "w": 128,
+        "h": 96
+      },
+      {
+        "path": "ships/ship_24.png",
+        "w": 128,
+        "h": 96
+      },
+      {
+        "path": "graph/g1_53.png",
+        "w": 192,
+        "h": 128
+      },
+      {
+        "path": "graph/g1_54.png",
+        "w": 192,
+        "h": 128
+      },
+      {
+        "path": "graph/g1_55.png",
+        "w": 192,
+        "h": 128
+      },
+      {
+        "path": "graph/g1_56.png",
+        "w": 192,
+        "h": 128
+      },
+      {
+        "path": "graph/g1_57.png",
+        "w": 240,
+        "h": 160
+      },
+      {
+        "path": "graph/g1_58.png",
+        "w": 240,
+        "h": 160
+      },
+      {
+        "path": "graph/g1_59.png",
+        "w": 240,
+        "h": 160
+      },
+      {
+        "path": "graph/g1_60.png",
+        "w": 208,
+        "h": 112
+      },
+      {
+        "path": "graph/g1_61.png",
+        "w": 272,
+        "h": 176
+      },
+      {
+        "path": "graph/g1_62.png",
+        "w": 320,
+        "h": 40
+      },
+      {
+        "path": "graph/g1_63.png",
+        "w": 240,
+        "h": 160
+      },
+      {
+        "path": "graph/g1_64.png",
+        "w": 240,
+        "h": 160
+      }
+    ],
+    "GRAPH2.DAT": [
+      {
+        "path": "graph/g2_00.png",
+        "w": 144,
+        "h": 56
+      },
+      {
+        "path": "backgrounds/hero_select.png",
+        "w": 640,
+        "h": 400
+      }
+    ]
+  },
+  "kaoParts": {
+    "a": {
+      "path": "portraits/parts/part_a.png",
+      "w": 512,
+      "h": 231,
+      "tileW": 64,
+      "tileH": 33,
+      "cols": 8,
+      "rows": 7,
+      "count": 56
+    },
+    "b": {
+      "path": "portraits/parts/part_b.png",
+      "w": 512,
+      "h": 329,
+      "tileW": 64,
+      "tileH": 47,
+      "cols": 8,
+      "rows": 7,
+      "count": 56
+    },
+    "c": {
+      "path": "portraits/parts/part_c.png",
+      "w": 512,
+      "h": 126,
+      "tileW": 64,
+      "tileH": 18,
+      "cols": 8,
+      "rows": 7,
+      "count": 56
+    },
+    "d": {
+      "path": "portraits/parts/part_d.png",
+      "w": 256,
+      "h": 168,
+      "tileW": 64,
+      "tileH": 24,
+      "cols": 4,
+      "rows": 7,
+      "count": 28
+    },
+    "e": {
+      "path": "portraits/parts/part_e.png",
+      "w": 512,
+      "h": 133,
+      "tileW": 64,
+      "tileH": 19,
+      "cols": 8,
+      "rows": 7,
+      "count": 56
+    }
   }
 }

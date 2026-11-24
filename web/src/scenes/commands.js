@@ -51,27 +51,16 @@ export class Commands {
   //   動畫效果開: TRANSIT.DAT 0x4b00 + 0x2d0n 的 0x2d0 bytes 以 seg0:055e (044d 模式 0: 每欄 3 bytes = 平面 0..2, 平面 3 不動) 貼上
   //   關: seg0:063e 以 [0c86]+0 (全 FF) 模式 0x107 (XOR 色 7) 反白
   press(n) {
-    const { scr, gfx } = this.c, y = 0x48 + 0x50 * n, fb = scr.fb;
-    this.pressSave = new Uint8Array(24 * 0x50);
-    for (let r = 0; r < 0x50; r++) this.pressSave.set(fb.subarray((y + r) * 640 + 0x4d * 8, (y + r) * 640 + 0x50 * 8), r * 24);
+    const { scr, gfx, art } = this.c, y = 0x48 + 0x50 * n;
+    this.pressSave = scr.saveRegion(0x4d * 8, y, 24, 0x50);
     if (this.st.options & 1) {
-      const src = this.p.P.transit, o = 0x4b00 + 0x2d0 * n;
-      for (let r = 0; r < 0x50; r++) for (let c = 0; c < 3; c++) {
-        const k = o + (r * 3 + c) * 3, p0 = src[k], p1 = src[k + 1], p2 = src[k + 2];
-        for (let i = 0; i < 8; i++) {
-          const sh = 7 - i, a = (y + r) * 640 + (0x4d + c) * 8 + i;
-          fb[a] = (fb[a] & 8) | ((p0 >> sh) & 1) | (((p1 >> sh) & 1) << 1) | (((p2 >> sh) & 1) << 2);
-        }
-      }
-      scr.dirty = true;
+      art?.drawSheetTile(scr, "hud_buttons", n, 0x4d * 8, y);
     } else scr.glyphMode(0x4d, y, 3, 0x50, gfx.subarray(0), 0x107);
   }
   // seg0:937e 還原 (2997)
   release(n) {
-    const { scr } = this.c, y = 0x48 + 0x50 * n;
     if (!this.pressSave) return;
-    for (let r = 0; r < 0x50; r++) scr.fb.set(this.pressSave.subarray(r * 24, r * 24 + 24), (y + r) * 640 + 0x4d * 8);
-    scr.dirty = true;
+    this.c.scr.restoreRegion(this.pressSave, 0, 0x48 + 0x50 * n, 0x50);
   }
   // 20b0c 右側選單 (y, 項目)
   async popMenu(y, items) {
@@ -252,7 +241,7 @@ export class Commands {
     graph.draw(st.u8(ship + 0x0f) + 0x1c, (x + 2) << 3, 0x30);           // seg0:8050
     con.puts(S0.siColor);
     const fh = st.u8(M + OFF.CREW_SLOT.FIGUREHEAD);
-    if (fh) scr.putPlanar(x + 0x13, 0x30, 6, 0x30, this.p.P.transit, 0x1980 + 0x480 * fh);
+    if (fh) this.c.art?.drawEntry(scr, this.c.art.figureheadEntry(fh), (x + 0x13) * 8, 0x30);
     for (let r = 0; r < 2; r++) for (let c = 0; c < 2; c++) {
       scr.putPlanar(c * 7 + x + 0x1a, r * 0x28 + 0x30, 2, 0x20, gfx, 0x20d0 + ((2 * r + c) << 8));
       con.setCursor((c + 4) * 7 + x, r * 0x28 + 0x40); printf(S0.n4, sup[2 * r + c]);

@@ -1,11 +1,11 @@
-// screen.js — 原版顯示模型
-// 原版: VGA mode 12h (640x480 16色平面), 遊戲畫面 640x400 置於第 40 行起 (MAIN.EXE seg0:0164 y+0x28)
-// 本模組以「索引幀緩衝」fb[640*400] 保存畫面, present() 時套調色盤輸出到 640x480 畫布 (上下各 40 行黑邊)。
-// 所有繪圖原語的座標規則與原版繪圖庫相同: x 以「位元組欄」(8 像素) 為單位, y 以像素為單位。
+// screen.js — 現代 HD 2D Canvas 混合顯示模型 (相容原版 640x400 邏輯座標 + 2x HD RGBA PNG 圖層)
+// 邏輯解析度: 640x400 (置於 640x480 畫面第 40 行起)，內部以 HD_SCALE=2 (1280x960) 輸出，
+// 讓任何高清重繪 PNG 皆可直接以原生真彩與高解析度繪製於 hdCanvas，並與原版文字/視窗圖層無縫合成。
 export const SCREEN_W = 640;
 export const SCREEN_H = 400;
 export const CANVAS_H = 480;
 export const Y_OFFSET = 40;
+export const HD_SCALE = 2;
 
 export function dac8(v4) { const v6 = v4 * 4; return (v6 << 2) | (v6 >> 4); }
 
@@ -20,17 +20,137 @@ function expand(fb, o, b0, b1, b2, b3) {
 export class Screen {
   constructor(canvas = null) {
     this.fb = new Uint8Array(SCREEN_W * SCREEN_H);
+    this.hdMask = new Uint8Array(SCREEN_W * SCREEN_H); // 1 = 此像素由 hdCanvas 真彩圖層顯示, 0 = 由 fb 索引層顯示
     this.raw = new Uint8Array(48);
     this.lut = new Uint32Array(16);
     this.dirty = true;
     this.full = null;                  // 片頭 (OPEN.EXE) 用: 640x480 索引畫面 (整個 VRAM 可見範圍), 設定時取代 fb + 上下黑邊
     this.border = 0;                   // 片頭: VGA 外框色 (overscan) 索引 — 在畫布 (可見區) 之外, 僅記錄
+    this.hdCanvas = null;
+    this.hdCtx = null;
+    this.fbCanvas = null;
+    this.fbCtx = null;
+    this.fbImg = null;
+    this.fbOut = null;
     if (canvas) {
-      this.canvas = canvas; canvas.width = SCREEN_W; canvas.height = CANVAS_H;
+      this.canvas = canvas;
+      canvas.width = SCREEN_W * HD_SCALE;
+      canvas.height = CANVAS_H * HD_SCALE;
       this.ctx = canvas.getContext("2d", { alpha: false });
-      this.img = this.ctx.createImageData(SCREEN_W, CANVAS_H);
+      this.ctx.imageSmoothingEnabled = false;
+
+      // HD RGBA 美術層 (1280x800, 對應邏輯 640x400 遊戲區)
+      this.hdCanvas = document.createElement("canvas");
+      this.hdCanvas.width = SCREEN_W * HD_SCALE;
+      this.hdCanvas.height = SCREEN_H * HD_SCALE;
+      this.hdCtx = this.hdCanvas.getContext("2d", { willReadFrequently: true });
+      this.hdCtx.imageSmoothingEnabled = false;
+
+      // 索引層合成用離屏畫布 (640x480, 支援完整片頭與透明打洞)
+      this.fbCanvas = document.createElement("canvas");
+      this.fbCanvas.width = SCREEN_W;
+      this.fbCanvas.height = CANVAS_H;
+      this.fbCtx = this.fbCanvas.getContext("2d");
+      this.img = this.fbCtx.createImageData(SCREEN_W, CANVAS_H);
       this.out = new Uint32Array(this.img.data.buffer);
     }
+  }
+  clearHdRect(x, y, w, h) {
+    const x0 = Math.max(0, x | 0), y0 = Math.max(0, y | 0);
+    const x1 = Math.min(SCREEN_W, (x + w) | 0), y1 = Math.min(SCREEN_H, (y + h) | 0);
+    if (x0 >= x1 || y0 >= y1) return;
+    for (let r = y0; r < y1; r++) this.hdMask.fill(0, r * SCREEN_W + x0, r * SCREEN_W + x1);
+  }
+  setHdRect(x, y, w, h) {
+    const x0 = Math.max(0, x | 0), y0 = Math.max(0, y | 0);
+    const x1 = Math.min(SCREEN_W, (x + w) | 0), y1 = Math.min(SCREEN_H, (y + h) | 0);
+    if (x0 >= x1 || y0 >= y1) return;
+    for (let r = y0; r < y1; r++) this.hdMask.fill(1, r * SCREEN_W + x0, r * SCREEN_W + x1);
+  }
+  // 將目前 fb 區塊烘焙至 hdCanvas (供透明 PNG 疊加於原版視窗/底圖上時保持正確背景)
+  bakeFbToHd(x, y, w, h) {
+    if (!this.hdCtx) return;
+    const x0 = Math.max(0, x | 0), y0 = Math.max(0, y | 0);
+    const x1 = Math.min(SCREEN_W, (x + w) | 0), y1 = Math.min(SCREEN_H, (y + h) | 0);
+    if (x0 >= x1 || y0 >= y1) return;
+    let hasZero = false;
+    for (let r = y0; r < y1 && !hasZero; r++) {
+      const off = r * SCREEN_W;
+      for (let c = x0; c < x1; c++) if (!this.hdMask[off + c]) { hasZero = true; break; }
+    }
+    if (!hasZero) return;
+    const bw = x1 - x0, bh = y1 - y0;
+    const img = this.hdCtx.getImageData(x0 * HD_SCALE, y0 * HD_SCALE, bw * HD_SCALE, bh * HD_SCALE);
+    const d32 = new Uint32Array(img.data.buffer);
+    const fb = this.fb, lut = this.lut, mask = this.hdMask;
+    for (let r = 0; r < bh; r++) {
+      const sy = (y0 + r) * SCREEN_W + x0;
+      for (let c = 0; c < bw; c++) {
+        if (mask[sy + c]) continue;
+        const col = lut[fb[sy + c] & 15];
+        const rx = c * HD_SCALE, ry = r * HD_SCALE, stride = bw * HD_SCALE;
+        for (let dy = 0; dy < HD_SCALE; dy++) {
+          const row = (ry + dy) * stride + rx;
+          for (let dx = 0; dx < HD_SCALE; dx++) d32[row + dx] = col;
+        }
+        mask[sy + c] = 1;
+      }
+    }
+    this.hdCtx.putImageData(img, x0 * HD_SCALE, y0 * HD_SCALE);
+  }
+  // 繪製現代 PNG / 圖集切片至 HD 2D 圖層 (座標與尺寸皆為邏輯 640x400 像素)
+  drawImage(img, sx, sy, sw, sh, dx, dy, dw = sw, dh = sh, { transparent = false, smooth = null } = {}) {
+    if (!this.hdCtx || !img) return;
+    if (transparent) this.bakeFbToHd(dx, dy, dw, dh);
+    else this.setHdRect(dx, dy, dw, dh);
+    const prevSmooth = this.hdCtx.imageSmoothingEnabled;
+    this.hdCtx.imageSmoothingEnabled = smooth !== null ? smooth : (sw > dw || sh > dh);
+    this.hdCtx.drawImage(img, sx, sy, sw, sh, dx * HD_SCALE, dy * HD_SCALE, dw * HD_SCALE, dh * HD_SCALE);
+    this.hdCtx.imageSmoothingEnabled = prevSmooth;
+    this.dirty = true;
+  }
+  // 保存與還原矩形區域 (同時保存 fb、hdMask 與 hdCanvas 真彩像素，供 WindowSystem 使用)
+  saveRegion(x, y, w, h) {
+    const x0 = Math.max(0, x | 0), y0 = Math.max(0, y | 0);
+    const x1 = Math.min(SCREEN_W, (x + w) | 0), y1 = Math.min(SCREEN_H, (y + h) | 0);
+    const cw = Math.max(0, x1 - x0), ch = Math.max(0, y1 - y0);
+    const fbData = new Uint8Array(w * h);
+    const maskData = new Uint8Array(w * h);
+    for (let r = 0; r < h; r++) {
+      const yy = y + r; if (yy < 0 || yy >= SCREEN_H) continue;
+      fbData.set(this.fb.subarray(yy * SCREEN_W + x, yy * SCREEN_W + x + w), r * w);
+      maskData.set(this.hdMask.subarray(yy * SCREEN_W + x, yy * SCREEN_W + x + w), r * w);
+    }
+    const hdImg = (this.hdCtx && cw > 0 && ch > 0)
+      ? this.hdCtx.getImageData(x0 * HD_SCALE, y0 * HD_SCALE, cw * HD_SCALE, ch * HD_SCALE)
+      : null;
+    return { x, y, w, h, x0, y0, cw, ch, fbData, maskData, hdImg };
+  }
+  restoreRegion(snap, fromRow, toY, rows) {
+    const W = snap.w;
+    for (let r = 0; r < rows; r++) {
+      const yy = toY + r, sr = fromRow + r;
+      if (yy < 0 || yy >= SCREEN_H || sr < 0 || sr >= snap.h) continue;
+      this.fb.set(snap.fbData.subarray(sr * W, sr * W + W), yy * SCREEN_W + snap.x);
+      this.hdMask.set(snap.maskData.subarray(sr * W, sr * W + W), yy * SCREEN_W + snap.x);
+    }
+    if (this.hdCtx && snap.hdImg && snap.cw > 0) {
+      const sr0 = Math.max(0, fromRow - (snap.y0 - snap.y));
+      const sr1 = Math.min(snap.ch, sr0 + rows);
+      if (sr1 > sr0) {
+        const destY = (toY + (sr0 - (fromRow - (snap.y0 - snap.y)))) * HD_SCALE;
+        this.hdCtx.putImageData(
+          snap.hdImg,
+          snap.x0 * HD_SCALE,
+          destY - sr0 * HD_SCALE,
+          0,
+          sr0 * HD_SCALE,
+          snap.cw * HD_SCALE,
+          (sr1 - sr0) * HD_SCALE,
+        );
+      }
+    }
+    this.dirty = true;
   }
   // raw: 48 bytes, 每色 (B,R,G) 0..15 — 與 MAIN.EXE seg0:159b set_palette 相同
   setPaletteRaw(raw, start = 0, count = 16) {
@@ -47,12 +167,18 @@ export class Screen {
     this.lut[i & 15] = 0xff000000 | (c(b) << 16) | (c(g) << 8) | c(r);
     this.dirty = true;
   }
-  clear(c = 0) { this.fb.fill(c); this.dirty = true; }
+  clear(c = 0) {
+    this.fb.fill(c);
+    this.hdMask.fill(0);
+    if (this.hdCtx) this.hdCtx.clearRect(0, 0, SCREEN_W * HD_SCALE, SCREEN_H * HD_SCALE);
+    this.dirty = true;
+  }
   inBounds(col, y, w, h) { return col >= 0 && w > 0 && col + w <= 80 && y >= 0 && h > 0 && y + h <= 400; }
 
   // seg0:02a7 mode 0 — 平面位元組交錯圖塊 (每 8 像素 4 bytes) 直接覆寫; dbl=每行重複一次
   putPlanar(col, y, w, h, src, off = 0, dbl = false) {
     if (!this.inBounds(col, y, w, h * (dbl ? 2 : 1))) return -1;
+    this.clearHdRect(col * 8, y, w * 8, h * (dbl ? 2 : 1));
     const fb = this.fb; let s = off;
     for (let r = 0; r < h; r++) {
       const rs = s;
@@ -66,6 +192,7 @@ export class Screen {
   // seg0:08a6 — 以 8 行圖樣 (每行 4 個平面位元組) 平鋪, 縱向相位 = y & 7
   tile(col, y, w, h, src, off) {
     if (!this.inBounds(col, y, w, h)) return;
+    this.clearHdRect(col * 8, y, w * 8, h);
     const fb = this.fb;
     for (let r = 0; r < h; r++) {
       const p = off + ((y + r) & 7) * 4, o = (y + r) * SCREEN_W + col * 8;
@@ -76,20 +203,26 @@ export class Screen {
   // seg0:0906 — 以單色填滿 (欄為單位)
   fillCols(col, y, w, h, color) {
     if (!this.inBounds(col, y, w, h)) return;
+    this.clearHdRect(col * 8, y, w * 8, h);
     for (let r = 0; r < h; r++) this.fb.fill(color & 15, (y + r) * SCREEN_W + col * 8, (y + r) * SCREEN_W + (col + w) * 8);
     this.dirty = true;
   }
   // seg0:0ad1 畫一點 (4 個平面依顏色位元 OR/AND, 等於直接寫入顏色)
   pset(x, y, color) {
     if (x < 0 || x >= SCREEN_W || y < 0 || y >= SCREEN_H) return;
-    this.fb[y * SCREEN_W + x] = color & 15; this.dirty = true;
+    const idx = y * SCREEN_W + x;
+    this.fb[idx] = color & 15; this.hdMask[idx] = 0; this.dirty = true;
   }
   // seg0:09aa 以像素座標填滿矩形 (含兩端點), 單色 (經 7264 呼叫時已排序)
   fillRectPx(x0, y0, x1, y1, color) {
     if (x1 < x0) [x0, x1] = [x1, x0];
     if (y1 < y0) [y0, y1] = [y1, y0];
-    for (let y = Math.max(0, y0); y <= Math.min(SCREEN_H - 1, y1); y++)
-      this.fb.fill(color & 15, y * SCREEN_W + Math.max(0, x0), y * SCREEN_W + Math.min(SCREEN_W - 1, x1) + 1);
+    const cx0 = Math.max(0, x0), cx1 = Math.min(SCREEN_W - 1, x1);
+    const cy0 = Math.max(0, y0), cy1 = Math.min(SCREEN_H - 1, y1);
+    for (let y = cy0; y <= cy1; y++) {
+      this.fb.fill(color & 15, y * SCREEN_W + cx0, y * SCREEN_W + cx1 + 1);
+      this.hdMask.fill(0, y * SCREEN_W + cx0, y * SCREEN_W + cx1 + 1);
+    }
     this.dirty = true;
   }
   // 1fd9:1b63 Bresenham 直線 (逐點呼叫 seg0:0ad1); 先保證 xa<=xb (1fd9:171e 的交換)
@@ -150,7 +283,7 @@ export class Screen {
   // seg0:063e / 0572 — 1bpp 點陣以「模式字」繪製: bit15 每行畫兩次, 高位元組=模式 (0 黑底, 1 XOR, 2 AND, 3 OR, 4 透明), 低位元組=顏色
   glyphMode(col, y, w, h, rows, modeWord) {
     if (!this.inBounds(col, y, w, h)) return -1;
-    const dbl = (modeWord & 0x8000) !== 0, m = (modeWord >> 8) & 0x7f, color = modeWord & 15, fb = this.fb;
+    const dbl = (modeWord & 0x8000) !== 0, m = (modeWord >> 8) & 0x7f, color = modeWord & 15, fb = this.fb, hm = this.hdMask;
     let yy = y;
     for (let r = 0; r < h; r++) {
       for (let k = 0; k < (dbl ? 2 : 1); k++, yy++) {
@@ -160,11 +293,11 @@ export class Screen {
           for (let i = 0; i < 8; i++) {
             const on = (bits >> (7 - i)) & 1, p = o + i;
             switch (m) {
-              case 0: fb[p] = on ? color : 0; break;
-              case 1: if (on) fb[p] ^= color; break;
-              case 2: if (!on) fb[p] &= ~color; break;
-              case 3: if (on) fb[p] |= color; break;
-              case 4: if (on) fb[p] = color; break;                 // 純色: 以顏色取代 (與模擬器比對確認)
+              case 0: fb[p] = on ? color : 0; hm[p] = 0; break;
+              case 1: if (on) { fb[p] ^= color; hm[p] = 0; } break;
+              case 2: if (!on) { fb[p] &= ~color; hm[p] = 0; } break;
+              case 3: if (on) { fb[p] |= color; hm[p] = 0; } break;
+              case 4: if (on) { fb[p] = color; hm[p] = 0; } break;                 // 純色: 以顏色取代 (與模擬器比對確認)
             }
           }
         }
@@ -178,18 +311,18 @@ export class Screen {
   //   mode 1/2/3/4      : seg0:0186 XOR / AND / OR / 純色透明
   glyph(col, y, w, h, rows, fg, mode, bg) {
     if (!this.inBounds(col, y, w, h)) return;
-    const fb = this.fb; fg &= 15;
+    const fb = this.fb, hm = this.hdMask; fg &= 15;
     for (let r = 0; r < h; r++) for (let c = 0; c < w; c++) {
       const bits = rows[r * w + c], o = (y + r) * SCREEN_W + (col + c) * 8;
       for (let i = 0; i < 8; i++) {
         const on = (bits >> (7 - i)) & 1, p = o + i;
-        if (bg) fb[p] = on ? fg : bg & 15;
+        if (bg) { fb[p] = on ? fg : bg & 15; hm[p] = 0; }
         else switch (mode) {
-          case 0: fb[p] = on ? fg : 0; break;
-          case 1: if (on) fb[p] ^= fg; break;
-          case 2: if (!on) fb[p] &= ~fg; break;
-          case 3: if (on) fb[p] |= fg; break;
-          case 4: if (on) fb[p] = fg; break;
+          case 0: fb[p] = on ? fg : 0; hm[p] = 0; break;
+          case 1: if (on) { fb[p] ^= fg; hm[p] = 0; } break;
+          case 2: if (!on) { fb[p] &= ~fg; hm[p] = 0; } break;
+          case 3: if (on) { fb[p] |= fg; hm[p] = 0; } break;
+          case 4: if (on) { fb[p] = fg; hm[p] = 0; } break;
         }
       }
     }
@@ -197,13 +330,13 @@ export class Screen {
   }
   // 索引圖 blit (港口圖塊等已轉成索引像素的資源); key>=0 時該索引透明
   blit(src, sx, sy, w, h, dx, dy, key = -1) {
-    const fb = this.fb, sw = src.w, sd = src.data;
+    const fb = this.fb, hm = this.hdMask, sw = src.w, sd = src.data;
     for (let y = 0; y < h; y++) {
       const ty = dy + y; if (ty < 0 || ty >= SCREEN_H) continue;
       let si = (sy + y) * sw + sx, di = ty * SCREEN_W + dx;
       for (let x = 0; x < w; x++, si++, di++) {
         const tx = dx + x; if (tx < 0 || tx >= SCREEN_W) continue;
-        const v = sd[si]; if (v !== key) fb[di] = v;
+        const v = sd[si]; if (v !== key) { fb[di] = v; hm[di] = 0; }
       }
     }
     this.dirty = true;
@@ -213,14 +346,36 @@ export class Screen {
     const cur = this.cursor, key = cur && cur.visible ? `${cur.x},${cur.y},${cur.shape}` : "";
     if (!this.dirty && key === this.lastCursor) return;
     this.lastCursor = key;
-    const fb = this.fb, out = this.out, lut = this.lut, base = Y_OFFSET * SCREEN_W;
-    if (this.full) { const f = this.full; for (let i = 0; i < f.length; i++) out[i] = lut[f[i] & 15]; }
-    else {
-      out.fill(0xff000000, 0, base); out.fill(0xff000000, base + fb.length);
-      for (let i = 0; i < fb.length; i++) out[base + i] = lut[fb[i] & 15];
+    const fb = this.fb, hm = this.hdMask, out = this.out, lut = this.lut, base = Y_OFFSET * SCREEN_W;
+    if (this.full) {
+      const f = this.full;
+      for (let i = 0; i < f.length; i++) out[i] = lut[f[i] & 15];
+      if (key) this.drawCursor(cur);
+      this.fbCtx.putImageData(this.img, 0, 0);
+      this.ctx.imageSmoothingEnabled = false;
+      this.ctx.drawImage(this.fbCanvas, 0, 0, SCREEN_W * HD_SCALE, CANVAS_H * HD_SCALE);
+      this.dirty = false;
+      return;
     }
+    // 1. 主畫布先清黑邊並貼上 2x HD RGBA 美術層
+    this.ctx.fillStyle = "#000";
+    this.ctx.fillRect(0, 0, SCREEN_W * HD_SCALE, CANVAS_H * HD_SCALE);
+    this.ctx.imageSmoothingEnabled = false;
+    this.ctx.drawImage(this.hdCanvas, 0, Y_OFFSET * HD_SCALE);
+    // 若調色盤正處於淡出/全黑過場，對 HD 美術層套用一致的亮度衰減
+    let maxPal = 0;
+    for (let i = 0; i < 48; i++) if (this.raw[i] > maxPal) maxPal = this.raw[i];
+    if (maxPal < 15) {
+      this.ctx.fillStyle = `rgba(0,0,0,${(1 - maxPal / 15).toFixed(3)})`;
+      this.ctx.fillRect(0, Y_OFFSET * HD_SCALE, SCREEN_W * HD_SCALE, SCREEN_H * HD_SCALE);
+    }
+    // 2. 將索引層 (hdMask===0 的像素，例如文字、視窗框與未切換的像素元素) 疊加於 HD 層之上
+    out.fill(0, 0, base);
+    out.fill(0, base + fb.length);
+    for (let i = 0; i < fb.length; i++) out[base + i] = hm[i] ? 0 : lut[fb[i] & 15];
     if (key) this.drawCursor(cur);
-    this.ctx.putImageData(this.img, 0, 0);
+    this.fbCtx.putImageData(this.img, 0, 0);
+    this.ctx.drawImage(this.fbCanvas, 0, 0, SCREEN_W * HD_SCALE, CANVAS_H * HD_SCALE);
     this.dirty = false;
   }
   // 原版軟體游標 (seg0:31fd): 24 行 x 24 像素; 每個平面 先 AND 遮罩 (gfx+off+0x48) 再 OR 圖像 (gfx+off) 於顏色 [2f14]=15 的平面

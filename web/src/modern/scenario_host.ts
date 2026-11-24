@@ -163,9 +163,8 @@ export class ModernScenarioHost implements IScenarioHost {
   async showPicture(x: number, y: number, pic: number): Promise<void> {
     const { graph, state } = this.c;
     const name = this.c.eventFile ?? `EVENT${state.hero + 1}.DAT`;
-    const g = await graph.ensure(this.c.ASSETS, name, "event/" + name);
-    g.draw(this.c.scr.fb, pic, x, y);
-    this.c.scr.dirty = true;
+    await graph.ensure(this.c.ASSETS, name, "event/" + name);
+    graph.drawFrom(name, pic, x, y);
     graph.useFile("GRAPH.DAT");
   }
 

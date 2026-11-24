@@ -24,23 +24,39 @@ const pS16 = v => (v << 16) >> 16;
 
 export async function loadPortAssets(ctx) {
   const A = ctx.ASSETS;
-  const [za, chip, map, chr, compass, data, wind] = await Promise.all([
-    loadBinary(A + "/data/za_dat.bin"), loadBinary(A + "/gfx/portchip.bin"), loadBinary(A + "/gfx/portmap.bin"),
-    loadBinary(A + "/gfx/char.bin"), loadBinary(A + "/gfx/compass.bin"), loadJSON(A + "/data/port.json"), loadBinary(A + "/data/windcur.bin")]);
-  const chipNo = (await loadJSON(A + "/data/portchip.json")).chipNo;
-  const transit = await loadBinary(A + "/gfx/transit.bin");          // TRANSIT.DAT 船首像
-  const colony = await loadJSON(A + "/text/colony.json"), itemMes = await loadJSON(A + "/text/item_mes.json");   // 發現物 / 隨身物說明
-  const gamble = await loadBinary(A + "/gfx/gamble.bin");             // DATA1 #9 賭博圖形
-  data.bld2 = await loadJSON(A + "/data/buildings2.json");            // 王宮/事務所/住宅/銀行/道具店 (tools/extract_buildings2.py)
-  const commands = await loadJSON(A + "/data/commands.json");         // 指令按鈕常數 (tools/extract_commands.py)
-  // 海上 (scenes/sea.js, tools/extract_sea.py): WORLDMAP 格碼、DATA1 #11 海上圖塊與船隻精靈、#7 羅盤指針、表與字串
-  const [worldmap, seachip, seacompass, sea] = await Promise.all([loadBinary(A + "/gfx/worldmap.bin"), loadBinary(A + "/gfx/seachip.bin"),
-    loadBinary(A + "/gfx/seacompass.bin"), loadJSON(A + "/data/sea.json")]);
-  const [hdat, battle] = await Promise.all([loadBinary(A + "/gfx/hdat.bin"), loadJSON(A + "/data/battle.json")]);   // 海戰 (scenes/battle.js, tools/extract_battle.py)
-  const fleet = await loadJSON(A + "/data/fleet.json");                // 月末 / 艦隊 AI 常數表與 NAME.TBL (tools/extract_fleet.py)
-  const duel = await loadDuelAssets(A, loadBinary, loadJSON);         // 一騎打: DATA1 / IAP / IAE、DS 常數 (scenes/duel.js, tools/extract_duel.py)
-  const monster = await loadBinary(A + "/data/monster.bin");          // MONSTER.DAT 原檔 (海上特殊地點的後續地點, 唯讀; RE_NOTES 36.2)
-  return { za, chip, map, chr, compass, data, wind, chipNo, transit, colony, itemMes, gamble, commands, worldmap, seachip, seacompass, sea, fleet, hdat, battle, duel, monster };
+  const [za, map, data, wind, portchipMeta, colony, itemMes, commands, worldmap, sea, hdat, battle, fleet, duel, monster] = await Promise.all([
+    loadBinary(A + "/data/za_dat.bin"),
+    loadBinary(A + "/data/portmap.bin"),
+    loadJSON(A + "/data/port.json"),
+    loadBinary(A + "/data/windcur.bin"),
+    loadJSON(A + "/data/portchip.json"),
+    loadJSON(A + "/text/colony.json"),
+    loadJSON(A + "/text/item_mes.json"),
+    loadJSON(A + "/data/commands.json"),
+    loadBinary(A + "/data/worldmap.bin"),
+    loadJSON(A + "/data/sea.json"),
+    loadBinary(A + "/gfx/hdat.bin"),
+    loadJSON(A + "/data/battle.json"),
+    loadJSON(A + "/data/fleet.json"),
+    loadDuelAssets(A, loadBinary, loadJSON),
+    loadBinary(A + "/data/monster.bin"),
+  ]);
+  data.bld2 = await loadJSON(A + "/data/buildings2.json");
+  // 預載全部場景 PNG 圖集，確保港口 / 海上 / 海戰 / 賭博零延遲呈現
+  if (ctx.art) {
+    const sheets = [
+      "portchip_0", "portchip_1", "portchip_2", "portchip_3", "portchip_4", "portchip_5", "portchip_6",
+      "chars", "seachip", "sea_ships", "compass", "seacompass",
+      "naval_battle", "battle_ships", "gamble_cards", "gamble_dice", "hud_buttons",
+    ];
+    await ctx.art.preloadUrls(sheets.map(s => ctx.art.sheetUrl(s)));
+  }
+  return {
+    za, map, data, wind,
+    chipNo: portchipMeta.chipNo,
+    tilesets: portchipMeta.tilesets,
+    colony, itemMes, commands, worldmap, sea, fleet, hdat, battle, duel, monster,
+  };
 }
 
 export class PortScene {
@@ -109,12 +125,10 @@ export class PortScene {
   loadZa() { const k = Math.min(this.port, 100) * 24; this.door.set(this.P.za.subarray(k, k + 24)); }
   // 88e9: 圖塊組 (CHIP_NO.DAT) / 參數 bd78 / 地圖; 港口編號 >= 100 用第 3 組與第 100 張
   loadPort() {
-    const p = this.port, set = p < 100 ? this.P.chipNo[p] : 3, base = set * (0x7800 + 4);
-    this.chip = this.P.chip.subarray(base, base + 0x7800);
-    this.bd78.set(this.P.chip.subarray(base + 0x7800, base + 0x7804));
+    const p = this.port, set = p < 100 ? this.P.chipNo[p] : 3;
+    this.chipSetName = `portchip_${set}`;
+    this.bd78.set(this.P.tilesets[set]);
     const m = p < 100 ? p : 100; this.map = this.P.map.subarray(m * 0x2400, (m + 1) * 0x2400);
-    const h = this.st.hero; this.chr = new Uint8Array(0x1400 + 0x3c00);
-    this.chr.set(this.P.chr.subarray(h * 0x1400, (h + 1) * 0x1400)); this.chr.set(this.P.chr.subarray(6 * 0x1400), 0x1400);
     this.tileCache.clear();
   }
   // 8b3b: 行人初始位置 (各入口旁); 白天且港口所屬國對主角國籍有旗標 0x10 且主角站在碼頭入口下方時, 碼頭兩側加 3 名衛兵
@@ -148,21 +162,9 @@ export class PortScene {
     this.c.bgm.playSong(song);
   }
 
-  // ================= 繪圖 =================
-  // 圖塊 t 的 16×16 索引像素 (原版每塊 128 bytes, 4 平面依序, 每平面 16 行 × 2 bytes)
-  tile(t) {
-    let px = this.tileCache.get(t); if (px) return px;
-    px = new Uint8Array(256); const o = t * 128, C = this.chip;
-    for (let p = 0; p < 4; p++) for (let r = 0; r < 16; r++) for (let b = 0; b < 2; b++) {
-      const v = C[o + p * 32 + r * 2 + b];
-      for (let i = 0; i < 8; i++) if ((v >> (7 - i)) & 1) px[r * 16 + b * 8 + i] |= 1 << p;
-    }
-    this.tileCache.set(t, px); return px;
-  }
-  put16(col, y, px) {
-    const fb = this.c.scr.fb;
-    for (let r = 0; r < 16; r++) fb.set(px.subarray(r * 16, r * 16 + 16), (y + r) * 640 + col * 8);
-    this.c.scr.dirty = true;
+  // ================= 繪圖 (現代 PNG 圖集 + HD 2D Canvas) =================
+  drawTileAt(t, dx, dy) {
+    this.c.art?.drawSheetTile(this.c.scr, this.chipSetName || "portchip_0", t, dx, dy);
   }
   // 2103 清除圖塊快取
   clearCache() { this.cache.fill(-1); }
@@ -173,32 +175,22 @@ export class PortScene {
       const t = M[(this.bdba + r * P_MAP_W + c) & 0xffff], k = r * P_VIEW + c;
       if (this.cache[k] === t) continue;
       this.cache[k] = t;
-      this.put16((P_VIEW_X >> 3) + c * 2, P_VIEW_Y + r * 16, this.tile(t));
+      this.drawTileAt(t, P_VIEW_X + c * 16, P_VIEW_Y + r * 16);
     }
   }
   // 2119 使 2×2 格的快取失效
   invalidate(k) { for (const d of [0, 1, P_VIEW, P_VIEW + 1]) if (k + d < this.cache.length) this.cache[k + d] = -1; }
-  // 5f0c 一格: 底圖 + 精靈 (每平面 先 AND 遮罩 再 OR 圖像; 遮罩 16 行 × 2 bytes 對 4 平面共用)
-  quad(t, col, y, off) {
-    const base = this.tile(t), px = new Uint8Array(256), S = this.chr;
-    for (let r = 0; r < 16; r++) for (let b = 0; b < 2; b++) {
-      const m = S[off + 0x80 + r * 2 + b];
-      const ip = [S[off + r * 2 + b], S[off + 32 + r * 2 + b], S[off + 64 + r * 2 + b], S[off + 96 + r * 2 + b]];
-      for (let i = 0; i < 8; i++) {
-        const sh = 7 - i, k = r * 16 + b * 8 + i;
-        const img = ((ip[0] >> sh) & 1) | (((ip[1] >> sh) & 1) << 1) | (((ip[2] >> sh) & 1) << 2) | (((ip[3] >> sh) & 1) << 3);
-        px[k] = (((m >> sh) & 1) ? base[k] : 0) | img;
-      }
-    }
-    this.put16(col, y, px);
-  }
-  // 5f6a 在視窗座標 (x,y) 畫 2×2 格精靈 (精靈資料位移 off)
+  // 5f6a 在視窗座標 (x,y) 畫 2×2 格透明精靈 (chars.png: 主角 0..47, 行人 48..71)
   drawFigure(x, y, off) {
-    const M = this.map, i = (y + this.vy) * P_MAP_W + x + this.vx, col = (x + 6) * 2, py = y * 16 + 8;
-    this.quad(M[i], col, py, off);
-    this.quad(M[i + 1], col + 2, py, off + 0xa0);
-    this.quad(M[i + 0x60], col, py + 16, off + 0x140);
-    this.quad(M[i + 0x61], col + 2, py + 16, off + 0x1e0);
+    const M = this.map, i = (y + this.vy) * P_MAP_W + x + this.vx;
+    const dx = (x + 6) * 16, dy = y * 16 + 8;
+    this.drawTileAt(M[i], dx, dy);
+    this.drawTileAt(M[i + 1], dx + 16, dy);
+    this.drawTileAt(M[i + 0x60], dx, dy + 16);
+    this.drawTileAt(M[i + 0x61], dx + 16, dy + 16);
+    const localIdx = Math.floor(off / 0x280);
+    const globalIdx = localIdx < 8 ? this.st.hero * 8 + localIdx : 48 + (localIdx - 8);
+    this.c.art?.drawSheetTile(this.c.scr, "chars", globalIdx, dx, dy, { transparent: true });
     this.invalidate(y * P_VIEW + x);
   }
   // 60e0 主角 (每次呼叫切換走路相位)
@@ -213,13 +205,11 @@ export class PortScene {
     this.drawMap();
     this.drawHero(this.hx, this.hy, 2);
   }
-  // 9453 羅盤指針 (5 欄 × 24 行, DATA1 #6)
+  // 9453 羅盤指針 (compass.png)
   needleDraw(base) {
     const n = this.needle; if (n === 0xff) return;
     const col = n === 1 ? 0x45 : n === 3 ? 0x3f : 0x42, y = n === 0 ? 0x130 : n === 2 ? 0x170 : 0x150;
-    const off = (n + base) * 0x1e0;
-    this.c.scr.putPlanar(col, y, 5, 0x18, this.P.compass, off);
-    this.c.scr.putPlanar(col, y, 5, 0x18, this.P.compass, off);
+    this.c.art?.drawSheetTile(this.c.scr, "compass", n + base, col * 8, y);
   }
   // 94fa
   compass(dir) {

@@ -270,11 +270,11 @@ export class Buildings {
     printf(F.guns, st.u8(di + 8));
     con.lineH = 0x18;
   }
-  // 2b119 船首像 (TRANSIT.DAT)
+  // 2b119 船首像 (PNG)
   figurehead(slot) {
     const fh = this.st.u8(this.crewData(slot) + 0x1d);
     if (!fh || fh >= 0x0b) return;
-    this.c.scr.putPlanar(0x33, 0x9c, 6, 0x30, this.p.P.transit, 0x1980 + 0x480 * fh);
+    this.c.art?.drawEntry(this.c.scr, this.c.art.figureheadEntry(fh), 0x33 * 8, 0x9c);
   }
   // 203e9 交換船位 a / b (9 bytes 船位 + 0x1e bytes 船員配置)
   swapSlots(a, b) {

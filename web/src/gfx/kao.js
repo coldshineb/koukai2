@@ -28,9 +28,24 @@ export const PARTS = [
 ];
 
 export class Kao {
-  constructor(file) {
-    this.file = file;
-    this.entries = lsEntries(file);
+  constructor(source) {
+    // 現代模式: 傳入 ArtRegistry，直接從標準 PNG 與透明部件圖集繪製 (支援任意高清重繪)
+    if (source && typeof source.portraitEntry === "function") {
+      this.art = source;
+      this.file = null;
+      this.entries = null;
+      this.cache = null;
+      // 背景預載 5 張隨機頭像部件圖集
+      const parts = ["a", "b", "c", "d", "e"]
+        .map(k => source.kaoPartSheet(k))
+        .filter(Boolean)
+        .map(e => `${source.baseUrl}/${e.path}`);
+      void source.preloadUrls(parts);
+      return;
+    }
+    this.art = null;
+    this.file = source;
+    this.entries = lsEntries(source);
     this.cache = new Map();
   }
   entry(i) { if (!this.cache.has(i)) this.cache.set(i, lsDecode(this.file, this.entries[i])); return this.cache.get(i); }
@@ -51,6 +66,7 @@ export class Kao {
   // seg0:044d 模式 0: w 欄 x h 行, 只改平面 0..2
   static blit3(scr, col, y, w, h, data) {
     if (!scr.inBounds(col, y, w, h)) return -1;
+    scr.clearHdRect?.(col * 8, y, w * 8, h);
     const fb = scr.fb; let s = 0;
     for (let r = 0; r < h; r++) for (let c = 0; c < w; c++, s += 3) {
       const b0 = data[s], b1 = data[s + 1], b2 = data[s + 2], o = (y + r) * 640 + (col + c) * 8;
@@ -61,9 +77,44 @@ export class Kao {
     }
     scr.dirty = true; return 0;
   }
-  drawNamed(scr, n, col, y) { return Kao.blit3(scr, col, y, 8, 80, this.entry(n)); }               // 7cdd
-  drawItem(scr, n, col, y) { return Kao.blit3(scr, col, y, 6, 48, this.entry(n + 0x80)); }         // 7d4c 發現物圖
-  drawComposed(scr, type, parts, col, y) { return Kao.blit3(scr, col, y, 8, 80, this.compose(type, parts)); }  // 7bb5
+  drawNamed(scr, n, col, y) {
+    if (this.art) return this.art.drawEntry(scr, this.art.portraitEntry(n), col * 8, y) ? 0 : -1;
+    return Kao.blit3(scr, col, y, 8, 80, this.entry(n));
+  }
+  drawItem(scr, n, col, y) {
+    if (this.art) return this.art.drawEntry(scr, this.art.discoveryEntry(n), col * 8, y) ? 0 : -1;
+    return Kao.blit3(scr, col, y, 6, 48, this.entry(n + 0x80));
+  }
+  drawComposed(scr, type, parts, col, y) {
+    if (this.art) {
+      const s = Math.max(0, Math.min(6, type & 0xffff));
+      const dx = col * 8;
+      const layers = [
+        ["a", parts & 7, 0, false],
+        ["b", (parts >> 3) & 7, 33, false],
+        ["c", (parts >> 8) & 7, 21, true],
+        ["d", (parts >> 6) & 3, 29, true],
+        ["e", (parts >> 11) & 7, 45, true],
+      ];
+      for (const [key, idx, yOff, transparent] of layers) {
+        const meta = this.art.kaoPartSheet(key);
+        if (!meta) continue;
+        const url = `${this.art.baseUrl}/${meta.path}`;
+        const drawLayer = img => {
+          const scaleX = (img.naturalWidth || meta.w) / meta.w;
+          const scaleY = (img.naturalHeight || meta.h) / meta.h;
+          const sx = idx * meta.tileW * scaleX;
+          const sy = s * meta.tileH * scaleY;
+          scr.drawImage(img, sx, sy, meta.tileW * scaleX, meta.tileH * scaleY, dx, y + yOff, meta.tileW, meta.tileH, { transparent });
+        };
+        const img = this.art.getImage(url);
+        if (img) drawLayer(img);
+        else void this.art.loadImage(url).then(im => { if (im) drawLayer(im); });
+      }
+      return 0;
+    }
+    return Kao.blit3(scr, col, y, 8, 80, this.compose(type, parts));
+  }
   drawRandomType(scr, rng, parts, col, y) { return this.drawComposed(scr, rng.random(7), parts, col, y); }     // 7cb9
   // 7d39: 人物資料 (+0x1A 部件字/頭像編號, +0x31 種類)
   drawPerson(scr, rec, col, y) {

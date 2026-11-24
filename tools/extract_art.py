@@ -154,6 +154,142 @@ def extract_graph_art(pals, manifest):
         manifest["backgrounds"][name] = {"path": rel, "w": w, "h": h}
     print("[GRAPH/GRAPH2] 4 full-screen backgrounds extracted")
 
+    # 4) Complete GRAPH.DAT (#0..64) & GRAPH2.DAT (#0..1) index for pure-PNG Graph renderer
+    g1_reuse = {}
+    for i in range(16):
+        g1_reuse[6 + i] = manifest["buildings"][str(i)]
+    for i in range(25):
+        g1_reuse[28 + i] = manifest["ships"][str(i)]
+    g1_reuse[23] = manifest["backgrounds"]["duel_bg"]
+    g1_reuse[25] = manifest["backgrounds"]["worldmap"]
+    g1_reuse[27] = manifest["backgrounds"]["gamble_bg"]
+    g1_8col = {2, 3, 4, 5, 62}
+    g1_pal = {26: "battle"}
+
+    js_g1 = r"""
+const fs = require('fs');
+require('./tools/work/ui_bundle.js');
+const U = globalThis.UI;
+const dat = new Uint8Array(fs.readFileSync('web/assets/gfx/GRAPH.DAT'));
+const g = new U.GraphDat(dat);
+const col8 = new Set([2, 3, 4, 5, 62]);
+const chunks = [Buffer.from([g.offsets.length])];
+for (let i = 0; i < g.offsets.length; i++) {
+  const off = g.offsets[i];
+  const sz = U.graphSize(dat, off);
+  const fb = new Uint8Array(640 * 400);
+  U.decodeGraph(fb, dat, 0, 0, !col8.has(i), off);
+  const out = new Uint8Array(sz.w * sz.h);
+  for (let y = 0; y < sz.h; y++) out.set(fb.subarray(y * 640, y * 640 + sz.w), y * sz.w);
+  const hdr = Buffer.alloc(4); hdr.writeUInt16LE(sz.w, 0); hdr.writeUInt16LE(sz.h, 2);
+  chunks.push(hdr, Buffer.from(out));
+}
+process.stdout.write(Buffer.concat(chunks));
+"""
+    raw_g1 = run_node_dump(js_g1)
+    cnt_g1 = raw_g1[0]
+    p = 1
+    g1_list = []
+    extra_g1 = 0
+    for i in range(cnt_g1):
+        w = int.from_bytes(raw_g1[p : p + 2], "little")
+        h = int.from_bytes(raw_g1[p + 2 : p + 4], "little")
+        p += 4
+        px = raw_g1[p : p + w * h]
+        p += w * h
+        if i in g1_reuse:
+            g1_list.append(g1_reuse[i])
+        else:
+            rel = f"graph/g1_{i:02d}.png"
+            pal_name = g1_pal.get(i, "day")
+            save_indexed_png(os.path.join(ART, rel), w, h, px, pals[pal_name])
+            g1_list.append({"path": rel, "w": w, "h": h})
+            extra_g1 += 1
+    manifest["graph"]["GRAPH.DAT"] = g1_list
+
+    w2, h2, px2 = decode_graph_entry("web/assets/gfx/GRAPH2.DAT", 0)
+    rel_g2_0 = "graph/g2_00.png"
+    save_indexed_png(os.path.join(ART, rel_g2_0), w2, h2, px2, pals["heroSelect"])
+    manifest["graph"]["GRAPH2.DAT"] = [
+        {"path": rel_g2_0, "w": w2, "h": h2},
+        manifest["backgrounds"]["hero_select"],
+    ]
+    print(f"[GRAPH/GRAPH2] {extra_g1 + 1} additional UI/event graphics extracted (full index ready)")
+
+
+def extract_kao_parts(pals, manifest):
+    """KAO.LZW 檔尾 7 組隨機頭像部件 (A..E) -> 5 張 PNG 圖集 (C/D/E 含透明通道)"""
+    dat = open(os.path.join(ROOT, "web", "assets", "gfx", "KAO.LZW"), "rb").read()
+    PARTS_BASE = 0x476A2
+    PARTS_SET = 0x60C0
+    specs = [
+        ("a", 0x318, 8, 33, False),
+        ("b", 0x468, 8, 47, False),
+        ("c", 0x1B0, 8, 18, True),
+        ("d", 0x240, 4, 24, True),
+        ("e", 0x1C8, 8, 19, True),
+    ]
+    pal = pals["day"]
+    for key, size, cols, h, transparent in specs:
+        rows = 7
+        sw, sh = cols * 64, rows * h
+        rgba = bytearray(sw * sh * 4)
+        for s in range(rows):
+            base = PARTS_BASE + s * PARTS_SET
+            for k2, sz2, n2, _, _ in specs:
+                if k2 == key:
+                    break
+                base += sz2 * n2
+            for idx in range(cols):
+                off = base + idx * size
+                gx, gy = idx * 64, s * h
+                for r in range(h):
+                    for c in range(8):
+                        pos = off + (r * 8 + c) * 3
+                        b0 = dat[pos] if pos < len(dat) else 0
+                        b1 = dat[pos + 1] if pos + 1 < len(dat) else 0
+                        b2 = dat[pos + 2] if pos + 2 < len(dat) else 0
+                        for i in range(8):
+                            shb = 7 - i
+                            col_idx = ((b0 >> shb) & 1) | (((b1 >> shb) & 1) << 1) | (((b2 >> shb) & 1) << 2)
+                            if transparent and col_idx == 0:
+                                continue
+                            pr, pg, pb, pa = pal[col_idx]
+                            dst = ((gy + r) * sw + (gx + c * 8 + i)) * 4
+                            rgba[dst] = pr; rgba[dst + 1] = pg; rgba[dst + 2] = pb; rgba[dst + 3] = pa
+        rel = f"portraits/parts/part_{key}.png"
+        save_rgba_png(os.path.join(ART, rel), sw, sh, rgba)
+        manifest["kaoParts"][key] = {
+            "path": rel, "w": sw, "h": sh,
+            "tileW": 64, "tileH": h, "cols": cols, "rows": rows, "count": rows * cols,
+        }
+    print("[KAO.LZW] 5 random-portrait composer sheets extracted")
+
+
+def extract_hud_buttons(pals, manifest):
+    """transit.bin 0x4b00 起 4 個 24x80 (3 平面) 右側指令按下圖"""
+    dat = open(os.path.join(ROOT, "web", "assets", "gfx", "transit.bin"), "rb").read()
+    pal = pals["day"]
+    sw, sh = 4 * 24, 80
+    out = bytearray(sw * sh)
+    for n in range(4):
+        o = 0x4B00 + 0x2D0 * n
+        for r in range(80):
+            for c in range(3):
+                k = o + (r * 3 + c) * 3
+                p0, p1, p2 = dat[k], dat[k + 1], dat[k + 2]
+                for i in range(8):
+                    shb = 7 - i
+                    col_idx = ((p0 >> shb) & 1) | (((p1 >> shb) & 1) << 1) | (((p2 >> shb) & 1) << 2)
+                    out[r * sw + n * 24 + c * 8 + i] = col_idx
+    rel = "sheets/hud_buttons.png"
+    save_indexed_png(os.path.join(ART, rel), sw, sh, out, pal)
+    manifest["sheets"]["hud_buttons"] = {
+        "path": rel, "w": sw, "h": sh,
+        "tileW": 24, "tileH": 80, "cols": 4, "rows": 1, "count": 4,
+    }
+    print("[transit.bin] 4 pressed HUD button sprites extracted")
+
 
 def extract_events(pals, manifest):
     ev_dir = os.path.join(ROOT, "web", "assets", "gfx", "event")
@@ -317,6 +453,71 @@ def extract_char_figures(dat_rel, pal_rgba, out_rel):
     }
 
 
+def extract_sea_ships(dat_rel, pal_rgba, out_rel):
+    """seachip.bin 0x4000..0x7fff: 32 幀 32×32 海上船隻精靈 (每行 2 組 16px × [mask, p0, p1, p2], 真實透明)"""
+    dat = open(os.path.join(ROOT, dat_rel), "rb").read()
+    count = 32
+    grid_cols, grid_rows = 8, 4
+    sw, sh = grid_cols * 32, grid_rows * 32
+    rgba = bytearray(sw * sh * 4)
+    for idx in range(count):
+        base = 0x4000 + idx * 0x200
+        fx, fy = (idx % grid_cols) * 32, (idx // grid_cols) * 32
+        for r in range(32):
+            for h in range(2):
+                o = base + r * 16 + h * 8
+                for b in range(2):
+                    m = dat[o + b]
+                    p0 = dat[o + 2 + b]
+                    p1 = dat[o + 4 + b]
+                    p2 = dat[o + 6 + b]
+                    for i in range(8):
+                        shb = 7 - i
+                        if (m >> shb) & 1:
+                            continue  # 透明
+                        c = ((p0 >> shb) & 1) | (((p1 >> shb) & 1) << 1) | (((p2 >> shb) & 1) << 2)
+                        pr, pg, pb, pa = pal_rgba[c]
+                        dst = ((fy + r) * sw + (fx + h * 16 + b * 8 + i)) * 4
+                        rgba[dst] = pr; rgba[dst + 1] = pg; rgba[dst + 2] = pb; rgba[dst + 3] = pa
+    save_rgba_png(os.path.join(ART, out_rel), sw, sh, rgba)
+    return {
+        "path": out_rel, "w": sw, "h": sh,
+        "tileW": 32, "tileH": 32, "cols": grid_cols, "rows": grid_rows, "count": count,
+    }
+
+
+def extract_battle_ships(dat_rel, pal_rgba, out_rel):
+    """hdat.bin 0x1a00..0x55ff: 24 幀 32×32 海戰船隻 (0x80 遮罩 + 0x200 4 平面交錯圖像, 真實透明)"""
+    dat = open(os.path.join(ROOT, dat_rel), "rb").read()
+    count = 24
+    grid_cols, grid_rows = 6, 4
+    sw, sh = grid_cols * 32, grid_rows * 32
+    rgba = bytearray(sw * sh * 4)
+    for idx in range(count):
+        base = 0x1A00 + idx * 0x280
+        fx, fy = (idx % grid_cols) * 32, (idx // grid_cols) * 32
+        for r in range(32):
+            for c in range(4):
+                m = dat[base + r * 4 + c]
+                po = base + 0x80 + (r * 4 + c) * 4
+                b0, b1, b2, b3 = dat[po], dat[po + 1], dat[po + 2], dat[po + 3]
+                for i in range(8):
+                    shb = 7 - i
+                    # 0x20f AND 遮罩: bit=0 代表透明保留背景, bit=1 代表先清再 OR 圖像? 檢查: 063e mode 2: if (!on) fb &= ~color
+                    # 也就是 bit=1 的地方保持背景 (透明), bit=0 的地方清成 0 再 OR 圖像!
+                    if (m >> shb) & 1:
+                        continue
+                    col_idx = ((b0 >> shb) & 1) | (((b1 >> shb) & 1) << 1) | (((b2 >> shb) & 1) << 2) | (((b3 >> shb) & 1) << 3)
+                    pr, pg, pb, pa = pal_rgba[col_idx]
+                    dst = ((fy + r) * sw + (fx + c * 8 + i)) * 4
+                    rgba[dst] = pr; rgba[dst + 1] = pg; rgba[dst + 2] = pb; rgba[dst + 3] = pa
+    save_rgba_png(os.path.join(ART, out_rel), sw, sh, rgba)
+    return {
+        "path": out_rel, "w": sw, "h": sh,
+        "tileW": 32, "tileH": 32, "cols": grid_cols, "rows": grid_rows, "count": count,
+    }
+
+
 def extract_sheets(pals, manifest):
     """批次 B: 港口圖塊 / 主角與行人 (透明) / 海上圖塊 / 羅盤 / 海戰 / 賭博牌與骰子"""
     # 1) 7 sets of port tiles (240 tiles of 16x16 each, sequential 4-plane)
@@ -333,11 +534,14 @@ def extract_sheets(pals, manifest):
     )
     print("[char.bin] 72 alpha-masked character sprites extracted")
 
-    # 3) Sea tiles (128 tiles of 16x16, sequential 4-plane)
+    # 3) Sea tiles (128 tiles of 16x16, sequential 4-plane) + 32 transparent sea ships
     manifest["sheets"]["seachip"] = extract_seq_tile_sheet(
         "web/assets/gfx/seachip.bin", 0, 128, 16, pals["day"], "sheets/seachip.png"
     )
-    print("[seachip.bin] 128 sea terrain tiles extracted")
+    manifest["sheets"]["sea_ships"] = extract_sea_ships(
+        "web/assets/gfx/seachip.bin", pals["day"], "sheets/sea_ships.png"
+    )
+    print("[seachip.bin] 128 sea terrain tiles + 32 alpha-masked sea ships extracted")
 
     # 4) Compasses
     manifest["sheets"]["compass"] = extract_planar_sheet(
@@ -348,11 +552,14 @@ def extract_sheets(pals, manifest):
     )
     print("[compass/seacompass] compass sheets extracted")
 
-    # 5) Naval battle sprites (61 tiles of 32x32)
+    # 5) Naval battle tiles (13 x 32x32) + 24 alpha-masked battle ships
     manifest["sheets"]["naval_battle"] = extract_planar_sheet(
-        "web/assets/gfx/hdat.bin", 0, 61, 4, 32, 8, pals["battle"], "sheets/naval_battle.png"
+        "web/assets/gfx/hdat.bin", 0, 13, 4, 32, 8, pals["battle"], "sheets/naval_battle.png"
     )
-    print("[hdat.bin] 61 naval battle sprites extracted")
+    manifest["sheets"]["battle_ships"] = extract_battle_ships(
+        "web/assets/gfx/hdat.bin", pals["battle"], "sheets/battle_ships.png"
+    )
+    print("[hdat.bin] 13 battle terrain hexes + 24 alpha-masked battle ships extracted")
 
     # 6) Gamble cards (5 x 32x48) & dice (6 x 24x24)
     manifest["sheets"]["gamble_cards"] = extract_planar_sheet(
@@ -458,11 +665,15 @@ def main():
         "sheets": {},
         "ending": [],
         "opening": {},
+        "graph": {},
+        "kaoParts": {},
     }
     extract_kao(pals, manifest)
+    extract_kao_parts(pals, manifest)
     extract_graph_art(pals, manifest)
     extract_events(pals, manifest)
     extract_figureheads(pals, manifest)
+    extract_hud_buttons(pals, manifest)
     extract_sheets(pals, manifest)
     extract_ending_and_opening(pals, manifest)
     os.makedirs(ART, exist_ok=True)

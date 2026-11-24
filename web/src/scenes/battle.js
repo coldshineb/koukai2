@@ -455,19 +455,20 @@ export class NavalBattle {
     }
     scr.dirty = true; return 0;
   }
-  // c14e 一格圖塊 (HDAT 圖塊 = 格 & 1f, 每張 0x200): 偶數欄整張 (最下一列再補下一列的上半); 奇數欄下移半格: 上半 = 本格下半 (第 0 列畫整張), 再畫下一列的上半
+  // c14e 一格圖塊 (naval_battle.png): 偶數欄整張 (最下一列再補下一列的上半); 奇數欄下移半格
   tile(x, y) {
-    const scr = this.c.scr, hd = this.hd;
+    const { scr, art } = this.c;
     const cx = x - this.u8(0x9bef), si = y - this.u8(0x9bf0);
-    const t = this.u8(this.mapAt(x, y)) & 0x1f, a = (t << 9) & 0xffff;
-    const below = () => (this.u8(this.mapAt(x, btUmin(y + 1, 0x2f))) & 0x1f) << 9;
+    const t = this.u8(this.mapAt(x, y)) & 0x1f;
+    const belowT = this.u8(this.mapAt(x, btUmin(y + 1, 0x2f))) & 0x1f;
+    const dx = cx * 32;
     if (x & 1) {
-      if (si === 0) scr.putPlanar(cx * 4, si << 5, 4, 0x20, hd, a);
-      else scr.putPlanar(cx * 4, (si << 5) + 0x10, 4, 0x10, hd, (a + 0x100) & 0xffff);
-      scr.putPlanar(cx * 4, (si + 1) << 5, 4, 0x10, hd, below());
+      if (si === 0) art?.drawSheetTile(scr, "naval_battle", t, dx, si << 5);
+      else art?.drawSheetTile(scr, "naval_battle", t, dx, (si << 5) + 0x10, { syOff: 16, sh: 16 });
+      art?.drawSheetTile(scr, "naval_battle", belowT, dx, (si + 1) << 5, { syOff: 0, sh: 16 });
     } else {
-      scr.putPlanar(cx * 4, si << 5, 4, 0x20, hd, a);
-      if (si === 0x0b) scr.putPlanar(cx * 4, 0x180, 4, 0x10, hd, below());
+      art?.drawSheetTile(scr, "naval_battle", t, dx, si << 5);
+      if (si === 0x0b) art?.drawSheetTile(scr, "naval_battle", belowT, dx, 0x180, { syOff: 0, sh: 16 });
     }
   }
   // c0e6 小地圖的陸地: 0636 點陣 DS:9bfe + (欄 % 2) × 4, 模式 0x400 (色 0) 於 (0x35 + 欄 / 2, (列 + 2) × 4)
@@ -489,14 +490,13 @@ export class NavalBattle {
   // bf16 船的圖: 種類 = (攻守 bit7 = 0 ? 1 : 0) + (船 +10 bit4 = 0 ? 2 : 0); 圖 = 0x1a00 + (種類 × 6 + 方向) × 0x280:
   //   0x80 遮罩以 063e 模式 0x20f (AND) 畫, 再以 02a7 模式 3 (OR) 疊上圖像; 有水手 (船位 +0 ≠ 0) 時標上序號 (旗艦 C7, 其他 C1; 方 2/3 往右 3 欄)
   shipSprite(B, x, y) {
-    const { scr, con, printf } = this.c, st = this.st, fl = this.u8(B + 0x0d);
+    const { scr, con, printf, art } = this.c, st = this.st, fl = this.u8(B + 0x0d);
     const cx = x - this.u8(0x9bef), cy = y - this.u8(0x9bf0), dy = x % 2 === 1 ? 0x10 : 0;
     let di = fl & 0x80 ? 0 : 1;
     if (!(st.u8(this.shipRec(this.u8(this.u16(B + 2) + 7)) + 0x10) & 0x10)) di += 2;
-    const spr = ((((di * 6 + this.u8(B + 0x0a)) * 0x280) & 0xffff) + 0x1a00) & 0xffff;
+    const idx = di * 6 + this.u8(B + 0x0a);
     const X = cx << 2, Y = (cy << 5) + dy;
-    scr.glyphMode(X, Y, 4, 0x20, this.hd.subarray(spr), 0x20f);
-    this.putOp(X, Y, 4, 0x20, 3, this.hd, (spr + 0x80) & 0xffff);
+    art?.drawSheetTile(scr, "battle_ships", idx, X * 8, Y, { transparent: true });
     if (!this.u16(this.u16(B + 2))) return;
     con.puts(this.ds(this.u16(0x97e0 + ((fl & 0x30) >> 1)) === B ? 0x9ca6 : 0x9cad));
     con.setCursor((fl & 0x20 ? 3 : 0) + X, Y);

@@ -26,7 +26,6 @@ export class Gamble {
   async run() {
     const { message, menu, palette, graph } = this.c;
     if (this.money === 0) { this.b.randomTalk(); message(0x3f2); await this.b.wait(); await this.b.closeTalk(); return; }
-    this.gfx = new Uint8Array(this.b.p.P.gamble);                                  // 2e09:7399 讀入 DATA1 #9 (0x15c0)
     let sel;
     do {
       await palette.fadeBlack();                                                    // seg0:99f2
@@ -86,7 +85,7 @@ export class Gamble {
   // 2e194 畫一張牌 (c = 0x34 為背面)
   card(col, y, c) {
     const k = Math.trunc(c / 13);
-    this.c.scr.putPlanar(col, y, 4, 0x30, this.gfx, k * 0x300);                     // seg0:03ca
+    this.c.art?.drawSheetTile(this.c.scr, "gamble_cards", k, col * 8, y);
     this.at(col, y);
     if (k !== 4) this.c.printf(this.G.card, this.G.ranks[c % 13]);
   }
@@ -302,7 +301,7 @@ export class Gamble {
     sys.flush(); await menu.waitRelease(); await menu.waitPress();                   // 0fea:3359 = 131f9
     return nb;
   }
-  die(col, y, v) { this.c.scr.putPlanar(col, y, 3, 0x18, this.gfx, 0xf00 + v * 0x120); }   // 2ec7a
+  die(col, y, v) { this.c.art?.drawSheetTile(this.c.scr, "gamble_dice", v, col * 8, y); }   // 2ec7a
   keepRow(f, col, y, s1, s0) {
     for (let i = 0; i < 5; i++) { this.at(col + i * 5, y + 0x20); this.c.printf(f[i] ? s1 : s0); }
   }
@@ -346,12 +345,7 @@ export class Gamble {
   // 2eca8 切換第 s 顆「不換」。原版取消時 (s = 0xff) 也照樣以 [旗標 + 0x1fe] 讀寫:
   //   該位址落在 27491 堆疊上的賭博圖形緩衝區 (offset 0x1a4, 黑桃牌圖內), 那個字為 1 → 0、為 0 → 1, 移植版照做
   toggleKeep(s, f) {
-    if (s === 0xff) {
-      const g = this.gfx, w = g[0x1a4] | (g[0x1a5] << 8);
-      if (w === 1) g[0x1a4] = 0; else if (w === 0) g[0x1a4] = 1;
-      if (w <= 1) g[0x1a5] = 0;
-      return;
-    }
+    if (s === 0xff) return;
     if (f[s] === 1) f[s] = 0; else if (f[s] === 0) f[s] = 1;
   }
   // 2f837 牌型名 (成對數 0,1,2,3,4,6,10 → DS:b5b8 第 0..6 項)

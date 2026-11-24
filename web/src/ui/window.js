@@ -17,24 +17,15 @@ export class WindowSystem {
     this.scr = scr; this.con = con; this.gfx = gfx; this.wait = wait; this.options = options; this.sys = sys;
     this.stack = [];          // 原版 [0c88] 緩衝區 + 堆疊頂 [0536]
   }
-  // seg0:50c4 保存視窗底下的畫面 (x,w 欄; y,h 像素)
+  // seg0:50c4 保存視窗底下的畫面 (x,w 欄; y,h 像素) — 同時保存 fb 與 HD 2D 真彩圖層
   save(x, y, w, h) {
     this.sys?.mouseHide();
-    const fb = this.scr.fb, data = new Uint8Array(w * 8 * h);
-    for (let r = 0; r < h; r++) {
-      const yy = y + r; if (yy < 0 || yy >= 400) continue;
-      data.set(fb.subarray(yy * 640 + x * 8, yy * 640 + (x + w) * 8), r * w * 8);
-    }
-    this.stack.push({ x, y, w, h, data });
+    const snap = this.scr.saveRegion(x * 8, y, w * 8, h);
+    this.stack.push({ x, y, w, h, snap });
     this.sys?.mouseShow();
   }
   restoreRows(win, fromRow, toY, rows) {
-    const fb = this.scr.fb, W = win.w * 8;
-    for (let r = 0; r < rows; r++) {
-      const yy = toY + r, sr = fromRow + r; if (yy < 0 || yy >= 400 || sr < 0 || sr >= win.h) continue;
-      fb.set(win.data.subarray(sr * W, sr * W + W), yy * 640 + win.x * 8);
-    }
-    this.scr.dirty = true;
+    this.scr.restoreRegion(win.snap, fromRow, toY, rows);
   }
   // seg0:796d 關閉最上層視窗; 高度>16 且開啟動畫時, 由上下兩端每次各還原 8 行向中間收合
   async close() {

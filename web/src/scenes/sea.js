@@ -106,7 +106,7 @@ export class SeaScene extends PortScene {
     this.item = Math.trunc(this.vx1006 / 0x2d0) & 0xff;               // [06ca]
     // 849a: WORLDMAP 第 [06ca] 項 → [06ce]; 84de: DATA1 #11 → [03ee] (海上圖塊與船隻精靈); DATA1 #7 → [0c86]+0x3ea0 (羅盤指針)
     if (this.map && this.map !== this.seaBuf) this.seaBuf.set(this.map.subarray(0, 0x2400));   // [03f6] 原本是出港港口的 PORTMAP
-    this.map = this.seaBuf; this.chip = this.P.seachip; this.tileCache.clear();
+    this.map = this.seaBuf; this.chipSetName = "seachip"; this.tileCache.clear();
     await palette.fadeBlack();                                         // 99f2
     this.c.bgm.playSong(st.u8(DS.HERO) + 4);                            // 9670 主角的海上曲目
     sys.mouseHide();
@@ -174,21 +174,11 @@ export class SeaScene extends PortScene {
     this.drawMap();                                                    // 1fac
     this.seaPanel();                                                   // 8067
   }
-  // 24bc 32×32 精靈: 每行 2 組 16 像素 × (遮罩, 平面 0, 1, 2); 平面 0..2 = (底 AND 遮罩) OR 圖, 平面 3 = 底 AND 遮罩
+  // 24bc 32×32 海上船隻精靈 (sea_ships.png 透明圖集)
   sprite(col, y, off) {
-    const fb = this.c.scr.fb, S = this.chip;
     if (col < 0 || col + 4 > 80 || y < 0 || y + 32 > 400) { seaTodo("精靈超出畫面"); return; }
-    for (let r = 0; r < 32; r++) for (let h = 0; h < 2; h++) {
-      const o = off + r * 16 + h * 8;
-      for (let b = 0; b < 2; b++) {
-        const m = S[o + b], p0 = S[o + 2 + b], p1 = S[o + 4 + b], p2 = S[o + 6 + b], base = (y + r) * 640 + (col + h * 2 + b) * 8;
-        for (let i = 0; i < 8; i++) {
-          const sh = 7 - i, keep = (m >> sh) & 1;
-          fb[base + i] = (keep ? fb[base + i] : 0) | ((p0 >> sh) & 1) | (((p1 >> sh) & 1) << 1) | (((p2 >> sh) & 1) << 2);
-        }
-      }
-    }
-    this.c.scr.dirty = true;
+    const idx = (off - 0x4000) >> 9;
+    this.c.art?.drawSheetTile(this.c.scr, "sea_ships", idx, col * 8, y, { transparent: true });
   }
   // 艦隊 k 的精靈 (6f07..6f88 主角單獨 / 7080..7137 全部艦隊)
   drawFleet(F, k, heroOnly) {
@@ -378,13 +368,11 @@ export class SeaScene extends PortScene {
     if (st.options & 1) { this.needle = d; this.helmDraw(9); } else this.needle = 0xff;
     sys.mouseShow();
   }
-  // 9537(base): DATA1 #7 第 (指針 + base) 張 (4 欄 × 0x20 行), 畫兩次
+  // 9537(base): seacompass.png 第 (指針 + base) 張
   helmDraw(base) {
     const n = this.needle; if (n === 0xff) return;
     const col = n > 4 ? 0x3e : n === 0 || n === 4 ? 0x43 : 0x48, y = n < 2 || n === 7 ? 0x110 : n === 2 || n === 6 ? 0x138 : 0x160;
-    const off = ((n + base) << 9) & 0xffff;
-    this.c.scr.putPlanar(col, y, 4, 0x20, this.P.seacompass, off);
-    this.c.scr.putPlanar(col, y, 4, 0x20, this.P.seacompass, off);
+    this.c.art?.drawSheetTile(this.c.scr, "seacompass", n + base, col * 8, y);
   }
   cellSel() { return (this.c.cellSel ??= new CellSelect(this.c)); }
   // 2e09:310b = 3119b 指定目的地 (舵輪中央 '5' / 委任到達後未進港): [1005] |= 20 (停船), 游標 = 十字 0x2840 ([06d6]);
@@ -1492,24 +1480,13 @@ export class SeaScene extends PortScene {
     }
   }
   // ================= 情報 航海圖 0fea:dc2e = 1dace、隨身物 地圖 0fea:ded6 = 1dd76 =================
-  // 1d8ac(0x80): 128 個海上圖塊 (DATA1 #11) 縮成 8 × 8 (取偶數行, 每 4 個像素取第 0 與第 3 個: DS:a7b8 表), 每塊 32 bytes (8 行 × 4 平面);
-  //   只轉 3 個平面, 第 4 平面一律 FF (原版如此; 顏色 8..15 由航海圖調色盤 DS:a700 決定)
+  // 1d8ac(0x80): 現代 PNG 模式直接由 seachip.png 縮放繪製，無需二進位縮圖表
   chartTiles() {
-    const C = this.P.seachip, A = this.SJ.tab.shrink, T = new Uint8Array(0x80 * 32);
-    for (let t = 0; t < 0x80; t++) for (let r = 0; r < 8; r++) {
-      for (let p = 0; p < 3; p++) {
-        const o = t * 128 + p * 32 + r * 4, b1 = C[o], b2 = C[o + 1];
-        T[(t * 8 + r) * 4 + p] = (A[b1 >> 4] << 6) | (A[b1 & 15] << 4) | (A[b2 >> 4] << 2) | A[b2 & 15];
-      }
-      T[(t * 8 + r) * 4 + 3] = 0xff;
-    }
-    return T;
+    return null;
   }
-  // 1d710(欄 col, y, 世界欄 bc, 列 br, 縮圖表 T, 模式): 模式 0 = 航海圖 (該海域格未探索 → 0906 以色 9 填 0x18 欄 × 0xc0 行; 否則 22d62 解碼),
-  //   模式 1 = 地圖類隨身物 (22f17 解碼, 不看探索); 以該格為中心的區域解碼後取該格的 24 × 24 圖塊, 每塊以 03ca 畫 1 欄 × 8 行
-  //   (區域靠邊時 [bp-6] / [bp-8] = 0 或 0x30); 世界欄 mod 90, WORLDMAP 項 = 3 × (列 / 45) + 欄 / 30 (改變時 849a)
-  chartQuad(col, y, bc, br, T, mode) {
-    const st = this.st, scr = this.c.scr;
+  // 1d710(欄 col, y, 世界欄 bc, 列 br, 縮圖表 T, 模式)
+  chartQuad(col, y, bc, br, _T, mode) {
+    const st = this.st, scr = this.c.scr, art = this.c.art;
     bc %= 0x5a;
     if (mode === 0 && !(st.u8(WorkDS.EXPLORE_MAP + ((12 * br) & 0xffff) + (bc >> 3)) & (0x80 >> (bc & 7)))) { scr.fillCols(col, y, 0x18, 0xc0, 9); return; }
     const it = (3 * Math.trunc(br / 0x2d) + Math.trunc(bc / 0x1e)) & 0xff;
@@ -1520,7 +1497,7 @@ export class SeaScene extends PortScene {
     if (mode === 0) this.decodeRegion(0x1e * r + c);                   // 1fd9:2fd2
     else this.wm.decodeChart(st, this.item, 0x1e * r + c, this.seaBuf);   // 1fd9:3187
     for (let rr = 0; rr < 0x18; rr++) for (let cc = 0; cc < 0x18; cc++)
-      scr.putPlanar(col + cc, y + rr * 8, 1, 8, T, this.seaBuf[0x60 * (oy + rr) + ox + cc] << 5);
+      art?.drawSheetTile(scr, "seachip", this.seaBuf[0x60 * (oy + rr) + ox + cc], (col + cc) * 8, y + rr * 8, { dw: 8, dh: 8, smooth: true });
   }
   // 1fd9:1f2a 水平 XOR 線 (逐點 seg0:0b33, 剪裁矩形 DS:aaac)
   xorLine(x0, y, x1, color) {

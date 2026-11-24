@@ -14,8 +14,8 @@ export async function createUI(ctx) {
   const sys = ctx.sys;
   const con = new TextConsole(ctx.scr, ctx.font, { beep: () => {}, wait: n => sys.waitSpeed(n) });
   const win = new WindowSystem(ctx.scr, con, gfx, { wait: n => sys.waitTicks(n), options: ctx.options, sys });
-  const graph = await new Graph(ctx.scr).load(ctx.ASSETS);
-  const kao = new Kao(await loadBinary(ctx.ASSETS + "/gfx/KAO.LZW"));
+  const graph = await new Graph(ctx.scr, ctx.art).load(ctx.ASSETS);
+  const kao = new Kao(ctx.art);
   const menu = new MenuSystem({ sys, scr: ctx.scr, con, win, gfx, graph });
   // 2e09:56ee 輸出 message.json 第 n 條 (printf 格式)，取代原版二進位 MESSAGE.DAT
   const msgCache = new Map();
