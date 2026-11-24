@@ -6,7 +6,7 @@ import os, sys, zipfile, hashlib
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 WORK = os.path.join(ROOT, "tools", "work")
-SEA2 = ("END.EXE", "ENDGRP.DAT", "OPEN.EXE", "OPGRAPH.LZW", "1.PAT", "2.PAT", "FMDRV.COM", "KOUKAI2.COM", "D2.MML",
+SEA2 = ("END.EXE", "ENDGRP.DAT", "END_PUT.DAT") + tuple(f"EVENT{i}.DAT" for i in range(7)) + ( "OPEN.EXE", "OPGRAPH.LZW", "1.PAT", "2.PAT", "FMDRV.COM", "KOUKAI2.COM", "D2.MML",
         "MAIN.EXE", "DATA1.LZW", "KAO.LZW", "GRAPH.DAT", "GRAPH2.DAT", "MESSAGE.DAT", "MENU.DAT", "KOUKAI2.DAT", "SNR0.DAT", "SNR1.DAT")
 KEEP_WORK = ("rom8x8.bin",)
 
