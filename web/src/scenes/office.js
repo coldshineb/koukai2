@@ -1,8 +1,9 @@
 // office.js — 事務所 (MAIN.EXE 1fd9:d40f = 線性 2d19f, 處理函式表 DS:a612[6]); 見 RE_NOTES 25
 // MENU #1 (工作介紹/各國情報), 子功能 DS:b48a = 2ce01 / 2d0b1
-// 共用劇本 SNR0 的工作狀態 (存檔內): [0d5e] 章 (≠0 = 正在執行工作), [0d5f] 節, [0d62] 旗標, [0d68 + 2i] 三件工作的種類 (位元組), [0d6e + 2i] 三件工作的參數字,
-//   [0d74] 目前工作的種類字, [0d78] 選中工作的參數, [0d88] 目標港 (字), [0d8a] 目標人物 (字), [0d8c] 目標道具, [0d96] 亂數範圍
+// 共用劇本 SNR0 的工作狀態: globals.commonChap / commonSec / WorkDS.*
 import { Scenario, ENV_COMMON } from "../game/scenario.js";
+import { GameConst, WorkDS, TreatyFlag } from "../model/flags.ts";
+
 const ofHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const ofS16 = v => (v << 16) >> 16;
 
@@ -14,8 +15,8 @@ export class Office {
   }
   get c() { return this.b.c; }
   get st() { return this.b.st; }
-  portName(q) { return this.b.dstr(0x5f54 + (q & 0xff) * 0x16 + 4); }
-  nationRec(n) { return 0x117a + (n & 0xff) * 0x20; }                            // seg0:5bde
+  get m() { return this.b.st.model; }
+  portName(q) { return this.m.port(q & 0xff).nameBytes; }
 
   // ================= 入口 2d19f =================
   async run() {
@@ -38,68 +39,70 @@ export class Office {
   }
   // 2ce01 工作介紹
   async jobsMenu() {
-    const b = this.b, st = this.st;
-    if (st.u8(0x0d5e)) {                                                         // 正在執行工作
-      if (ofS16(st.u16(0x0d74)) < 6) {
-        if (st.u8(0x0d88) === b.port) b.greet(0x3a3); else b.greet(0x152, this.portName(st.u8(0x0d88)));
+    const b = this.b, st = this.st, m = this.m, g = m.globals;
+    if (g.commonChap) {                                                          // 正在執行工作
+      if (ofS16(st.u16(WorkDS.CUR_KIND)) < 6) {
+        const tp = st.u8(WorkDS.TARGET_PORT);
+        if (tp === b.port) b.greet(0x3a3); else b.greet(0x152, this.portName(tp));
         await b.wait(); return;
       }
       return this.jobHint();
     }
-    if ((st.u8(0x0d62) & 3) === 3) {
-      b.greet(0x19a + (st.u8(b.hero + 0x31) & 0x0f)); this.c.message(0x3a4);    // 「某國王好像正在找你」
+    if ((st.u8(WorkDS.FLAGS) & 3) === 3) {
+      b.greet(0x19a + (m.heroPerson().face & 0x0f)); this.c.message(0x3a4);      // 「某國王好像正在找你」
       await b.wait(); return;
     }
     const kind = [], items = [];
-    for (let i = 0; i < 3; i++) { kind[i] = st.u8(0x0d68 + i * 2); items[i] = this.jobs[kind[i]]; }
+    for (let i = 0; i < 3; i++) { kind[i] = st.u8(WorkDS.KINDS + i * 2); items[i] = this.jobs[kind[i]]; }
     let sel;
     do {
       sel = await b.menu(items);
       if (sel === 0xff) break;
-      st.set8(0x0d5f, (kind[sel] + 1) & 0xff);
-      st.set16(0x0d78, st.u16(0x0d6e + sel * 2));
-      if (await this.event(6)) st.set8(0x0d5e, st.u8(0x0d74));
-      st.set8(0x0d5f, 0);
-    } while (!st.u8(0x0d5e));
+      g.commonSec = (kind[sel] + 1) & 0xff;
+      st.set16(WorkDS.CUR_PARAM, st.u16(WorkDS.PARAMS + sel * 2));
+      if (await this.event(6)) g.commonChap = st.u8(WorkDS.CUR_KIND);
+      g.commonSec = 0;
+    } while (!g.commonChap);
   }
   // 2ccb8 執行工作中的提示 (只有工作種類 0x0b 且還沒拿到目標道具時)
   async jobHint() {
-    const b = this.b, st = this.st, { sys } = this.c;
+    const b = this.b, st = this.st, m = this.m, { sys } = this.c;
     let dx = 1;
-    if (st.u16(0x0d74) === 0x0b) {
-      for (let i = 0; i < 0x14; i++) { const v = st.u8(0x2e57 + i), t = st.u8(0x0d8c); if (((v - t) & 0xff) === 0xf6 || v === t) { dx = 0; break; } }
+    if (st.u16(WorkDS.CUR_KIND) === 0x0b) {
+      const t = st.u8(WorkDS.TARGET_ITEM);
+      for (let i = 0; i < GameConst.INV_SLOTS; i++) { const v = m.inventory(i); if (((v - t) & 0xff) === 0xf6 || v === t) { dx = 0; break; } }
     }
-    if (!dx || st.u16(0x0d74) !== 0x0b) { b.greet(0x253); await b.wait(); return; }
-    if (st.u16(0x0d88) === 0xff) st.set16(0x0d88, sys.rng.random(0x2a));
-    const item = b.dstr(0x8248 + st.u8(0x0d8c) * 0x14);
-    if (st.u8(0x0d88) === b.port) {
-      if (st.u16(0x0d8a) === 0xff) {
-        const far = sys.rng.random(st.u16(0x0d96) + 1) !== 0;                    // 0 = 歐洲港 (< 0x2a) 的人物
+    if (!dx || st.u16(WorkDS.CUR_KIND) !== 0x0b) { b.greet(0x253); await b.wait(); return; }
+    if (st.u16(WorkDS.TARGET_PORT) === 0xff) st.set16(WorkDS.TARGET_PORT, sys.rng.random(0x2a));
+    const item = m.item(st.u8(WorkDS.TARGET_ITEM)).nameBytes;
+    if (st.u8(WorkDS.TARGET_PORT) === b.port) {
+      if (st.u16(WorkDS.TARGET_PERSON) === 0xff) {
+        const far = sys.rng.random(st.u16(WorkDS.RAND_RANGE) + 1) !== 0;         // 0 = 歐洲港 (< 0x2a) 的人物
         for (;;) {
-          st.set16(0x0d8a, sys.rng.random(0x29) + 0x4f);
-          const q = st.u8(st.personRecord(st.u8(0x0d8a)) + 0x2d);
+          st.set16(WorkDS.TARGET_PERSON, sys.rng.random(0x29) + 0x4f);
+          const q = m.person(st.u8(WorkDS.TARGET_PERSON)).stayPort;
           if (q === 0xff) continue;
           if (far ? q >= 0x2a : q < 0x2a) break;
         }
       }
-      const P = st.personRecord(st.u8(0x0d8a));
-      b.greet(0x254, item, st.cstr(P), st.cstr(P + 0x0d)); await b.wait();
+      const p = m.person(st.u8(WorkDS.TARGET_PERSON));
+      b.greet(0x254, item, p.givenNameBytes, p.familyNameBytes); await b.wait();
       b.greet(0x255); await b.wait(); return;
     }
-    const q = st.u8(0x0d88), P = 0x5f54 + q * 0x16;
-    b.greet(0x256, item, this.portName(q)); await b.wait();
-    b.greet(0x258, this.portName(q));
-    b.latLong(st.u16(P), st.u16(P + 2));                                        // 253b4
+    const q = st.u8(WorkDS.TARGET_PORT), port = m.port(q);
+    b.greet(0x256, item, port.nameBytes); await b.wait();
+    b.greet(0x258, port.nameBytes);
+    b.latLong(port.x, port.y);                                                   // 253b4
     this.c.message(0x259);
     await b.wait();
   }
   // 2d0b1 各國情報 (100 枚金幣)
   async nationInfo() {
-    const b = this.b, st = this.st;
+    const b = this.b, st = this.st, m = this.m;
     b.greet(0xa2);
     const n = await b.menu(this.nations.slice(0, 6));
     if (n === 0xff) return;
-    const N = this.nationRec(n);
+    const country = m.country(n);
     b.greet(0x56);
     if (!(await this.c.menu.yesNo())) { b.greet(0x57); await b.wait(); return; }
     if (b.money < 100) { b.greet(0xa3); await b.wait(); return; }
@@ -107,20 +110,22 @@ export class Office {
     b.p.panels();                                                                // 8894
     b.table();                                                                   // 0fea:b6bc
     this.nationTable(n);
-    if (st.u8(N + 2) < 7) b.greet(0x58, this.nations[n], this.nations[st.u8(N + 2)]);
+    const rival = st.u8(country.addr + 2);
+    if (rival < 7) b.greet(0x58, this.nations[n], this.nations[rival]);
     else b.greet(0x355, this.nations[n]);
     await b.wait();
-    b.greet(0x59, this.portName(st.u8(N + 4)));
+    b.greet(0x59, this.portName(st.u8(country.addr + 4)));
     await b.wait();
   }
   // 2cf1e 國家表: 收益、主角對該國的貢獻度 (100 − 聲望, 不足 100 時以色 2 顯示)、對其他 5 國的友好關係 (30 − 值) 與同盟/封鎖
   nationTable(n) {
-    const st = this.st, { con, printf } = this.c, F = this.F, N = this.nationRec(n), H = this.b.heroData;
+    const m = this.m, { con, printf } = this.c, F = this.F, country = m.country(n), hd = m.heroInfo();
     con.puts(F.nColor);
     con.setCursor(0x15, 0x90);
-    printf(F.income, st.u16(N));
-    if (st.u8(H + 6 + n) < 100) con.puts(F.minus);
-    printf(F.num4, Math.abs(ofS16(100 - st.u8(H + 6 + n))));
+    printf(F.income, country.power);
+    const standing = hd.getCountryStanding(n);
+    if (standing < 100) con.puts(F.minus);
+    printf(F.num4, Math.abs(ofS16(100 - standing)));
     con.setCursor(0x15, 0xa0); con.puts(F.friendHdr);
     con.setCursor(0x28, 0xb0); con.puts(F.allyHdr);
     let row = 0;
@@ -129,10 +134,12 @@ export class Office {
       const y = (row + 12) << 4;
       con.setCursor(0x15, y);
       printf(F.nation14, this.nations[i]);
-      if (st.u8(N + 0x0b + i) < 0x1e) con.puts(F.minus2);
-      printf(F.num4b, Math.abs(ofS16(0x1e - st.u8(N + 0x0b + i))));
-      if (st.u8(N + 0x12 + i) & 0x20) { con.setCursor(0x29, y); con.puts(F.ally); }
-      if (st.u8(N + 0x12 + i) & 0x10) { con.setCursor(0x2e, y); con.puts(F.block); }
+      const rel = country.getRelations(i);
+      if (rel < 0x1e) con.puts(F.minus2);
+      printf(F.num4b, Math.abs(ofS16(0x1e - rel)));
+      const treaty = country.getTreaties(i);
+      if (treaty & TreatyFlag.ALLY) { con.setCursor(0x29, y); con.puts(F.ally); }
+      if (treaty & TreatyFlag.BLOCKADE) { con.setCursor(0x2e, y); con.puts(F.block); }
       row++;
     }
   }

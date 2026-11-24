@@ -3,10 +3,53 @@
 /** 遊戲規則常用常數 */
 export const GameConst = {
   MAX_CASH: 600_000_000,
+  MAX_FAME: 50_000,
+  MAX_INVEST: 50_000,
   INV_SLOTS: 20,
   PARTY_SLOTS: 30,
+  FLEET_SHIPS: 10,
+  CARGO_SLOTS: 5,
   EMPTY_SLOT: 0xff,
   VENICE_PORT_ID: 13,
+  TRADE_LOG_COUNT: 48,
+} as const;
+
+/** 共用劇本 (工作) 與世界探索 DS 位址常數 */
+export const WorkDS = {
+  FLAGS: 0x0d62,        // 工作狀態旗標 (bit1/2 國王召見/任務中)
+  KINDS: 0x0d68,        // 3 件可選工作的種類 (u16 × 3)
+  PARAMS: 0x0d6e,       // 3 件可選工作的參數 (u16 × 3)
+  CUR_KIND: 0x0d74,     // 目前執行的工作種類 (u16)
+  CUR_PARAM: 0x0d78,    // 目前執行的工作參數 (u16)
+  TARGET_PORT: 0x0d88,  // 工作目標港 (u16)
+  TARGET_PERSON: 0x0d8a,// 工作目標人物 (u16)
+  TARGET_ITEM: 0x0d8c,  // 工作目標道具 (u8)
+  RAND_RANGE: 0x0d96,   // 亂數範圍 (u16)
+  ROYAL_CHAP: 0x0da4,   // 國王召見對應的共用劇本章節 (u8)
+  EXPLORE_MAP: 0x0de8,  // 世界地圖探索位元表 (45 × 12 bytes)
+  EXPLORE_TOTAL: 0x100e,// 已探索總格數 (u16, ≥ 3300 完成世界地圖)
+  EXPLORE_UNREP: 0x1010,// 未報告探索格數 (u16)
+} as const;
+
+/** 人物技能位元 (persons.skills, +0x30) */
+export const SkillFlag = {
+  NEGOTIATE: 0x01,      // 交涉
+  ACCOUNTING: 0x02,     // 會計
+  GUNNERY: 0x04,        // 砲術
+  CARTOGRAPHY: 0x08,    // 地圖製作
+  SURVEY: 0x10,         // 測量
+} as const;
+
+/** 住宅/貴族旗標 (nobles.flags, +0x14) */
+export const NobleFlag = {
+  REWARD_MASK: 0x03,    // 低 2 位: 酬金等級
+  CONTRACTED: 0x10,     // bit4: 已簽合約
+} as const;
+
+/** 國家條約旗標 (countries.treaties[i], +0x12+i) */
+export const TreatyFlag = {
+  BLOCKADE: 0x10,       // bit4: 封鎖
+  ALLY: 0x20,           // bit5: 同盟
 } as const;
 
 /** DS:0x0ca4 環境設定與全域旗標 */
