@@ -12,6 +12,7 @@ import { Title } from "../game/title.js";
 import { PortMove } from "./portmove.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
+import { drawWideFleetView } from "../canvas_ui/wide_fleet.ts";
 
 const cmHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const cmStrlen = s => { let n = 0; while (n < s.length && s[n]) n++; return n; };
@@ -218,8 +219,58 @@ export class Commands {
     con.setCursor(0x1d, 0x140); message(0x39a, st.u8(slow + 4), sumSail);
     con.setCursor(0x1d, 0x158); message(0x39b, st.u8(slow + 5), sumGuns);
     con.setCursor(0x1d, 0x170); message(0x39c, minDur, sumX);
+
+    // 16:9 原生現代 Canvas 自艦隊情報畫面 (100% 沿用原版文字與船隻/提督資料)
+    if (this.c.codec && this.c.art) {
+      const capMsg = (id, ...args) => {
+        const saved = con.putc, raw = []; let esc = 0;
+        con.putc = ch => {
+          ch &= 0xff;
+          if (esc) { esc = (esc === 1 && ch === 0x3d) ? 2 : (esc === 2 ? 3 : 0); return; }
+          if (ch === 0x1b) { esc = 1; return; }
+          if (ch >= 0x20) raw.push(ch);
+        };
+        try { message(id, ...args); } finally { con.putc = saved; }
+        return this.c.codec.decode(Uint8Array.from(raw)).replace(/\{[0-9A-F]{2}\}/g, "").trim();
+      };
+      const ships = [];
+      for (let i = 0; i < 10; i++) {
+        const S = F + OFF.FLEET.SHIPS + i * 9;
+        if ((st.u8(S + OFF.DOCK_SLOT.FLAGS) & 0x30) !== 0x10) continue;
+        const shipAddr = DS.TBL_SHIP + st.u8(S + OFF.DOCK_SLOT.SHIP) * 0x16;
+        const typeId = st.u8(shipAddr + 0x0f);
+        const nameBytes = st.cstr(shipAddr);
+        const name = this.c.codec.decode(nameBytes).replace(/\{[0-9A-F]{2}\}/g, "").trim();
+        ships.push({
+          name,
+          typeId,
+          dur: st.u8(S + OFF.DOCK_SLOT.DURABILITY),
+          maxDur: st.u8(S + OFF.DOCK_SLOT.MAX_DURABILITY),
+          crew: st.u16(S),
+          guns: st.u8(S + OFF.DOCK_SLOT.GUNS),
+        });
+      }
+      await this.c.art.preloadUrls([
+        ...ships.map(s => this.c.art.shipUrl(s.typeId)),
+        this.c.art.portraitUrl(st.u8(A + 0x1a)),
+      ]);
+      const data = {
+        ships,
+        admiralFace: st.u8(A + 0x1a),
+        lineAdmiral: capMsg(0x397, st.cstr(A)),
+        lineNav: capMsg(0x398, st.u8(A + OFF.PERSON.NAV_LEVEL)),
+        lineBat: capMsg(0x399, st.u8(A + OFF.PERSON.BATTLE_LEVEL)),
+        lineTurnCrew: capMsg(0x39a, st.u8(slow + 4), sumSail),
+        linePropGuns: capMsg(0x39b, st.u8(slow + 5), sumGuns),
+        lineDurPower: capMsg(0x39c, minDur, sumX),
+      };
+      scr.wideRenderer = ctx => drawWideFleetView(ctx, this.c.art, data);
+    }
+
     palette.setTarget(palette.table("ships")); await palette.fadeToTarget();
-    await this.c.menu.waitPrompt();
+    await this.c.menu.waitRelease();
+    await this.c.menu.waitPress();
+    await this.c.menu.waitRelease();
   }
   // 1d607 艦隊的船 (清單 0x80), FF = 取消或沒有船
   async pickShip() {

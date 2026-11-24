@@ -17,6 +17,7 @@ import { loadDuelAssets } from "./duel.js";
 import { PortMove } from "./portmove.js";
 import { GameConst, OptionFlag, TreatyFlag } from "../model/flags.ts";
 import { renderWidePort, hitWideCommandButton } from "../canvas_ui/wide_world.ts";
+import { renderWideBuilding } from "../canvas_ui/wide_building.ts";
 
 const pHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const P_MAP_W = 96, P_VIEW = 24, P_VIEW_X = 96, P_VIEW_Y = 8;
@@ -264,15 +265,17 @@ export class PortScene {
       s.glyphMode(k * 16 + 20, r * 64 + 8, 8, 0x20, g.subarray(0x3da0), mode);
     }
   }
-  // 8ebc 進入建築: 淡出, 底圖, 建築圖 (GRAPH.DAT #k+6), 淡入
+  // 8ebc 進入建築: 16:9 現代建築內景畫布 (保留寬螢幕模式使所有建築內選單/清單/確認框全為現代 Canvas UI)
   async interior(k) {
-    const { palette, sys, graph, scr } = this.c;
+    const { palette, sys, scr, art } = this.c;
+    const picId = k === 10 && this.colonyChurch() ? 0x14 : k + 6;
+    const entry = art?.graphEntry?.("GRAPH.DAT", picId);
+    if (entry) await art.loadImage(`${art.baseUrl}/${entry.path}`);
     scr.setAtmosphere?.({ active: false });
-    scr.wideRenderer = null;
     await palette.fadeBlack();
     sys.mouseHide();
-    this.wallpaper(1);
-    graph.draw(k === 10 && this.colonyChurch() ? 0x14 : k + 6, 0x68, 0x10);
+    scr.clear(0);
+    scr.wideRenderer = ctx => renderWideBuilding(ctx, this, picId);
     sys.mouseShow();
     await palette.fadeToTarget();
   }

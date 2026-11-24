@@ -6,6 +6,7 @@
 //   lastMouse=bd9a/bd9c
 // 遊戲內按鍵碼: 0D 確定, 1B / 30('0') 取消, 1C → 1D ← 1E ↑ 1F ↓, 32/34/36/38 = 數字鍵 2/4/6/8
 import { createWideMenuState, drawWideMenu, hitWideMenuItem, hitWideMenuBox } from "../canvas_ui/wide_menu.ts";
+import { createWideYesNoState, drawWideYesNo, hitWideYesNo } from "../canvas_ui/wide_yesno.ts";
 
 const HL_SOLID = 0x0000;      // 外框圖形 [0c86] 偏移 0: 640 bytes 全 FF, 用作高亮反白位圖
 const GREY_PATTERN = 0x0280;  // AA 55 交錯點陣, 用於不可選項目
@@ -423,6 +424,9 @@ export class MenuSystem {
   }
   // 1469c 是/否 確認框 (第 2 層), 回傳 1=是 0=否
   async yesNo() {
+    if (this.scr.wideRenderer) {
+      return this.wideYesNo();
+    }
     this.hdHl = null;
     await this.waitRelease();
     this.disabled = 0;
@@ -442,6 +446,45 @@ export class MenuSystem {
     await this.win.close();
     this.con.bg = saveBg;
     return r < 1 ? 1 : 0;
+  }
+  async wideYesNo() {
+    await this.waitRelease();
+    const state = createWideYesNoState();
+    const drawFn = ctx => drawWideYesNo(ctx, state);
+    this.scr.wideOverlays.push(drawFn);
+    this.scr.dirty = true;
+    let res = 0;
+    try {
+      for (;;) {
+        const vx = this.sys.mouse?.vx ?? -1;
+        const vy = this.sys.mouse?.vy ?? -1;
+        const hov = hitWideYesNo(state, vx, vy);
+        if (hov >= 0 && hov !== state.selected) {
+          state.selected = hov;
+          this.scr.dirty = true;
+        }
+        const ev = this.readEvent();
+        if (ev === 0x1c || ev === 0x1d || ev === 0x34 || ev === 0x36) {
+          state.selected = state.selected === 0 ? 1 : 0;
+          this.scr.dirty = true;
+        } else if (ev === 0x1b || ev === 0x30) {
+          res = 0; break;
+        } else if (ev === 0x0d) {
+          if (this.mouseFlag) {
+            if (hov >= 0) { res = hov === 0 ? 1 : 0; break; }
+          } else {
+            res = state.selected === 0 ? 1 : 0; break;
+          }
+        }
+        await this.sys.poll();
+      }
+    } finally {
+      const idx = this.scr.wideOverlays.indexOf(drawFn);
+      if (idx >= 0) this.scr.wideOverlays.splice(idx, 1);
+      this.scr.dirty = true;
+      await this.waitRelease();
+    }
+    return res;
   }
   // 13a47 第 2 層繪製: GRAPH.DAT 第 0 張圖 (8 色入口 seg0:5a91)
   drawYesNo() {

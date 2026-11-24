@@ -6,6 +6,8 @@
 // 列格式化函式 DS:a1d8[k] (far 指標, AX = 項目值, 回傳已輸出字數)。
 // 沿用選單引擎的狀態: cur=a160 prev=a15a count=a158 mouseFlag=a14e hit=a150 bracket=a162 rects=bdcc
 
+import { createWideListState, drawWideList, hitWideListRow, hitWideListBox } from "../canvas_ui/wide_list.ts";
+
 const lsUmin = (a, b) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);   // seg0:4d7c (無號)
 const lsDiv = (a, b) => Math.trunc(a / b);                                          // idiv
 const lsS16 = v => (v << 16) >> 16;
@@ -36,6 +38,9 @@ export class ListSelect {
 
   // 0fea:5bd0
   async select(al, count) {
+    if (this.c.scr.wideRenderer && this.c.codec) {
+      return this.wideSelect(al, count);
+    }
     const { sys, win } = this.c, m = this.m;
     this.total = count; m.cur = 0;                                     // [bcd2], [a160]
     this.k = al & 0x3f;
@@ -48,6 +53,82 @@ export class ListSelect {
     for (let i = 0; i < m.count; i++) { m.rects[i] = { x0, x1: x0 + (this.w << 3), y0: y, y1: y + 0x10 }; y += 0x10; }
     let r = await this.loop();
     if (al & 0x80) { sys.mouseHide(); await win.close(); sys.mouseShow(); }
+    if ((al & 0x40) && r !== -1) r = this.c.persons[r];
+    return r;
+  }
+  captureRowText(val) {
+    const con = this.c.con;
+    const savedPutc = con.putc;
+    const raw = [];
+    let esc = 0;
+    con.putc = ch => {
+      ch &= 0xff;
+      if (esc) { esc = (esc === 1 && ch === 0x3d) ? 2 : (esc === 2 ? 3 : 0); return; }
+      if (ch === 0x1b) { esc = 1; return; }
+      if (ch >= 0x20 || ch === 0x0a) raw.push(ch);
+    };
+    try { this.format(val); } finally { con.putc = savedPutc; }
+    return this.c.codec.decode(Uint8Array.from(raw)).replace(/\{[0-9A-F]{2}\}/g, "").trim();
+  }
+  async wideSelect(al, count) {
+    const { sys, scr, codec } = this.c, m = this.m;
+    this.total = count;
+    this.k = al & 0x3f;
+    const titleBytes = (this.titles ??= this.c.menuItems(0x2f))[this.k] ?? Uint8Array.of(0);
+    let end = titleBytes.indexOf(0); if (end < 0) end = titleBytes.length;
+    const title = codec.decode(titleBytes.subarray(0, end)).replace(/\{[0-9A-F]{2}\}/g, "").trim();
+    const rows = [];
+    for (let i = 0; i < count; i++) rows.push(this.captureRowText(this.c.persons[i]));
+
+    await m.waitRelease();
+    const state = createWideListState(title, rows);
+    const drawFn = ctx => drawWideList(ctx, state);
+    scr.wideOverlays.push(drawFn);
+    scr.dirty = true;
+
+    const maxScroll = Math.max(0, rows.length - state.visibleRows);
+    const clampSel = idx => {
+      if (!rows.length) return;
+      state.selected = Math.max(0, Math.min(rows.length - 1, idx));
+      if (state.selected < state.scroll) state.scroll = state.selected;
+      else if (state.selected >= state.scroll + state.visibleRows) state.scroll = state.selected - state.visibleRows + 1;
+      scr.dirty = true;
+    };
+    const onWheel = e => {
+      if (maxScroll <= 0) return;
+      e.preventDefault();
+      state.scroll = Math.max(0, Math.min(maxScroll, state.scroll + (e.deltaY > 0 ? 1 : -1)));
+      scr.dirty = true;
+    };
+    scr.canvas?.addEventListener("wheel", onWheel, { passive: false });
+
+    let r = -1;
+    try {
+      for (;;) {
+        const vx = sys.mouse?.vx ?? -1, vy = sys.mouse?.vy ?? -1;
+        const hov = hitWideListRow(state, vx, vy);
+        if (hov >= 0 && hov !== state.selected) { state.selected = hov; scr.dirty = true; }
+        const ev = m.readEvent();
+        if (ev === 0x1e || ev === 0x38) clampSel(state.selected - 1);
+        else if (ev === 0x1f || ev === 0x32) clampSel(state.selected + 1);
+        else if (ev === 0x1b || ev === 0x30) { r = -1; break; }
+        else if (ev === 0x0d) {
+          if (m.mouseFlag) {
+            if (hov >= 0) { r = hov; break; }
+            if (!hitWideListBox(state, vx, vy)) { r = -1; break; }
+          } else if (rows.length > 0) {
+            r = state.selected; break;
+          }
+        }
+        await sys.poll();
+      }
+    } finally {
+      scr.canvas?.removeEventListener("wheel", onWheel);
+      const idx = scr.wideOverlays.indexOf(drawFn);
+      if (idx >= 0) scr.wideOverlays.splice(idx, 1);
+      scr.dirty = true;
+      await m.waitRelease();
+    }
     if ((al & 0x40) && r !== -1) r = this.c.persons[r];
     return r;
   }
