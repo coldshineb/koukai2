@@ -37,13 +37,22 @@ export class TextConsole {
       case 0x0d: this.x = this.left; break;
     }
   }
-  // seg0:46e0 畫一個字 (code<0x200 為半形)
+  // seg0:46e0 畫一個字 (code<0x200 為半形); 瀏覽器 HD 模式優先用高清矢量字體繪製原版字元
   drawChar(code) {
     const s = this.scr, cw = this.fg, ch = this.bg || this.mode;
-    if (code < 0x200) {
+    const isAscii = code < 0x200;
+    const isKanji = !isAscii && ((code >= 0x8130 && code <= 0xaf68) || (code >= 0xb030 && code <= 0xd8c3));
+    if (!isAscii && !isKanji) return;
+    if (s.hdCtx && this.font.decodeCode) {
+      const uni = this.font.decodeCode(isAscii ? (code & 0xff) : code);
+      if (uni !== null && s.drawTextHd(this.x, this.y, isAscii ? 1 : 2, isAscii ? 16 : 14, uni, cw, this.bg, this.mode)) {
+        return;
+      }
+    }
+    if (isAscii) {
       const rows = this.font.asciiRows(code & 0xff);
       if (this.bg) s.glyph(this.x, this.y, 1, 16, rows, cw, 0, ch); else s.glyph(this.x, this.y, 1, 16, rows, cw, ch, 0);
-    } else if ((code >= 0x8130 && code <= 0xaf68) || (code >= 0xb030 && code <= 0xd8c3)) {
+    } else {
       const rows = this.font.kanjiRows(code);
       if (this.bg) s.glyph(this.x, this.y, 2, 14, rows, cw, 0, ch); else s.glyph(this.x, this.y, 2, 14, rows, cw, ch, 0);
     }
@@ -53,11 +62,17 @@ export class TextConsole {
   //   bg≠0 → seg0:0653 不透明 (高位元組=背景色, 低位元組=前景色)
   drawCharAt(col, y, attr, code) {
     const s = this.scr, hi = (attr >> 8) & 0xff, lo = attr & 0xff;
-    let rows, w, h;
-    if (code >= 0x8130 && code <= 0xaf68) { rows = this.font.kanjiRows(code); w = 2; h = 14; }
-    else if (code >= 0xb030 && code <= 0xd8c3) { rows = this.font.kanjiRows(code); w = 2; h = 14; }
-    else if (code < 0x200) { rows = this.font.asciiRows(code & 0xff); w = 1; h = 16; }
-    else return;
+    const isKanji = (code >= 0x8130 && code <= 0xaf68) || (code >= 0xb030 && code <= 0xd8c3);
+    const isAscii = !isKanji && code < 0x200;
+    if (!isKanji && !isAscii) return;
+    const w = isKanji ? 2 : 1, h = isKanji ? 14 : 16;
+    if (s.hdCtx && !(attr & 0x8000) && this.font.decodeCode) {
+      const uni = this.font.decodeCode(isAscii ? (code & 0xff) : code);
+      const bg = this.bg ? hi : 0;
+      const mode = this.bg ? 0 : (hi & 0x7f);
+      if (uni !== null && s.drawTextHd(col, y, w, h, uni, lo & 15, bg, mode)) return;
+    }
+    const rows = isKanji ? this.font.kanjiRows(code) : this.font.asciiRows(code & 0xff);
     if (this.bg) s.glyph(col, y, w, h, rows, lo, 0, hi);
     else {
       const t = new Uint8Array(w * h); for (let i = 0; i < t.length; i++) t[i] = rows[i];

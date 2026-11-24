@@ -109,6 +109,99 @@ export class Screen {
     this.hdCtx.imageSmoothingEnabled = prevSmooth;
     this.dirty = true;
   }
+  // 依目前調色盤將索引色 (0..15) 轉為 CSS rgb()
+  colorCss(idx) {
+    const c = this.lut[idx & 15] >>> 0;
+    const r = c & 0xff, g = (c >>> 8) & 0xff, b = (c >>> 16) & 0xff;
+    return `rgb(${r},${g},${b})`;
+  }
+  // Phase 6: HD 2D Canvas 矢量文字繪製 (座標與欄寬沿用原版 640x400 格線，100% 原版文本零杜撰)
+  drawTextHd(col, y, wCols, hPx, ch, fgIdx, bgIdx, mode) {
+    if (!this.hdCtx || !this.inBounds(col, y, wCols, hPx)) return false;
+    // XOR / AND / OR 特殊混合模式回退原版點陣以保持游標/反白精確一致
+    if (!bgIdx && (mode === 1 || mode === 2 || mode === 3)) return false;
+    const dx = col * 8, dy = y, dw = wCols * 8, dh = hPx;
+    const ctx = this.hdCtx;
+    if (bgIdx > 0) {
+      ctx.fillStyle = this.colorCss(bgIdx);
+      ctx.fillRect(dx * HD_SCALE, dy * HD_SCALE, dw * HD_SCALE, dh * HD_SCALE);
+      this.setHdRect(dx, dy, dw, dh);
+    } else if (mode === 0) {
+      ctx.fillStyle = this.colorCss(0);
+      ctx.fillRect(dx * HD_SCALE, dy * HD_SCALE, dw * HD_SCALE, dh * HD_SCALE);
+      this.setHdRect(dx, dy, dw, dh);
+    } else {
+      // mode === 4 (透明文字): 先烘焙底層再疊繪清晰矢量字
+      this.bakeFbToHd(dx, dy, dw, dh);
+    }
+    if (ch && ch !== " ") {
+      const isWide = wCols >= 2;
+      const fontSize = isWide ? Math.round(13.5 * HD_SCALE) : Math.round(13 * HD_SCALE);
+      ctx.font = isWide
+        ? `600 ${fontSize}px "Noto Serif TC", "Songti SC", "PMingLiU", "Microsoft JhengHei", serif`
+        : `600 ${fontSize}px "Consolas", "Noto Serif TC", monospace`;
+      ctx.fillStyle = this.colorCss(fgIdx);
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(ch, (dx + dw / 2) * HD_SCALE, (dy + dh / 2 + 0.5) * HD_SCALE, dw * HD_SCALE);
+    }
+    this.dirty = true;
+    return true;
+  }
+  // Phase 6: HD 2D Canvas 現代大航海羊皮紙/古銅金木框窗體繪製 (取代 ui_frame.bin 像素框)
+  drawWindowHd(col, y, wCols, hPx, style = 0, { shadow = false } = {}) {
+    if (!this.hdCtx || !this.inBounds(col, y, wCols, hPx)) return false;
+    const dx = col * 8, dy = y, dw = wCols * 8, dh = hPx;
+    const S = HD_SCALE;
+    const ctx = this.hdCtx;
+
+    // 柔和陰影 (若啟用，覆蓋右 8px、下 4px，對應 WindowSystem.shadowedSaved 範圍)
+    if (shadow) {
+      this.bakeFbToHd(dx, dy, Math.min(SCREEN_W - dx, dw + 8), Math.min(SCREEN_H - dy, dh + 4));
+      ctx.fillStyle = "rgba(8, 12, 22, 0.42)";
+      ctx.fillRect((dx + 5) * S, (dy + 4) * S, dw * S, dh * S);
+    }
+
+    this.setHdRect(dx, dy, dw, dh);
+    const x0 = dx * S, y0 = dy * S, W = dw * S, H = dh * S;
+    const pad = 7 * S;
+
+    // 外框底色 (深胡桃木 / 古銅金依 style 區分)
+    const outerWood = style === 1 ? "#2b3b52" : "#3a2514";
+    const brassHi = style === 1 ? "#e6c67c" : "#cfa85b";
+    const brassLo = style === 1 ? "#8c6d32" : "#785724";
+
+    ctx.fillStyle = outerWood;
+    ctx.fillRect(x0, y0, W, H);
+
+    // 內部使用目前調色盤色 7 (羊皮紙底色)，確保所有 bg=7 文字與 fillCols(..., 7) 無縫融合
+    ctx.fillStyle = this.colorCss(7);
+    if (W > pad * 2 && H > pad * 2) {
+      ctx.fillRect(x0 + pad, y0 + pad, W - pad * 2, H - pad * 2);
+    }
+
+    // 雙層古銅金細框
+    ctx.strokeStyle = brassHi;
+    ctx.lineWidth = S;
+    ctx.strokeRect(x0 + 1.5 * S, y0 + 1.5 * S, W - 3 * S, H - 3 * S);
+
+    ctx.strokeStyle = brassLo;
+    ctx.lineWidth = S;
+    if (W > pad * 2 && H > pad * 2) {
+      ctx.strokeRect(x0 + pad - 0.5 * S, y0 + pad - 0.5 * S, W - pad * 2 + S, H - pad * 2 + S);
+    }
+
+    // 四角古銅鉚釘裝飾
+    const rivet = 2 * S;
+    ctx.fillStyle = brassHi;
+    ctx.fillRect(x0 + 3 * S, y0 + 3 * S, rivet, rivet);
+    ctx.fillRect(x0 + W - 5 * S, y0 + 3 * S, rivet, rivet);
+    ctx.fillRect(x0 + 3 * S, y0 + H - 5 * S, rivet, rivet);
+    ctx.fillRect(x0 + W - 5 * S, y0 + H - 5 * S, rivet, rivet);
+
+    this.dirty = true;
+    return true;
+  }
   // 保存與還原矩形區域 (同時保存 fb、hdMask 與 hdCanvas 真彩像素，供 WindowSystem 使用)
   saveRegion(x, y, w, h) {
     const x0 = Math.max(0, x | 0), y0 = Math.max(0, y | 0);

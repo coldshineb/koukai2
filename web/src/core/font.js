@@ -63,9 +63,14 @@ export class Font {
       let v = 0; for (let x = 0; x < 8; x++) v = (v << 1) | r.data[y * r.w + ch * 8 + x];
       this.rom[ch * 8 + y] = v;
     }
-    this.cm = cm; this.u2c = new Map();
-    for (const [code, , , u] of cm.table) this.u2c.set(u, code);
+    this.cm = cm; this.u2c = new Map(); this.c2u = new Map();
+    for (const [code, , , u] of cm.table) { this.u2c.set(u, code); this.c2u.set(code, u); }
     return this;
+  }
+  // 原版字碼 -> UTF-8 字元 (供 HD Canvas 矢量文字渲染使用，100% 原版文本)
+  decodeCode(code) {
+    if (code < 0x80) return code >= 0x20 ? String.fromCharCode(code) : "";
+    return this.c2u?.get(code) ?? null;
   }
   // 全形字點陣 (14 行 x 2 bytes)
   kanjiRows(code) {

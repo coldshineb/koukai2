@@ -57,8 +57,16 @@ export class MenuSystem {
       R[i] = { x0, x1: x0 + ((w + 2) << 3), y0: lh * i + di, y1: lh * i + di + 0x10 };
     }
   }
-  // 6a67 以 AA55 點陣覆蓋 n 欄 (透明模式)
+  // 6a67 以 AA55 點陣覆蓋 n 欄 (透明模式); HD 模式下繪製柔和半透明遮罩呈現停用項
   greyOut(col, y, n, color) {
+    if (this.scr.hdCtx) {
+      const S = 2, ctx = this.scr.hdCtx;
+      this.scr.bakeFbToHd(col * 8, y, n * 8, 16);
+      ctx.fillStyle = "rgba(235, 224, 198, 0.62)";
+      ctx.fillRect(col * 8 * S, y * S, n * 8 * S, 16 * S);
+      this.scr.dirty = true;
+      return;
+    }
     for (let k = 0; k < n; k++) this.scr.glyph(col + k, y, 1, 16, this.gfx.subarray(GREY_PATTERN), color, 4, 0);
   }
   // 13278 高亮 (ax=0: 畫; ax≠0: 以視窗堆疊還原)
@@ -67,13 +75,39 @@ export class MenuSystem {
     this.sys.mouseHide();
     if (ax === 0) {
       if (this.bracket === 0) {
-        const mode = 0x107 | ((this.flag8a25 & 0xf0) << 8);
-        this.scr.glyphMode(tdiv8(r.x0), r.y0, tdiv8(r.x1 - r.x0), r.y1 - r.y0, this.gfx.subarray(HL_SOLID), mode);
+        if (this.scr.hdCtx) {
+          const w = r.x1 - r.x0, h = r.y1 - r.y0;
+          if (this.hdHl && this.hdHl.x === r.x0 && this.hdHl.y === r.y0 && this.hdHl.w === w && this.hdHl.h === h) {
+            this.scr.restoreRegion(this.hdHl.snap, 0, r.y0, h);
+            this.hdHl = null;
+          } else {
+            if (this.hdHl) {
+              this.scr.restoreRegion(this.hdHl.snap, 0, this.hdHl.y, this.hdHl.h);
+              this.hdHl = null;
+            }
+            const snap = this.scr.saveRegion(r.x0, r.y0, w, h);
+            this.hdHl = { x: r.x0, y: r.y0, w, h, snap };
+            const S = 2, ctx = this.scr.hdCtx;
+            this.scr.bakeFbToHd(r.x0, r.y0, w, h);
+            ctx.fillStyle = "rgba(188, 136, 40, 0.34)";
+            ctx.fillRect(r.x0 * S, r.y0 * S, w * S, h * S);
+            ctx.strokeStyle = "rgba(128, 84, 16, 0.8)";
+            ctx.lineWidth = S;
+            ctx.strokeRect(r.x0 * S + 1, r.y0 * S + 1, w * S - 2, h * S - 2);
+            this.scr.dirty = true;
+          }
+        } else {
+          const mode = 0x107 | ((this.flag8a25 & 0xf0) << 8);
+          this.scr.glyphMode(tdiv8(r.x0), r.y0, tdiv8(r.x1 - r.x0), r.y1 - r.y0, this.gfx.subarray(HL_SOLID), mode);
+        }
       } else {
         this.win.save(tdiv8(r.x0) - 1, r.y0 - 6, tdiv8(r.x1 - r.x0 + 1) + 2, r.y1 - r.y0 + 0x11);
         for (let k = 0; k < 4; k++) this.bracketBox(r.x0 - k - 2, r.y0 - k - 2, r.x1 + k + 2, r.y1 + k + 2, 4);
       }
-    } else this.win.closeNow();
+    } else {
+      if (this.hdHl) this.hdHl = null;
+      this.win.closeNow();
+    }
     this.sys.mouseShow();
   }
   // 1fd9:1f9d 四邊直線 (1fd9:1b63 Bresenham, 逐點 seg0:0ad1)
@@ -245,6 +279,7 @@ export class MenuSystem {
   // ---------------- 各種選單入口 ----------------
   // 14364 帶陰影視窗的直式選單 (關閉時還原背景)
   async listMenu(x, y, table, cancelable) {
+    this.hdHl = null;
     await this.waitRelease();
     this.count = table.length; this.lineH = 0x10; this.cur = 0; this.level = 0; this.cancelable = cancelable;
     const w = this.maxWidth(table);
@@ -259,6 +294,7 @@ export class MenuSystem {
   }
   // 14411 同上但不保存背景、不關閉
   async listMenuKeep(x, y, table, cancelable) {
+    this.hdHl = null;
     await this.waitRelease();
     this.count = table.length; this.lineH = 0x10; this.cur = 0; this.level = 0; this.cancelable = cancelable;
     const w = this.maxWidth(table);
@@ -283,6 +319,7 @@ export class MenuSystem {
   }
   // 14524 自訂版面選單 (呼叫端已設好 rects); flags: bit0 可取消, bit1 保留游標, bit7 框選高亮
   async customMenu(count, C, flags) {
+    this.hdHl = null;
     await this.waitRelease();
     this.count = count & 0xff;
     if (!(flags & 2)) this.cur = 0;
@@ -324,6 +361,7 @@ export class MenuSystem {
   }
   // 1469c 是/否 確認框 (第 2 層), 回傳 1=是 0=否
   async yesNo() {
+    this.hdHl = null;
     await this.waitRelease();
     this.disabled = 0;
     const saveBg = this.con.bg; this.con.bg = 7;

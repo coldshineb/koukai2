@@ -80,31 +80,43 @@ export class WindowSystem {
     s.dirty = true;
   }
   // seg0:7358 畫視窗 (無動畫); 之後文字邊界 = x+1..x+w-2, 游標 (x+1, y+8), 文字色 黑/底 7
-  frame(x, y, w, h, style = 0) {
+  frame(x, y, w, h, style = 0, { shadow = false } = {}) {
     this.sys?.mouseHide();
-    const s = this.scr, e = FRAME_EDGES + style * 0x80, g = this.gfx;
-    this.put(x, y, FRAME_TL);
-    s.tile(x + 1, y, w - 2, 8, g, e);
-    this.put(x + w - 1, y, FRAME_TR);
-    s.tile(x, y + 8, 1, h - 16, g, e + 0x20);
-    s.fillCols(x + 1, y + 8, w - 2, h - 16, WINDOW_FILL);
-    s.tile(x + w - 1, y + 8, 1, h - 16, g, e + 0x40);
-    this.put(x, y + h - 8, FRAME_BL);
-    s.tile(x + 1, y + h - 8, w - 2, 8, g, e + 0x60);
-    this.put(x + w - 1, y + h - 8, FRAME_BR);
+    const s = this.scr;
+    if (!s.drawWindowHd?.(x, y, w, h, style, { shadow })) {
+      const e = FRAME_EDGES + style * 0x80, g = this.gfx;
+      this.put(x, y, FRAME_TL);
+      s.tile(x + 1, y, w - 2, 8, g, e);
+      this.put(x + w - 1, y, FRAME_TR);
+      s.tile(x, y + 8, 1, h - 16, g, e + 0x20);
+      s.fillCols(x + 1, y + 8, w - 2, h - 16, WINDOW_FILL);
+      s.tile(x + w - 1, y + 8, 1, h - 16, g, e + 0x40);
+      this.put(x, y + h - 8, FRAME_BL);
+      s.tile(x + 1, y + h - 8, w - 2, 8, g, e + 0x60);
+      this.put(x + w - 1, y + h - 8, FRAME_BR);
+    }
     const c = this.con;
     c.left = x + 1; c.right = x + w - 2; c.setCursor(x + 1, y + 8);
     c.puts(Uint8Array.of(0x1b, 0x43, 0x30, 0x1b, 0x42, 0x37, 0));       // DS:8b3b  ESC C0 ESC B7
     this.sys?.mouseShow();
   }
-  // seg0:74f7 開視窗: 若「動畫效果」開啟, 由中央向左右展開, 每步 wait(1), 展開完不再重畫 (跳到 seg0:7752);
-  //   否則直接畫 (seg0:773c)。兩者最後文字區皆為 x+2..x+w-3, 游標 (x+2, y+16)
+  // seg0:74f7 開視窗: 若「動畫效果」開啟, 由中央向左右展開, 每步 wait(1)
   async open(x, y, w, h, style = 0) {
     this.save(x, y, w, h);
     this.con.puts(Uint8Array.of(0x1b, 0x43, 0x30, 0x1b, 0x42, 0x37, 0)); // DS:8b42
     if (!this.options.animate) { this.padded(x, y, w, h, style); return; }
-    {
-      const s = this.scr, g = this.gfx, e = FRAME_EDGES + style * 0x80;
+    const s = this.scr;
+    if (s.hdCtx) {
+      const steps = Math.min(6, Math.max(2, Math.trunc(w / 4)));
+      const midX = x + Math.trunc(w / 2);
+      for (let i = 1; i <= steps; i++) {
+        const curW = i === steps ? w : Math.max(4, Math.round((w * i) / steps));
+        const curX = i === steps ? x : Math.max(x, midX - Math.trunc(curW / 2));
+        s.drawWindowHd(curX, y, curW, h, style);
+        await this.wait(1);
+      }
+    } else {
+      const g = this.gfx, e = FRAME_EDGES + style * 0x80;
       const half = Math.trunc((w - 1) / 2);
       let L = x + half - 1, R = x + w - half;
       for (let i = 0; half > i; i++, L--, R++) {
@@ -132,6 +144,11 @@ export class WindowSystem {
   }
   // seg0:7779 帶陰影視窗
   shadowed(x, y, w, h, style = 0) {
+    if (this.scr.hdCtx) {
+      this.frame(x, y, w, h, style, { shadow: true });
+      const c = this.con; c.right = x + w - 3; c.left = x + 2; c.setCursor(x + 2, y + 16);
+      return;
+    }
     this.frame(x, y, w, h, style);
     const c = this.con; c.right = x + w - 3; c.left = x + 2; c.setCursor(x + 2, y + 16);
     let sy = y;
