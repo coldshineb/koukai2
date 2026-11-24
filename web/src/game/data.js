@@ -85,7 +85,11 @@ export function decodeState(b, schema, codec) {
   const full = new Uint8Array(size); full.set(b.subarray(0, size));
   const sl = (ds, n) => full.subarray(ds - B, ds - B + n);
   const out = { format: "uw2-state-1", sourceLength: b.length, globals: {}, tables: {}, gaps: {} };
-  for (const g of schema.globals) out.globals[g.name] = sl(g.ds, 1)[0];
+  for (const g of schema.globals) {
+    if (g.type === "u32") { const r = sl(g.ds, 4); out.globals[g.name] = (r[0] | (r[1] << 8) | (r[2] << 16) | (r[3] << 24)) >>> 0; }
+    else if (g.type === "u16") { const r = sl(g.ds, 2); out.globals[g.name] = r[0] | (r[1] << 8); }
+    else out.globals[g.name] = sl(g.ds, 1)[0];
+  }
   let p = B;
   for (const t of schema.tables) {
     if (t.ds > p) out.gaps[p.toString(16).padStart(4, "0")] = hex(sl(p, t.ds - p));
@@ -102,7 +106,12 @@ export function encodeState(d, schema, codec) {
   for (const [k, v] of Object.entries(d.gaps)) put(parseInt(k, 16), unhex(v));
   for (const t of schema.tables) d.tables[t.name].forEach((r, i) => put(t.ds + i * t.stride, encodeRecord(r, t.fields, t.stride, codec)));
   put(schema.tail.ds, unhex(d.tail));
-  for (const g of schema.globals) buf[g.ds - B] = d.globals[g.name];
+  for (const g of schema.globals) {
+    const v = d.globals[g.name];
+    if (g.type === "u32") put(g.ds, Uint8Array.of(v & 255, (v >> 8) & 255, (v >> 16) & 255, (v >>> 24) & 255));
+    else if (g.type === "u16") put(g.ds, Uint8Array.of(v & 255, (v >> 8) & 255));
+    else buf[g.ds - B] = v & 255;
+  }
   return buf.slice(0, d.sourceLength ?? buf.length);
 }
 // 表記錄的原版 DS 位址 (與 MAIN.EXE 存取函式相同的計算)

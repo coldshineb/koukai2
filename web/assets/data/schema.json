@@ -7,49 +7,181 @@
    "name": "options",
    "ds": 3236,
    "type": "u8",
-   "evidence": "環境設定位元 (1 動畫效果, 4 背景音樂, …); 0FEA:16c5e 讀檔修正"
+   "evidence": "環境設定位元 (bit0動畫, bit1結局, bit2BGM, bit3效果音, bit6劇本)"
+  },
+  {
+   "name": "seaSpeed",
+   "ds": 3238,
+   "type": "u8",
+   "evidence": "海上速度延遲 0..10 (0最快, 10最慢)"
+  },
+  {
+   "name": "mouseSens",
+   "ds": 3240,
+   "type": "u8",
+   "evidence": "滑鼠靈敏度 0..4"
+  },
+  {
+   "name": "seaScroll",
+   "ds": 3241,
+   "type": "u8",
+   "evidence": "海上移動值 0..10"
   },
   {
    "name": "year",
    "ds": 3242,
    "type": "u8",
-   "evidence": "0FEA:1681a 複製到 [0532]"
+   "evidence": "年 (相對 1500; 0FEA:1681a 複製到 [0532])"
   },
   {
    "name": "month",
    "ds": 3243,
    "type": "u8",
-   "evidence": "→ [0533], main 以它為月迴圈起點"
+   "evidence": "月 0..11"
   },
   {
    "name": "day",
    "ds": 3244,
    "type": "u8",
-   "evidence": "→ [0534]"
+   "evidence": "日 0..30"
   },
   {
    "name": "time",
    "ds": 3245,
    "type": "u8",
-   "evidence": "→ [0535]; 調色盤時段 (0FEA:1975a)"
+   "evidence": "時刻 0..71 (調色盤時段)"
   },
   {
    "name": "port",
    "ds": 3246,
    "type": "u8",
-   "evidence": "目前港口, FF = 海上 (0FEA:1721f)"
+   "evidence": "目前港口, FF = 海上"
+  },
+  {
+   "name": "lastPort",
+   "ds": 3247,
+   "type": "u8",
+   "evidence": "上次所在港口"
+  },
+  {
+   "name": "dailyFlags",
+   "ds": 3248,
+   "type": "u8",
+   "evidence": "每日重設旗標 (bit1造船廠被拒, bit6女郎見聞等)"
+  },
+  {
+   "name": "portFlags",
+   "ds": 3249,
+   "type": "u8",
+   "evidence": "港內狀態旗標"
   },
   {
    "name": "weather",
    "ds": 3251,
    "type": "u8",
-   "evidence": "天候 (0FEA:1976e)"
+   "evidence": "天候 (0..5)"
+  },
+  {
+   "name": "portViewX",
+   "ds": 3252,
+   "type": "u16",
+   "evidence": "港內地圖視窗左上 X"
+  },
+  {
+   "name": "portViewY",
+   "ds": 3254,
+   "type": "u16",
+   "evidence": "港內地圖視窗左上 Y"
+  },
+  {
+   "name": "heroWinX",
+   "ds": 3256,
+   "type": "u16",
+   "evidence": "主角在港內視窗的 X"
+  },
+  {
+   "name": "heroWinY",
+   "ds": 3258,
+   "type": "u16",
+   "evidence": "主角在港內視窗的 Y"
+  },
+  {
+   "name": "heroChap",
+   "ds": 3284,
+   "type": "u8",
+   "evidence": "主角專屬劇本當前章"
+  },
+  {
+   "name": "heroSec",
+   "ds": 3285,
+   "type": "u8",
+   "evidence": "主角專屬劇本當前節"
+  },
+  {
+   "name": "commonChap",
+   "ds": 3422,
+   "type": "u8",
+   "evidence": "共用劇本 (工作) 當前章"
+  },
+  {
+   "name": "commonSec",
+   "ds": 3423,
+   "type": "u8",
+   "evidence": "共用劇本 (工作) 當前節"
+  },
+  {
+   "name": "seaFlags",
+   "ds": 4100,
+   "type": "u8",
+   "evidence": "海上狀態旗標低位元組"
+  },
+  {
+   "name": "seaFlags2",
+   "ds": 4101,
+   "type": "u8",
+   "evidence": "海上狀態旗標高位元組 (bit3/4上陸, bit5停船)"
+  },
+  {
+   "name": "seaViewX",
+   "ds": 4102,
+   "type": "u16",
+   "evidence": "世界地圖視窗左上 X"
+  },
+  {
+   "name": "seaViewY",
+   "ds": 4104,
+   "type": "u16",
+   "evidence": "世界地圖視窗左上 Y"
+  },
+  {
+   "name": "money",
+   "ds": 4782,
+   "type": "u32",
+   "evidence": "所持現金 (32 位元, 上限 6 億)"
+  },
+  {
+   "name": "bankQuotient",
+   "ds": 4786,
+   "type": "u16",
+   "evidence": "銀行餘額 / 100 (有號 16 位元, 負為借款)"
+  },
+  {
+   "name": "bankRem",
+   "ds": 4788,
+   "type": "u8",
+   "evidence": "銀行餘額餘數 (0..100)"
   },
   {
    "name": "hero",
    "ds": 4789,
    "type": "u8",
-   "evidence": "主角編號 0..5 (0FEA:162e4)"
+   "evidence": "主角編號 0..5"
+  },
+  {
+   "name": "discoveryId",
+   "ds": 33350,
+   "type": "u8",
+   "evidence": "當前選中/發現物編號 (FF=無)"
   }
  ],
  "tables": [
@@ -62,6 +194,35 @@
    "note": "6 國 + 海盜 (與名稱表 countries 同序)",
    "fields": [
     {
+     "name": "power",
+     "off": 0,
+     "type": "u16",
+     "evidence": "17a80 國力/收益",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "aidMoneyK",
+     "off": 5,
+     "type": "u8",
+     "evidence": "2a713 資金援助 (單位: 千枚)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "aidShipType",
+     "off": 7,
+     "type": "u8",
+     "evidence": "2a79b 援助船型",
+     "confidence": "confirmed",
+     "ref": "shipTypes"
+    },
+    {
+     "name": "aidShipCount",
+     "off": 8,
+     "type": "u8",
+     "evidence": "2a79b 援助船數",
+     "confidence": "confirmed"
+    },
+    {
      "name": "capitalPort",
      "off": 10,
      "type": "u8",
@@ -73,8 +234,16 @@
      "name": "relations",
      "off": 11,
      "type": "u8",
-     "evidence": "對角線為 100 (各國對自己); 推定為國與國的友好度",
-     "confidence": "inferred",
+     "evidence": "對各國友好度 (0..100)",
+     "confidence": "confirmed",
+     "count": 7
+    },
+    {
+     "name": "treaties",
+     "off": 18,
+     "type": "u8",
+     "evidence": "對各國同盟/封鎖狀態",
+     "confidence": "confirmed",
      "count": 7
     }
    ]
@@ -85,15 +254,43 @@
    "stride": 14,
    "count": 6,
    "accessor": "seg0:5be8",
-   "note": "6 筆, 與主角數相同; 用途待查",
+   "note": "6 位主角名聲、聲望與爵位",
    "fields": [
+    {
+     "name": "tradeFame",
+     "off": 0,
+     "type": "u16",
+     "evidence": "商人名聲 (palace.js / market.js)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "pirateFame",
+     "off": 2,
+     "type": "u16",
+     "evidence": "海盜名聲 (battle.js)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "adventureFame",
+     "off": 4,
+     "type": "u16",
+     "evidence": "冒險家名聲 (house.js / land.js)",
+     "confidence": "confirmed"
+    },
     {
      "name": "countryStanding",
      "off": 6,
      "type": "u8",
-     "evidence": "初值全為 100, 7 筆對應 7 國; 推定",
-     "confidence": "inferred",
+     "evidence": "對 7 國聲望/功績",
+     "confidence": "confirmed",
      "count": 7
+    },
+    {
+     "name": "rank",
+     "off": 13,
+     "type": "u8",
+     "evidence": "爵位 0..9 (palace.js)",
+     "confidence": "confirmed"
     }
    ]
   },
@@ -132,8 +329,8 @@
      "name": "stats",
      "off": 28,
      "type": "u8",
-     "evidence": "0FEA:186b4 生成 8 個 60..94 的值; 名稱對應待確認",
-     "confidence": "inferred",
+     "evidence": "8 項能力值 (航海術/運用術/劍術/魅力/運氣/直覺/勇氣/統率等)",
+     "confidence": "confirmed",
      "count": 8
     },
     {
@@ -154,36 +351,71 @@
      "name": "navExp",
      "off": 38,
      "type": "u16",
-     "evidence": "生成時與 +28h 一起清 0; 推定為經驗值",
-     "confidence": "inferred"
+     "evidence": "航海經驗值",
+     "confidence": "confirmed"
     },
     {
      "name": "battleExp",
      "off": 40,
      "type": "u16",
-     "evidence": "同上",
-     "confidence": "inferred"
+     "evidence": "戰鬥經驗值",
+     "confidence": "confirmed"
     },
     {
      "name": "age",
      "off": 42,
      "type": "u8",
-     "evidence": "0FEA:186b1 生成 20..35; 推定為年齡",
-     "confidence": "inferred"
+     "evidence": "年齡 (0FEA:186b1 生成 20..35)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "loyalty",
+     "off": 43,
+     "type": "u8",
+     "evidence": "忠誠度 (wharf 加薪判定 < 30)",
+     "confidence": "confirmed"
     },
     {
      "name": "fleet",
      "off": 44,
      "type": "u8",
-     "evidence": "0FEA:162f1 [rec+2Ch] → 艦隊表 (seg0:5c28); 初值中有 10 人為 FE (推定 = 不屬於任何艦隊)",
+     "evidence": "0FEA:162f1 [rec+2Ch] → 艦隊表 (seg0:5c28); FE/FF = 無艦隊",
      "confidence": "confirmed",
      "ref": "fleets"
+    },
+    {
+     "name": "stayPort",
+     "off": 45,
+     "type": "u8",
+     "evidence": "停留港口 (0xFF = 不在特定港)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "role",
+     "off": 46,
+     "type": "u8",
+     "evidence": "職務/薪水等級 (commands.js / buildings.js)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "flags",
+     "off": 47,
+     "type": "u8",
+     "evidence": "人物旗標 (bit4 隱藏/不可交談, bit5 性格/AI 等)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "skills",
+     "off": 48,
+     "type": "u8",
+     "evidence": "技能位元 (測量/地圖/砲術/交涉/會計)",
+     "confidence": "confirmed"
     },
     {
      "name": "face",
      "off": 49,
      "type": "u8",
-     "evidence": "seg0:7d39 低 4 位元 = 拼合頭像種類; 0FEA:1875b 生成時 |= 20h",
+     "evidence": "國籍與拼合頭像種類 (低4位=國籍/頭像種類, bit4/5 狀態)",
      "confidence": "confirmed"
     }
    ]
@@ -194,7 +426,7 @@
    "stride": 22,
    "count": 20,
    "accessor": "seg0:5c08",
-   "note": "劇情人物 (國王、貴族、總督等) — 名稱首筆為「執事…」「…伯爵」「…公爵」",
+   "note": "劇情人物與住宅主人 (0..9 住宅收藏家/製圖/學校, 10..15 各國國王)",
    "fields": [
     {
      "name": "name",
@@ -203,6 +435,35 @@
      "evidence": "記錄開頭為名稱字串",
      "confidence": "confirmed",
      "size": 17
+    },
+    {
+     "name": "kind",
+     "off": 17,
+     "type": "u8",
+     "evidence": "住宅種類 0=收藏家 1=製圖 2=測量校 3=砲術校 FF=國王",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "portrait",
+     "off": 18,
+     "type": "u16",
+     "evidence": "KAO 具名頭像編號",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "flags",
+     "off": 20,
+     "type": "u8",
+     "evidence": "合約旗標 (bit4 已簽約, 低2位酬金等級)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "port",
+     "off": 21,
+     "type": "u8",
+     "evidence": "所在港口",
+     "confidence": "confirmed",
+     "ref": "ports"
     }
    ]
   },
@@ -212,7 +473,7 @@
    "stride": 19,
    "count": 34,
    "accessor": "seg0:5c18",
-   "note": "酒吧女郎 (34 人; 有 0x12 bytes 尾隨資料在 2E64)",
+   "note": "酒吧女郎 (前 30 人有效; 有 0x12 bytes 尾隨資料在 2E64)",
    "fields": [
     {
      "name": "name",
@@ -221,6 +482,49 @@
      "evidence": "記錄開頭為名稱字串",
      "confidence": "confirmed",
      "size": 13
+    },
+    {
+     "name": "age",
+     "off": 13,
+     "type": "u8",
+     "evidence": "芳齡 (RE_NOTES 17.8)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "port",
+     "off": 14,
+     "type": "u8",
+     "evidence": "所在港口",
+     "confidence": "confirmed",
+     "ref": "ports"
+    },
+    {
+     "name": "affection",
+     "off": 15,
+     "type": "u8",
+     "evidence": "好感度 (0..100)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "quest",
+     "off": 16,
+     "type": "u8",
+     "evidence": "調查委託 (低4位=國家, 高4位=種類, FF=無)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "questDays",
+     "off": 17,
+     "type": "u8",
+     "evidence": "調查剩餘天數",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "flags",
+     "off": 18,
+     "type": "u8",
+     "evidence": "旗標 (bit3 在店, bit4-5 性格, bit6 登場)",
+     "confidence": "confirmed"
     }
    ]
   },
@@ -230,30 +534,209 @@
    "stride": 133,
    "count": 70,
    "accessor": "seg0:5c28",
+   "note": "70 支艦隊 (RE_NOTES 29.4)",
    "fields": [
     {
      "name": "x",
      "off": 0,
      "type": "u16",
-     "evidence": "0FEA:187a7 由港口 +0/+2 複製到艦隊 +0/+2 (出港時位置)",
+     "evidence": "世界座標 X",
      "confidence": "confirmed"
     },
     {
      "name": "y",
      "off": 2,
      "type": "u16",
-     "evidence": "同上",
+     "evidence": "世界座標 Y",
      "confidence": "confirmed"
+    },
+    {
+     "name": "destX",
+     "off": 4,
+     "type": "u16",
+     "evidence": "目的地 X",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "destY",
+     "off": 6,
+     "type": "u16",
+     "evidence": "目的地 Y",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "midX",
+     "off": 8,
+     "type": "u16",
+     "evidence": "中途點 X",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "midY",
+     "off": 10,
+     "type": "u16",
+     "evidence": "中途點 Y",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "routeFlags",
+     "off": 12,
+     "type": "u16",
+     "evidence": "路線旗標 (RE_NOTES 28.4)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "routePts",
+     "off": 16,
+     "type": "u16",
+     "evidence": "自動航行路線地點 (最多 4 點)",
+     "confidence": "confirmed",
+     "count": 4
+    },
+    {
+     "name": "subX",
+     "off": 24,
+     "type": "u8",
+     "evidence": "格內位置 X",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "subY",
+     "off": 25,
+     "type": "u8",
+     "evidence": "格內位置 Y",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "dir",
+     "off": 26,
+     "type": "u8",
+     "evidence": "航向 0..7",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "mission",
+     "off": 27,
+     "type": "u8",
+     "evidence": "任務 0..10",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "target",
+     "off": 28,
+     "type": "u8",
+     "evidence": "任務對象 (港口或人物)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "cargoGood",
+     "off": 33,
+     "type": "u8",
+     "evidence": "商船載運商品",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "cargoAmt",
+     "off": 34,
+     "type": "u16",
+     "evidence": "商船載運數量",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "funds",
+     "off": 36,
+     "type": "u16",
+     "evidence": "艦隊資金",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "homePort",
+     "off": 38,
+     "type": "u8",
+     "evidence": "母港",
+     "confidence": "confirmed",
+     "ref": "ports"
+    },
+    {
+     "name": "stayDays",
+     "off": 39,
+     "type": "u8",
+     "evidence": "港口停留天數",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "strength",
+     "off": 40,
+     "type": "u8",
+     "evidence": "戰力評估 (18299)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "flags",
+     "off": 41,
+     "type": "u8",
+     "evidence": "旗標 (bit0 出航中, bit4 在港, bit5 到達/停住, bit6 劇本)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "admiral",
+     "off": 42,
+     "type": "u8",
+     "evidence": "提督人物編號",
+     "confidence": "confirmed",
+     "ref": "persons"
     },
     {
      "name": "ships",
      "off": 43,
      "type": "struct",
-     "evidence": "seg0:5c58: 編號 <10 時 = [c2d4]+2Bh+9×編號 (所屬艦隊的 10 艘)",
+     "evidence": "seg0:5c58: 艦隊 10 艘船位",
      "confidence": "confirmed",
      "count": 10,
      "size": 9,
      "fields": [
+      {
+       "name": "crew",
+       "off": 0,
+       "type": "u16",
+       "evidence": "水手數 (seg0:5c58 +0)",
+       "confidence": "confirmed"
+      },
+      {
+       "name": "durability",
+       "off": 2,
+       "type": "u8",
+       "evidence": "目前耐久度 (seg0:5c58 +2)",
+       "confidence": "confirmed"
+      },
+      {
+       "name": "maxDurability",
+       "off": 3,
+       "type": "u8",
+       "evidence": "最大耐久度 (seg0:5c58 +3)",
+       "confidence": "confirmed"
+      },
+      {
+       "name": "turn",
+       "off": 4,
+       "type": "u8",
+       "evidence": "轉向力 (seg0:5c58 +4)",
+       "confidence": "confirmed"
+      },
+      {
+       "name": "propulsion",
+       "off": 5,
+       "type": "u8",
+       "evidence": "推進力 (seg0:5c58 +5)",
+       "confidence": "confirmed"
+      },
+      {
+       "name": "guns",
+       "off": 6,
+       "type": "u8",
+       "evidence": "武裝砲數 (seg0:5c58 +6)",
+       "confidence": "confirmed"
+      },
       {
        "name": "ship",
        "off": 7,
@@ -261,6 +744,13 @@
        "evidence": "0FEA:148c1 [slot+7] → 船隻表 (seg0:5c7a)",
        "confidence": "confirmed",
        "ref": "ships"
+      },
+      {
+       "name": "flags",
+       "off": 8,
+       "type": "u8",
+       "evidence": "狀態與砲種 (bit4-5: 10=有船/20=建造或保管; 低3位=砲種)",
+       "confidence": "confirmed"
       }
      ]
     }
@@ -272,8 +762,95 @@
    "stride": 30,
    "count": 40,
    "accessor": "seg0:5c38",
-   "note": "用途待查 (107 處引用)",
-   "fields": []
+   "note": "船員配置 / 補給與載貨表 (0..9 主角艦隊, 10..39 船塢船)",
+   "fields": [
+    {
+     "name": "water",
+     "off": 0,
+     "type": "u16",
+     "evidence": "水 (單位: 1/10 桶)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "food",
+     "off": 2,
+     "type": "u16",
+     "evidence": "糧食 (單位: 1/10 桶)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "material",
+     "off": 4,
+     "type": "u16",
+     "evidence": "資材",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "ammo",
+     "off": 6,
+     "type": "u16",
+     "evidence": "砲彈",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "navRatio",
+     "off": 8,
+     "type": "u8",
+     "evidence": "駕駛水手比例 (%)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "lookRatio",
+     "off": 9,
+     "type": "u8",
+     "evidence": "瞭望水手比例 (%)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "loadTotal",
+     "off": 10,
+     "type": "u16",
+     "evidence": "總載重 (seg0:5db1)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "cargoAmts",
+     "off": 12,
+     "type": "u16",
+     "evidence": "5 格商品數量 (buildings.js cargoUsed)",
+     "confidence": "confirmed",
+     "count": 5
+    },
+    {
+     "name": "cargoGoods",
+     "off": 22,
+     "type": "u8",
+     "evidence": "5 格商品編號 (FF=空)",
+     "confidence": "confirmed",
+     "count": 5
+    },
+    {
+     "name": "captain",
+     "off": 27,
+     "type": "u8",
+     "evidence": "船長人物編號 (或 港|0x80 表示在該港船塢/造船中)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "morale",
+     "off": 28,
+     "type": "u8",
+     "evidence": "士氣 0..100",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "figurehead",
+     "off": 29,
+     "type": "u8",
+     "evidence": "船首像 0..10",
+     "confidence": "confirmed"
+    }
+   ]
   },
   {
    "name": "dockSlots",
@@ -281,15 +858,64 @@
    "stride": 9,
    "count": 30,
    "accessor": "seg0:5c58",
-   "note": "船隻欄位編號 10..39 (seg0:5c58: 0x572A + 9×編號), 與 fleets.ships 同格式; 推定為寄放在港口的船",
+   "note": "船塢船位 10..39 (seg0:5c58: 0x572A + 9×編號), 與 fleets.ships 同格式",
    "fields": [
+    {
+     "name": "crew",
+     "off": 0,
+     "type": "u16",
+     "evidence": "水手數 (seg0:5c58 +0)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "durability",
+     "off": 2,
+     "type": "u8",
+     "evidence": "目前耐久度 (seg0:5c58 +2)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "maxDurability",
+     "off": 3,
+     "type": "u8",
+     "evidence": "最大耐久度 (seg0:5c58 +3)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "turn",
+     "off": 4,
+     "type": "u8",
+     "evidence": "轉向力 (seg0:5c58 +4)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "propulsion",
+     "off": 5,
+     "type": "u8",
+     "evidence": "推進力 (seg0:5c58 +5)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "guns",
+     "off": 6,
+     "type": "u8",
+     "evidence": "武裝砲數 (seg0:5c58 +6)",
+     "confidence": "confirmed"
+    },
     {
      "name": "ship",
      "off": 7,
      "type": "u8",
-     "evidence": "同 fleets.ships",
+     "evidence": "0FEA:148c1 [slot+7] → 船隻表 (seg0:5c7a)",
      "confidence": "confirmed",
      "ref": "ships"
+    },
+    {
+     "name": "flags",
+     "off": 8,
+     "type": "u8",
+     "evidence": "狀態與砲種 (bit4-5: 10=有船/20=建造或保管; 低3位=砲種)",
+     "confidence": "confirmed"
     }
    ]
   },
@@ -299,13 +925,13 @@
    "stride": 22,
    "count": 65,
    "accessor": "seg0:5c7a",
-   "note": "#0..39 個別船隻 (初值名稱為「１」..「40」, 類型 FF = 未使用); #40..64 為 25 種船的範本 (名稱 = 船種名)",
+   "note": "#0..39 個別船隻 (類型 FF = 未使用); #40..64 為 25 種船型範本",
    "fields": [
     {
      "name": "name",
      "off": 0,
      "type": "str",
-     "evidence": "範本記錄的名稱即船種名 (如 #64 為「關船」)",
+     "evidence": "船名 (範本為船種名)",
      "confidence": "confirmed",
      "size": 15
     },
@@ -316,6 +942,34 @@
      "evidence": "0FEA:148d4 [rec+0Fh] → 船種表 (seg0:5c8a); FF = 空欄",
      "confidence": "confirmed",
      "ref": "shipTypes"
+    },
+    {
+     "name": "flags",
+     "off": 16,
+     "type": "u8",
+     "evidence": "船隻旗標 / 材質 (bit4 特殊船型/外觀)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "maxGuns",
+     "off": 17,
+     "type": "u8",
+     "evidence": "最大武裝數",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "maxCrew",
+     "off": 18,
+     "type": "u16",
+     "evidence": "最大水手數",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "maxCargo",
+     "off": 20,
+     "type": "u16",
+     "evidence": "最大載貨量",
+     "confidence": "confirmed"
     }
    ]
   },
@@ -328,11 +982,74 @@
    "note": "25 種船的規格; 船種名見 ships #40..64, 說明見 MESSAGE #168..192",
    "fields": [
     {
+     "name": "shipClass",
+     "off": 0,
+     "type": "u8",
+     "evidence": "船種分類",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "durability",
+     "off": 1,
+     "type": "u8",
+     "evidence": "基準耐久 (初始耐久 = 9×此值/10)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "turn",
+     "off": 2,
+     "type": "u8",
+     "evidence": "基準轉向力",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "propulsion",
+     "off": 3,
+     "type": "u8",
+     "evidence": "基準推進力",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "maxCrewDiv10",
+     "off": 4,
+     "type": "u8",
+     "evidence": "最多人員 / 10",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "minCrew",
+     "off": 5,
+     "type": "u8",
+     "evidence": "必要水手數",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "capacity",
+     "off": 6,
+     "type": "u16",
+     "evidence": "總載重量",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "maxGuns",
+     "off": 8,
+     "type": "u8",
+     "evidence": "最大武器數",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "buildLevel",
+     "off": 9,
+     "type": "u8",
+     "evidence": "造船所需工業等級",
+     "confidence": "confirmed"
+    },
+    {
      "name": "price",
      "off": 10,
      "type": "u16",
-     "evidence": "數值隨船種遞增 (120 .. 32000); 推定為價格",
-     "confidence": "inferred"
+     "evidence": "基準造價",
+     "confidence": "confirmed"
     }
    ]
   },
@@ -342,20 +1059,20 @@
    "stride": 22,
    "count": 130,
    "accessor": "seg0:5c9a",
-   "note": "#0..99 港口 (對應 PORTMAP / CHIP_NO 100 張), #100..129 待查 (推定為補給港)",
+   "note": "#0..99 港口 (對應 PORTMAP / CHIP_NO 100 張), #100..129 補給港",
    "fields": [
     {
      "name": "x",
      "off": 0,
      "type": "u16",
-     "evidence": "0FEA:187a7 出港時複製到艦隊座標",
+     "evidence": "世界座標 X",
      "confidence": "confirmed"
     },
     {
      "name": "y",
      "off": 2,
      "type": "u16",
-     "evidence": "同上",
+     "evidence": "世界座標 Y",
      "confidence": "confirmed"
     },
     {
@@ -370,7 +1087,7 @@
      "name": "region",
      "off": 21,
      "type": "u8",
-     "evidence": "0FEA:28a42 低 3 位元 = 港口 NPC 頭像種類",
+     "evidence": "所屬國與屬性 (低3位=屬國/頭像種類, bit3 同盟/翻倍收益等)",
      "confidence": "confirmed"
     }
    ]
@@ -381,23 +1098,101 @@
    "stride": 37,
    "count": 100,
    "accessor": "seg0:5caa",
-   "note": "100 筆, 與港口數相同; 推定為港口經濟資料",
+   "note": "100 個港口的經濟、物價與商店資料",
    "fields": [
+    {
+     "name": "commerce",
+     "off": 0,
+     "type": "u16",
+     "evidence": "商業價值",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "commerceInvest",
+     "off": 2,
+     "type": "u16",
+     "evidence": "商業投資累計 (上限 50000)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "industry",
+     "off": 4,
+     "type": "u16",
+     "evidence": "工業價值",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "industryInvest",
+     "off": 6,
+     "type": "u16",
+     "evidence": "工業投資累計",
+     "confidence": "confirmed"
+    },
     {
      "name": "influence",
      "off": 8,
      "type": "u8",
-     "evidence": "各港 6 個值中屬國那一國為 100 (里斯本=葡萄牙…); 推定為 6 國支持度",
-     "confidence": "inferred",
+     "evidence": "6 國支持度 (合計 100)",
+     "confidence": "confirmed",
      "count": 6
     },
     {
      "name": "prices",
      "off": 14,
      "type": "u8",
-     "evidence": "10 個 45..55 附近的值, 與 10 種商品類別同數; 推定為各類物價指數",
-     "confidence": "inferred",
+     "evidence": "10 類商品物價指數 (0..100, 顯示為 +50)",
+     "confidence": "confirmed",
      "count": 10
+    },
+    {
+     "name": "specialtyBase",
+     "off": 24,
+     "type": "u16",
+     "evidence": "特產基準價",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "specialtyGood",
+     "off": 26,
+     "type": "u8",
+     "evidence": "特產商品編號 (FF=無)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "specialtyLevel",
+     "off": 27,
+     "type": "u8",
+     "evidence": "特產出現所需商業等級",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "regionGroup",
+     "off": 28,
+     "type": "u8",
+     "evidence": "地區群組 0..7 (王宮勢力狀況/BGM)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "shopItems",
+     "off": 29,
+     "type": "u8",
+     "evidence": "道具店商品 (一般3項+夜市第4項, FF=無)",
+     "confidence": "confirmed",
+     "count": 4
+    },
+    {
+     "name": "priceRegion",
+     "off": 33,
+     "type": "u8",
+     "evidence": "物價地區編號 0..12 (指向 t78f4)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "liquor",
+     "off": 36,
+     "type": "u8",
+     "evidence": "酒館酒類編號 0..13",
+     "confidence": "confirmed"
     }
    ]
   },
@@ -407,8 +1202,41 @@
    "stride": 128,
    "count": 13,
    "accessor": "seg0:5cba",
-   "note": "13 × 64 個 u16, 用途待查",
-   "fields": []
+   "note": "13 個物價地區的商品基準價表 (market.js)",
+   "fields": [
+    {
+     "name": "sellBase",
+     "off": 0,
+     "type": "u16",
+     "evidence": "46 種商品賣價基準",
+     "confidence": "confirmed",
+     "count": 46
+    },
+    {
+     "name": "buyBase",
+     "off": 92,
+     "type": "u16",
+     "evidence": "9 種本區可買商品的買價基準",
+     "confidence": "confirmed",
+     "count": 9
+    },
+    {
+     "name": "buyGoods",
+     "off": 110,
+     "type": "u8",
+     "evidence": "9 種本區可買商品編號",
+     "confidence": "confirmed",
+     "count": 9
+    },
+    {
+     "name": "buyLevels",
+     "off": 119,
+     "type": "u8",
+     "evidence": "9 種商品所需商業等級",
+     "confidence": "confirmed",
+     "count": 9
+    }
+   ]
   },
   {
    "name": "t7f74",
@@ -416,8 +1244,25 @@
    "stride": 8,
    "count": 3,
    "accessor": "seg0:5cc4",
-   "note": "用途待查",
-   "fields": []
+   "note": "造船廠中古船快取表 (最近到過的 3 港; RE_NOTES 20.11)",
+   "fields": [
+    {
+     "name": "shipTypes",
+     "off": 0,
+     "type": "u8",
+     "evidence": "5 格中古船船型 (FF=空)",
+     "confidence": "confirmed",
+     "count": 5
+    },
+    {
+     "name": "port",
+     "off": 5,
+     "type": "u8",
+     "evidence": "所屬港口",
+     "confidence": "confirmed",
+     "ref": "ports"
+    }
+   ]
   },
   {
    "name": "discoveries",
@@ -431,22 +1276,36 @@
      "name": "x",
      "off": 0,
      "type": "u16",
-     "evidence": "座標值域與港口相同; 推定為世界座標",
-     "confidence": "inferred"
+     "evidence": "世界座標 X",
+     "confidence": "confirmed"
     },
     {
      "name": "y",
      "off": 2,
      "type": "u16",
-     "evidence": "同上",
-     "confidence": "inferred"
+     "evidence": "世界座標 Y",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "item",
+     "off": 4,
+     "type": "u8",
+     "evidence": "對應寶物道具編號",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "importance",
+     "off": 5,
+     "type": "u8",
+     "evidence": "重要度 (0..100)",
+     "confidence": "confirmed"
     },
     {
      "name": "flags",
      "off": 6,
      "type": "u8",
-     "evidence": "0FEA:1685e 對 98 筆設 bit7; 推定 bit7 = 已發現",
-     "confidence": "inferred"
+     "evidence": "旗標 (低3位=種類, bit5=已知, bit7=已發現)",
+     "confidence": "confirmed"
     }
    ]
   },
@@ -462,9 +1321,37 @@
      "name": "name",
      "off": 0,
      "type": "str",
-     "evidence": "記錄開頭為道具名 (匕首、短劍…); +0Fh 起為數值 (存檔中有非 0 值)",
+     "evidence": "道具名",
      "confidence": "confirmed",
      "size": 15
+    },
+    {
+     "name": "icon",
+     "off": 15,
+     "type": "u8",
+     "evidence": "KAO 道具小圖偏移 (+0x55)",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "priceDiv100",
+     "off": 16,
+     "type": "u16",
+     "evidence": "價格 / 100",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "power",
+     "off": 18,
+     "type": "u8",
+     "evidence": "攻防數值 / 地圖對應發現物編號",
+     "confidence": "confirmed"
+    },
+    {
+     "name": "kindFlags",
+     "off": 19,
+     "type": "u8",
+     "evidence": "低4位=道具種類, bit4=已裝備",
+     "confidence": "confirmed"
     }
    ]
   }
@@ -473,6 +1360,6 @@
   "name": "buffer0c8e",
   "ds": 35352,
   "size": 768,
-  "note": "讀檔時讀入記憶體緩衝 [0c8e]; 用途待查"
+  "note": "航海日誌 / 交易記錄緩衝 [0c8e] (48 筆 × 16 bytes)"
  }
 }
