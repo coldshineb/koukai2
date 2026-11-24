@@ -1,8 +1,10 @@
 // state.js — 遊戲狀態 (原版 DGROUP 0x0CA4..0x8D18 的鏡像, 0x8074 bytes)
 // 原版把所有可存檔的遊戲狀態放在 DS:0CA4 起的連續區域, 存檔就是把這塊原樣寫進 KOUKAI2.DAT。
 // 這裡以「原版 DS 位址」存取, 方便與逆向筆記逐一對照; 之後會逐步加上具名存取器 (港口/人物/船隻...)。
-export const STATE_BASE = 0x0ca4, STATE_END = 0x8d18, STATE_SIZE = STATE_END - STATE_BASE;   // 0x8074
-export const STATE_LOAD_SIZE = 0x8a18 - 0x0ca4;    // 讀檔時直接覆蓋 DS 的部分 (0x7D74); 其後 0x300 bytes 讀入緩衝 [0c8e]
+import { WorldModel, DS } from "../model/schema_views.ts";
+
+export const STATE_BASE = DS.STATE_BASE, STATE_END = DS.STATE_END, STATE_SIZE = STATE_END - STATE_BASE;   // 0x8074
+export const STATE_LOAD_SIZE = 0x8a18 - STATE_BASE;    // 讀檔時直接覆蓋 DS 的部分 (0x7D74); 其後 0x300 bytes 讀入緩衝 [0c8e]
 
 export class GameState {
   // schema: assets/data/schema.json (可省略; 提供時可用表名/欄位名存取)
@@ -10,7 +12,10 @@ export class GameState {
     this.b = new Uint8Array(STATE_SIZE); if (bytes) this.b.set(bytes.subarray(0, STATE_SIZE));
     this.schema = schema;
     this.T = schema ? Object.fromEntries(schema.tables.map(t => [t.name, t])) : {};
+    this._model = null;
   }
+  /** 強型別具名狀態存取層 (零拷貝代理到底層 Uint8Array) */
+  get model() { return (this._model ??= new WorldModel(this)); }
   // 表記錄位址 (= MAIN.EXE 存取函式的結果)
   rec(table, i) { const t = this.T[table]; if (!t || i < 0 || i >= t.count) throw new Error(`${table}[${i}]`); return t.ds + i * t.stride; }
   // 以欄位名讀寫數值欄位 (u8 / u16, 陣列欄位用 k)
