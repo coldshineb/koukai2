@@ -34,6 +34,7 @@ const LIST = [
   ...M("supply_route", "SUP_MODE", ["ok", "cancel", "dup"]),
   ...M("portmove_route", "PM_MODE", ["market", "tavern", "menu", "closed", "event", "guard", "guard_door", "night_guard", "overlap", "overlap_closed"]),
   { name: "sea_depart_route", files: ["sea_depart_route.js", "port_tests.js"], set: LONG },
+  ...M("storm_route", "STORM_MODE", ["run", "start"], SEA, LONG),                                   // 海上暴風雨 (效果音 0c5a, RE_NOTES 35.6)
   { name: "worldmap_tests (接在出海之後)", files: ["worldmap_tests.js"], plain: true },
   ...M("sea5_route", "SEA5", ["navi", "navi2", "scout", "dest", "deleg", "deleg0", "chart", "mapitem"], SEA, m => (m === "scout" ? { CURSOR_LAG: 4 } : m === "chart" ? { CURSOR_LAG: 10 } : LONG)),   // scout / chart 照原設定不用 FB_HASH (雜湊模式的游標遮罩與完整比對不同, scout 會差 3 張)
   ...M("battle_route", "BATTLE", ["open", "stop", "tail", "gun_sink", "gun_unmanned", "board_unmanned", "cpu_long"], SEA, LONG),
@@ -50,7 +51,7 @@ S.regress = async (o = {}) => {
   for (let i = o.from ?? 0; i < Math.min(o.to ?? LIST.length, LIST.length); i++) {
     const T = LIST[i];
     for (const k of Object.keys(S)) if (!base.has(k) && /^[A-Z][A-Z0-9_]*$/.test(k)) delete S[k];
-    Object.assign(S, T.set || {}); if (!T.plain) S.QUIET = 1;
+    Object.assign(S, T.set || {}); if (!T.plain) { S.QUIET = 1; S.SFX_LOG ??= 1; }      // 路線一律比對效果音呼叫 (RE_NOTES 35.6)
     const lines = [], t0 = Date.now(), c0 = U.CPU.cyc;
     console.log = (...a) => lines.push(a.join(" "));
     let err = null;

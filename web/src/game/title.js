@@ -73,7 +73,8 @@ export class Title {
   async exitGame() {
     const { scr, palette, graph, sys, menu } = this.c;
     this.c.bgm.fadeOut();                                      // 9712(0x14)
-    await palette.fadeBlack(); scr.clear(0);                   // 9888, 99f2, 07f7
+    this.c.sfx?.off();                                         // 9888
+    await palette.fadeBlack(); scr.clear(0);                   // 99f2, 07f7
     palette.ending = 0;                                        // [03ea] = 0
     graph.useFile("GRAPH.DAT");
     graph.draw(0x3c, 0xd8, 0x50);                              // 5b5d
@@ -147,9 +148,11 @@ export class Title {
     this.c.eventFile = `EVENT${st.hero + 1}.DAT`;                         // 1681a 結尾: [0a89] = '1' + 主角 (劇情插圖檔)
     { const r = (st.u8(0x0ca8) + 2) * 2; this.c.sys.mickeyRatio = [r, r]; }
   }
-  // 16c99..16cd9
+  // 16c99..16cd9: 9888 效果音放鍵; 暴風雨中 → 9768(DS:0c5a) + 9804(0x30)
   async afterLoad() {
-    const st = this.c.state;
+    const st = this.c.state, sfx = this.c.sfx;
+    sfx?.off();
+    if ((st.u8(0x0cb3) & 15) === 1) { sfx?.voice(0x0c5a); sfx?.note(0x30); }
     if (!(st.options & 4)) this.c.bgm.fadeOut();                 // 背景音樂關閉時停止
   }
 }

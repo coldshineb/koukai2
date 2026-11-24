@@ -1132,6 +1132,7 @@ export class Commands {
         st.set8(0x0cb3, st.u8(0x0cb3) & 0xf0);
         this.c.palette.selectTimePalette(this.rt.time, st.port === 0xff, st.weather);     // 0fea:98ce = 1976e
         con.puts(this.rt.time >= 0x0c && this.rt.time < 0x3c ? S.stormDay : S.stormNight);
+        this.c.sfx?.off();                                             // 297b4: 9888
       } else con.puts(S.noTrouble2);
       st.set8(0x10a6, this.c.sys.rng.random(6) + 0x0a);
       await this.waitClose();
@@ -1208,13 +1209,15 @@ export class Commands {
       this.bar(0x28, 0x74 + (si << 5), v);
     }
   }
-  // 213c5: 0 表示效果; 1 BGM (有音源驅動 [03e4] 且 [8c1e] ≠ FF 時): 開 → 9670 重播目前曲目, 關 → 9888 + 9712(5) 淡出並等待
+  // 213c5: 0 表示效果; 1 BGM (有音源驅動 [03e4] 且 [8c1e] ≠ FF 時): 開 → (暴風雨中 9768(DS:0c5a) + 9804(0x30)) 9670 重播目前曲目, 關 → 9888 + 9712(5) 淡出並等待
+  //   (效果音跟著背景音樂開關: 關掉音樂也停掉暴風雨聲, 打開音樂時重新開始, 照搬)
   async settingsToggle(r) {
     const st = this.st;
     if ((r >> 1) === 0) { st.options = st.options ^ 1; return; }
     if (this.c.noSoundDriver) return;
     st.options = st.options ^ 4;
-    if (st.options & 4) this.p.portBgm(); else this.c.bgm.fadeOut();
+    if (st.options & 4) { if ((st.u8(0x0cb3) & 15) === 1) { this.c.sfx?.voice(0x0c5a); this.c.sfx?.note(0x30); } this.p.portBgm(); }
+    else { this.c.sfx?.off(); this.c.bgm.fadeOut(); }
   }
   // 21432: si = 項目 − 4; 奇數 +1 (不超過上限), 偶數 −1 (不低於 0); 之後 seg0:5022 以 ([0ca8]+2)×2 設定滑鼠速度
   settingsStep(si) {

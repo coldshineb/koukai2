@@ -8,6 +8,7 @@ import { Font } from "./core/font.js";
 import { Sys, Rng, Timer } from "./core/sys.js";
 import { bindInput } from "./core/input.js";
 import { BGM } from "./core/audio.js";
+import { SfxPort } from "./core/sfx.js";
 import { loadJSON, loadBinary } from "./core/assets.js";
 import { Palette, paletteTables } from "./core/palette.js";
 import { createUI } from "./ui/index.js";
@@ -72,6 +73,8 @@ const ctx = {
   names: await loadJSON(ASSETS + "/data/names.json"),
   font: await new Font().load(ASSETS),
   bgm: await new BGM(ASSETS).init(),
+  // FM 效果音 (RE_NOTES 第 35 節): FMDRV 效果音聲部 + OPL2 合成 (AudioWorklet); ?sfxvol=N 調整音量 (預設 2 = OPL 單聲道峰值約 −12 dBFS)
+  sfx: new SfxPort("./src/core/sfx_worklet.js", { gain: +(new URLSearchParams(location.search).get("sfxvol") ?? 2) }),
   options: { get animate() { return !!(state.options & 1); } },   // 環境設定「動畫效果」 [0ca4] bit0
   portMove: new URLSearchParams(location.search).get("portmove") !== "0",   // 擴充功能 (非原版): 航海術「港內移動」, ?portmove=0 關閉
 };
@@ -81,8 +84,9 @@ ctx.mapNodes = await loadBinary(ASSETS + "/data/mapnodes.bin");      // DATA1.LZ
 ctx.palette = new Palette(scr, sys, paletteTables({ palettes: ctx.palettes }));
 ctx.palette.writeDAC();                // 開機時目前調色盤為全黑
 Object.assign(ctx, await createUI(ctx));
-addEventListener("pointerdown", () => ctx.bgm.resume());
-addEventListener("keydown", () => ctx.bgm.resume());
+ctx.sfx.state = state;                 // 9804 依 [0ca4] bit3 (效果音開關)
+addEventListener("pointerdown", () => { ctx.bgm.resume(); ctx.sfx.resume(); });
+addEventListener("keydown", () => { ctx.bgm.resume(); ctx.sfx.resume(); });
 CPU.musicProbe = () => !!(ctx.bgm.el && ctx.bgm.cur && !ctx.bgm.el.paused);   // FMDRV 播放中的 IRQ0 佔用 (32.3)
 
 // 執行速度 (RE_NOTES 32.9 A): 程式超前虛擬時鐘而睡的期間, 剛畫好的畫面要等到虛擬時間到了才顯示 (快照), 之前維持舊畫面

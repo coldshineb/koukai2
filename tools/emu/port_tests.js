@@ -33,6 +33,12 @@ function runEmu() {
     const tp = S.TELEPORT?.[shots.length - 1]; if (tp) for (const [a, v] of tp) c.mem[S.DSEG * 16 + a] = v;              // S.TELEPORT[畫面序號] = [[DS 位址, 值], ...]
     if (!sc.keys.length) { done = true; c.halted = true; } });
   S.env = saveEnv; S._H16 = sH16; S._H33 = sH33;
+  // S.SFX_LOG: 記錄 MAIN.EXE 的效果音呼叫 (INT 66h AH=05 / 06 / 07 = 9768 / 9804 / 9888; [畫面序號, AH, AL, AH=05 的 DX (DS = 0 時記 0) / AH=06 的 DL]),
+  //   與移植版 ctx.sfx (core/sfx.js SfxPort) 送出的指令依序比對。S.SFX_LOG = 2: 原版的 [03e4] (有音源驅動) 設為 1 (測試環境沒有常駐 FMDRV)
+  const sfxE = S.sfxE = [];
+  if (S.SFX_LOG) { const h66 = c.hooks[0x66];
+    c.hooks[0x66] = cpu => { const ah = cpu.r[0] >> 8; if (ah >= 5 && ah <= 7) sfxE.push([shots.length, ah, cpu.r[0] & 0xff, ah === 5 ? (cpu.s[3] ? cpu.r[2] : 0) : ah === 6 ? cpu.r[2] & 0xff : 0]); h66(cpu); };
+    if (S.SFX_LOG === 2) c.mem[S.DSEG * 16 + 0x03e4] = 1; }
   // S.FLEET_AI: 艦隊 AI (1ac19, game/fleetai.js) 兩邊都執行; 否則原版的 1ac19 改成直接返回, 移植版同樣略過 (ctx.noFleetAI)
   if (!S.FLEET_AI) c.mem[L + 0x1ac19] = 0xcb;
   // 劇本事件檢查 (2e09:5481 / 2e09:55c2) 尚未移植: 測試建築時以 S.NO_EVENTS 讓原版一律回傳「沒有事件」
@@ -92,6 +98,8 @@ async function runJS(rng0) {
   ctx.scenarioData = { vm: rdj("scenario/vm.json"), snr: lazy("scenario/snr"), mes: lazy("text/snr") };
   ctx.palette = new U.Palette(scr, sys, U.paletteTables(palJson));
   ctx.bgm = { playSong() {}, fadeOut() {}, resume() {} };
+  const sfxJ = S.sfxJ = [];                                          // S.SFX_LOG: 移植版的效果音指令 (見 runEmu); 沒有 SFX_LOG 時 ctx.sfx 不存在, 效果音呼叫一律略過
+  if (S.SFX_LOG) { ctx.sfx = new U.SfxPort(null, { log: m => sfxJ.push([shots.length, m.ah, m.al, m.ah === 5 ? m.addr : m.ah === 6 ? m.dl : 0]) }); ctx.sfx.state = state; }
   const con = new U.TextConsole(scr, font, { wait: n => sys.waitSpeed(n) });
   const win = new U.WindowSystem(scr, con, S.D1[14], { wait: n => sys.waitTicks(n), options: ctx.options, sys });
   const graph = new U.Graph(scr); graph.files = { "GRAPH.DAT": new U.GraphDat(f["GRAPH.DAT"]), "GRAPH2.DAT": new U.GraphDat(f["GRAPH2.DAT"]) }; graph.g = graph.files["GRAPH.DAT"];
@@ -177,6 +185,11 @@ for (let i = 0; i < n; i++) {
   if (d.n) { fs.writeFileSync(S.W + `/uw2_remake/tools/work/pt_emu_${i}.idx`, Buffer.from(e.fb)); fs.writeFileSync(S.W + `/uw2_remake/tools/work/pt_js_${i}.idx`, Buffer.from(j.fb)); fs.writeFileSync(S.W + `/uw2_remake/tools/work/pt_dac_${i}.json`, JSON.stringify(e.dac)); }
   const ok = !d.n && !dd && !sd.length && e.rng === j.rng && (i < NEWGAME.length || e.rt.join() === j.rt.join());
   rep.push(`${ok ? "OK  " : "FAIL"} #${String(i).padStart(2)} ${i < KEYS.length ? JSON.stringify(KEYS[i]) : "end"} diff=${d.n}${d.first ? " @" + d.first : ""} dac=${dd} state=${sd.length}${sd.length ? " " + sd.slice(0, 8).join(" ") : ""} rng ${e.rng === j.rng ? "=" : e.rng.toString(16) + "/" + j.rng.toString(16)} rt ${e.rt}/${j.rt}`);
+}
+if (S.SFX_LOG) {
+  const a = S.sfxE, b = S.sfxJ; let d = -1;
+  for (let i = 0; i < Math.max(a.length, b.length); i++) if (String(a[i]) !== String(b[i])) { d = i; break; }
+  rep.push(`${d < 0 ? "OK  " : "FAIL"} sfx 效果音呼叫 原版 ${a.length} / 移植 ${b.length}${d >= 0 ? ` 第 ${d} 筆 原版 ${a[d]} 移植 ${b[d]}` : ""}: ${a.slice(0, 8).map(x => x.map(v => v.toString(16)).join(":")).join(" ")}`);
 }
 if (S.SAVE_PT) for (const i of S.SAVE_PT) if (E.shots[i]) { fs.writeFileSync(S.W + `/uw2_remake/tools/work/pts_${i}.idx`, Buffer.from(E.shots[i].fb)); fs.writeFileSync(S.W + `/uw2_remake/tools/work/pts_${i}.dac`, JSON.stringify(E.shots[i].dac)); }
 if (S.WATCH !== undefined) rep.push('watch ' + S.WATCH.toString(16) + ': ' + JSON.stringify(S.watchLog));

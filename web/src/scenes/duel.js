@@ -343,7 +343,7 @@ export class Duel {
       let fa = a & 0x0f, fb = b & 0x0f;
       if (dmg && si >= 3) { if (hd) { fa = 2; this.set16(0x9d52, 0xfff8); } else { fb = 2; this.set16(0x9d56, 0xfff8); } }
       await this.frame(fa, fb);
-      // si = 3: 效果音 9768(DS:0bd6 / 0bc0) + 9804(0x30) (移植版沒有效果音)
+      if (si === 3) { this.c.sfx?.voice(dmg ? 0x0bd6 : 0x0bc0); this.c.sfx?.note(0x30); }   // 122dc: 效果音 9768(DS:0bd6 打中 / 0bc0) + 9804(0x30), 不放鍵
       await this.wait(2);
     }
   }

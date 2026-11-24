@@ -11,6 +11,7 @@ export class MainExit extends Error {
 export async function mainEnding(scene, code) {
   const c = scene.c, { scr, con, palette, win, message, menu } = c, st = c.state;
   // 1764f 共同開頭: 9888 效果音放鍵, 99f2 淡黑 ([03ea] ≠ 0 時不動作), 07f7 清畫面, 443c(0, 0), DS:a3d0 (ESC C7 ESC B0)
+  c.sfx?.off();
   await palette.fadeBlack();
   scr.clear(0);
   con.setCursor(0, 0); con.puts(Uint8Array.of(0x1b, 0x43, 0x37, 0x1b, 0x42, 0x30, 0));

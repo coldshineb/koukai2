@@ -123,8 +123,8 @@ export class SeaScene extends PortScene {
     sys.mouseShow();
     await palette.fadeToTarget();
   }
-  // 9768 / 9804 FM 效果音 (暴風雨): 移植版沒有效果音
-  stormSound() { this.c.bgm.sfx?.(0x30); }
+  // 9768(DS:0c5a) + 9804(0x30) FM 效果音 (暴風雨, 持續到 9888; core/sfx.js)
+  stormSound() { this.c.sfx?.voice(0x0c5a); this.c.sfx?.note(0x30); }
 
   // ================= 畫面 =================
   // 7180: (col, 0x10) 印 %2d (v+1); 只在海上
@@ -1114,7 +1114,7 @@ export class SeaScene extends PortScene {
     }
     st.set8(0x0cb1, st.u8(0x0cb1) | 7);
     if (!(st.u8(0x0cb3) & 0x80) && (!rng.random(8) || !(st.u8(0x0cb1) & 0x80))) {
-      // 9888 停止效果音
+      this.c.sfx?.off();                                               // 9888 停止效果音
       st.set8(0x0cb3, st.u8(0x0cb3) & 0xf0);
       sys.mouseHide(); await this.crewSay(0x168, 0x169); sys.mouseShow();
     }
@@ -1189,7 +1189,7 @@ export class SeaScene extends PortScene {
     st.set8(0x5f54 + port * 0x16 + 0x15, st.u8(0x5f54 + port * 0x16 + 0x15) | 0x50);
     st.set8(0x1005, st.u8(0x1005) | 0x20);
     st.set8(0x0cb3, st.u8(0x0cb3) & 0xc0);
-    // 9888 停止效果音
+    this.c.sfx?.off();                                                 // 9888 停止效果音
     const a = seaUmin(st.u8(0x2e18), 0x46), b2 = seaUmin(st.u8(0x2e18), 0x64);
     const g2 = Math.imul(b2, b2) & 0xffff, g1 = (Math.imul(a, a) << 1) & 0xffff;
     const H = this.b.hero;
@@ -1251,8 +1251,9 @@ export class SeaScene extends PortScene {
       st.set8(P + 0x1c + i, st.u8(P + 0x1c + i) + v); up = 1;
     }
     if (up) { con.setCursor(con.x - 2, con.y); con.puts(this.SS.rise); }
-    // 9768(DS:0c2e) + 9804(0x3c) 效果音, 5998(0x14) 延遲, 9888
+    this.c.sfx?.voice(0x0c2e); this.c.sfx?.note(0x3c);                // 9768(DS:0c2e) + 9804(0x3c) 效果音, 5998(0x14) 延遲, 9888
     await sys.waitTicks(0x14);
+    this.c.sfx?.off();
     await menu.waitPrompt(); await win.close();
     sys.mouseShow();
     con.left = l; con.right = r;

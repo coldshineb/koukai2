@@ -1637,11 +1637,12 @@ export class NavalBattle {
     this.putOp(col, y, w, h, 3, this.hd, img & 0xffff);
   }
   restoreUnder() { this.c.win.closeNow(); }                            // c744: 還原 [0c88] 佇列最上層的畫面 (h > 16 且動畫開啟時分段還原, 結果相同)
-  // cdcd 砲擊動畫: 兩船任一在視窗內 → c853 砲彈; 目標在視窗內 → (效果音 9768 / 9804, 移植版沒有) 命中動畫 4 + 4 + 4 格
+  // cdcd 砲擊動畫: 兩船任一在視窗內 → c853 砲彈; 目標在視窗內 → 效果音 9768(DS:0bec) + 9804(0x24) (不放鍵), 命中動畫 4 + 4 + 4 格
   async shotAnim(T) {
     const B = this.u16(0x9bc2), [x0, y0] = this.pos(B), [tx, ty] = this.pos(T), { win, sys } = this.c;
     if (this.inView(x0, y0) || this.inView(tx, ty)) await this.trajectory(T);   // c853
     if (!this.inView(tx, ty)) return;
+    this.c.sfx?.voice(0x0bec); this.c.sfx?.note(0x24);                // ce57: 9768(DS:0bec) + 9804(0x24)
     const col = ((tx - this.u8(0x9bef)) << 2) & 0xffff, y = ((((ty - this.u8(0x9bf0)) << 5) + (btImod(tx, 2) >= 1 ? 0x10 : 0))) & 0xffff;
     const both = async () => {
       const o = this.rnd(2) ? 0 : 2;
@@ -1682,6 +1683,7 @@ export class NavalBattle {
     const X1 = (tx << 5) & 0xffff, Y1 = ((ty << 5) + (btImod(tx, 2) >= 1 ? 0x10 : 0)) & 0xffff;
     const DX = X0 > X1 ? X0 - X1 : X1 - X0, DY = Y1 >= Y0 ? Y1 - Y0 : Y0 - Y1;
     let drawn = 0, pc, pr;                                              // [bp-2a], [bp-0c], [bp-0e]
+    this.c.sfx?.voice(0x0bec); this.c.sfx?.note(0x24);                // c906: 9768(DS:0bec) + 9804(0x24) (不放鍵)
     const body = (x, y) => {
       const c = x >>> 3, r = y >>> 3;
       if (drawn && this.inView(pc >>> 2, pr >>> 2) && (pc !== c || pr !== r)) { this.restoreUnder(); drawn = 0; }
@@ -1806,12 +1808,13 @@ export class NavalBattle {
     const v = Math.floor(((a * si) & 0xffff) / 0x64);
     return btUmax(btUmin(0x32, v), 1);
   }
-  // d1eb 接舷動畫: 兩船都不在視窗內 → 不畫; 否則 (效果音 9768(DS:0c02) / 9804(0x30)) 目標 → 本船 → 目標 各 8 格
+  // d1eb 接舷動畫: 兩船都不在視窗內 → 不畫; 否則 效果音 9768(DS:0c02) + 9804(0x30), 目標 → 本船 → 目標 各 8 格
   //   ([0c86] 段 0x2e20 + 0x280 × (0, 1, 2, 3, 1, 3, 0, 2)[i]: 圖像 0x200 bytes、遮罩在其後; 每格 50c4 存背景 → 畫 → 等 2 → c744); 最後 (9888) c05d 重畫兩船
   async boardAnim(T) {
     const cur = this.u16(0x9bc2), { win, sys, gfx } = this.c;
     const [cx, cy] = this.pos(cur), [tx, ty] = this.pos(T);
     if (!this.inView(cx, cy) && !this.inView(tx, ty)) return;
+    this.c.sfx?.voice(0x0c02); this.c.sfx?.note(0x30);                // d2ea
     const tab = [0, 1, 2, 3, 1, 3, 0, 2];
     for (let k = 0; k < 3; k++) {
       const [x, y] = k % 2 ? [cx, cy] : [tx, ty];
@@ -1826,6 +1829,7 @@ export class NavalBattle {
         this.restoreUnder();                                            // c744
       }
     }
+    this.c.sfx?.off();                                                  // d3d0: 9888
     this.drawShip(T); this.drawShip(cur);                               // c05d
   }
   async duel(ax, T) { return duelInBattle(this, ax, T); }             // 0fea:2d1a = 12bba (scenes/duel.js)

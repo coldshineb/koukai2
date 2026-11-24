@@ -187,6 +187,7 @@ export class GameClock {
     const hi = code & 0xf0;
     if (hi === 0) await mainEnding(this.portScene, code);
     if (code !== 0x88 && hi !== 0x10) { clockTodo("結束處理 1764f(" + code.toString(16) + ")"); return false; }
+    this.c.sfx?.off();                                                  // 9888
     await palette.fadeBlack();
     scr.clear(0);
     con.setCursor(0, 0); con.puts(Uint8Array.of(0x1b, 0x43, 0x37, 0x1b, 0x42, 0x30, 0));   // DS:a3d0
