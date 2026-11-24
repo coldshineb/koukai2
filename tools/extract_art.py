@@ -163,7 +163,7 @@ def extract_graph_art(pals, manifest):
     g1_reuse[23] = manifest["backgrounds"]["duel_bg"]
     g1_reuse[25] = manifest["backgrounds"]["worldmap"]
     g1_reuse[27] = manifest["backgrounds"]["gamble_bg"]
-    g1_8col = {2, 3, 4, 5, 62}
+    g1_8col = {0, 2, 3, 4, 5, 62}
     g1_pal = {26: "battle"}
 
     js_g1 = r"""
@@ -172,7 +172,7 @@ require('./tools/work/ui_bundle.js');
 const U = globalThis.UI;
 const dat = new Uint8Array(fs.readFileSync('web/assets/gfx/GRAPH.DAT'));
 const g = new U.GraphDat(dat);
-const col8 = new Set([2, 3, 4, 5, 62]);
+const col8 = new Set([0, 2, 3, 4, 5, 62]);
 const chunks = [Buffer.from([g.offsets.length])];
 for (let i = 0; i < g.offsets.length; i++) {
   const off = g.offsets[i];
