@@ -1,0 +1,1761 @@
+{
+  "format": "uw2-art-v1",
+  "portraits": {
+    "0": {
+      "path": "portraits/named/portrait_000.png",
+      "w": 64,
+      "h": 80
+    },
+    "1": {
+      "path": "portraits/named/portrait_001.png",
+      "w": 64,
+      "h": 80
+    },
+    "2": {
+      "path": "portraits/named/portrait_002.png",
+      "w": 64,
+      "h": 80
+    },
+    "3": {
+      "path": "portraits/named/portrait_003.png",
+      "w": 64,
+      "h": 80
+    },
+    "4": {
+      "path": "portraits/named/portrait_004.png",
+      "w": 64,
+      "h": 80
+    },
+    "5": {
+      "path": "portraits/named/portrait_005.png",
+      "w": 64,
+      "h": 80
+    },
+    "6": {
+      "path": "portraits/named/portrait_006.png",
+      "w": 64,
+      "h": 80
+    },
+    "7": {
+      "path": "portraits/named/portrait_007.png",
+      "w": 64,
+      "h": 80
+    },
+    "8": {
+      "path": "portraits/named/portrait_008.png",
+      "w": 64,
+      "h": 80
+    },
+    "9": {
+      "path": "portraits/named/portrait_009.png",
+      "w": 64,
+      "h": 80
+    },
+    "10": {
+      "path": "portraits/named/portrait_010.png",
+      "w": 64,
+      "h": 80
+    },
+    "11": {
+      "path": "portraits/named/portrait_011.png",
+      "w": 64,
+      "h": 80
+    },
+    "12": {
+      "path": "portraits/named/portrait_012.png",
+      "w": 64,
+      "h": 80
+    },
+    "13": {
+      "path": "portraits/named/portrait_013.png",
+      "w": 64,
+      "h": 80
+    },
+    "14": {
+      "path": "portraits/named/portrait_014.png",
+      "w": 64,
+      "h": 80
+    },
+    "15": {
+      "path": "portraits/named/portrait_015.png",
+      "w": 64,
+      "h": 80
+    },
+    "16": {
+      "path": "portraits/named/portrait_016.png",
+      "w": 64,
+      "h": 80
+    },
+    "17": {
+      "path": "portraits/named/portrait_017.png",
+      "w": 64,
+      "h": 80
+    },
+    "18": {
+      "path": "portraits/named/portrait_018.png",
+      "w": 64,
+      "h": 80
+    },
+    "19": {
+      "path": "portraits/named/portrait_019.png",
+      "w": 64,
+      "h": 80
+    },
+    "20": {
+      "path": "portraits/named/portrait_020.png",
+      "w": 64,
+      "h": 80
+    },
+    "21": {
+      "path": "portraits/named/portrait_021.png",
+      "w": 64,
+      "h": 80
+    },
+    "22": {
+      "path": "portraits/named/portrait_022.png",
+      "w": 64,
+      "h": 80
+    },
+    "23": {
+      "path": "portraits/named/portrait_023.png",
+      "w": 64,
+      "h": 80
+    },
+    "24": {
+      "path": "portraits/named/portrait_024.png",
+      "w": 64,
+      "h": 80
+    },
+    "25": {
+      "path": "portraits/named/portrait_025.png",
+      "w": 64,
+      "h": 80
+    },
+    "26": {
+      "path": "portraits/named/portrait_026.png",
+      "w": 64,
+      "h": 80
+    },
+    "27": {
+      "path": "portraits/named/portrait_027.png",
+      "w": 64,
+      "h": 80
+    },
+    "28": {
+      "path": "portraits/named/portrait_028.png",
+      "w": 64,
+      "h": 80
+    },
+    "29": {
+      "path": "portraits/named/portrait_029.png",
+      "w": 64,
+      "h": 80
+    },
+    "30": {
+      "path": "portraits/named/portrait_030.png",
+      "w": 64,
+      "h": 80
+    },
+    "31": {
+      "path": "portraits/named/portrait_031.png",
+      "w": 64,
+      "h": 80
+    },
+    "32": {
+      "path": "portraits/named/portrait_032.png",
+      "w": 64,
+      "h": 80
+    },
+    "33": {
+      "path": "portraits/named/portrait_033.png",
+      "w": 64,
+      "h": 80
+    },
+    "34": {
+      "path": "portraits/named/portrait_034.png",
+      "w": 64,
+      "h": 80
+    },
+    "35": {
+      "path": "portraits/named/portrait_035.png",
+      "w": 64,
+      "h": 80
+    },
+    "36": {
+      "path": "portraits/named/portrait_036.png",
+      "w": 64,
+      "h": 80
+    },
+    "37": {
+      "path": "portraits/named/portrait_037.png",
+      "w": 64,
+      "h": 80
+    },
+    "38": {
+      "path": "portraits/named/portrait_038.png",
+      "w": 64,
+      "h": 80
+    },
+    "39": {
+      "path": "portraits/named/portrait_039.png",
+      "w": 64,
+      "h": 80
+    },
+    "40": {
+      "path": "portraits/named/portrait_040.png",
+      "w": 64,
+      "h": 80
+    },
+    "41": {
+      "path": "portraits/named/portrait_041.png",
+      "w": 64,
+      "h": 80
+    },
+    "42": {
+      "path": "portraits/named/portrait_042.png",
+      "w": 64,
+      "h": 80
+    },
+    "43": {
+      "path": "portraits/named/portrait_043.png",
+      "w": 64,
+      "h": 80
+    },
+    "44": {
+      "path": "portraits/named/portrait_044.png",
+      "w": 64,
+      "h": 80
+    },
+    "45": {
+      "path": "portraits/named/portrait_045.png",
+      "w": 64,
+      "h": 80
+    },
+    "46": {
+      "path": "portraits/named/portrait_046.png",
+      "w": 64,
+      "h": 80
+    },
+    "47": {
+      "path": "portraits/named/portrait_047.png",
+      "w": 64,
+      "h": 80
+    },
+    "48": {
+      "path": "portraits/named/portrait_048.png",
+      "w": 64,
+      "h": 80
+    },
+    "49": {
+      "path": "portraits/named/portrait_049.png",
+      "w": 64,
+      "h": 80
+    },
+    "50": {
+      "path": "portraits/named/portrait_050.png",
+      "w": 64,
+      "h": 80
+    },
+    "51": {
+      "path": "portraits/named/portrait_051.png",
+      "w": 64,
+      "h": 80
+    },
+    "52": {
+      "path": "portraits/named/portrait_052.png",
+      "w": 64,
+      "h": 80
+    },
+    "53": {
+      "path": "portraits/named/portrait_053.png",
+      "w": 64,
+      "h": 80
+    },
+    "54": {
+      "path": "portraits/named/portrait_054.png",
+      "w": 64,
+      "h": 80
+    },
+    "55": {
+      "path": "portraits/named/portrait_055.png",
+      "w": 64,
+      "h": 80
+    },
+    "56": {
+      "path": "portraits/named/portrait_056.png",
+      "w": 64,
+      "h": 80
+    },
+    "57": {
+      "path": "portraits/named/portrait_057.png",
+      "w": 64,
+      "h": 80
+    },
+    "58": {
+      "path": "portraits/named/portrait_058.png",
+      "w": 64,
+      "h": 80
+    },
+    "59": {
+      "path": "portraits/named/portrait_059.png",
+      "w": 64,
+      "h": 80
+    },
+    "60": {
+      "path": "portraits/named/portrait_060.png",
+      "w": 64,
+      "h": 80
+    },
+    "61": {
+      "path": "portraits/named/portrait_061.png",
+      "w": 64,
+      "h": 80
+    },
+    "62": {
+      "path": "portraits/named/portrait_062.png",
+      "w": 64,
+      "h": 80
+    },
+    "63": {
+      "path": "portraits/named/portrait_063.png",
+      "w": 64,
+      "h": 80
+    },
+    "64": {
+      "path": "portraits/named/portrait_064.png",
+      "w": 64,
+      "h": 80
+    },
+    "65": {
+      "path": "portraits/named/portrait_065.png",
+      "w": 64,
+      "h": 80
+    },
+    "66": {
+      "path": "portraits/named/portrait_066.png",
+      "w": 64,
+      "h": 80
+    },
+    "67": {
+      "path": "portraits/named/portrait_067.png",
+      "w": 64,
+      "h": 80
+    },
+    "68": {
+      "path": "portraits/named/portrait_068.png",
+      "w": 64,
+      "h": 80
+    },
+    "69": {
+      "path": "portraits/named/portrait_069.png",
+      "w": 64,
+      "h": 80
+    },
+    "70": {
+      "path": "portraits/named/portrait_070.png",
+      "w": 64,
+      "h": 80
+    },
+    "71": {
+      "path": "portraits/named/portrait_071.png",
+      "w": 64,
+      "h": 80
+    },
+    "72": {
+      "path": "portraits/named/portrait_072.png",
+      "w": 64,
+      "h": 80
+    },
+    "73": {
+      "path": "portraits/named/portrait_073.png",
+      "w": 64,
+      "h": 80
+    },
+    "74": {
+      "path": "portraits/named/portrait_074.png",
+      "w": 64,
+      "h": 80
+    },
+    "75": {
+      "path": "portraits/named/portrait_075.png",
+      "w": 64,
+      "h": 80
+    },
+    "76": {
+      "path": "portraits/named/portrait_076.png",
+      "w": 64,
+      "h": 80
+    },
+    "77": {
+      "path": "portraits/named/portrait_077.png",
+      "w": 64,
+      "h": 80
+    },
+    "78": {
+      "path": "portraits/named/portrait_078.png",
+      "w": 64,
+      "h": 80
+    },
+    "79": {
+      "path": "portraits/named/portrait_079.png",
+      "w": 64,
+      "h": 80
+    },
+    "80": {
+      "path": "portraits/named/portrait_080.png",
+      "w": 64,
+      "h": 80
+    },
+    "81": {
+      "path": "portraits/named/portrait_081.png",
+      "w": 64,
+      "h": 80
+    },
+    "82": {
+      "path": "portraits/named/portrait_082.png",
+      "w": 64,
+      "h": 80
+    },
+    "83": {
+      "path": "portraits/named/portrait_083.png",
+      "w": 64,
+      "h": 80
+    },
+    "84": {
+      "path": "portraits/named/portrait_084.png",
+      "w": 64,
+      "h": 80
+    },
+    "85": {
+      "path": "portraits/named/portrait_085.png",
+      "w": 64,
+      "h": 80
+    },
+    "86": {
+      "path": "portraits/named/portrait_086.png",
+      "w": 64,
+      "h": 80
+    },
+    "87": {
+      "path": "portraits/named/portrait_087.png",
+      "w": 64,
+      "h": 80
+    },
+    "88": {
+      "path": "portraits/named/portrait_088.png",
+      "w": 64,
+      "h": 80
+    },
+    "89": {
+      "path": "portraits/named/portrait_089.png",
+      "w": 64,
+      "h": 80
+    },
+    "90": {
+      "path": "portraits/named/portrait_090.png",
+      "w": 64,
+      "h": 80
+    },
+    "91": {
+      "path": "portraits/named/portrait_091.png",
+      "w": 64,
+      "h": 80
+    },
+    "92": {
+      "path": "portraits/named/portrait_092.png",
+      "w": 64,
+      "h": 80
+    },
+    "93": {
+      "path": "portraits/named/portrait_093.png",
+      "w": 64,
+      "h": 80
+    },
+    "94": {
+      "path": "portraits/named/portrait_094.png",
+      "w": 64,
+      "h": 80
+    },
+    "95": {
+      "path": "portraits/named/portrait_095.png",
+      "w": 64,
+      "h": 80
+    },
+    "96": {
+      "path": "portraits/named/portrait_096.png",
+      "w": 64,
+      "h": 80
+    },
+    "97": {
+      "path": "portraits/named/portrait_097.png",
+      "w": 64,
+      "h": 80
+    },
+    "98": {
+      "path": "portraits/named/portrait_098.png",
+      "w": 64,
+      "h": 80
+    },
+    "99": {
+      "path": "portraits/named/portrait_099.png",
+      "w": 64,
+      "h": 80
+    },
+    "100": {
+      "path": "portraits/named/portrait_100.png",
+      "w": 64,
+      "h": 80
+    },
+    "101": {
+      "path": "portraits/named/portrait_101.png",
+      "w": 64,
+      "h": 80
+    },
+    "102": {
+      "path": "portraits/named/portrait_102.png",
+      "w": 64,
+      "h": 80
+    },
+    "103": {
+      "path": "portraits/named/portrait_103.png",
+      "w": 64,
+      "h": 80
+    },
+    "104": {
+      "path": "portraits/named/portrait_104.png",
+      "w": 64,
+      "h": 80
+    },
+    "105": {
+      "path": "portraits/named/portrait_105.png",
+      "w": 64,
+      "h": 80
+    },
+    "106": {
+      "path": "portraits/named/portrait_106.png",
+      "w": 64,
+      "h": 80
+    },
+    "107": {
+      "path": "portraits/named/portrait_107.png",
+      "w": 64,
+      "h": 80
+    },
+    "108": {
+      "path": "portraits/named/portrait_108.png",
+      "w": 64,
+      "h": 80
+    },
+    "109": {
+      "path": "portraits/named/portrait_109.png",
+      "w": 64,
+      "h": 80
+    },
+    "110": {
+      "path": "portraits/named/portrait_110.png",
+      "w": 64,
+      "h": 80
+    },
+    "111": {
+      "path": "portraits/named/portrait_111.png",
+      "w": 64,
+      "h": 80
+    },
+    "112": {
+      "path": "portraits/named/portrait_112.png",
+      "w": 64,
+      "h": 80
+    },
+    "113": {
+      "path": "portraits/named/portrait_113.png",
+      "w": 64,
+      "h": 80
+    },
+    "114": {
+      "path": "portraits/named/portrait_114.png",
+      "w": 64,
+      "h": 80
+    },
+    "115": {
+      "path": "portraits/named/portrait_115.png",
+      "w": 64,
+      "h": 80
+    },
+    "116": {
+      "path": "portraits/named/portrait_116.png",
+      "w": 64,
+      "h": 80
+    },
+    "117": {
+      "path": "portraits/named/portrait_117.png",
+      "w": 64,
+      "h": 80
+    },
+    "118": {
+      "path": "portraits/named/portrait_118.png",
+      "w": 64,
+      "h": 80
+    },
+    "119": {
+      "path": "portraits/named/portrait_119.png",
+      "w": 64,
+      "h": 80
+    },
+    "120": {
+      "path": "portraits/named/portrait_120.png",
+      "w": 64,
+      "h": 80
+    },
+    "121": {
+      "path": "portraits/named/portrait_121.png",
+      "w": 64,
+      "h": 80
+    },
+    "122": {
+      "path": "portraits/named/portrait_122.png",
+      "w": 64,
+      "h": 80
+    },
+    "123": {
+      "path": "portraits/named/portrait_123.png",
+      "w": 64,
+      "h": 80
+    },
+    "124": {
+      "path": "portraits/named/portrait_124.png",
+      "w": 64,
+      "h": 80
+    },
+    "125": {
+      "path": "portraits/named/portrait_125.png",
+      "w": 64,
+      "h": 80
+    },
+    "126": {
+      "path": "portraits/named/portrait_126.png",
+      "w": 64,
+      "h": 80
+    },
+    "127": {
+      "path": "portraits/named/portrait_127.png",
+      "w": 64,
+      "h": 80
+    }
+  },
+  "discoveries": {
+    "0": {
+      "path": "discoveries/disc_000.png",
+      "w": 48,
+      "h": 48
+    },
+    "1": {
+      "path": "discoveries/disc_001.png",
+      "w": 48,
+      "h": 48
+    },
+    "2": {
+      "path": "discoveries/disc_002.png",
+      "w": 48,
+      "h": 48
+    },
+    "3": {
+      "path": "discoveries/disc_003.png",
+      "w": 48,
+      "h": 48
+    },
+    "4": {
+      "path": "discoveries/disc_004.png",
+      "w": 48,
+      "h": 48
+    },
+    "5": {
+      "path": "discoveries/disc_005.png",
+      "w": 48,
+      "h": 48
+    },
+    "6": {
+      "path": "discoveries/disc_006.png",
+      "w": 48,
+      "h": 48
+    },
+    "7": {
+      "path": "discoveries/disc_007.png",
+      "w": 48,
+      "h": 48
+    },
+    "8": {
+      "path": "discoveries/disc_008.png",
+      "w": 48,
+      "h": 48
+    },
+    "9": {
+      "path": "discoveries/disc_009.png",
+      "w": 48,
+      "h": 48
+    },
+    "10": {
+      "path": "discoveries/disc_010.png",
+      "w": 48,
+      "h": 48
+    },
+    "11": {
+      "path": "discoveries/disc_011.png",
+      "w": 48,
+      "h": 48
+    },
+    "12": {
+      "path": "discoveries/disc_012.png",
+      "w": 48,
+      "h": 48
+    },
+    "13": {
+      "path": "discoveries/disc_013.png",
+      "w": 48,
+      "h": 48
+    },
+    "14": {
+      "path": "discoveries/disc_014.png",
+      "w": 48,
+      "h": 48
+    },
+    "15": {
+      "path": "discoveries/disc_015.png",
+      "w": 48,
+      "h": 48
+    },
+    "16": {
+      "path": "discoveries/disc_016.png",
+      "w": 48,
+      "h": 48
+    },
+    "17": {
+      "path": "discoveries/disc_017.png",
+      "w": 48,
+      "h": 48
+    },
+    "18": {
+      "path": "discoveries/disc_018.png",
+      "w": 48,
+      "h": 48
+    },
+    "19": {
+      "path": "discoveries/disc_019.png",
+      "w": 48,
+      "h": 48
+    },
+    "20": {
+      "path": "discoveries/disc_020.png",
+      "w": 48,
+      "h": 48
+    },
+    "21": {
+      "path": "discoveries/disc_021.png",
+      "w": 48,
+      "h": 48
+    },
+    "22": {
+      "path": "discoveries/disc_022.png",
+      "w": 48,
+      "h": 48
+    },
+    "23": {
+      "path": "discoveries/disc_023.png",
+      "w": 48,
+      "h": 48
+    },
+    "24": {
+      "path": "discoveries/disc_024.png",
+      "w": 48,
+      "h": 48
+    },
+    "25": {
+      "path": "discoveries/disc_025.png",
+      "w": 48,
+      "h": 48
+    },
+    "26": {
+      "path": "discoveries/disc_026.png",
+      "w": 48,
+      "h": 48
+    },
+    "27": {
+      "path": "discoveries/disc_027.png",
+      "w": 48,
+      "h": 48
+    },
+    "28": {
+      "path": "discoveries/disc_028.png",
+      "w": 48,
+      "h": 48
+    },
+    "29": {
+      "path": "discoveries/disc_029.png",
+      "w": 48,
+      "h": 48
+    },
+    "30": {
+      "path": "discoveries/disc_030.png",
+      "w": 48,
+      "h": 48
+    },
+    "31": {
+      "path": "discoveries/disc_031.png",
+      "w": 48,
+      "h": 48
+    },
+    "32": {
+      "path": "discoveries/disc_032.png",
+      "w": 48,
+      "h": 48
+    },
+    "33": {
+      "path": "discoveries/disc_033.png",
+      "w": 48,
+      "h": 48
+    },
+    "34": {
+      "path": "discoveries/disc_034.png",
+      "w": 48,
+      "h": 48
+    },
+    "35": {
+      "path": "discoveries/disc_035.png",
+      "w": 48,
+      "h": 48
+    },
+    "36": {
+      "path": "discoveries/disc_036.png",
+      "w": 48,
+      "h": 48
+    },
+    "37": {
+      "path": "discoveries/disc_037.png",
+      "w": 48,
+      "h": 48
+    },
+    "38": {
+      "path": "discoveries/disc_038.png",
+      "w": 48,
+      "h": 48
+    },
+    "39": {
+      "path": "discoveries/disc_039.png",
+      "w": 48,
+      "h": 48
+    },
+    "40": {
+      "path": "discoveries/disc_040.png",
+      "w": 48,
+      "h": 48
+    },
+    "41": {
+      "path": "discoveries/disc_041.png",
+      "w": 48,
+      "h": 48
+    },
+    "42": {
+      "path": "discoveries/disc_042.png",
+      "w": 48,
+      "h": 48
+    },
+    "43": {
+      "path": "discoveries/disc_043.png",
+      "w": 48,
+      "h": 48
+    },
+    "44": {
+      "path": "discoveries/disc_044.png",
+      "w": 48,
+      "h": 48
+    },
+    "45": {
+      "path": "discoveries/disc_045.png",
+      "w": 48,
+      "h": 48
+    },
+    "46": {
+      "path": "discoveries/disc_046.png",
+      "w": 48,
+      "h": 48
+    },
+    "47": {
+      "path": "discoveries/disc_047.png",
+      "w": 48,
+      "h": 48
+    },
+    "48": {
+      "path": "discoveries/disc_048.png",
+      "w": 48,
+      "h": 48
+    },
+    "49": {
+      "path": "discoveries/disc_049.png",
+      "w": 48,
+      "h": 48
+    },
+    "50": {
+      "path": "discoveries/disc_050.png",
+      "w": 48,
+      "h": 48
+    },
+    "51": {
+      "path": "discoveries/disc_051.png",
+      "w": 48,
+      "h": 48
+    },
+    "52": {
+      "path": "discoveries/disc_052.png",
+      "w": 48,
+      "h": 48
+    },
+    "53": {
+      "path": "discoveries/disc_053.png",
+      "w": 48,
+      "h": 48
+    },
+    "54": {
+      "path": "discoveries/disc_054.png",
+      "w": 48,
+      "h": 48
+    },
+    "55": {
+      "path": "discoveries/disc_055.png",
+      "w": 48,
+      "h": 48
+    },
+    "56": {
+      "path": "discoveries/disc_056.png",
+      "w": 48,
+      "h": 48
+    },
+    "57": {
+      "path": "discoveries/disc_057.png",
+      "w": 48,
+      "h": 48
+    },
+    "58": {
+      "path": "discoveries/disc_058.png",
+      "w": 48,
+      "h": 48
+    },
+    "59": {
+      "path": "discoveries/disc_059.png",
+      "w": 48,
+      "h": 48
+    },
+    "60": {
+      "path": "discoveries/disc_060.png",
+      "w": 48,
+      "h": 48
+    },
+    "61": {
+      "path": "discoveries/disc_061.png",
+      "w": 48,
+      "h": 48
+    },
+    "62": {
+      "path": "discoveries/disc_062.png",
+      "w": 48,
+      "h": 48
+    },
+    "63": {
+      "path": "discoveries/disc_063.png",
+      "w": 48,
+      "h": 48
+    },
+    "64": {
+      "path": "discoveries/disc_064.png",
+      "w": 48,
+      "h": 48
+    },
+    "65": {
+      "path": "discoveries/disc_065.png",
+      "w": 48,
+      "h": 48
+    },
+    "66": {
+      "path": "discoveries/disc_066.png",
+      "w": 48,
+      "h": 48
+    },
+    "67": {
+      "path": "discoveries/disc_067.png",
+      "w": 48,
+      "h": 48
+    },
+    "68": {
+      "path": "discoveries/disc_068.png",
+      "w": 48,
+      "h": 48
+    },
+    "69": {
+      "path": "discoveries/disc_069.png",
+      "w": 48,
+      "h": 48
+    },
+    "70": {
+      "path": "discoveries/disc_070.png",
+      "w": 48,
+      "h": 48
+    },
+    "71": {
+      "path": "discoveries/disc_071.png",
+      "w": 48,
+      "h": 48
+    },
+    "72": {
+      "path": "discoveries/disc_072.png",
+      "w": 48,
+      "h": 48
+    },
+    "73": {
+      "path": "discoveries/disc_073.png",
+      "w": 48,
+      "h": 48
+    },
+    "74": {
+      "path": "discoveries/disc_074.png",
+      "w": 48,
+      "h": 48
+    },
+    "75": {
+      "path": "discoveries/disc_075.png",
+      "w": 48,
+      "h": 48
+    },
+    "76": {
+      "path": "discoveries/disc_076.png",
+      "w": 48,
+      "h": 48
+    },
+    "77": {
+      "path": "discoveries/disc_077.png",
+      "w": 48,
+      "h": 48
+    },
+    "78": {
+      "path": "discoveries/disc_078.png",
+      "w": 48,
+      "h": 48
+    },
+    "79": {
+      "path": "discoveries/disc_079.png",
+      "w": 48,
+      "h": 48
+    },
+    "80": {
+      "path": "discoveries/disc_080.png",
+      "w": 48,
+      "h": 48
+    },
+    "81": {
+      "path": "discoveries/disc_081.png",
+      "w": 48,
+      "h": 48
+    },
+    "82": {
+      "path": "discoveries/disc_082.png",
+      "w": 48,
+      "h": 48
+    },
+    "83": {
+      "path": "discoveries/disc_083.png",
+      "w": 48,
+      "h": 48
+    },
+    "84": {
+      "path": "discoveries/disc_084.png",
+      "w": 48,
+      "h": 48
+    },
+    "85": {
+      "path": "discoveries/disc_085.png",
+      "w": 48,
+      "h": 48
+    },
+    "86": {
+      "path": "discoveries/disc_086.png",
+      "w": 48,
+      "h": 48
+    },
+    "87": {
+      "path": "discoveries/disc_087.png",
+      "w": 48,
+      "h": 48
+    },
+    "88": {
+      "path": "discoveries/disc_088.png",
+      "w": 48,
+      "h": 48
+    },
+    "89": {
+      "path": "discoveries/disc_089.png",
+      "w": 48,
+      "h": 48
+    },
+    "90": {
+      "path": "discoveries/disc_090.png",
+      "w": 48,
+      "h": 48
+    },
+    "91": {
+      "path": "discoveries/disc_091.png",
+      "w": 48,
+      "h": 48
+    },
+    "92": {
+      "path": "discoveries/disc_092.png",
+      "w": 48,
+      "h": 48
+    },
+    "93": {
+      "path": "discoveries/disc_093.png",
+      "w": 48,
+      "h": 48
+    },
+    "94": {
+      "path": "discoveries/disc_094.png",
+      "w": 48,
+      "h": 48
+    },
+    "95": {
+      "path": "discoveries/disc_095.png",
+      "w": 48,
+      "h": 48
+    },
+    "96": {
+      "path": "discoveries/disc_096.png",
+      "w": 48,
+      "h": 48
+    },
+    "97": {
+      "path": "discoveries/disc_097.png",
+      "w": 48,
+      "h": 48
+    },
+    "98": {
+      "path": "discoveries/disc_098.png",
+      "w": 48,
+      "h": 48
+    },
+    "99": {
+      "path": "discoveries/disc_099.png",
+      "w": 48,
+      "h": 48
+    },
+    "100": {
+      "path": "discoveries/disc_100.png",
+      "w": 48,
+      "h": 48
+    },
+    "101": {
+      "path": "discoveries/disc_101.png",
+      "w": 48,
+      "h": 48
+    },
+    "102": {
+      "path": "discoveries/disc_102.png",
+      "w": 48,
+      "h": 48
+    },
+    "103": {
+      "path": "discoveries/disc_103.png",
+      "w": 48,
+      "h": 48
+    },
+    "104": {
+      "path": "discoveries/disc_104.png",
+      "w": 48,
+      "h": 48
+    },
+    "105": {
+      "path": "discoveries/disc_105.png",
+      "w": 48,
+      "h": 48
+    },
+    "106": {
+      "path": "discoveries/disc_106.png",
+      "w": 48,
+      "h": 48
+    },
+    "107": {
+      "path": "discoveries/disc_107.png",
+      "w": 48,
+      "h": 48
+    },
+    "108": {
+      "path": "discoveries/disc_108.png",
+      "w": 48,
+      "h": 48
+    },
+    "109": {
+      "path": "discoveries/disc_109.png",
+      "w": 48,
+      "h": 48
+    },
+    "110": {
+      "path": "discoveries/disc_110.png",
+      "w": 48,
+      "h": 48
+    },
+    "111": {
+      "path": "discoveries/disc_111.png",
+      "w": 48,
+      "h": 48
+    },
+    "112": {
+      "path": "discoveries/disc_112.png",
+      "w": 48,
+      "h": 48
+    },
+    "113": {
+      "path": "discoveries/disc_113.png",
+      "w": 48,
+      "h": 48
+    },
+    "114": {
+      "path": "discoveries/disc_114.png",
+      "w": 48,
+      "h": 48
+    },
+    "115": {
+      "path": "discoveries/disc_115.png",
+      "w": 48,
+      "h": 48
+    },
+    "116": {
+      "path": "discoveries/disc_116.png",
+      "w": 48,
+      "h": 48
+    },
+    "117": {
+      "path": "discoveries/disc_117.png",
+      "w": 48,
+      "h": 48
+    },
+    "118": {
+      "path": "discoveries/disc_118.png",
+      "w": 48,
+      "h": 48
+    },
+    "119": {
+      "path": "discoveries/disc_119.png",
+      "w": 48,
+      "h": 48
+    },
+    "120": {
+      "path": "discoveries/disc_120.png",
+      "w": 48,
+      "h": 48
+    },
+    "121": {
+      "path": "discoveries/disc_121.png",
+      "w": 48,
+      "h": 48
+    },
+    "122": {
+      "path": "discoveries/disc_122.png",
+      "w": 48,
+      "h": 48
+    },
+    "123": {
+      "path": "discoveries/disc_123.png",
+      "w": 48,
+      "h": 48
+    },
+    "124": {
+      "path": "discoveries/disc_124.png",
+      "w": 48,
+      "h": 48
+    },
+    "125": {
+      "path": "discoveries/disc_125.png",
+      "w": 48,
+      "h": 48
+    },
+    "126": {
+      "path": "discoveries/disc_126.png",
+      "w": 48,
+      "h": 48
+    },
+    "127": {
+      "path": "discoveries/disc_127.png",
+      "w": 48,
+      "h": 48
+    }
+  },
+  "buildings": {
+    "0": {
+      "path": "buildings/building_00.png",
+      "w": 136,
+      "h": 112
+    },
+    "1": {
+      "path": "buildings/building_01.png",
+      "w": 136,
+      "h": 112
+    },
+    "2": {
+      "path": "buildings/building_02.png",
+      "w": 136,
+      "h": 112
+    },
+    "3": {
+      "path": "buildings/building_03.png",
+      "w": 136,
+      "h": 112
+    },
+    "4": {
+      "path": "buildings/building_04.png",
+      "w": 136,
+      "h": 112
+    },
+    "5": {
+      "path": "buildings/building_05.png",
+      "w": 136,
+      "h": 112
+    },
+    "6": {
+      "path": "buildings/building_06.png",
+      "w": 136,
+      "h": 112
+    },
+    "7": {
+      "path": "buildings/building_07.png",
+      "w": 136,
+      "h": 112
+    },
+    "8": {
+      "path": "buildings/building_08.png",
+      "w": 136,
+      "h": 112
+    },
+    "9": {
+      "path": "buildings/building_09.png",
+      "w": 136,
+      "h": 112
+    },
+    "10": {
+      "path": "buildings/building_10.png",
+      "w": 136,
+      "h": 112
+    },
+    "11": {
+      "path": "buildings/building_11.png",
+      "w": 136,
+      "h": 112
+    },
+    "12": {
+      "path": "buildings/building_12.png",
+      "w": 136,
+      "h": 112
+    },
+    "13": {
+      "path": "buildings/building_13.png",
+      "w": 136,
+      "h": 112
+    },
+    "14": {
+      "path": "buildings/building_14.png",
+      "w": 136,
+      "h": 112
+    },
+    "15": {
+      "path": "buildings/building_15.png",
+      "w": 136,
+      "h": 112
+    }
+  },
+  "ships": {
+    "0": {
+      "path": "ships/ship_00.png",
+      "w": 128,
+      "h": 96
+    },
+    "1": {
+      "path": "ships/ship_01.png",
+      "w": 128,
+      "h": 96
+    },
+    "2": {
+      "path": "ships/ship_02.png",
+      "w": 128,
+      "h": 96
+    },
+    "3": {
+      "path": "ships/ship_03.png",
+      "w": 128,
+      "h": 96
+    },
+    "4": {
+      "path": "ships/ship_04.png",
+      "w": 128,
+      "h": 96
+    },
+    "5": {
+      "path": "ships/ship_05.png",
+      "w": 128,
+      "h": 96
+    },
+    "6": {
+      "path": "ships/ship_06.png",
+      "w": 128,
+      "h": 96
+    },
+    "7": {
+      "path": "ships/ship_07.png",
+      "w": 128,
+      "h": 96
+    },
+    "8": {
+      "path": "ships/ship_08.png",
+      "w": 128,
+      "h": 96
+    },
+    "9": {
+      "path": "ships/ship_09.png",
+      "w": 128,
+      "h": 96
+    },
+    "10": {
+      "path": "ships/ship_10.png",
+      "w": 128,
+      "h": 96
+    },
+    "11": {
+      "path": "ships/ship_11.png",
+      "w": 128,
+      "h": 96
+    },
+    "12": {
+      "path": "ships/ship_12.png",
+      "w": 128,
+      "h": 96
+    },
+    "13": {
+      "path": "ships/ship_13.png",
+      "w": 128,
+      "h": 96
+    },
+    "14": {
+      "path": "ships/ship_14.png",
+      "w": 128,
+      "h": 96
+    },
+    "15": {
+      "path": "ships/ship_15.png",
+      "w": 128,
+      "h": 96
+    },
+    "16": {
+      "path": "ships/ship_16.png",
+      "w": 128,
+      "h": 96
+    },
+    "17": {
+      "path": "ships/ship_17.png",
+      "w": 128,
+      "h": 96
+    },
+    "18": {
+      "path": "ships/ship_18.png",
+      "w": 128,
+      "h": 96
+    },
+    "19": {
+      "path": "ships/ship_19.png",
+      "w": 128,
+      "h": 96
+    },
+    "20": {
+      "path": "ships/ship_20.png",
+      "w": 128,
+      "h": 96
+    },
+    "21": {
+      "path": "ships/ship_21.png",
+      "w": 128,
+      "h": 96
+    },
+    "22": {
+      "path": "ships/ship_22.png",
+      "w": 128,
+      "h": 96
+    },
+    "23": {
+      "path": "ships/ship_23.png",
+      "w": 128,
+      "h": 96
+    },
+    "24": {
+      "path": "ships/ship_24.png",
+      "w": 128,
+      "h": 96
+    }
+  },
+  "figureheads": {
+    "0": {
+      "path": "figureheads/figurehead_00.png",
+      "w": 48,
+      "h": 48
+    },
+    "1": {
+      "path": "figureheads/figurehead_01.png",
+      "w": 48,
+      "h": 48
+    },
+    "2": {
+      "path": "figureheads/figurehead_02.png",
+      "w": 48,
+      "h": 48
+    },
+    "3": {
+      "path": "figureheads/figurehead_03.png",
+      "w": 48,
+      "h": 48
+    },
+    "4": {
+      "path": "figureheads/figurehead_04.png",
+      "w": 48,
+      "h": 48
+    },
+    "5": {
+      "path": "figureheads/figurehead_05.png",
+      "w": 48,
+      "h": 48
+    },
+    "6": {
+      "path": "figureheads/figurehead_06.png",
+      "w": 48,
+      "h": 48
+    },
+    "7": {
+      "path": "figureheads/figurehead_07.png",
+      "w": 48,
+      "h": 48
+    },
+    "8": {
+      "path": "figureheads/figurehead_08.png",
+      "w": 48,
+      "h": 48
+    },
+    "9": {
+      "path": "figureheads/figurehead_09.png",
+      "w": 48,
+      "h": 48
+    },
+    "10": {
+      "path": "figureheads/figurehead_10.png",
+      "w": 48,
+      "h": 48
+    },
+    "11": {
+      "path": "figureheads/figurehead_11.png",
+      "w": 48,
+      "h": 48
+    },
+    "12": {
+      "path": "figureheads/figurehead_12.png",
+      "w": 48,
+      "h": 48
+    }
+  },
+  "events": {
+    "event0": [
+      {
+        "path": "events/event0_00.png",
+        "w": 192,
+        "h": 144
+      }
+    ],
+    "event1": [
+      {
+        "path": "events/event1_00.png",
+        "w": 192,
+        "h": 144
+      },
+      {
+        "path": "events/event1_01.png",
+        "w": 192,
+        "h": 144
+      },
+      {
+        "path": "events/event1_02.png",
+        "w": 192,
+        "h": 144
+      },
+      {
+        "path": "events/event1_03.png",
+        "w": 192,
+        "h": 144
+      },
+      {
+        "path": "events/event1_04.png",
+        "w": 192,
+        "h": 144
+      }
+    ],
+    "event2": [
+      {
+        "path": "events/event2_00.png",
+        "w": 192,
+        "h": 144
+      },
+      {
+        "path": "events/event2_01.png",
+        "w": 192,
+        "h": 144
+      },
+      {
+        "path": "events/event2_02.png",
+        "w": 192,
+        "h": 144
+      },
+      {
+        "path": "events/event2_03.png",
+        "w": 192,
+        "h": 144
+      },
+      {
+        "path": "events/event2_04.png",
+        "w": 192,
+        "h": 144
+      },
+      {
+        "path": "events/event2_05.png",
+        "w": 192,
+        "h": 144
+      }
+    ],
+    "event3": [
+      {
+        "path": "events/event3_00.png",
+        "w": 192,
+        "h": 144
+      },
+      {
+        "path": "events/event3_01.png",
+        "w": 192,
+        "h": 144
+      },
+      {
+        "path": "events/event3_02.png",
+        "w": 192,
+        "h": 144
+      },
+      {
+        "path": "events/event3_03.png",
+        "w": 192,
+        "h": 144
+      },
+      {
+        "path": "events/event3_04.png",
+        "w": 192,
+        "h": 144
+      }
+    ],
+    "event4": [
+      {
+        "path": "events/event4_00.png",
+        "w": 192,
+        "h": 144
+      },
+      {
+        "path": "events/event4_01.png",
+        "w": 192,
+        "h": 144
+      },
+      {
+        "path": "events/event4_02.png",
+        "w": 192,
+        "h": 144
+      },
+      {
+        "path": "events/event4_03.png",
+        "w": 192,
+        "h": 144
+      },
+      {
+        "path": "events/event4_04.png",
+        "w": 192,
+        "h": 144
+      }
+    ],
+    "event5": [
+      {
+        "path": "events/event5_00.png",
+        "w": 192,
+        "h": 144
+      },
+      {
+        "path": "events/event5_01.png",
+        "w": 192,
+        "h": 144
+      },
+      {
+        "path": "events/event5_02.png",
+        "w": 192,
+        "h": 144
+      },
+      {
+        "path": "events/event5_03.png",
+        "w": 192,
+        "h": 144
+      },
+      {
+        "path": "events/event5_04.png",
+        "w": 192,
+        "h": 144
+      },
+      {
+        "path": "events/event5_05.png",
+        "w": 192,
+        "h": 144
+      }
+    ],
+    "event6": [
+      {
+        "path": "events/event6_00.png",
+        "w": 192,
+        "h": 144
+      },
+      {
+        "path": "events/event6_01.png",
+        "w": 192,
+        "h": 144
+      },
+      {
+        "path": "events/event6_02.png",
+        "w": 192,
+        "h": 144
+      },
+      {
+        "path": "events/event6_03.png",
+        "w": 192,
+        "h": 144
+      }
+    ]
+  },
+  "backgrounds": {
+    "duel_bg": {
+      "path": "backgrounds/duel_bg.png",
+      "w": 640,
+      "h": 400
+    },
+    "worldmap": {
+      "path": "backgrounds/worldmap.png",
+      "w": 640,
+      "h": 400
+    },
+    "gamble_bg": {
+      "path": "backgrounds/gamble_bg.png",
+      "w": 640,
+      "h": 400
+    },
+    "hero_select": {
+      "path": "backgrounds/hero_select.png",
+      "w": 640,
+      "h": 400
+    }
+  }
+}

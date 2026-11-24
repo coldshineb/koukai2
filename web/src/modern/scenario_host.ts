@@ -17,7 +17,7 @@ export class ModernScenarioHost implements IScenarioHost {
 
   private cardEl: HTMLElement | null = null;
   private textEl: HTMLElement | null = null;
-  private portraitCanvas: HTMLCanvasElement | null = null;
+  private portraitImg: HTMLImageElement | null = null;
   private buffer = "";
   private activePictureWin = false;
 
@@ -40,11 +40,10 @@ export class ModernScenarioHost implements IScenarioHost {
     const card = document.createElement("div");
     card.className = "uw2-card uw2-scenario-card";
 
-    const canvas = document.createElement("canvas");
-    canvas.width = 64;
-    canvas.height = 80;
-    canvas.className = "uw2-portrait-canvas";
-    canvas.style.display = "none";
+    const img = document.createElement("img");
+    img.className = "uw2-portrait-canvas";
+    img.alt = "";
+    img.style.display = "none";
 
     const body = document.createElement("div");
     body.className = "uw2-scenario-body";
@@ -53,19 +52,19 @@ export class ModernScenarioHost implements IScenarioHost {
     text.className = "uw2-dialog-text";
 
     body.appendChild(text);
-    card.append(canvas, body);
+    card.append(img, body);
     this.root.appendChild(card);
 
     this.cardEl = card;
     this.textEl = text;
-    this.portraitCanvas = canvas;
+    this.portraitImg = img;
   }
 
   private destroyCard(): void {
     this.cardEl?.remove();
     this.cardEl = null;
     this.textEl = null;
-    this.portraitCanvas = null;
+    this.portraitImg = null;
     this.buffer = "";
   }
 
@@ -101,27 +100,15 @@ export class ModernScenarioHost implements IScenarioHost {
 
   drawFace(faceId: number, _w: ScenarioWindowDef): void {
     this.ensureCard();
-    const canvas = this.portraitCanvas;
-    const kao = this.c?.kao;
-    if (!canvas || !kao) return;
-
-    // 借用離屏 640×400 緩衝取回原版 64×80 頭像像素並以目前調色盤繪至高清縮圖 Canvas
-    const tmpFb = new Uint8Array(640 * 400);
-    const fakeScr = { fb: tmpFb, dirty: false };
-    kao.drawNamed(fakeScr, faceId & 0xff, 0, 0);
-
-    const ctx2d = canvas.getContext("2d");
-    if (!ctx2d) return;
-    const img = ctx2d.createImageData(64, 80);
-    const lut: Uint32Array = this.c.scr.lut;
-    const out32 = new Uint32Array(img.data.buffer);
-    for (let y = 0; y < 80; y++) {
-      const srcRow = y * 640;
-      const dstRow = y * 64;
-      for (let x = 0; x < 64; x++) out32[dstRow + x] = lut[tmpFb[srcRow + x] & 15] || 0xff141c2b;
+    const img = this.portraitImg;
+    if (!img) return;
+    const url = this.c?.art?.portraitUrl?.(faceId & 0xff);
+    if (url) {
+      img.src = url;
+      img.style.display = "block";
+    } else {
+      img.style.display = "none";
     }
-    ctx2d.putImageData(img, 0, 0);
-    canvas.style.display = "block";
   }
 
   showText(bytes: Uint8Array): void {

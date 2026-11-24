@@ -22,6 +22,7 @@ import { ModernShell } from "./modern/shell.ts";
 import { ModernGameUI } from "./modern/presenter.ts";
 import { ModernHud } from "./modern/hud.ts";
 import { ModernScenarioHost } from "./modern/scenario_host.ts";
+import { ArtRegistry } from "./modern/assets_art.ts";
 
 const ASSETS = "./assets";
 const canvas = document.getElementById("screen");
@@ -38,6 +39,7 @@ const state = new GameState(initState, schema);
 
 const ctx = {
   scr, sys, ASSETS, state, initState, schema, codec,
+  art: await new ArtRegistry(ASSETS).load(),
   names: await loadJSON(ASSETS + "/data/names.json"),
   font: await new Font().load(ASSETS),
   bgm: await new BGM(ASSETS).init(),
