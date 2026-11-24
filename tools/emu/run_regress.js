@@ -14,7 +14,7 @@ const has = k => args.includes(k);
 const val = k => { const i = args.indexOf(k); return i >= 0 && i + 1 < args.length ? args[i + 1] : null; };
 
 const FAST_NAMES = new Set([
-  "data_tests", "data_tests_event", "menu_tests", "title_tests", "newgame_tests",
+  "data_tests", "data_tests_event", "menu_tests", "newgame_tests",
   "port (港口走路)", "tavern_route", "wharf_route", "market_route:lis", "palace_route:main",
   "cmd_info_route", "cmd_manage_route", "cmd_nav_route:func",
   "sea_depart_route", "storm_route:start", "land_route:repair",
