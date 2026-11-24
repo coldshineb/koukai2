@@ -4,37 +4,37 @@
 // 兩個執行環境: 共用劇本 SNR0 (章 [0d5e], 旗標 0d60, 變數 0d68) 與主角專屬 SNR{主角+1} (章 [0cd4], 旗標 0cd6, 變數 0cde)。
 // 記憶體: 劇本以 DS 位址讀寫遊戲資料 (D0/DC 取得記錄位址後間接存取); 0x0ca4..0x8d18 對應 GameState, 其他位址見 rd8/wr8。
 import { loadJSON } from "../core/assets.js";
-import { STATE_BASE, STATE_END } from "./state.js";
 import { faFleet } from "./fleetai.js";
 import { duelFromScenario } from "../scenes/duel.js";
 import { mainEnding } from "./endgame.js";
 import { DS } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
+import { LegacyScenarioHost } from "../ui/legacy_presenter.ts";
+import { ScenarioMemoryAdapter, SC_STRLEN } from "./scenario_adapter.ts";
 
 const scS16 = v => (v << 16) >> 16;
 const scUmin = (a, b) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);   // seg0:4d7c
 const scHex = h => Uint8Array.from((h.match(/../g) || []).map(x => parseInt(x, 16)));
 export const ENV_COMMON = { name: "SNR0", ch: DS.COMMON_CHAP, flags: 0x0d60, vars: WorkDS.KINDS, event: 0x0de6, portMax: 0x82, addTime: false };
 export const ENV_HERO = { name: "SNRn", ch: DS.HERO_CHAP, flags: 0x0cd6, vars: 0x0cde, event: 0x0d5c, portMax: 0x64, addTime: true };
-// 31f0b 記錄種類 → [基底, 每筆大小] (7 = 艦隊船位, 18 = COLONY.DAT 記錄, 另行處理)
-const SC_KINDS = [[DS.TBL_COUNTRY, 0x20], [DS.TBL_HERO_DATA, 0x0e], [DS.MONEY, 0], [DS.TBL_PERSON, 0x32], [DS.TBL_NOBLE, 0x16], [DS.TBL_BARMAID, 0x13], [DS.DAYS_AT_SEA, 0], null,
-  [DS.TBL_FLEET, 0x85], [DS.TBL_CREW_SLOT, 0x1e], [DS.TBL_SHIP, 0x16], [DS.TBL_SHIP_TYPE, 0x0c], [DS.TBL_PORT, 0x16], [DS.TBL_PORT_ECONOMY, 0x25], [DS.TBL_REGION_PRICE, 0x80], [DS.TBL_USED_SHIP_CACHE, 8],
-  [DS.TBL_DISCOVERY, 7], [DS.TBL_ITEM, 0x14], null, [0xbd06, 2]];
-const SC_STRBUF = 0x041e, SC_STRLEN = 0x100;
-const SC_COLONY = 0xbb64;                                                  // DS:bb64 COLONY.DAT 記錄緩衝 (0xb1 bytes, 種類 18)
 const scWarned = new Set();
 const scTodo = n => { if (!scWarned.has(n)) { scWarned.add(n); console.warn("尚未移植: " + n); } };
 
 export class Scenario {
   constructor(ctx) {
     this.c = ctx;
-    this.extra = new Uint8Array(0x10000);        // 其他 DS 位址 (劇本間接寫入時)
-    this.str = new Uint8Array(SC_STRLEN);        // DS:041e 訊息展開緩衝
+    this.mem = ctx.scenarioMemory ?? new ScenarioMemoryAdapter(ctx, scTodo);
+    this.host = ctx.scenarioHost ?? new LegacyScenarioHost(ctx, () => this.scene, {
+      runDuel: (sc, person) => duelFromScenario(sc, person),
+      triggerEnding: (scene, code) => mainEnding(scene, code),
+    });
     this.files = {};
     this.cur = -1; this.stack = [0xff, 0xff]; this.count = 0;   // [b874] / [b878..b879] / [b877]
     this.section = null;                           // 共用的 0x4000 bytes 劇本緩衝 ([0c8c]) 目前內容
   }
   get st() { return this.c.state; }
+  get extra() { return this.mem.extra; }
+  get str() { return this.mem.str; }
   async init() {
     if (this.vm) return this;
     const D = this.c.scenarioData;                 // 測試時直接提供 { vm, snr: {n: doc}, mes: {n: [...]} }
@@ -51,27 +51,11 @@ export class Scenario {
     for (const ch of doc.chapters) if (ch) for (const sec of ch.sections) if (sec) sec.map = new Map(sec.code.map(i => [i.at, i]));
     return (this.files[n] = { doc, mes });
   }
-  // ---------------- 記憶體 (DS 位址) ----------------
-  rd8(a) {
-    a &= 0xffff;
-    if (a >= STATE_BASE && a < STATE_END) return this.st.u8(a);
-    if (a >= SC_STRBUF && a < SC_STRBUF + SC_STRLEN) return this.str[a - SC_STRBUF];
-    if (a >= 0x0532 && a < 0x0536) { const r = this.c.rt; return [r.year, r.month, r.day, r.time][a - 0x0532] & 0xff; }
-    if (a >= 0x0538 && a < 0x0538 + 0x100) { const p = this.c.persons || [], i = (a - 0x0538) >> 1; return ((p[i] ?? 0) >> ((a & 1) * 8)) & 0xff; }
-    if (a >= SC_COLONY && a < SC_COLONY + 0xb1) return this.extra[a];
-    scTodo("劇本讀取 DS:" + a.toString(16));
-    return this.extra[a];
-  }
-  wr8(a, v) {
-    a &= 0xffff; v &= 0xff;
-    if (a >= STATE_BASE && a < STATE_END) return this.st.set8(a, v);
-    if (a >= SC_STRBUF && a < SC_STRBUF + SC_STRLEN) { this.str[a - SC_STRBUF] = v; return; }
-    if (a >= 0x0532 && a < 0x0536) { this.c.rt[["year", "month", "day", "time"][a - 0x0532]] = v; return; }
-    scTodo("劇本寫入 DS:" + a.toString(16));
-    this.extra[a] = v;
-  }
-  rd16(a) { return this.rd8(a) | (this.rd8(a + 1) << 8); }
-  wr16(a, v) { this.wr8(a, v); this.wr8(a + 1, v >> 8); }
+  // ---------------- 記憶體 (委派給 ScenarioMemoryAdapter) ----------------
+  rd8(a) { return this.mem.rd8(a); }
+  wr8(a, v) { this.mem.wr8(a, v); }
+  rd16(a) { return this.mem.rd16(a); }
+  wr16(a, v) { this.mem.wr16(a, v); }
   varAddr(i) { return this.env.vars + 2 * i; }
   getVar(i) { return this.rd16(this.varAddr(i)); }
   setVar(i, v) { this.wr16(this.varAddr(i), v); }
@@ -232,19 +216,13 @@ export class Scenario {
     }
     this.str.fill(0); this.str.set(out.slice(0, SC_STRLEN - 1));
   }
-  // ---------------- 發言視窗 (31c04..31ed1) ----------------
+  // ---------------- 發言視窗 (31c04..31ed1, 委派給 IScenarioHost) ----------------
   W(i) { return this.vm.windows[i]; }
-  clearText() { const w = this.W(this.cur); this.c.scr.fillCols(w.textX, w.textY, w.textW, w.textH, 7); }        // 31c6d
-  select() {                                                                                                        // 31c8a
-    const { con } = this.c, w = this.W(this.cur);
-    con.left = w.textX; con.right = w.textW + w.textX - 2; con.setCursor(w.textX, w.textY);
-    this.clearText();
-    con.puts(this.textColor);                                                                                        // 31c63 DS:b894
-  }
+  clearText() { this.host.clearWindowText(this.W(this.cur)); }                                                      // 31c6d
+  select() { this.host.selectWindow(this.W(this.cur), this.textColor); }                                            // 31c8a
   openTop() {                                                                                                       // 31cb3
-    const { win } = this.c, w = this.W(this.cur), id = this.stack[this.count - 1];
-    if (id !== 0) win.save(w.x, w.y, w.w, w.h);
-    win.frame(w.x, w.y, w.w, w.h, 0);
+    const id = this.stack[this.count - 1];
+    this.host.openWindow(id, this.W(this.cur));
     if (id !== 3) this.select();
   }
   async op_win_open({ win: b }) {                                                                                  // 31d06
@@ -258,8 +236,8 @@ export class Scenario {
   }
   async closeTop() {
     const id = this.stack[this.count - 1];
-    if (id !== 0) await this.c.win.close();
-    else { this.cur = id; this.clearText(); }
+    if (id === 0) this.cur = id;
+    await this.host.closeWindow(id, this.W(id));
     this.count--; this.stack[this.count] = 0xff;
   }
   async op_win_close() {                                                                                           // 31d5e
@@ -272,11 +250,11 @@ export class Scenario {
     if (b >= 4 || !(this.stack[0] === b || this.stack[1] === b)) return;
     this.cur = b; this.select();
   }
-  async op_face({ face }) { if (this.cur >= 0) { const w = this.W(this.cur); this.c.kao.drawNamed(this.c.scr, face & 0xff, w.faceX, w.faceY); } }   // 31ed1
+  async op_face({ face }) { if (this.cur >= 0) this.host.drawFace(face & 0xff, this.W(this.cur)); }               // 31ed1
   async op_face_var({ var: v }) { return this.op_face({ face: this.getVar(v) }); }
-  async op_msg({ msg }) { this.expand(msg); this.c.con.puts(this.str); }                                           // 31e2e
+  async op_msg({ msg }) { this.expand(msg); this.host.showText(this.str); }                                       // 31e2e
   async op_msg_expand({ msg }) { this.expand(msg); }
-  async op_wait_key() { await this.c.menu.waitPrompt(); }                                                          // 0fea:490b
+  async op_wait_key() { await this.host.waitKey(); }                                                              // 0fea:490b
   // 329c6 + 31e38: 訊息 (不展開) 以換行分成項目 → 0fea:44c4 (0x3c, 0x50), 不可取消
   async op_menu({ var: v, msg }) {
     const b = this.raw(msg), items = [];
@@ -287,32 +265,20 @@ export class Scenario {
       cur.push(b[i]);
     }
     items.push(Uint8Array.from([...cur, 0]));
-    const r = await this.c.menu.listMenu(0x3c, 0x50, items, 0);
+    const r = await this.host.selectMenu(items);
     this.setVar(v, r & 0xff);
   }
-  async op_music({ song }) { this.c.bgm.playSong(song); }    // 31e67: 9670(b); b=0x15 時 96eb(0) 關閉重播 = 只播一次 (bgm.json "once" 處理)
-  async op_yes_no({ flag }) { this.setFlag(flag, await this.c.menu.yesNo()); }                                    // 323df
+  async op_music({ song }) { this.host.playMusic(song); }    // 31e67: 9670(b); b=0x15 時 96eb(0) 關閉重播 = 只播一次 (bgm.json "once" 處理)
+  async op_yes_no({ flag }) { this.setFlag(flag, await this.host.confirmYesNo()); }                               // 323df
   // ---------------- 資料 ----------------
   // 31f0b 記錄位址
-  recordAddr(kind, i, field) {
-    let base = 0;
-    if (kind === 7) base = i < 10 ? DS.TBL_FLEET + this.st.u8(this.st.personRecord(this.st.hero) + 0x2c) * 0x85 + 0x2b + 9 * i : 0x572a + 9 * i;
-    else if (kind === 18) { this.colonyRead(i); base = SC_COLONY; }
-    else if (kind < 20) { const [b, n] = SC_KINDS[kind]; base = b + n * i; }
-    return (base + field) & 0xffff;
-  }
-  // 32064 種類 18: 開 COLONY.DAT (DS:0a74), lseek 到 索引 × 0xb1, 讀 0xb1 bytes 到 DS:bb64, 關閉 (RE_NOTES 36.7); 索引 ≥ 100 讀不到 → 緩衝保留舊內容
-  colonyRead(i) {
-    const c = this.c, col = c.portAssets?.colony;
-    if (!col || i >= col.length) return;
-    const r = (c._colony ??= [])[i] ??= c.font.encode(col[i]);         // ui/listsel.js ListSelect.colonyRec 同一份快取
-    for (let k = 0; k < 0xb1; k++) this.extra[SC_COLONY + k] = r[k] ?? 0;
-  }
+  recordAddr(kind, i, field) { return this.mem.recordAddr(kind, i, field); }
+  colonyRead(i) { this.mem.colonyRead(i); }
   async op_addr({ var: v, kind, index, field }) { this.setVar(v, this.recordAddr(kind, index, field)); }
   async op_addr_var({ var: v, kind, index_var, field }) { this.setVar(v, this.recordAddr(kind, this.getVar(index_var) & 0xff, field)); }
   get money() { return (this.st.u16(DS.MONEY) | (this.st.u16(0x12b0) << 16)) | 0; }
   set money(v) { if (v > 600000000) v = 600000000; this.st.set16(DS.MONEY, v & 0xffff); this.st.set16(0x12b0, (v >>> 16) & 0xffff); }
-  panels() { if (this.st.u8(DS.PORT) !== 0xff) this.scene?.panels(); }                                       // seg0:8894
+  panels() { this.host.refreshPanels(); }                                                                          // seg0:8894
   async op_money_set({ var: v }) { this.money = scS16(this.getVar(v)); this.panels(); }                              // 322ac
   async op_money_add({ var: v }) { this.money = (this.money + scS16(this.getVar(v))) | 0; this.panels(); }          // 322e8
   async op_money_sub({ var: v }) {                                                                                 // 3232a
@@ -414,7 +380,7 @@ export class Scenario {
     st.set8(DS.TBL_PORT_ECONOMY + st.u8(DS.PORT) * 0x25 + 0x23, 0xff);
     for (let i = 0; ; i++) { st.set8(S + i, this.str[i]); if (!this.str[i]) break; }
     const F = DS.TBL_FLEET + st.u8(st.personRecord(st.hero) + 0x2c) * 0x85;                                       // [c2d4]
-    if (this.scene?.ai) this.scene.ai.strength(F); else scTodo("劇本新船命名後的 0fea:83f9 (艦隊重算)");   // 0fea:83f9 = 18299
+    if (!this.host.recalcFleetStrength(F)) scTodo("劇本新船命名後的 0fea:83f9 (艦隊重算)");                       // 0fea:83f9 = 18299
   }
   // 0fea:2f43 = 12de3: 主角沒有擔任任何船的船長時列入主角, 再列入職務 > 2 的船員 → [0538]; 名單為空時 [0538] 不變
   captainCandidate() {
@@ -434,9 +400,9 @@ export class Scenario {
   }
   async op_barmaid_love({ girl, amount }) { const g = DS.TBL_BARMAID + 0x13 * girl; this.st.set8(g + 0x0f, scUmin(this.st.u8(g + 0x0f) + amount, 100)); }   // 32790
   // 320ba D1 v: 變數的低位元組 = 艦隊編號 → 33aaf 依任務恢復目的地 (game/fleetai.js resume)
-  async op_d1({ var: v }) { const k = this.getVar(v) & 0xff; if (this.scene?.ai) this.scene.ai.resume(faFleet(k)); else scTodo("劇本命令 D1 (艦隊移動 33aaf)"); }
+  async op_d1({ var: v }) { const k = this.getVar(v) & 0xff; if (!this.host.resumeFleet(faFleet(k))) scTodo("劇本命令 D1 (艦隊移動 33aaf)"); }
   // 32377 E8 一騎打: 31dbb → 0fea:2ca9(1, 主角, 對手) → 外框 / 8894 / 8ebc([b876]) / 99e8 (scenes/duel.js)
-  async op_duel({ person }) { await duelFromScenario(this, person); }
+  async op_duel({ person }) { await this.host.runDuel(this, person); }
   // 系統變數 6 (32d4a) = [9c2a] 一騎打的體力條 (海戰的 DS 鏡像; 還沒有時是 MAIN.EXE 的初值)
   duelHp() {
     if (this.c.battleDS) return this.c.battleDS[0x9c2a];
@@ -444,12 +410,7 @@ export class Scenario {
   }
   // 331e4 CB w1 w2 b → 31e81: 關閉 [03d8], 開 DS:0a82「EVENT*.DAT」(* = [0a89], 1681a 設為 '1' + 主角), seg0:5b5d 畫第 b 張於 (w1, w2), 關閉, [03d8] = GRAPH.DAT
   //   (第 31 節; 不動調色盤, 畫在前一條 C0 3 開的大框裡)
-  async op_picture({ x, y, pic }) {
-    const { graph } = this.c, name = this.c.eventFile ?? `EVENT${this.st.hero + 1}.DAT`;
-    const g = await graph.ensure(this.c.ASSETS, name, "event/" + name);
-    g.draw(this.c.scr.fb, pic, x, y); this.c.scr.dirty = true;
-    graph.useFile("GRAPH.DAT");
-  }
+  async op_picture({ x, y, pic }) { await this.host.showPicture(x, y, pic); }
   // 330c1 F4 b → 0fea:77af(b) 劇本結局 (b = 主角 0..5; game/endgame.js, 之後由 main.js 執行 END.EXE 的移植)
-  async op_ending({ code }) { await mainEnding(this.scene, code & 0xff); return false; }
+  async op_ending({ code }) { await this.host.triggerEnding(code & 0xff); return false; }
 }
