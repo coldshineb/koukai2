@@ -5,6 +5,7 @@ import { SaveFile, SLOTS, HEADER_SIZE } from "./savefile.js";
 import { NewGame } from "./newgame.js";
 import { Commands } from "../scenes/commands.js";
 import { loadPortAssets } from "../scenes/port.js";
+import { GameConst, MenuId, OptionFlag } from "../model/flags.ts";
 
 const ESC = 0x1b;
 const STR_STAR = Uint8Array.of(ESC, 0x43, 0x32, 0x2a, ESC, 0x43, 0x30, 0);   // DS:a37a  ESC C2 * ESC C0
@@ -26,7 +27,7 @@ export class Title {
     //   之後是/否框在滑鼠位於 (27F,18F) 時改跟隨文字游標 (0FEA:146d4), 所以這一步會影響確認框的位置
     this.c.sys.setMousePos(0x27f, 0x18f);
     this.c.con.f29 = 1;                   // [8a29] = 1
-    this.c.bgm.optionOff = () => !(this.c.state.options & 4);   // 9670 依 [0ca4] bit2 決定播不播 (core/audio.js)
+    this.c.bgm.optionOff = () => !(this.c.state.options & OptionFlag.BGM);   // 9670 依 [0ca4] bit2 決定播不播 (core/audio.js)
   }
   // 171a2(1); restart = 171a2(0) (1757d: 功能「結束遊戲」後回到標題: 不做 1752c, 以 DATA1 #15 重新載入初始狀態代替 162fd)
   async run(restart = false) {
@@ -44,7 +45,7 @@ export class Title {
   }
   // 1706a: 標題選單迴圈, 處理函式表 DS:a3a2
   async titleMenu() {
-    const { win, menu } = this.c, items = this.c.menuItems(56);
+    const { win, menu } = this.c, items = this.c.menuItems(MenuId.TITLE);
     const handlers = [() => this.cont(), () => this.newVoyage(), () => this.settings(), () => this.quit(items)];
     for (;;) {
       await win.open(0x18, 0x30, 0x20, 0x90, 0);
@@ -139,28 +140,27 @@ export class Title {
   }
   // 16c02..16c96
   applyLoad(slot) {
-    const st = this.c.state;
+    const st = this.c.state, g = st.model.globals;
     st.b.set(slot.subarray(0, STATE_LOAD_SIZE));
     this.c.buf0c8e = slot.slice(STATE_LOAD_SIZE);                 // 讀入緩衝 [0c8e] 的 0x300 bytes
     st.b.set(this.c.buf0c8e, STATE_LOAD_SIZE);                    // (本移植版把它保存在狀態鏡像的同一位置)
-    let o = st.options;
-    if (!(o & 0x42)) { st.set8(0x0cd4, 0xff); st.set8(0x0cd5, 0); }
-    else if (!(o & 2)) { o = (o | 0x40) & 0xfd; st.set8(0x0d5e, 0); st.set8(0x0d5f, 0); }
-    else o |= 0x42;
-    st.options = o;
-    // 162e4: 目前主角記錄指標 [c2ce] / [c2d4] — 以主角編號表示
+    let o = g.options;
+    if (!(o & (OptionFlag.SCENARIO | OptionFlag.ENDING_READY))) { g.heroChap = GameConst.EMPTY_SLOT; g.heroSec = 0; }
+    else if (!(o & OptionFlag.ENDING_READY)) { o = (o | OptionFlag.SCENARIO) & ~OptionFlag.ENDING_READY; g.commonChap = 0; g.commonSec = 0; }
+    else o |= OptionFlag.SCENARIO | OptionFlag.ENDING_READY;
+    g.options = o;
     // 1681a: 日期複製到執行期變數 [0532..0535]
-    this.c.rt = { year: st.year, month: st.month, day: st.day, time: st.time };
+    this.c.rt = { year: g.year, month: g.month, day: g.day, time: g.time };
     // 1681a → 1667a: 風向表的季節; seg0:5022 滑鼠速度
-    this.c.windOffset = st.month >= 3 && st.month < 9 ? 0 : 0x1c2;
-    this.c.eventFile = `EVENT${st.hero + 1}.DAT`;                         // 1681a 結尾: [0a89] = '1' + 主角 (劇情插圖檔)
-    { const r = (st.u8(0x0ca8) + 2) * 2; this.c.sys.mickeyRatio = [r, r]; }
+    this.c.windOffset = g.month >= 3 && g.month < 9 ? 0 : 0x1c2;
+    this.c.eventFile = `EVENT${g.hero + 1}.DAT`;                         // 1681a 結尾: [0a89] = '1' + 主角 (劇情插圖檔)
+    { const r = (g.mouseSens + 2) * 2; this.c.sys.mickeyRatio = [r, r]; }
   }
   // 16c99..16cd9: 9888 效果音放鍵; 暴風雨中 → 9768(DS:0c5a) + 9804(0x30)
   async afterLoad() {
-    const st = this.c.state, sfx = this.c.sfx;
+    const g = this.c.state.model.globals, sfx = this.c.sfx;
     sfx?.off();
-    if ((st.u8(0x0cb3) & 15) === 1) { sfx?.voice(0x0c5a); sfx?.note(0x30); }
-    if (!(st.options & 4)) this.c.bgm.fadeOut();                 // 背景音樂關閉時停止
+    if ((g.weather & 15) === 1) { sfx?.voice(0x0c5a); sfx?.note(0x30); }
+    if (!(g.options & OptionFlag.BGM)) this.c.bgm.fadeOut();      // 背景音樂關閉時停止
   }
 }
