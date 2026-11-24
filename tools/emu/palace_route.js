@@ -9,6 +9,9 @@
 //   "naturalize" 塞維爾, 爵位 2 (外國人): 晉見國王 (私掠許可証停用) → 勢力狀況 東亞 (沒有港口 0x1c7) → 申請國籍 否 → 申請國籍 是 (國籍改為西班牙) → 資金援助 → 離開
 //   "arrest"     里斯本, 對葡萄牙聲望 0、主角 +21 = 0 → 0x1bb → 被抓 (沒收 4/5 現金與存款, 聲望 = 100)
 //   "escape"     同上但主角 +21 = 200 → 逃脫 (0x1be → 0x1c0)
+//   "rank9"      里斯本, 爵位 9 且 [0ca4] bit1: 晉見國王後 2ac50 → 1764f(0x0f) 爵位 9 結局 (0x2ea ▽ → 儲存進度 第 1 格 是 → 淡出 → INT 65h)
+//                (晉見國王會停在勢力狀況的地區清單, 所以選資金援助)
+//                原版執行到 17786 (INT 65h AH=01) 起記錄 4 次 INT 65h 的值到 S.INT65 並結束; 移植版 game/endgame.js 以 MainExit 帶出同樣的值 (S.MAIN_EXIT)
 "use strict";
 (function () {
 const S = session;
@@ -22,6 +25,7 @@ if (mode === "main") {
   poke.push([0x2e1b, 8], [H + 8 * 0x32 + 0x2e, 3]);                // 船員 8 (職務 3) 可當船長; 主角 0 會被空船位的船長欄 (= 0) 當成已擔任船長 (原版如此)
 }
 if (mode === "naturalize") poke.push([HD + 0x0d, 2]);
+if (mode === "rank9") poke.push([HD + 0x0d, 9]);
 if (mode === "arrest" || mode === "escape") { poke.push([HD + 6, 0], [H + 0x21, mode === "arrest" ? 0 : 200]); w16(0x12b2, 50); poke.push([0x12b4, 7]); }
 for (const [a, v] of S.PALACE_POKE || []) poke.push([a, v]);
 const E = K.enter, D = K.down, X = K.esc, L = K.left;
@@ -44,6 +48,7 @@ const KEYS = {
   naturalize: [E, E, E, E, E, D, D, D, D, D, D, D, E, E, X, E, X, D, E, E, X, E, D, E, E, E, E, D, D, E, E, X, D],
   arrest: [E, E, E, E, E, E, D],
   escape: [E, E, E, D],
+  rank9: [E, D, D, E, ...Array(20).fill(E)],                      // 0x1bc ▽ → 資金援助 → (訊息 ▽) → 2ac50 結局: 0x2ea ▽ → 儲存進度 第 1 格 → 是
 };
 S.PORT_SETUP = mode === "naturalize" ? { port: 1, vx: 36, vy: 0, hx: 12, hy: 9, time: 0x18, poke } : { port: 0, vx: 36, vy: 0, hx: 12, hy: 8, time: 0x18, poke };
 S.PORT_KEYS = [K.up, ...(S.PALACE_KEYS || KEYS[mode])];
@@ -53,5 +58,16 @@ if (mode === "main") {                                               // 第 2 �
   const p2 = idx(12, 2), p5 = idx(12, 5);
   S.TELEPORT = { [B + p2]: [[HD + 2, 2000 & 255], [HD + 3, 2000 >> 8]], [B + p5]: [[0x12ae, 100000 & 255], [0x12af, (100000 >> 8) & 255], [0x12b0, 100000 >> 16]] };
 }
+if (mode === "rank9") {
+  S.PORT_SETUP.emuHook = (mem, d) => { mem[d + 0x0ca4] |= 2; };
+  S.PORT_SETUP.jsHook = st => st.set8(0x0ca4, st.u8(0x0ca4) | 2);
+  S.INT65 = []; S.MAIN_EXIT = null; S.EMU_DONE = false;
+  S.EMU_TICK = Object.assign((cpu, a) => {
+    if (a !== 0x17786 && a !== 0x1778e && a !== 0x17796 && a !== 0x1779e) return;
+    const r = { ah: cpu.r[0] >> 8, bx: cpu.r[3] };
+    if (a === 0x17786) { const p = cpu.r[1] * 16 + cpu.r[3]; r.str = Array.from(cpu.mem.slice(p, p + 0x15)); }
+    S.INT65.push(r); if (a === 0x1779e) S.EMU_DONE = true;
+  }, { palaceRank9: 1 });
+} else if (S.EMU_TICK?.palaceRank9) { S.EMU_TICK = undefined; S.EMU_DONE = false; }   // 上一條 rank9 留下的設定
 S.NO_EVENTS = 1;
 })();

@@ -48,6 +48,8 @@ import { ItemShop } from "./scenes/itemshop.js";
 import { SeaScene } from "./scenes/sea.js";
 import { NavalBattle } from "./scenes/battle.js";
 import { Duel } from "./scenes/duel.js";
+import { Ending, loadEndingData } from "./game/ending.js";      // END.EXE (結局)
+import { MainExit } from "./game/endgame.js";
 const COST_CLASSES = { Screen, Font, Sys, Rng, Timer, TextConsole, WindowSystem, MenuSystem, Graph, GraphDat, Kao, WorldMap, PlanarBuf, Palette,
   ListSelect, CellSelect, NameInput, NumPad, GameState, Title, NewGame, Scenario, GameClock, FleetAI, Monthly,
   PortScene, Buildings, Commands, PortMove, Market, Gamble, Palace, Office, House, Bank, ItemShop, SeaScene, NavalBattle, Duel };
@@ -111,5 +113,13 @@ requestAnimationFrame(frame);
   await ctx.bgm.stopped();
   const r = await new Title(ctx).run();          // 17546 → 171a2 → 標題選單
   if (ctx.halted || r !== 1) return;
-  await new GameClock(ctx).run();                // 17546 後半 (1721f 進港) + 1623a 主迴圈
+  try {
+    await new GameClock(ctx).run();              // 17546 後半 (1721f 進港) + 1623a 主迴圈
+  } catch (e) {
+    if (!(e instanceof MainExit)) throw e;
+    // MAIN.EXE 以結束碼 1 結束 → KOUKAI2.COM 執行 END.EXE (INT 65h 的值 = e.params); 結局播完回到 DOS
+    const end = await loadEndingData(ASSETS, loadBinary, loadJSON);
+    await new Ending({ scr, sys, bgm: ctx.bgm, font: ctx.font }, end).run(e.params);
+    ctx.halted = true;
+  }
 })();

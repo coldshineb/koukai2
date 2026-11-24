@@ -7,6 +7,7 @@ import { loadJSON } from "../core/assets.js";
 import { STATE_BASE, STATE_END } from "./state.js";
 import { faFleet } from "./fleetai.js";
 import { duelFromScenario } from "../scenes/duel.js";
+import { mainEnding } from "./endgame.js";
 
 const scS16 = v => (v << 16) >> 16;
 const scUmin = (a, b) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);   // seg0:4d7c
@@ -438,5 +439,6 @@ export class Scenario {
     g.draw(this.c.scr.fb, pic, x, y); this.c.scr.dirty = true;
     graph.useFile("GRAPH.DAT");
   }
-  async op_ending() { scTodo("劇本命令 F4 (結局 0fea:77af)"); return false; }
+  // 330c1 F4 b → 0fea:77af(b) 劇本結局 (b = 主角 0..5; game/endgame.js, 之後由 main.js 執行 END.EXE 的移植)
+  async op_ending({ code }) { await mainEnding(this.scene, code & 0xff); return false; }
 }

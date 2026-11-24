@@ -9,6 +9,7 @@ import { Scenario, ENV_HERO } from "./scenario.js";
 import { Title } from "./title.js";
 import { faFleet } from "./fleetai.js";
 import { Monthly } from "./monthly.js";
+import { mainEnding } from "./endgame.js";
 
 const clockWarned = new Set();
 const clockTodo = name => { if (!clockWarned.has(name)) { clockWarned.add(name); console.warn("尚未移植: " + name); } };
@@ -180,10 +181,11 @@ export class GameClock {
   //   0x1? = 遊戲結束: 9670(0x14); 訊息 0 → 0x83f8 (1552 年, 不畫圖) / 8 → 0x3f6 (沉船) / 9 → 0x3f7 (船員全滅) / 0x0a → 0x3f5 (海戰戰敗);
   //          [03ea] = 0; GRAPH.DAT #0x3d + 74f7(0x12, 0xd8, 0x2c, 0xa8, 1) (或 74f7(0x12, 0x50, 0x2c, 0xd8, 1)), 訊息 (年 + 1、月、日、主角名、+0d、主角名、+0d),
   //          99e8 淡入 → 等待 → 99f2 → 796d → 清畫面 → 回到標題
-  //   其他 (0x0? 結局等): 尚未移植
+  //   0x0? = 結局 (game/endgame.js; 正常只由劇本命令 F4 / 王宮直接呼叫, 不經 [03ea]); 其他 code: [bp-4] 未初始化 (原版怪行為), 正常遊戲不會走到
   async ending(code) {
     const { scr, con, palette, bgm, graph, win, message, menu } = this.c;
     const hi = code & 0xf0;
+    if (hi === 0) await mainEnding(this.portScene, code);
     if (code !== 0x88 && hi !== 0x10) { clockTodo("結束處理 1764f(" + code.toString(16) + ")"); return false; }
     await palette.fadeBlack();
     scr.clear(0);

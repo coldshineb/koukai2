@@ -29,7 +29,7 @@ const LIST = [
   ...M("house_route", "HOUSE_MODE", ["collector", "collector0", "geo", "mapper", "school2", "school3"]),
   ...M("inn_route", "INN_MODE", ["chat", "friend", "none"]), ...M("itemshop_route", "SHOP_MODE", ["buy", "full", "night", "sell"]),
   ...M("market_route", "MARKET_MODE", ["lis", "bar", "big", "full"]), ...M("office_route", "OFFICE_MODE", ["main", "event", "status"]),
-  ...M("palace_route", "PALACE_MODE", ["main", "arrest", "escape", "naturalize"]),
+  ...M("palace_route", "PALACE_MODE", ["main", "arrest", "escape", "naturalize", "rank9"]),
   ...M("shipyard_route", "SY_MODE", ["dock", "yard"]), ...M("shipyard_route2", "SY2_MODE", ["build", "trade"]), ...M("shipyard_route3", "SY3_MODE", ["used", "empty"]),
   ...M("supply_route", "SUP_MODE", ["ok", "cancel", "dup"]),
   ...M("portmove_route", "PM_MODE", ["market", "tavern", "menu", "closed", "event", "guard", "guard_door", "night_guard", "overlap", "overlap_closed"]),

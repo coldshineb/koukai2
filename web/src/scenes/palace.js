@@ -4,6 +4,7 @@
 //   (+0 收益, +2 爵位上限?/關係, +4 首都, +5 資金援助 (千枚), +7 援助船型, +8 援助船數, +0b.. 對各國友好, +12.. 同盟/封鎖)
 // 主角資料 seg0:5be8 = 0x125a + 0x0e×主角 (+0/+2/+4 商人/海盜/冒險家名聲, +6+國 對各國聲望, +0d 爵位)
 import { Scenario, ENV_COMMON, ENV_HERO } from "../game/scenario.js";
+import { mainEnding } from "../game/endgame.js";
 const plHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const plS16 = v => (v << 16) >> 16;
 const plUmin = (a, b) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);   // seg0:4d7c
@@ -81,7 +82,7 @@ export class Palace {
       sel = await b.menu(items);
       if (sel !== 0xff) {
         await [() => this.audience(), () => this.naturalize(), () => this.funds(), () => this.shipAid()][sel]();
-        if (st.u8(this.HD + 0x0d) === 9 && (st.u8(0x0ca4) & 2)) plTodo("結局 (0fea:77af(0x0f))");
+        if (st.u8(this.HD + 0x0d) === 9 && (st.u8(0x0ca4) & 2)) await mainEnding(this.b.p, 0x0f);   // 2ac50: 0fea:77af(0x0f) 爵位 9 結局 (game/endgame.js)
       }
       b.after();
     } while (sel !== 0xff);

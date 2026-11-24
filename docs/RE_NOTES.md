@@ -1907,7 +1907,7 @@
 - 回歸（擴充關閉）：港口走路 25/25、航海術 隨身物 83/83、功能 55/55、情報 71/71、經營 94/94、命令 66/66、碼頭 32/32、酒館 39/39、交易所 56/56、塞維爾買舊船 34/34、開場教會 54/54。
 - 沒測到：海上時「港內移動」變灰（只照選單 bit6 的規則寫）；補給港（100..129）；`28741` 在 0x0c..0x12 / 0x36..0x3b 放回的站立行人（種類 0/1/3，不算衛兵）。
 
-## 34. 結局與遊戲結束（END.EXE 已完成 → `web/src/game/ending.js`、`ending_pro.js`；MAIN.EXE 端 `1764f` 結局分支見 34.8）
+## 34. 結局與遊戲結束（已完成：END.EXE → `web/src/game/ending.js`、`ending_pro.js`；MAIN.EXE 端 `1764f` 結局分支 → `web/src/game/endgame.js`，見 34.8）
 分析腳本 `tools/re/ending.py`（+ `tools/re_env_end.py`）→ `tools/work/re_end.txt`；`tools/re/ending_map.py` → `re_end_map.txt` / `re_end_new.txt` / `re_end_vs_main.txt`；序幕產生器 `tools/re/ending_pro.py`；資料 `tools/extract_end.py` → `web/assets/data/ending.json`、`web/assets/gfx/END_PUT.DAT`；差分測試 `tools/emu/boot_end.js` + `ending_tests.js`。
 
 ### 34.1 MAIN.EXE 怎麼啟動 END.EXE
@@ -1957,3 +1957,12 @@
 
 ### 34.7 移植中修正的地方
 - `24ac` 的目標是 DS:048e 起的 48 bytes（不是 24 bytes 的後 8 色表）；頭像的 `415e` 是 3 平面交錯，不是 `3fd6` 的 4 平面。
+
+### 34.8 MAIN.EXE 端的接入（`web/src/game/endgame.js`）
+- `mainEnding(scene, code)` = 1764f 的 `code & 0xf0 == 0` 分支，逐句照 34.1：共同開頭、關掉所有視窗、清畫面、淡入、視窗 0x2ea、等待、[0caf] / [0ca4] 旗標、`Commands.save(code == 0x0f ? 3 : 2)`（與功能「儲存檔案」同一個 16cf0，取消也照樣繼續）、淡黑、175ca 收尾（音樂淡出、清畫面、[03ea] = 0、停止調色盤循環）；最後組出 INT 65h 的 4 個值（字串 = 主角名 + " " + 姓，0x15 bytes），以 `MainExit` 例外離開遊戲迴圈。
+- 呼叫處：王宮 `palace.js`（2ac50：每次選完若爵位 = 9 且 [0ca4] bit1 → 0x0f）、劇本命令 F4 `scenario.js op_ending`（330c1：參數 = 主角 0..5）、`clock.js` 的 `ending(code)` 遇到 0x0? 也交給它（正常不會經 [03ea] 走到）。
+- `main.js`：`GameClock.run()` 丟出 `MainExit` → 載入結局資源（`loadEndingData`：ending.json、gfx/ENDGRP.DAT、gfx/END_PUT.DAT、gfx/event/EVENT0..6.DAT）→ `new Ending(...).run(e.params)` → 播完後 `ctx.halted`（相當於原版 KOUKAI2.COM 回到 DOS）。
+- 差分驗證 `tools/emu/palace_route.js` 模式 rank9（里斯本、主角 0、爵位 9、[0ca4] |= 2；資金援助 → 0x2ea ▽ → 儲存進度 第 1 格 → 是）：20 個畫面 / 調色盤 / 狀態 / 亂數逐張一致；原版在 17786 / 1778e / 17796 / 1779e 記下的 INT 65h（AH=01 字串、AH=03 / 04 國籍 0、AH=05 核對值 0x9565）與移植版 `MainExit` 的值完全相同。再以這個實際的全形主角名字跑 END.EXE 爵位 9 主角 0：7318 tick 逐 tick 一致。
+  - 晉見國王會停在勢力狀況的地區清單，Enter 出不來，所以路線改選資金援助。
+- 回歸（改動後重跑）：王宮 main 95/95、arrest 20/20、escape 17/17、naturalize 46/46、港口走路 25/25、開場劇情 event_route 54/54、酒館 39/39、碼頭 32/32、功能（存讀檔）55/55、船塢 35/35、出海 21/21、海戰 gun_sink 49/49（快照 1/1）、一騎打 cpu 116/116（快照 4/4）、月末 23/23。
+- 沒測到：劇本命令 F4 實際被執行（code 0..5 的 MAIN 端只差 [0ca4] &= BF、存檔旗標 2、核對值；沒有走得到 F4 的測試路線）；MAIN 端儲存進度選「取消」；海上時結局（[0cae] = FF 不改 [0caf]）。

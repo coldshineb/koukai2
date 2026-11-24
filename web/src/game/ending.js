@@ -13,10 +13,11 @@
 
 import { cprintf } from "../ui/printf.js";
 import { decodeGraph } from "../gfx/graphdec.js";
-import { PROLOGUES } from "./ending_pro.js";   // 劇本結局序幕 (DS:0e00 far 函式表)
+// 劇本結局序幕 (DS:0e00 far 函式表)
+import { PROLOGUES } from "./ending_pro.js";
 
-const s16 = v => (v << 16) >> 16;
-const ror16 = (v, n) => { n &= 15; return ((v >>> n) | (v << (16 - n))) & 0xffff; };
+const edS16 = v => (v << 16) >> 16;
+const edRor16 = (v, n) => { n &= 15; return ((v >>> n) | (v << (16 - n))) & 0xffff; };
 
 
 export class EndingExit extends Error { constructor(code) { super("ending exit"); this.code = code; } }
@@ -214,10 +215,10 @@ export class Ending {
         const v = (cur & bx) | (ax & dx);
         this.planeSet(pl, o, v & 0xff); this.planeSet(pl, o + 1, v >> 8);
       }
-      this.cs59ca = ror16(this.cs59ca, (rows & 7) + 1);
+      this.cs59ca = edRor16(this.cs59ca, (rows & 7) + 1);
       di += 80;
     }
-    this.cs59ca = ror16(this.cs59ca, 5);
+    this.cs59ca = edRor16(this.cs59ca, 5);
   }
   // 5a7b: 平面 0..2 的每列左移一個位元組欄 (最右補 0)
   shiftLeft(col, y, w, h) {
@@ -288,20 +289,20 @@ export class Ending {
   }
   // ---- 文字輸出 (1f74; 狀態 [0e24] 欄 [0e26] y [0e28] 行高 [0e2a] 左界 [0e2c] 右界 [0e30] 模式 [0e31] 前景 [0e32] 背景 [0e33] [0e34] 首碼 [0e36] 跳脫狀態) ----
   clampCursor() {                                                 // 1ac6
-    let x = s16(this.w(0x0e24)), y = s16(this.w(0x0e26));
+    let x = edS16(this.w(0x0e24)), y = edS16(this.w(0x0e26));
     x = x < 0 ? 0 : Math.min(x, 0x4f); y = y < 0 ? 0 : Math.min(y, 0x190);
     this.sw(0x0e24, x); this.sw(0x0e26, y);
   }
-  setCursor(x, y) { if (s16(x) >= 0) this.sw(0x0e24, x); if (s16(y) >= 0) this.sw(0x0e26, y); this.clampCursor(); }   // 1b09
+  setCursor(x, y) { if (edS16(x) >= 0) this.sw(0x0e24, x); if (edS16(y) >= 0) this.sw(0x0e26, y); this.clampCursor(); }   // 1b09
   newline() {                                                     // 1f1c: 已在行首時不動作
     if (this.w(0x0e2a) === this.w(0x0e24)) return;
     this.sw(0x0e24, this.w(0x0e2a));
-    if (s16(this.w(0x0e26) + this.w(0x0e28)) <= 0x190) this.sw(0x0e26, this.w(0x0e26) + this.w(0x0e28));
+    if (edS16(this.w(0x0e26) + this.w(0x0e28)) <= 0x190) this.sw(0x0e26, this.w(0x0e26) + this.w(0x0e28));
   }
   async control(ch) {                                             // 1f3f
     switch (ch) {
       case 0x07: await this.beep(3); break;
-      case 0x08: if (s16(this.w(0x0e24)) >= 1) this.sw(0x0e24, this.w(0x0e24) - 1); break;
+      case 0x08: if (edS16(this.w(0x0e24)) >= 1) this.sw(0x0e24, this.w(0x0e24) - 1); break;
       case 0x0a: this.newline(); break;
       case 0x0d: this.sw(0x0e24, this.w(0x0e2a)); break;
     }
@@ -328,14 +329,14 @@ export class Ending {
       di = ch;
     }
     const limit = di >= 0x200 ? 0x4e : 0x4f;
-    if (limit < s16(this.w(0x0e24))) this.newline();
+    if (limit < edS16(this.w(0x0e24))) this.newline();
     const attr = ((this.b(0x0e32) || this.b(0x0e30)) << 8) | this.b(0x0e31);
     this.loadGlyph(di);
     const x = this.w(0x0e24), y = this.w(0x0e26), w = this.w(0x1f90);
     if (this.b(0x0e32)) this.glyphOpaque(x, y, w, 0x10, attr, this.m, 0x200e);   // 1ef3 → DS:0e18[1] = 426c
     else this.glyphMode(x, y, w, 0x10, attr, this.m, 0x200e);                    //            DS:0e18[0] = 4236
     this.sw(0x0e24, this.w(0x0e24) + (di >= 0x200 ? 2 : 1));
-    if (s16(this.w(0x0e24)) > s16(this.w(0x0e2c))) this.newline();
+    if (edS16(this.w(0x0e24)) > edS16(this.w(0x0e2c))) this.newline();
   }
   escape(st, c) {                                                 // 1f86 跳躍表 cs:1f8b (狀態 1..8)
     switch (st) {
@@ -378,7 +379,7 @@ export class Ending {
     this.sb(0x0e3e, this.b(0x0e3e) ^ 1);
   }
   async wait317a(n) {                                             // 317a: n tick, 每 [0044]+1 tick 換一格
-    for (let i = 0; i < s16(n); i++) {
+    for (let i = 0; i < edS16(n); i++) {
       this.timerSet(1);
       this.sb(0x0e3f, this.b(0x0e3f) + 1);
       if (this.b(0x0e3f) > this.b(0x0044)) { this.anim3146(); this.sb(0x0e3f, 0); }
@@ -487,8 +488,8 @@ export class Ending {
     const g8 = o => buf[o & 0xffff], g16 = o => buf[o & 0xffff] | (buf[(o + 1) & 0xffff] << 8);
     const col = g8(bx - 8), y = g16(bx - 6), w = g8(bx - 4), h = g16(bx - 2);
     this.sw(0x1ffa, (this.w(0x1ffa) + (((-(((w * h) & 0xffff) - 0xfffe)) & 0xffff) << 2)) & 0xffff);
-    let top = this.w(0x1ffa), bot = (((s16((h - 8) & 0xffff) * w) << 2) + this.w(0x1ffa)) & 0xffff;
-    const steps = Math.trunc(s16(h) / 16) + 1;
+    let top = this.w(0x1ffa), bot = (((edS16((h - 8) & 0xffff) * w) << 2) + this.w(0x1ffa)) & 0xffff;
+    const steps = Math.trunc(edS16(h) / 16) + 1;
     for (let k = 0; steps > k; k++) {
       this.put(col, (y + (k << 3)) & 0xffff, w, 8, 0, buf, top);
       this.put(col, (((0xffff - k) << 3) + h + y) & 0xffff, w, 8, 0, buf, bot);
@@ -503,9 +504,9 @@ export class Ending {
     const P = this.ptr(this.w(0x1fc4)), base = ((style << 7) - 0x61e0) & 0xffff;
     this.saveBg(col, y, w, h);
     await this.puts(0x1cc8);
-    let L = (((Math.trunc(s16((w - 1) & 0xffff) / 2)) + col - 1)) & 0xffff;
-    let R = ((Math.trunc(s16((1 - w) & 0xffff) / 2)) + w + col) & 0xffff;
-    const half = Math.trunc(s16((w - 1) & 0xffff) / 2);
+    let L = (((Math.trunc(edS16((w - 1) & 0xffff) / 2)) + col - 1)) & 0xffff;
+    let R = ((Math.trunc(edS16((1 - w) & 0xffff) / 2)) + w + col) & 0xffff;
+    const half = Math.trunc(edS16((w - 1) & 0xffff) / 2);
     const si = y;
     for (let k = 0; half > k; k++) {
       this.put(L, si, 1, 8, 0, P, 0x9da0);
@@ -555,7 +556,7 @@ export class Ending {
   // 0f34: ▽ 等待提示 (左右界中間、目前行或下一行; 每 0.4 秒亮滅, Enter/Esc/'0'/滑鼠 繼續)
   async prompt() {
     await this.waitNoInput();
-    const di = (Math.trunc(s16((this.w(0x0e2c) - this.w(0x0e2a)) & 0xffff) / 2) + this.w(0x0e2a)) & 0xffff;
+    const di = (Math.trunc(edS16((this.w(0x0e2c) - this.w(0x0e2a)) & 0xffff) / 2) + this.w(0x0e2a)) & 0xffff;
     const si = this.w(0x0e2a) === this.w(0x0e24) ? this.w(0x0e26) : (this.w(0x0e26) + 0x18) & 0xffff;
     this.mouseHide();
     this.saveBg(di, si, 2, 0x10);
@@ -711,7 +712,7 @@ export class Ending {
     }
   }
   async f0499() {                                                 // 00499: 上面畫的圖每 tick 左移一欄, 共 [0064] 次
-    for (let si = s16(this.w(0x0064)) - 1; si >= 0; si--) {
+    for (let si = edS16(this.w(0x0064)) - 1; si >= 0; si--) {
       this.timerSet(1);
       this.shiftLeft(si, this.w(0x0066), this.w(0x0068), this.w(0x006a));
       while (this.timerGet()) await this.poll();
@@ -867,4 +868,12 @@ export class Ending {
       this.loadPic(this.ptr(this.w(0x1fd6 + 2 * i)), ENTRY[c + i]);
     }
   }
+}
+
+// 載入結局資源 (瀏覽器): DGROUP 初值、ENDGRP.DAT、END_PUT.DAT、EVENT0..6.DAT
+export async function loadEndingData(ASSETS, loadBinary, loadJSON) {
+  const [json, endgrp, endput, ...events] = await Promise.all([
+    loadJSON(`${ASSETS}/data/ending.json`), loadBinary(`${ASSETS}/gfx/ENDGRP.DAT`), loadBinary(`${ASSETS}/gfx/END_PUT.DAT`),
+    ...[0, 1, 2, 3, 4, 5, 6].map(i => loadBinary(`${ASSETS}/gfx/event/EVENT${i}.DAT`))]);
+  return { json, endgrp, endput, events };
 }

@@ -123,7 +123,7 @@ async function runJS(rng0) {
     for (const [a, v] of P.poke || []) st.set8(a, v);
     P.jsHook?.(st);
     return enter0.call(this); };
-  try { const r = await new U.Title(ctx).run(); if (r === 1) await new U.GameClock(ctx).run(); } catch (e) { if (e.message !== "STOP") throw e; } finally { U.PortScene.prototype.enter = enter0; }
+  try { const r = await new U.Title(ctx).run(); if (r === 1) await new U.GameClock(ctx).run(); } catch (e) { if (e.mainExit) S.MAIN_EXIT = e.params; else if (e.message !== "STOP") throw e; }   // MainExit: 1764f 結局 (INT 65h 的值) finally { U.PortScene.prototype.enter = enter0; }
   return { shots, ctx };
 }
 // 原版的亂數初值 (標題選單第一次 random 時) 由 newgame_tests 的方法取得: 先跑原版, 從第一張截圖前的狀態回推不可行, 改為直接讀
