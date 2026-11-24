@@ -16,6 +16,7 @@ import { drawWideFleetView } from "../canvas_ui/wide_fleet.ts";
 import { drawWideShipInfo, drawWidePersonInfo } from "../canvas_ui/wide_info.ts";
 import { runWideFleetTableSelect, runWidePersonnelSelect, runWideControlsModal, showWideNotice } from "../canvas_ui/wide_manage.ts";
 import { runWideLordInfo, runWideInfoLinesModal, runWideLogBook, runWideWorldChart } from "../canvas_ui/wide_panels.ts";
+import { runWideFleetHub } from "../canvas_ui/wide_fleet_hub.ts";
 import { captureConsoleText, decodeCleanCstr, UI_FONT } from "../canvas_ui/text_util.ts";
 
 const cmHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
@@ -866,6 +867,10 @@ export class Commands {
   // ================= 經營 1fd9:0fdc (20d6c) =================
   async manage() {
     const { menu, scr } = this.c, items = this.c.menuItems(0x1b).slice(0, 6), b = this.b;
+    if (scr.wideRenderer && this.c.codec) {
+      await runWideFleetHub(this);
+      return;
+    }
     let si = 0;
     do {
       if (!b.fleetShips()) menu.disabled |= 0x3d;

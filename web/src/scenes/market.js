@@ -3,6 +3,7 @@ import { DS } from "../model/schema_views.ts";
 import { GameConst, MenuId, SkillFlag } from "../model/flags.ts";
 import { domS16, domUmin16, domUmax16, goodsCategory, hasTradeLicense, calcBuyPrice, calcSellPrice, calcHaggleBounds, calcBuyPriceShift, calcSellPriceShift, clampPriceIndexUp, clampPriceIndexDown } from "../domain/economy.ts";
 import { runWideTableSelect } from "../canvas_ui/wide_table.ts";
+import { runWideMarketWorkbench } from "../canvas_ui/wide_market.ts";
 import { decodeCleanCstr } from "../canvas_ui/text_util.ts";
 
 const mHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
@@ -74,6 +75,10 @@ export class Market {
   // ================= 入口 252f9 =================
   async run() {
     const m = this.m, b = this.b, hero = m.heroPerson(), menu = this.c.menu;
+    if (this.c.scr.wideRenderer && this.c.codec) {
+      await runWideMarketWorkbench(this);
+      return;
+    }
     if (b.noEvent()) this.greet(m.heroInfo().tradeFame >= 1000 ? 1 : 0, hero.givenNameBytes, hero.familyNameBytes);
     const items = this.c.menuItems(MenuId.MARKET);
     let sel;

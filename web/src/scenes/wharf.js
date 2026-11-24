@@ -5,6 +5,7 @@ import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
 import { domS16, domUmin16 } from "../domain/economy.ts";
 import { runWideTableSelect } from "../canvas_ui/wide_table.ts";
+import { runWideWharfWorkbench } from "../canvas_ui/wide_wharf.ts";
 import { decodeCleanCstr } from "../canvas_ui/text_util.ts";
 
 class WharfMixin {
@@ -18,6 +19,9 @@ class WharfMixin {
     if (!st.u8(DS.COMMON_CHAP) && (st.u8(WorkDS.FLAGS) & 3) && !(st.u8(WorkDS.FLAGS) & 4) && !(((st.u8(DS.TBL_PORT + this.port * 0x16 + 0x15) & 7) ^ st.u8(this.hero + 0x31)) & 0x0f)) {
       this.greet(0x199); this.c.message(0x19a + (st.u8(this.hero + 0x31) & 15)); this.c.message(0x1a0); await this.wait();
       st.set8(WorkDS.FLAGS, st.u8(WorkDS.FLAGS) | 2); si = 0;
+    }
+    if (this.c.scr.wideRenderer && this.c.codec) {
+      return await runWideWharfWorkbench(this);
     }
     if (si && this.noEvent()) this.greet(0x38);
     let sel;
