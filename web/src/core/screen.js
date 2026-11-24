@@ -2,6 +2,7 @@
 // 邏輯解析度: 640x400 (置於 640x480 畫面第 40 行起)，內部以 HD_SCALE=2 (1280x960) 輸出，
 // 讓任何高清重繪 PNG 皆可直接以原生真彩與高解析度繪製於 hdCanvas，並與原版文字/視窗圖層無縫合成。
 import { drawWideDialog } from "../canvas_ui/wide_dialog.ts";
+import { hasDom, syncDomDialog } from "../modern/dom_ui.ts";
 
 export const SCREEN_W = 640;
 export const SCREEN_H = 400;
@@ -574,11 +575,12 @@ export class Screen {
     for (let i = 0; i < 48; i++) if (this.raw[i] > maxPal) maxPal = this.raw[i];
 
     if (this.wideRenderer) {
-      // 模式 A: 16:9 (1280x720) 全屏現代遊戲佈局 (絕不疊加舊版 winStackRef 羊皮紙框)
+      // 模式 A: 16:9 (1280x720) 全屏現代遊戲佈局
       this.wideRenderer(this.ctx, this);
-      // 16:9 現代底部寬幅對話欄
-      if (this.wideDialog) drawWideDialog(this.ctx, this.wideArt, this.wideDialog);
-      // 16:9 原生現代 Canvas 浮層 (選單 / 清單 / 確認框 / 數字輸入 / 經營與情報浮窗)
+      // 16:9 現代底部對話欄（瀏覽器使用與讀取進度同款的羊皮紙 DOM 對話卡）
+      if (hasDom()) syncDomDialog(this.wideArt, this.wideDialog);
+      else if (this.wideDialog) drawWideDialog(this.ctx, this.wideArt, this.wideDialog);
+      // 16:9 原生現代 Canvas 浮層 (小地圖 / 世界航海圖等)
       for (const fn of this.wideOverlays) fn(this.ctx, this);
       if (maxPal < 15) {
         this.ctx.fillStyle = `rgba(0,0,0,${(1 - maxPal / 15).toFixed(3)})`;
@@ -587,6 +589,7 @@ export class Screen {
       this.dirty = false;
       return;
     }
+    if (hasDom()) syncDomDialog(null, null);
 
     // 模式 B: 非全屏過渡場景 (標題 / 建築內景 / 海戰 / 一騎打) 居中無黑邊高畫質顯示 (1152x720)
     this.ctx.fillStyle = "#081222";

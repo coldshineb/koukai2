@@ -5,6 +5,7 @@ import { VIEW_W, VIEW_H } from "../core/screen.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
 import { decodeCleanCstr } from "./text_util.ts";
+import { hasDom, runDomLordInfo, runDomInfoLines, runDomLogBook } from "../modern/dom_ui.ts";
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath();
@@ -66,6 +67,7 @@ export interface WideLordData {
 }
 
 export async function runWideLordInfo(ctx: any, data: WideLordData) {
+  if (hasDom()) return runDomLordInfo(data);
   const { scr, menu, art } = ctx;
   if (data.portraitUrl) await art?.loadImage?.(data.portraitUrl).catch(() => {});
 
@@ -171,6 +173,7 @@ export async function runWideInfoLinesModal(
   lines: string[],
   actionLabels?: string[],
 ): Promise<number> {
+  if (hasDom()) return runDomInfoLines(title, lines, actionLabels);
   const { scr, sys, menu } = ctx;
   const w = 560;
   const bodyH = Math.max(120, lines.length * 32 + 24);
@@ -266,6 +269,7 @@ export async function runWideLogBook(
   prevLabel: string,
   nextLabel: string,
 ) {
+  if (hasDom()) return runDomLogBook(title, entries);
   const { scr, sys, menu } = ctx;
   const pageSize = 7;
   const totalPages = Math.max(1, Math.ceil(entries.length / pageSize));

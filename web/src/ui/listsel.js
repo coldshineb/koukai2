@@ -8,6 +8,7 @@
 
 import { createWideListState, drawWideList, hitWideListRow, hitWideListBox } from "../canvas_ui/wide_list.ts";
 import { captureConsoleText, decodeCleanCstr } from "../canvas_ui/text_util.ts";
+import { hasDom, runDomList } from "../modern/dom_ui.ts";
 
 const lsUmin = (a, b) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);   // seg0:4d7c (無號)
 const lsDiv = (a, b) => Math.trunc(a / b);                                          // idiv
@@ -68,6 +69,12 @@ export class ListSelect {
     const title = decodeCleanCstr(codec, titleBytes);
     const rows = [];
     for (let i = 0; i < count; i++) rows.push(this.captureRowText(this.c.persons[i]));
+    if (hasDom()) {
+      await m.waitRelease();
+      const sel = await runDomList(title, rows);
+      await m.waitRelease();
+      return (al & 0x40) && sel !== -1 ? this.c.persons[sel] : sel;
+    }
 
     await m.waitRelease();
     const state = createWideListState(title, rows);

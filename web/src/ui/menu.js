@@ -8,6 +8,7 @@
 import { createWideMenuState, drawWideMenu, hitWideMenuItem, hitWideMenuBox } from "../canvas_ui/wide_menu.ts";
 import { createWideYesNoState, drawWideYesNo, hitWideYesNo } from "../canvas_ui/wide_yesno.ts";
 import { decodeCleanCstr } from "../canvas_ui/text_util.ts";
+import { hasDom, runDomMenu, runDomYesNo } from "../modern/dom_ui.ts";
 
 const HL_SOLID = 0x0000;      // 外框圖形 [0c86] 偏移 0: 640 bytes 全 FF, 用作高亮反白位圖
 const GREY_PATTERN = 0x0280;  // AA 55 交錯點陣, 用於不可選項目
@@ -303,6 +304,12 @@ export class MenuSystem {
   async wideListMenu(table, cancelable) {
     await this.waitRelease();
     const labels = table.map(bytes => decodeCleanCstr(this.codec, bytes));
+    if (hasDom()) {
+      const r = await runDomMenu(labels, this.disabled, !!cancelable);
+      this.disabled = 0; this.lineH = 0x10; this.con.bg = 0x0f;
+      await this.waitRelease();
+      return r;
+    }
     const state = createWideMenuState(labels, this.disabled, this.wideAnchorCmd);
     const drawFn = ctx => drawWideMenu(ctx, state);
     this.scr.wideOverlays.push(drawFn);
@@ -446,6 +453,11 @@ export class MenuSystem {
   }
   async wideYesNo() {
     await this.waitRelease();
+    if (hasDom()) {
+      const r = await runDomYesNo(this.scr.wideDialog?.text || "", "是", "否");
+      await this.waitRelease();
+      return r;
+    }
     const state = createWideYesNoState();
     const drawFn = ctx => drawWideYesNo(ctx, state);
     this.scr.wideOverlays.push(drawFn);

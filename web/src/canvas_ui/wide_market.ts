@@ -4,6 +4,8 @@ import { VIEW_W, VIEW_H } from "../core/screen.js";
 import { GameConst, MenuId } from "../model/flags.ts";
 import { domS16, domUmin16, calcBuyPriceShift, calcSellPriceShift, clampPriceIndexUp, clampPriceIndexDown } from "../domain/economy.ts";
 import { decodeCleanCstr, UI_FONT, MONO_FONT } from "./text_util.ts";
+import { hasDom } from "../modern/dom_ui.ts";
+import { runDomMarketWorkbench } from "../modern/dom_workbenches.ts";
 
 interface Rect { x: number; y: number; w: number; h: number; }
 const hit = (r: Rect, x: number, y: number) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
@@ -48,6 +50,7 @@ function drawBtn(ctx: CanvasRenderingContext2D, r: Rect, label: string, { primar
 }
 
 export async function runWideMarketWorkbench(market: any): Promise<void> {
+  if (hasDom()) return runDomMarketWorkbench(market);
   const c = market.c;
   const { scr, sys, menu, codec } = c;
   const b = market.b;

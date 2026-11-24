@@ -18,6 +18,8 @@ import { runWideFleetTableSelect, runWidePersonnelSelect, runWideControlsModal, 
 import { runWideLordInfo, runWideInfoLinesModal, runWideLogBook, runWideWorldChart } from "../canvas_ui/wide_panels.ts";
 import { runWideFleetHub } from "../canvas_ui/wide_fleet_hub.ts";
 import { captureConsoleText, decodeCleanCstr, UI_FONT } from "../canvas_ui/text_util.ts";
+import { hasDom } from "../modern/dom_ui.ts";
+import { runDomPersonInfo, runDomShipInfo } from "../modern/dom_workbenches.ts";
 
 const cmHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const cmStrlen = s => { let n = 0; while (n < s.length && s[n]) n++; return n; };
@@ -314,18 +316,22 @@ export class Commands {
     const r = await this.b.listSel().select(0x80, n);
     return r === -1 ? 0xff : this.c.persons[r];
   }
-  // ---- 1 艦船情報 1d688: 16:9 現代 Canvas 船隻詳細頁 ----
+  // ---- 1 艦船情報 1d688 ----
   async shipInfos() {
     const { palette, scr, menu } = this.c;
     const prevWide = scr.wideRenderer;
-    palette.setTarget(palette.table("ships"));
-    await palette.fadeToTarget();
+    if (!hasDom()) {
+      palette.setTarget(palette.table("ships"));
+      await palette.fadeToTarget();
+    }
     try {
       for (;;) {
         const s = await this.pickShip();
         if (s === 0xff) break;
-        this.shipInfo(s, 0x0f);
-        if (scr.wideRenderer) {
+        const domData = this.shipInfo(s, 0x0f);
+        if (hasDom() && domData) {
+          await runDomShipInfo(this.c.art, domData.typeId, domData.leftLines, domData.bars);
+        } else if (scr.wideRenderer) {
           await menu.waitRelease();
           await menu.waitPress();
           await menu.waitRelease();
@@ -401,11 +407,14 @@ export class Commands {
         bars: lab.slice(0, 7).map((l, i) => ({ label: dec(l), cur: cur[i], max: s16(max[i]) })),
       };
       void this.c.art.preloadUrls([this.c.art.shipUrl(data.typeId), fh ? this.c.art.figureheadUrl(fh) : null]);
-      scr.wideRenderer = ctx => drawWideShipInfo(ctx, this.c.art, data);
-      scr.dirty = true;
+      if (!hasDom()) {
+        scr.wideRenderer = ctx => drawWideShipInfo(ctx, this.c.art, data);
+        scr.dirty = true;
+      }
+      return data;
     }
   }
-  // ---- 2 人物情報 1d6bf: 16:9 現代 Canvas 人物詳細頁 ----
+  // ---- 2 人物情報 1d6bf ----
   async personInfos() {
     const { scr, menu } = this.c;
     const prevWide = scr.wideRenderer;
@@ -414,8 +423,10 @@ export class Commands {
         const n = this.b.captainPool();
         const r = await this.b.listSel().select(0x86, n);
         if (r === -1) break;
-        this.personInfo(this.c.persons[r], 0x0f, 1);
-        if (scr.wideRenderer) {
+        const domData = this.personInfo(this.c.persons[r], 0x0f, 1);
+        if (hasDom() && domData) {
+          await runDomPersonInfo(this.c.art, domData.personBytes, domData.headerLines, domData.stats, domData.detailLines);
+        } else if (scr.wideRenderer) {
           await menu.waitRelease();
           await menu.waitPress();
           await menu.waitRelease();
@@ -509,12 +520,16 @@ export class Commands {
       void this.c.art.loadImage(this.c.art.portraitUrl(faceId));
       const data = {
         faceId,
+        personBytes: st.bytes(P, 0x32),
         headerLines: headerLines.filter(Boolean),
         stats: b.T.stats.slice(0, 7).map((lb, i) => ({ label: dec(lb), val: st.u8(P + 0x1c + i) })),
         detailLines: detailLines.filter(Boolean),
       };
-      scr.wideRenderer = ctx => drawWidePersonInfo(ctx, this.c.art, data);
-      scr.dirty = true;
+      if (!hasDom()) {
+        scr.wideRenderer = ctx => drawWidePersonInfo(ctx, this.c.art, data);
+        scr.dirty = true;
+      }
+      return data;
     }
   }
   // ---- 3 主公情報 1cc11 ----

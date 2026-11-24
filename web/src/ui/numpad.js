@@ -4,6 +4,7 @@
 //   seg0:54d2 顯示 (滑桿 + "%9ld")   seg0:527a 滑鼠點選   seg0:542e 取得按鍵 ('.' 視為 '=')
 // 32 位元算術: 乘法取低 32 位元 (_lmul), 除法向零取整 (_ldiv), 與原版相同
 import { runWideNumPad } from "../canvas_ui/wide_numpad.ts";
+import { hasDom, runDomNumPad } from "../modern/dom_ui.ts";
 
 const NP_KEYS = "789*?456/>123-,0=+\r";                      // DS:8aa0
 const NP_STR_COLOR = Uint8Array.of(0x1b, 0x43, 0x30, 0x1b, 0x42, 0x37, 0);   // DS:8ab3
@@ -158,7 +159,10 @@ export class NumPad {
   }
   // 592a 輸入 min..max 之間的數 (負數回傳 0); 16:9 模式下使用純 Canvas 現代滑桿步進器 (零 DOM)
   async input(min, max) {
-    if (this.c.scr?.wideRenderer) return runWideNumPad(this.c, min, max);
+    if (this.c.scr?.wideRenderer) {
+      if (hasDom()) return runDomNumPad(min, max, this.c.scr.wideDialog?.text || "");
+      return runWideNumPad(this.c, min, max);
+    }
     const { con, sys, win } = this.c;
     this.saveCon();
     con.left = 0; con.right = 0x4e;

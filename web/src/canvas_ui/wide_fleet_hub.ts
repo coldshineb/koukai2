@@ -4,6 +4,8 @@ import { VIEW_W, VIEW_H } from "../core/screen.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { domS16 } from "../domain/economy.ts";
 import { decodeCleanCstr, UI_FONT, MONO_FONT } from "./text_util.ts";
+import { hasDom } from "../modern/dom_ui.ts";
+import { runDomFleetHub } from "../modern/dom_workbenches.ts";
 
 interface Rect { x: number; y: number; w: number; h: number; }
 const hit = (r: Rect, x: number, y: number) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
@@ -52,6 +54,7 @@ function drawBtn(ctx: CanvasRenderingContext2D, r: Rect, label: string, { primar
 }
 
 export async function runWideFleetHub(cmd: any): Promise<void> {
+  if (hasDom()) return runDomFleetHub(cmd);
   const c = cmd.c;
   const st = cmd.st;
   const b = cmd.b;

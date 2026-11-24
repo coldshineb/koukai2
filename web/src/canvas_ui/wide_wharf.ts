@@ -5,6 +5,8 @@ import { DS } from "../model/schema_views.ts";
 import { domS16, domUmin16 } from "../domain/economy.ts";
 import { marketTradeLog } from "../scenes/market.js";
 import { decodeCleanCstr, UI_FONT, MONO_FONT } from "./text_util.ts";
+import { hasDom } from "../modern/dom_ui.ts";
+import { runDomWharfWorkbench } from "../modern/dom_workbenches.ts";
 
 interface Rect { x: number; y: number; w: number; h: number; }
 const hit = (r: Rect, x: number, y: number) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
@@ -46,6 +48,7 @@ function drawBtn(ctx: CanvasRenderingContext2D, r: Rect, label: string, { primar
 
 /** 回傳 1 = 已出航（結束碼頭），0 = 留在港口 */
 export async function runWideWharfWorkbench(b: any): Promise<number> {
+  if (hasDom()) return runDomWharfWorkbench(b);
   const c = b.c;
   const st = b.st;
   const { scr, sys, menu, codec } = c;
