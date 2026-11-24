@@ -1,6 +1,7 @@
 // game/monthly.js — 月末 18ff5 / 年末 16126 (MAIN.EXE 0fea 段 178a8..18ff5、16126), 依 docs/RE_NOTES.md 第 29.2–29.3 節
 // 港口與海上共用; 與艦隊 AI (fleetai.js) 共用 18299 戰力、33921 去港 與執行期變數 [c2ea]
 import { faFleet, faNation, faPort, faEcon, faUmin, faUmax, faLdiv, faLmul } from "./fleetai.js";
+import { DS, OFF } from "../model/schema_views.ts";
 
 const moS16 = v => (v << 16) >> 16;
 const moWarned = new Set();
@@ -25,17 +26,17 @@ export class Monthly {
     this.diplomacy();                                                            //        181ed
     this.reinforce(0x182df); this.reinforce(0x183d3); this.reinforce(0x184c8); this.launch(); this.aid();   // 18ac8
     this.persons(); this.rivals(); this.upgrade(); await this.salary();          // 18fe4: 18aee, 18c58, 18cfb, 18e7f
-    this.st.set8(0x0cac, 0);                                                     // 下個月從 1 號開始
+    this.st.set8(DS.DAY, 0);                                                     // 下個月從 1 號開始
   }
   // 16126 年末
   yearEnd() {
     const st = this.st, rt = this.c.rt;
-    st.set8(0x0cab, 0);                                                          // [0caa] (存檔的年) 不更新
+    st.set8(DS.MONTH, 0);                                                          // [0caa] (存檔的年) 不更新
     rt.year = (rt.year + 1) & 0xff;
     if (rt.year > 0x34) this.c.palette.ending = 0x10;                            // 1552 年 → 遊戲結束 (1764f(0x10) 未移植)
     this.ai.sea.seaYear();                                                       // 71ad
     for (let p = 0; p < 0x78; p++) { const Q = this.P(p); st.set8(Q + 0x2a, st.u8(Q + 0x2a) + 1); }
-    for (let g = 0; g < 0x1e; g++) { const G = 0x2bde + 0x13 * g; st.set8(G + 0x0d, st.u8(G + 0x0d) + 1); }
+    for (let g = 0; g < 0x1e; g++) { const G = DS.TBL_BARMAID + 0x13 * g; st.set8(G + 0x0d, st.u8(G + 0x0d) + 1); }
   }
 
   // 178a8 3 月底 / 9 月底換季: 重讀風向表 (夏 / 冬), 隨身物 0x23..0x28 消失
@@ -43,33 +44,33 @@ export class Monthly {
     const st = this.st, m = this.c.rt.month;
     if (m % 6 !== 2) return;
     this.c.windOffset = m === 2 ? 0 : 0x1c2;
-    for (let i = 0; i < 0x14; i++) { const v = st.u8(0x2e57 + i); if (v >= 0x23 && v <= 0x28) st.set8(0x2e57 + i, 0xff); }
+    for (let i = 0; i < 0x14; i++) { const v = st.u8(DS.INVENTORY + i); if (v >= 0x23 && v <= 0x28) st.set8(DS.INVENTORY + i, 0xff); }
   }
   // 17929 銀行利息 (存款 3%、借款 10%)
   interest() {
-    const st = this.st, q0 = moS16(st.u16(0x12b2)), bal = (Math.imul(100, q0) + st.u8(0x12b4)) | 0;
+    const st = this.st, q0 = moS16(st.u16(DS.BANK_QUOTIENT)), bal = (Math.imul(100, q0) + st.u8(DS.BANK_REM)) | 0;
     let nb = (bal + faLdiv(faLmul(bal, q0 >= 0 ? 3 : 10), 100)) | 0;
     if (nb > 1000000) nb = 1000000; else if (nb < -1000000) nb = -1000000;
     const q = nb >= 0 ? faLdiv(nb, 100) : faLdiv(nb - 99, 100);
-    st.set16(0x12b2, q & 0xffff); st.set8(0x12b4, ((q & 0xff) * 0x9c + (nb & 0xff)) & 0xff);
+    st.set16(DS.BANK_QUOTIENT, q & 0xffff); st.set8(DS.BANK_REM, ((q & 0xff) * 0x9c + (nb & 0xff)) & 0xff);
   }
   // 179e8 本月投資 → 商業 / 工業值, 物價指數向 50 回歸
   economy() {
     const st = this.st;
     for (let p = 0; p < 100; p++) {
       const E = faEcon(p);
-      st.set16(E, faUmin(1000, st.u16(E) + Math.trunc(st.u16(E + 2) / 300)));
-      st.set16(E + 4, faUmin(1000, st.u16(E + 4) + Math.trunc(st.u16(E + 6) / 300)));
-      st.set16(E + 6, 0); st.set16(E + 2, 0);
-      for (let i = 0; i < 10; i++) { const r = this.rnd(5) + 1, v = st.u8(E + 0x0e + i); st.set8(E + 0x0e + i, v > 50 ? v - r : v + r); }
+      st.set16(E, faUmin(1000, st.u16(E) + Math.trunc(st.u16(E + OFF.PORT_ECONOMY.COMMERCE_INVEST) / 300)));
+      st.set16(E + OFF.PORT_ECONOMY.INDUSTRY, faUmin(1000, st.u16(E + OFF.PORT_ECONOMY.INDUSTRY) + Math.trunc(st.u16(E + OFF.PORT_ECONOMY.INDUSTRY_INVEST) / 300)));
+      st.set16(E + OFF.PORT_ECONOMY.INDUSTRY_INVEST, 0); st.set16(E + OFF.PORT_ECONOMY.COMMERCE_INVEST, 0);
+      for (let i = 0; i < 10; i++) { const r = this.rnd(5) + 1, v = st.u8(E + OFF.PORT_ECONOMY.PRICES + i); st.set8(E + OFF.PORT_ECONOMY.PRICES + i, v > 50 ? v - r : v + r); }
     }
   }
   // 17a80 國力 N +0
   power() {
     const st = this.st, A = new Uint16Array(64), B = new Uint16Array(64), D = this.T.powerDiv;
     for (let p = 0; p < 100; p++) {
-      const R = faPort(p), E = faEcon(p), k = (((st.u8(R + 0x15) & 7) << 3) + st.u8(E + 0x1c)) & 63;
-      A[k] += st.u16(E + 4);
+      const R = faPort(p), E = faEcon(p), k = (((st.u8(R + 0x15) & 7) << 3) + st.u8(E + OFF.PORT_ECONOMY.REGION_GROUP)) & 63;
+      A[k] += st.u16(E + OFF.PORT_ECONOMY.INDUSTRY);
       B[k] += Math.imul(st.u8(R + 0x15) & 8 ? 2 : 1, st.u16(E));
     }
     let total = 0;
@@ -184,11 +185,11 @@ export class Monthly {
   }
   // 18238 船位 S 依範本船初始化 (k: +8 的耐久等級)
   initSlot(k, S) {
-    const st = this.st, ship = 0x5892 + 0x16 * st.u8(S + 7), T = 0x5e28 + 0x0c * st.u8(ship + 0x0f);
-    st.set8(S + 3, st.u8(T + 1)); st.set8(S + 2, st.u8(T + 1)); st.set8(S + 4, st.u8(T + 2)); st.set8(S + 5, st.u8(T + 3));
-    st.set8(S + 6, st.u8(ship + 0x11));
+    const st = this.st, ship = DS.TBL_SHIP + 0x16 * st.u8(S + OFF.DOCK_SLOT.SHIP), T = DS.TBL_SHIP_TYPE + 0x0c * st.u8(ship + 0x0f);
+    st.set8(S + OFF.DOCK_SLOT.MAX_DURABILITY, st.u8(T + 1)); st.set8(S + OFF.DOCK_SLOT.DURABILITY, st.u8(T + 1)); st.set8(S + OFF.DOCK_SLOT.TURN, st.u8(T + 2)); st.set8(S + OFF.DOCK_SLOT.PROPULSION, st.u8(T + 3));
+    st.set8(S + OFF.DOCK_SLOT.GUNS, st.u8(ship + 0x11));
     const r = this.rnd(3);
-    st.set8(S + 8, ((r - 3 * k + 4) & 0xff) | 0x10);
+    st.set8(S + OFF.DOCK_SLOT.FLAGS, ((r - 3 * k + 4) & 0xff) | 0x10);
     st.set16(S, st.u16(ship + 0x12));
   }
   // 182df / 183d3 / 184c8 各國艦隊補船
@@ -204,9 +205,9 @@ export class Monthly {
       if (which === 0x184c8) {                                                   // 迴圈 (數量 − 1) 次, 每支補滿空位
         while ((cnt = (cnt - 1) & 0xffff) !== 0 && k < k1) {
           for (let j = 0; j < 10; j++) {
-            const S = F + 0x2b + 9 * j;
-            if (!this.present(S)) { st.set8(S + 7, ship() + add); this.initSlot(kk, S); }
-            if (st.u8(F + 0x29) & 1) break;
+            const S = F + OFF.FLEET.SHIPS + 9 * j;
+            if (!this.present(S)) { st.set8(S + OFF.DOCK_SLOT.SHIP, ship() + add); this.initSlot(kk, S); }
+            if (st.u8(F + OFF.FLEET.FLAGS) & 1) break;
           }
           this.ai.strength(F); F += 0x85; k++;
         }
@@ -214,9 +215,9 @@ export class Monthly {
       }
       while (cnt !== 0 && k < k1) {                                              // 182df / 183d3: 總共補 數量 艘
         for (let j = 0; cnt !== 0 && j < 10; j++) {
-          const S = F + 0x2b + 9 * j;
-          if (!this.present(S)) { st.set8(S + 7, ship() + add); this.initSlot(kk, S); cnt = (cnt - 1) | 0; }
-          if (st.u8(F + 0x29) & 1) break;
+          const S = F + OFF.FLEET.SHIPS + 9 * j;
+          if (!this.present(S)) { st.set8(S + OFF.DOCK_SLOT.SHIP, ship() + add); this.initSlot(kk, S); cnt = (cnt - 1) | 0; }
+          if (st.u8(F + OFF.FLEET.FLAGS) & 1) break;
         }
         this.ai.strength(F); F += 0x85; k++;
       }
@@ -227,8 +228,8 @@ export class Monthly {
     const st = this.st;
     for (let k = 0; k < 0x46; k++) {
       const F = faFleet(k);
-      if (k % 10 === 0 || (st.u8(F + 0x29) & 1)) continue;
-      let c = 0; for (let j = 0; j < 10; j++) if (this.present(F + 0x2b + 9 * j)) c++;
+      if (k % 10 === 0 || (st.u8(F + OFF.FLEET.FLAGS) & 1)) continue;
+      let c = 0; for (let j = 0; j < 10; j++) if (this.present(F + OFF.FLEET.SHIPS + 9 * j)) c++;
       if (this.rnd(2) + 4 <= c) this.assign(k, F);
     }
   }
@@ -249,14 +250,14 @@ export class Monthly {
   }
   // 18772 艦隊 k 由首都出港 (任務 0)
   launchFleet(n, k, p) {
-    const st = this.st, N = faNation(n), capital = st.u8(N + 0x0a), R = faPort(capital), F = faFleet(k);
+    const st = this.st, N = faNation(n), capital = st.u8(N + OFF.COUNTRY.CAPITAL_PORT), R = faPort(capital), F = faFleet(k);
     this.ai.v.c2ea = k;
-    st.set16(F, st.u16(R)); st.set16(F + 2, st.u16(R + 2));
+    st.set16(F, st.u16(R)); st.set16(F + OFF.FLEET.Y, st.u16(R + 2));
     this.ai.goPort(0, capital, F);
-    st.set16(F + 0x24, this.rnd(3) + Math.trunc(moS16(st.u16(N)) / 10) + 1);
-    st.set8(F + 0x21, 0xff); st.set16(F + 0x22, 0);
+    st.set16(F + OFF.FLEET.FUNDS, this.rnd(3) + Math.trunc(moS16(st.u16(N)) / 10) + 1);
+    st.set8(F + OFF.FLEET.CARGO_GOOD, 0xff); st.set16(F + OFF.FLEET.CARGO_AMT, 0);
     for (let i = 0; i < 4; i++) st.set8(F + 0x1d + i, 0xff);
-    st.set8(F + 0x26, capital); st.set8(F + 0x27, this.rnd(10) + 5); st.set8(F + 0x29, 0x31); st.set8(F + 0x2a, p);
+    st.set8(F + OFF.FLEET.HOME_PORT, capital); st.set8(F + OFF.FLEET.STAY_DAYS, this.rnd(10) + 5); st.set8(F + OFF.FLEET.FLAGS, 0x31); st.set8(F + OFF.FLEET.ADMIRAL, p);
     this.ai.strength(F);
   }
   // 185a7 新人物 (NAME.TBL 6 國 × 16 筆 × 26 bytes: 名 13 + 姓 13)
@@ -286,10 +287,10 @@ export class Monthly {
       const N = faNation(n), s = st.u8(H + 6 + n);
       if (s >= 0x82) {
         const pw = faLmul(st.u8(H + 0x0d), moS16(st.u16(N)));
-        st.set8(N + 5, faUmin((st.u8(N + 5) + faLdiv(pw, 3000)) & 0xff, 100));
+        st.set8(N + OFF.COUNTRY.AID_MONEY_K, faUmin((st.u8(N + OFF.COUNTRY.AID_MONEY_K) + faLdiv(pw, 3000)) & 0xff, 100));
         st.set8(N + 6, faUmin((st.u8(N + 6) + faLdiv(pw, 1000)) & 0xff, 100));
-        const t = faLdiv(pw, 4000); st.set8(N + 7, faUmin(t, 7)); st.set8(N + 8, st.u8(N + 8) + faUmin(t, 10));
-      } else if (s < 0x46) { st.set8(N + 5, 0); st.set8(N + 6, 0); st.set8(N + 7, 0xff); st.set8(N + 8, 0); }
+        const t = faLdiv(pw, 4000); st.set8(N + OFF.COUNTRY.AID_SHIP_TYPE, faUmin(t, 7)); st.set8(N + OFF.COUNTRY.AID_SHIP_COUNT, st.u8(N + OFF.COUNTRY.AID_SHIP_COUNT) + faUmin(t, 10));
+      } else if (s < 0x46) { st.set8(N + OFF.COUNTRY.AID_MONEY_K, 0); st.set8(N + 6, 0); st.set8(N + OFF.COUNTRY.AID_SHIP_TYPE, 0xff); st.set8(N + OFF.COUNTRY.AID_SHIP_COUNT, 0); }
     }
   }
   // 18aee 人物 6..119: 流浪、空記錄產生新人物
@@ -348,17 +349,17 @@ export class Monthly {
       }
       if (fk >= 0x46) continue;
       const F = faFleet(fk); this.ai.strength(F);
-      if (st.u8(F + 0x28) >= st.u8(HF + 0x28) && this.rnd(3) === 0) continue;
+      if (st.u8(F + OFF.FLEET.STRENGTH) >= st.u8(HF + 0x28) && this.rnd(3) === 0) continue;
       const c = p < 6 ? [0, 1, 2, 0, 0, 3][p] : fk % 10 >= 7 ? 2 : 1;
       let min = 0xff, di = 0xff;
       for (let j = 0; j < 10; j++) {
-        const S = F + 0x2b + 9 * j;
+        const S = F + OFF.FLEET.SHIPS + 9 * j;
         if (!this.present(S)) { di = j; break; }
-        if (st.u8(S + 7) < min) { min = st.u8(S + 7); di = j; }
+        if (st.u8(S + OFF.DOCK_SLOT.SHIP) < min) { min = st.u8(S + OFF.DOCK_SLOT.SHIP); di = j; }
       }
       if (di === 0xff) return;                                                   // 原版直接結束整個函式
-      const S = F + 0x2b + 9 * di;
-      st.set8(S + 7, (((this.T.upgrade[c] ?? 0) >> ((tier * 4) & 31)) & 0x0f) + 0x31);
+      const S = F + OFF.FLEET.SHIPS + 9 * di;
+      st.set8(S + OFF.DOCK_SLOT.SHIP, (((this.T.upgrade[c] ?? 0) >> ((tier * 4) & 31)) & 0x0f) + 0x31);
       this.initSlot(1, S); this.ai.strength(F);
     }
   }
@@ -366,24 +367,24 @@ export class Monthly {
   async salary() {
     const st = this.st, { sys, message, menu, win, con } = this.c;
     let total = 0;
-    for (let i = 0; i < 0x1e; i++) if (st.u8(0x2e1b + i) !== 0xff) total += st.u8(0x2e39 + i);
+    for (let i = 0; i < 0x1e; i++) if (st.u8(DS.PARTY_CREW + i) !== 0xff) total += st.u8(0x2e39 + i);
     total = faLmul(total, 10);
-    const gold = (st.u16(0x12ae) | (st.u16(0x12b0) << 16)) | 0;
+    const gold = (st.u16(DS.MONEY) | (st.u16(0x12b0) << 16)) | 0;
     let msg;
     if (total !== 0 && total > gold) {
-      for (let i = 0; i < 0x1e; i++) { const n = st.u8(0x2e1b + i); if (n !== 0xff) { const Q = this.P(n); st.set8(Q + 0x31, st.u8(Q + 0x31) | 0x80); } }
+      for (let i = 0; i < 0x1e; i++) { const n = st.u8(DS.PARTY_CREW + i); if (n !== 0xff) { const Q = this.P(n); st.set8(Q + 0x31, st.u8(Q + 0x31) | 0x80); } }
       msg = 0x23c;
-    } else { const g = (gold - total) | 0; st.set16(0x12ae, g & 0xffff); st.set16(0x12b0, (g >>> 16) & 0xffff); msg = 0x23e; }
+    } else { const g = (gold - total) | 0; st.set16(DS.MONEY, g & 0xffff); st.set16(0x12b0, (g >>> 16) & 0xffff); msg = 0x23e; }
     const h1c = st.u8(this.ai.heroRec + 0x1c);
     for (let i = 0; i < 0x1e; i++) {
-      const n = st.u8(0x2e1b + i); if (n === 0xff) continue;
+      const n = st.u8(DS.PARTY_CREW + i); if (n === 0xff) continue;
       const Q = this.P(n); let mx = 0;
       for (let j = 0; j < 8; j++) if (st.u8(Q + 0x1c + j) > mx) mx = st.u8(Q + 0x1c + j);
       if (st.u8(Q + 0x2b) === 100) continue;
       const v = (st.u8(Q + 0x2b) + st.u8(0x2e39 + i) * 2 - mx + h1c) & 0xffff;   // 負數時 4d87 的無號 max 變成大數 → min 成 100
       st.set8(Q + 0x2b, faUmin(faUmax(0, v), 100));
     }
-    if (!(st.u8(0x0cb3) & 0x0f) && total !== 0 && st.port === 0xff) {
+    if (!(st.u8(DS.WEATHER) & 0x0f) && total !== 0 && st.port === 0xff) {
       sys.mouseHide();
       this.ai.sea.b.crewSpeaks([4, 3, 5, 2, 6]);                                // seg0:9076
       message(msg, total);

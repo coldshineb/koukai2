@@ -90,6 +90,11 @@ def main():
         "export const DS = {",
         "  STATE_BASE: 0x0ca4,",
         "  STATE_END: 0x8d18,",
+        "  NPCS: 0x0cbc,            // 港內行人 (8 × 3 bytes)",
+        "  WIND_CUR: 0x0cb2,        // 海流 (u8)",
+        "  EXPLORE_LOC: 0x1046,     // 已探索地點位元表",
+        "  COOLDOWN_10A6: 0x10a6,   // 每日倒數計數器",
+        "  DAYS_AT_SEA: 0x2e18,     // 出港天數 (u8)",
         "  PARTY_CREW: 0x2e1b,      // 同伴人物編號 (30 格, FF=空)",
         "  INVENTORY: 0x2e57,       // 主角隨身物道具編號 (20 格, FF=空)",
         "  TRADE_LOGS: 0x8a18,      // 航海日誌 / 交易記錄 (48 筆 × 16 bytes)",
@@ -101,6 +106,24 @@ def main():
         cls, method = CLASS_NAMES[t["name"]]
         const_name = re.sub(r"([A-Z])", r"_\1", method).upper()
         out.append(f"  TBL_{const_name}: 0x{t['ds']:04x},")
+    out.append("} as const;")
+    out.append("")
+
+    # Table field offset constants (OFF.<TABLE>.<FIELD>)
+    out.append("/** 各資料表欄位偏移常數 (由 schema.json 自動產生, 供高效能/指標運算模組具名化使用) */")
+    out.append("export const OFF = {")
+    seen_off = set()
+    for t in schema["tables"]:
+        _, method = CLASS_NAMES[t["name"]]
+        tkey = re.sub(r"([A-Z])", r"_\1", method).upper()
+        if tkey in seen_off:
+            continue
+        seen_off.add(tkey)
+        out.append(f"  {tkey}: {{")
+        for f in t["fields"]:
+            fkey = re.sub(r"([A-Z])", r"_\1", f["name"]).upper()
+            out.append(f"    {fkey}: 0x{f['off']:02x},")
+        out.append("  },")
     out.append("} as const;")
     out.append("")
 
