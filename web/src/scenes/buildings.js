@@ -22,6 +22,7 @@ import { CPU } from "../core/cpucost.js";
 import { COST_TABLE } from "../core/cpucost_table.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
+import { calcCargoUsed, calcShipLoadTotal, calcShipSpeed } from "../domain/fleet.ts";
 const WIPE_CYC = COST_TABLE.find(r => r[0] === "Buildings" && r[1] === "wipe")?.[2].n || 0;   // seg0:2260 清除畫面的量測週期
 
 const bHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
@@ -912,9 +913,9 @@ export class Buildings {
   // seg0:5d36 船上已用的載貨量
   cargoUsed(slot) {
     const st = this.st, M = this.crewData(slot);
-    let v = Math.trunc(s16b(st.u16(M + 2)) / 10) + st.u16(M + 4) + st.u16(M + 6) + Math.trunc(s16b(st.u16(M)) / 10);
-    for (let k = 0; k < 5; k++) if (st.u8(M + 0x16 + k) !== 0xff) v += st.u16(M + 0x0c + 2 * k);
-    return v & 0xffff;
+    const goods = [st.u8(M + 0x16), st.u8(M + 0x17), st.u8(M + 0x18), st.u8(M + 0x19), st.u8(M + 0x1a)];
+    const amts = [st.u16(M + 0x0c), st.u16(M + 0x0e), st.u16(M + 0x10), st.u16(M + 0x12), st.u16(M + 0x14)];
+    return calcCargoUsed(st.u16(M), st.u16(M + 2), st.u16(M + 4), st.u16(M + 6), goods, amts);
   }
   shipOf(slot) { return ListSelect.shipRec(this.st.u8(this.fleetSlot(slot) + 7)); }
   // 277c0 視窗 (不保存背景) + 文字顏色
@@ -1440,21 +1441,18 @@ export class Buildings {
   // seg0:5db1 船位 slot 的總載重 = 已用載貨 + 砲重 + 水手 (寫到船員配置 +0a)
   loadTotal(slot) {
     const st = this.st, S = this.fleetSlot(slot);
-    const g = Math.trunc(Math.imul(s16b(this.LO.gunWeight[st.u8(S + OFF.DOCK_SLOT.FLAGS) & 7] & 0xffff), st.u8(S + OFF.DOCK_SLOT.GUNS)) / 10);
-    return (this.cargoUsed(slot) + g + st.u16(S)) & 0xffff;
+    return calcShipLoadTotal(this.cargoUsed(slot), this.LO.gunWeight[st.u8(S + OFF.DOCK_SLOT.FLAGS) & 7], st.u8(S + OFF.DOCK_SLOT.GUNS), st.u16(S));
   }
   // 1c0a8 船速
   shipSpeed(slot) {
     const st = this.st, S = this.fleetSlot(slot), ship = this.shipOf(slot), t = st.u8(ship + 0x0f), T = this.typeRec(t);
     const M = this.crewData(slot), P = st.personRecord(st.u8(M + 0x1b));
-    let di = Math.trunc(s16b((this.LO.speedRate[t] * st.u8(S + OFF.DOCK_SLOT.PROPULSION) * 4) & 0xffff) / 150);
-    const q = Math.trunc(Math.imul(st.u8(M + 9), s16b(st.u16(S))) / (st.u8(T + 5) || 1));   // seg0:3722 有號長整數除法
-    const a = umin16(100, q & 0xffff);
-    const c = umin16(150, (180 - Math.trunc(s16b(Math.imul(100, s16b(st.u16(M + 0x0a))) & 0xffff) / s16b(st.u16(T + 6)))) & 0xffff);
-    const x = Math.trunc(s16b(Math.imul(a, di) & 0xffff) / 100) & 0xffff;
-    di = Math.floor(((x * c) & 0xffff) / 100);
-    const v = umin16(30, (Math.trunc(s16b((st.u8(P + 0x24) * di) & 0xffff) / 10) + di) & 0xffff);
-    return umin16(40, Math.trunc(s16b((st.u8(P + 0x1d) * v) & 0xffff) / 75) & 0xffff);
+    return calcShipSpeed({
+      speedRate: this.LO.speedRate[t], propulsion: st.u8(S + OFF.DOCK_SLOT.PROPULSION),
+      sailRatio: st.u8(M + 9), crew: st.u16(S), minCrew: st.u8(T + 5),
+      loadTotal: st.u16(M + 0x0a), capacity: st.u16(T + 6),
+      captainNavLevel: st.u8(P + 0x24), captainSailing: st.u8(P + 0x1d),
+    });
   }
   // 1e628 艦隊表 (不保存背景)
   fleetTable() {

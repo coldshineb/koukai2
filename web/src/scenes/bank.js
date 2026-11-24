@@ -5,8 +5,7 @@
 //   貸款 / 還款寫回時另把商減 1 (貸款: 餘額 < 0 時; 還款: 餘額 ≠ 0 時), 所以借款正好是 100 的倍數時存成 (商 − 1, 100) —— 原版如此, 照搬
 // 銀行內的金錢增減不呼叫 8894 (面板要等下次選單才重畫) —— 原版如此
 import { GameConst, MenuId } from "../model/flags.ts";
-
-const bkS16 = v => (v << 16) >> 16;
+import { domS16, encodeBankBalance, calcDepositLimit, canTakeLoan, calcLoanLimit } from "../domain/economy.ts";
 
 export class Bank {
   constructor(b) { this.b = b; }
@@ -15,11 +14,11 @@ export class Bank {
   get m() { return this.b.st.model; }
   get money() { return this.b.money; } set money(v) { this.b.money = v; }
   get bal() { return this.m.globals.bankBalance; }
-  // 寫回帳戶: q = 商 (已調整), v = 餘額
-  store(q, v) {
-    const g = this.m.globals;
-    g.bankQuotient = q & 0xffff;
-    g.bankRem = ((q & 0xff) * 0x9c + (v & 0xff)) & 0xff;
+  // 寫回帳戶: mode = "normal" | "loan" | "repay"
+  store(v, mode = "normal") {
+    const g = this.m.globals, enc = encodeBankBalance(v, mode);
+    g.bankQuotient = enc.quotient;
+    g.bankRem = enc.rem;
   }
   greetWait(n, ...a) { this.b.greet(n, ...a); return this.b.wait(); }
 
@@ -45,11 +44,10 @@ export class Bank {
     if (this.money <= 1000) {                                                   // 現金 ≤ 1000
       b.crewSpeaks([4, 3, 5, 2, 6]); this.c.message(0x64); await b.wait(); await b.closeTalk(); return;
     }
-    const q = bkS16(g.bankQuotient);
+    const q = domS16(g.bankQuotient);
     if (q >= 10000) return this.greetWait(0x65);
     if (q < 0) return this.greetWait(0x66);
-    let max = (Math.imul(bkS16(10000 - q), 100) - g.bankRem) | 0;
-    if (max > this.money) max = this.money;
+    const max = calcDepositLimit(g.bankQuotient, g.bankRem, this.money);
     if (bal) b.greet(0x67, bal); else b.greet(0x68);
     await b.wait();
     b.greet(0x69, max);
@@ -58,7 +56,7 @@ export class Bank {
     await this.greetWait(0x6a, v);
     const nb = (bal + v) | 0;
     await this.greetWait(0x67, nb);
-    this.store(Math.trunc(nb / 100), nb);
+    this.store(nb, "normal");
     this.money = (this.money - v) | 0;
   }
   // 28f23 提款
@@ -74,16 +72,16 @@ export class Bank {
     await this.greetWait(0x6e, v);
     const nb = (bal - v) | 0;
     await this.greetWait(0x67, nb);
-    this.store(Math.trunc(nb / 100), nb);
+    this.store(nb, "normal");
     this.money = (this.money + v) | 0;
   }
   // 2903d 貸款: 額度 = 爵位² × 10000 + 餘額 + 1000; bankQuotient ≤ −(爵位² × 100) − 10 (16 位元) 時不再貸
   async loan() {
     const b = this.b, m = this.m, t = m.heroInfo().rank, bal = this.bal;
     if (bal > 0) return this.greetWait(0x6f);
-    if (bkS16(Math.imul(bkS16(t * t), -100) - 10) >= bkS16(m.globals.bankQuotient)) return this.greetWait(0x71);
+    if (!canTakeLoan(t, m.globals.bankQuotient)) return this.greetWait(0x71);
     if (this.money >= 1000000) await this.greetWait(0x70);                      // 只說一句, 仍可借
-    const max = (Math.imul(Math.imul(10000, t), t) + bal + 1000) | 0;
+    const max = calcLoanLimit(t, bal);
     await this.greetWait(0x72, max);
     b.greet(0x73, max);
     const v = await b.numpad.input(0, max);
@@ -91,8 +89,7 @@ export class Bank {
     await this.greetWait(0x74, v);
     await this.greetWait(0x75);
     const nb = (bal - v) | 0;
-    let q = Math.trunc(nb / 100); if (nb < 0) q--;
-    this.store(q, nb);
+    this.store(nb, "loan");
     this.money = (this.money + v) | 0;                                          // 不檢查 600000000 上限
   }
   // 29197 還款
@@ -110,7 +107,7 @@ export class Bank {
     const nb = (bal + v) | 0;
     await b.wait();
     await this.greetWait(0x75);
-    this.store(Math.trunc(nb / 100) - (nb ? 1 : 0), nb);
+    this.store(nb, "repay");
     this.money = (this.money - v) | 0;
   }
 }

@@ -1,11 +1,10 @@
 // market.js — 交易所 (MAIN.EXE 1fd9:5569 = 252f9; MENU #6 子功能 DS:aed8 = 買進 24bd9 / 賣出 24dbf / 投資 250b6 / 物價 252cf), 見 RE_NOTES 21
 import { DS } from "../model/schema_views.ts";
 import { GameConst, MenuId, SkillFlag } from "../model/flags.ts";
+import { domS16, domUmin16, domUmax16, goodsCategory, hasTradeLicense, calcBuyPrice, calcSellPrice, calcHaggleBounds, calcBuyPriceShift, calcSellPriceShift, clampPriceIndexUp, clampPriceIndexDown } from "../domain/economy.ts";
 
 const mHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
-const mS16 = v => (v << 16) >> 16;
-const mUmin = (a, b) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);   // seg0:4d7c
-const mUmax = (a, b) => ((b & 0xffff) >= (a & 0xffff) ? b & 0xffff : a & 0xffff);  // seg0:4d87
+const mS16 = domS16, mUmin = domUmin16, mUmax = domUmax16;
 
 // 0fea:e3e5 = 1e285 → 1e1ff 交易記錄: 緩衝 [0c8e] 48 筆 × 16 bytes (DS.TRADE_LOGS); 滿了就整體前移、寫在最後一筆
 //   引數 (AX 種類, DX, BX, 堆疊 2 個): +0 日期 ((12×年 + 月) × 31 + 日)  +2 種類 (AX)  +4 DX  +6 BX  +8 / +a 堆疊的兩個值
@@ -37,28 +36,26 @@ export class Market {
   async crewSays(n, ...a) { this.b.crewSpeaks([4, 3, 5, 2, 6]); this.c.message(n, ...a); await this.wait(); await this.b.closeTalk(); }   // seg0:9076 + 訊息
   goodsName(g) { return this.T.goods[g] ?? Uint8Array.of(0); }
   // 2441e 商品分類: 第一個 DS:0784[i] > g 的 i, 沒有 = 0
-  cat(g) { for (let i = 0; i < 10; i++) if (this.T.catEnd[i] > (g & 0xff)) return i; return 0; }
+  cat(g) { return goodsCategory(g, this.T.catEnd); }
   sup(g) { return this.eco.getPrices(this.cat(g)); }
   // 24441 通商許可: 港口所屬國 n < 6 且隨身物 (DS.INVENTORY) 中有 n + 0x23
   license() {
-    const m = this.m, n = this.port.region & 7;
-    if (n >= 6) return 0;
-    for (let i = 0; i < GameConst.INV_SLOTS; i++) if (((m.inventory(i) - n) & 0xff) === 0x23) return 1;
-    return 0;
+    const m = this.m, inv = [];
+    for (let i = 0; i < GameConst.INV_SLOTS; i++) inv.push(m.inventory(i));
+    return hasTradeLicense(this.port.region, inv) ? 1 : 0;
   }
   // 2446d 買價 (i = 地區清單第 i 項; 超出或空 = 本港特產), 無許可時 ×12/10
   price(i) {
     const R = this.reg, E = this.eco;
-    let v;
-    if ((i & 0xff) < 9 && R.getBuyGoods(i) !== GameConst.EMPTY_SLOT) v = Math.trunc((this.sup(R.getBuyGoods(i)) + 50) * mS16(R.getBuyBase(i)) / 100);
-    else v = Math.trunc((this.sup(E.specialtyGood) + 50) * mS16(E.specialtyBase) / 100);
-    return Math.trunc(((v & 0xffff) * (this.license() ? 10 : 12)) / 10) & 0xffff;
+    const isReg = (i & 0xff) < 9 && R.getBuyGoods(i) !== GameConst.EMPTY_SLOT;
+    const good = isReg ? R.getBuyGoods(i) : E.specialtyGood;
+    const base = isReg ? R.getBuyBase(i) : E.specialtyBase;
+    return calcBuyPrice(this.sup(good), base, !!this.license());
   }
   // 24c88 賣價: 特產 = (物價指數 + 50) × 特產基價 / 200, 其他 = (物價指數 + 50) × 地區賣價基準[g] / 100
   sellPrice(g) {
-    const E = this.eco;
-    if (E.specialtyGood === g) return Math.trunc((this.sup(g) + 50) * mS16(E.specialtyBase) / 200) & 0xffff;
-    return Math.trunc((this.sup(g) + 50) * mS16(this.reg.getSellBase(g)) / 100) & 0xffff;
+    const E = this.eco, isSpec = E.specialtyGood === g;
+    return calcSellPrice(this.sup(g), isSpec ? E.specialtyBase : this.reg.getSellBase(g), isSpec);
   }
   // 25178 地區清單中 g 的買價, 不在清單 = 0
   regionBuy(g) { const R = this.reg; for (let i = 0; i < 9; i++) if (R.getBuyGoods(i) === g) return this.price(i); return 0; }
@@ -150,8 +147,7 @@ export class Market {
     let at;
     for (;;) {
       const p = this.price(v);
-      const lo = Math.trunc((p * ((19 - bonus) & 0xffff)) / 20) & 0xffff;
-      const mid = (p - (((p - lo) & 0xffff) >>> 1)) & 0xffff;
+      const { lo, mid } = calcHaggleBounds(p, bonus);
       this.greet(6);
       const x = await b.numpad.input(0, this.price(v));
       if (!x) return;
@@ -195,11 +191,9 @@ export class Market {
       cs.setCargoGoods(j, code);
       cs.setCargoAmts(j, cs.getCargoAmts(j) + v);
     }
-    const c = this.cat(code), si = (v * price) & 0xffff;
-    const d = mUmin(10, Math.floor(si / ((E.commerce + 500) & 0xffff)));
-    E.setPrices(c, mUmin(100, E.getPrices(c) + d));
-    const t = mUmin(3, Math.floor(si / 1000));
-    for (let i = 0; i < 10; i++) E.setPrices(i, mUmin(100, E.getPrices(i) + t));
+    const c = this.cat(code), { catDelta: d, allDelta: t } = calcBuyPriceShift(v * price, E.commerce);
+    E.setPrices(c, clampPriceIndexUp(E.getPrices(c), d));
+    for (let i = 0; i < 10; i++) E.setPrices(i, clampPriceIndexUp(E.getPrices(i), t));
     b.loadTotal(slot);                                                          // seg0:5db1 (原版只計算, 回傳值沒有使用)
     b.p.panels();                                                               // 8894
   }
@@ -254,11 +248,9 @@ export class Market {
         const p = this.sellPrice(g);
         this.money = this.money + amt * p;
         cs.setCargoAmts(j, cs.getCargoAmts(j) - amt);
-        const c = this.cat(g);
-        const d = mUmin(10, Math.trunc((amt * p) / ((E.commerce + 500) & 0xffff)) & 0xffff);
-        E.setPrices(c, E.getPrices(c) - mUmin(E.getPrices(c), d));
-        const t = mUmin(3, Math.floor(((p * amt) & 0xffff) / 1000));
-        for (let i = 0; i < 10; i++) E.setPrices(i, E.getPrices(i) - mUmin(E.getPrices(i), t));
+        const c = this.cat(g), { catDelta: d, allDelta: t } = calcSellPriceShift(amt * p, E.commerce);
+        E.setPrices(c, clampPriceIndexDown(E.getPrices(c), d));
+        for (let i = 0; i < 10; i++) E.setPrices(i, clampPriceIndexDown(E.getPrices(i), t));
         if (cs.getCargoAmts(j) === 0) cs.setCargoGoods(j, GameConst.EMPTY_SLOT);
         b.p.panels();
       }

@@ -11,6 +11,7 @@ import { DS } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
 import { LegacyScenarioHost } from "../ui/legacy_presenter.ts";
 import { ScenarioMemoryAdapter, SC_STRLEN } from "./scenario_adapter.ts";
+import { calcCargoUsed, calcShipFreeCargo } from "../domain/fleet.ts";
 
 const scS16 = v => (v << 16) >> 16;
 const scUmin = (a, b) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);   // seg0:4d7c
@@ -300,11 +301,11 @@ export class Scenario {
   active(i) { return (this.st.u8(this.slot(i) + 8) & 0x30) === 0x10; }
   used(i) {                                                                                                         // seg0:5d36 船上已用的載貨量
     const st = this.st, M = this.crew(i);
-    let v = Math.trunc(scS16(st.u16(M + 2)) / 10) + st.u16(M + 4) + st.u16(M + 6) + Math.trunc(scS16(st.u16(M)) / 10);
-    for (let k = 0; k < 5; k++) if (st.u8(M + 0x16 + k) !== 0xff) v += st.u16(M + 0x0c + 2 * k);
-    return v & 0xffff;
+    const goods = [st.u8(M + 0x16), st.u8(M + 0x17), st.u8(M + 0x18), st.u8(M + 0x19), st.u8(M + 0x1a)];
+    const amts = [st.u16(M + 0x0c), st.u16(M + 0x0e), st.u16(M + 0x10), st.u16(M + 0x12), st.u16(M + 0x14)];
+    return calcCargoUsed(st.u16(M), st.u16(M + 2), st.u16(M + 4), st.u16(M + 6), goods, amts);
   }
-  free(i) { return (this.st.u16(this.ship(this.st.u8(this.slot(i) + 7)) + 0x14) - this.used(i)) & 0xffff; }
+  free(i) { return calcShipFreeCargo(this.st.u16(this.ship(this.st.u8(this.slot(i) + 7)) + 0x14), this.used(i)); }
   async op_cargo_free({ var: v }) {                                                                                 // 324e7
     this.setVar(v, 0);
     for (let i = 0; i < 10; i++) if (this.active(i)) this.setVar(v, this.getVar(v) + this.free(i));
