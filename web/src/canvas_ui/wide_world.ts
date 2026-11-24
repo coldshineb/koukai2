@@ -132,16 +132,14 @@ function drawWideAtmosphere(ctx: CanvasRenderingContext2D, scr: any, focusX: num
     ctx.fillStyle = "rgba(165, 182, 202, 0.28)";
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
   } else if (mode === "night") {
-    // 明顯深藍夜幕 + 主角提燈暖光
-    ctx.fillStyle = "rgba(6, 14, 42, 0.62)";
+    // 深藍夜幕（僅對主角保留微弱輪廓光，避免把關門的建築照亮造成誤判）
+    ctx.fillStyle = "rgba(6, 14, 42, 0.66)";
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-    const glowR = 240 + Math.sin(t * 3.2) * 10;
-    const g = ctx.createRadialGradient(focusX, focusY, 18, focusX, focusY, glowR);
-    g.addColorStop(0, "rgba(255, 204, 118, 0.34)");
-    g.addColorStop(0.55, "rgba(255, 178, 86, 0.12)");
-    g.addColorStop(1, "rgba(255, 178, 86, 0)");
+    const g = ctx.createRadialGradient(focusX, focusY, 8, focusX, focusY, 72);
+    g.addColorStop(0, "rgba(210, 224, 255, 0.16)");
+    g.addColorStop(1, "rgba(210, 224, 255, 0)");
     ctx.fillStyle = g;
-    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    ctx.fillRect(focusX - 80, focusY - 80, 160, 160);
   } else if (mode === "dusk") {
     // 黃昏暖橙暮色
     const g = ctx.createLinearGradient(0, 0, 0, VIEW_H);
@@ -386,8 +384,53 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
   const hyPx = (heroWY - camY) * TILE;
   drawSheetTileDirect(ctx, art, "chars", heroSpriteIdx, hxPx, hyPx, TILE * 2, TILE * 2);
 
-  // 全屏 16:9 晝夜光影 (提燈微光跟隨主角)
-  drawWideAtmosphere(ctx, scr, hxPx + TILE, hyPx + TILE, portScene.c.rt?.time);
+  // 全屏 16:9 晝夜光影
+  const rtTime = portScene.c.rt?.time;
+  drawWideAtmosphere(ctx, scr, hxPx + TILE, hyPx + TILE, rtTime);
+
+  // 夜間 / 黃昏時點亮所有「正在營業」建築的門口暖光與門燈，一眼辨識哪間店開門（關門建築保持黑暗）
+  const isNightOrDusk = typeof rtTime === "number" && (rtTime < 12 || rtTime >= 51);
+  if (isNightOrDusk && portScene.door && typeof portScene.isOpen === "function") {
+    const t = typeof performance !== "undefined" ? performance.now() * 0.004 : 0;
+    const isNight = rtTime < 12 || rtTime >= 60;
+    ctx.save();
+    for (let k = 0; k < 12; k++) {
+      const dx = portScene.door[k * 2];
+      const dy = portScene.door[k * 2 + 1];
+      if (!dx && !dy) continue;
+      if (dx >= P_MAP_W || dy >= P_MAP_W) continue;
+      if (!portScene.isOpen(k)) continue;
+      const sx = (dx - camX) * TILE + TILE;
+      const sy = (dy - camY) * TILE + TILE;
+      if (sx < -160 || sx > VIEW_W + 160 || sy < -160 || sy > VIEW_H + 160) continue;
+
+      const flicker = 1 + Math.sin(t + k * 1.7) * 0.06;
+      const r = (isNight ? 132 : 84) * flicker;
+
+      // 門口灑向街道的暖黃燈光（穿透夜幕）
+      ctx.globalCompositeOperation = "lighter";
+      const pool = ctx.createRadialGradient(sx, sy - 10, 8, sx, sy + 8, r);
+      pool.addColorStop(0, isNight ? "rgba(255, 206, 108, 0.62)" : "rgba(255, 198, 96, 0.32)");
+      pool.addColorStop(0.45, isNight ? "rgba(255, 158, 56, 0.28)" : "rgba(255, 150, 50, 0.14)");
+      pool.addColorStop(1, "rgba(255, 140, 40, 0)");
+      ctx.fillStyle = pool;
+      ctx.fillRect(sx - r, sy - r, r * 2, r * 2);
+
+      // 門框透出的溫暖室內光 + 門簷燈籠亮點
+      const doorGlow = ctx.createLinearGradient(sx, sy - 42, sx, sy + 4);
+      doorGlow.addColorStop(0, isNight ? "rgba(255, 224, 130, 0.68)" : "rgba(255, 214, 120, 0.35)");
+      doorGlow.addColorStop(1, "rgba(255, 178, 70, 0.08)");
+      ctx.fillStyle = doorGlow;
+      ctx.fillRect(sx - 20, sy - 42, 40, 46);
+
+      ctx.globalCompositeOperation = "source-over";
+      ctx.fillStyle = "#ffe89e";
+      ctx.beginPath();
+      ctx.arc(sx, sy - 46, isNight ? 4.5 : 3.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
 
   // 懸浮現代 Canvas HUD
   drawFloatingHud(ctx, portScene, false);
