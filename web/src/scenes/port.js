@@ -113,9 +113,9 @@ export class PortScene {
     const n = st.options & 0x80 ? 3 : 5;
     graph.draw8(n, 0, 0); graph.draw8(n, 0, 0);
     this.bdba = this.vy * P_MAP_W + this.vx;
+    palette.selectTimePalette(this.time, false, st.weather);          // 0fea:98ce = 1976e (先設定目標調色盤供 HD 文字取色)
     this.redraw();                                                    // 0fea:b303 = 1b1a3
     this.panels();                                                    // 8894
-    palette.selectTimePalette(this.time, false, st.weather);          // 0fea:98ce = 1976e
     this.c.scr.setAtmosphere?.({ active: true, atSea: false });
     this.needle = 0xff;
     this.portBgm();                                                   // 0fea:b516 = 1b3b6

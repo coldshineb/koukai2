@@ -260,13 +260,11 @@ export class Screen {
   // raw: 48 bytes, 每色 (B,R,G) 0..15 — 與 MAIN.EXE seg0:159b set_palette 相同
   setPaletteRaw(raw, start = 0, count = 16) {
     for (let i = 0; i < count * 3; i++) this.raw[start * 3 + i] = raw[i];
-    let maxV = 0;
-    for (let i = 0; i < 48; i++) if (this.raw[i] > maxV) maxV = this.raw[i];
     for (let i = 0; i < 16; i++) {
       const b = dac8(this.raw[i * 3]), r = dac8(this.raw[i * 3 + 1]), g = dac8(this.raw[i * 3 + 2]);
       const col = 0xff000000 | (b << 16) | (g << 8) | r;
       this.lut[i] = col;
-      if (maxV >= 8) this.refLut[i] = col;
+      if (!this.refLut[7]) this.refLut[i] = col;
     }
     this.dirty = true;
   }
