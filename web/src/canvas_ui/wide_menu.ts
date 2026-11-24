@@ -34,7 +34,7 @@ export function createWideMenuState(items: string[], disabledMask: number, ancho
   const h = items.length * itemH + padY * 2;
 
   let x = Math.round((VIEW_W - w) / 2);
-  let y = Math.round((VIEW_H - h) / 2);
+  let y = anchorCmd === -2 ? 430 : Math.round((VIEW_H - h) / 2);
 
   if (anchorCmd >= 0 && anchorCmd < 4) {
     const btn = getCommandButtonRects()[anchorCmd];

@@ -6,6 +6,7 @@ import { NewGame } from "./newgame.js";
 import { Commands } from "../scenes/commands.js";
 import { loadPortAssets } from "../scenes/port.js";
 import { GameConst, MenuId, OptionFlag } from "../model/flags.ts";
+import { renderWideTitle } from "../canvas_ui/wide_title.ts";
 
 const ESC = 0x1b;
 const STR_STAR = Uint8Array.of(ESC, 0x43, 0x32, 0x2a, ESC, 0x43, 0x30, 0);   // DS:a37a  ESC C2 * ESC C0
@@ -47,14 +48,37 @@ export class Title {
   }
   // 1706a: 標題選單迴圈, 處理函式表 DS:a3a2
   async titleMenu() {
-    const { win, menu } = this.c, items = this.c.menuItems(MenuId.TITLE);
+    const { win, menu, scr, art } = this.c, items = this.c.menuItems(MenuId.TITLE);
     const handlers = [() => this.cont(), () => this.newVoyage(), () => this.settings(), () => this.quit(items)];
+    const useWide = !!(scr.hdCtx && art && this.c.codec);
+    if (useWide) {
+      const e1 = art.graphEntry?.("GRAPH.DAT", 0x3c);
+      const e2 = art.graphEntry?.("GRAPH.DAT", 0x3e);
+      await Promise.all([
+        e1 ? art.loadImage(`${art.baseUrl}/${e1.path}`).catch(() => {}) : null,
+        e2 ? art.loadImage(`${art.baseUrl}/${e2.path}`).catch(() => {}) : null,
+      ]);
+    }
     for (;;) {
-      await win.open(0x18, 0x30, 0x20, 0x90, 0);
-      const sel = await menu.inlineMenu(0x18, 0x30, items.slice(0, 4), 0, 0x20);
-      await win.close();
+      let sel;
+      if (useWide) {
+        scr.wideRenderer = c2d => renderWideTitle(c2d, art);
+        scr.dirty = true;
+        menu.wideAnchorCmd = -2;
+        sel = await menu.listMenu(0x18, 0x30, items.slice(0, 4), 0);
+        menu.wideAnchorCmd = -1;
+        if (sel === 0xff) continue;
+      } else {
+        await win.open(0x18, 0x30, 0x20, 0x90, 0);
+        sel = await menu.inlineMenu(0x18, 0x30, items.slice(0, 4), 0, 0x20);
+        await win.close();
+      }
       const r = await handlers[sel]();
-      if (r) return r;
+      if (r) {
+        scr.wideRenderer = null;
+        scr.wideDialog = null;
+        return r;
+      }
     }
   }
   // 16f68 繼續航海進度
@@ -64,13 +88,37 @@ export class Title {
   // 16ff2 環境設定: [8b1e] = 1 → 1fd9:173f (= 214cf, 與港口 / 海上同一個環境設定視窗, scenes/commands.js settings) → [8b1e] = 0, 回傳 0 (回到標題選單)
   //   [8b1e] (地圖精靈的動畫相位) 在 214cf 以下都沒有被讀, 之後進港 / 出海各場景另行初始化, 移植版不另外保存
   async settings() {
+    const prevWide = this.c.scr.wideRenderer;
+    this.c.scr.wideRenderer = null;
     this.c.portAssets ??= await loadPortAssets(this.c);
     await new Commands({ c: this.c, P: this.c.portAssets }).settings();
+    this.c.scr.wideRenderer = prevWide;
     return 0;
   }
   // 17004 結束遊戲
   async quit(items) {
-    const { win, con, menu } = this.c;
+    const { win, con, menu, scr, codec } = this.c;
+    if (scr.wideRenderer && codec) {
+      const saved = con.putc, raw = []; let esc = 0;
+      con.putc = ch => {
+        ch &= 0xff;
+        if (esc) { esc = (esc === 1 && ch === 0x3d) ? 2 : (esc === 2 ? 3 : 0); return; }
+        if (ch === 0x1b) { esc = 1; return; }
+        if (ch >= 0x20 || ch === 0x0a) raw.push(ch);
+      };
+      try { this.c.message(0x3be); } finally { con.putc = saved; }
+      const titleTxt = codec.decode(items[3]).replace(/\0.*$/, "").trim();
+      const bodyTxt = codec.decode(Uint8Array.from(raw)).replace(/\{[0-9A-F]{2}\}/g, "").trim();
+      scr.wideDialog = { text: `${titleTxt}\n${bodyTxt}`, portraitId: null, waiting: false };
+      scr.dirty = true;
+      const yes = await menu.yesNo();
+      scr.wideDialog = null;
+      scr.dirty = true;
+      if (!yes) return 0;
+      scr.wideRenderer = null;
+      await this.exitGame(0x80);
+      return 0x80;
+    }
     await win.open(0x18, 0x30, 0x20, 0x50, 1);
     con.setCursor(0x1f, 0x40); con.puts(items[3]);
     con.setCursor(0x1a, 0x60); this.c.message(0x3be);

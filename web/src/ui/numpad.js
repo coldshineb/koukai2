@@ -3,6 +3,8 @@
 //   seg0:5597 計算機本體: 0-9 + - * / = (含先乘除), ',' 正負號, '>' 清除, '?' 最大值, 'B' 滑桿, Enter 確定
 //   seg0:54d2 顯示 (滑桿 + "%9ld")   seg0:527a 滑鼠點選   seg0:542e 取得按鍵 ('.' 視為 '=')
 // 32 位元算術: 乘法取低 32 位元 (_lmul), 除法向零取整 (_ldiv), 與原版相同
+import { runWideNumPad } from "../canvas_ui/wide_numpad.ts";
+
 const NP_KEYS = "789*?456/>123-,0=+\r";                      // DS:8aa0
 const NP_STR_COLOR = Uint8Array.of(0x1b, 0x43, 0x30, 0x1b, 0x42, 0x37, 0);   // DS:8ab3
 const NP_FMT = Uint8Array.of(0x25, 0x39, 0x6c, 0x64, 0);                       // DS:8aba "%9ld"
@@ -154,9 +156,9 @@ export class NumPad {
     } while (k !== 0x0d);
     return acc2 !== 0 ? acc2 : cur;
   }
-  // 592a 輸入 min..max 之間的數 (負數回傳 0); 階段 5 優先走現代數字輸入滑桿
+  // 592a 輸入 min..max 之間的數 (負數回傳 0); 16:9 模式下使用純 Canvas 現代滑桿步進器 (零 DOM)
   async input(min, max) {
-    if (this.c.modernUI) return this.c.modernUI.inputNumber(min, max);
+    if (this.c.scr?.wideRenderer) return runWideNumPad(this.c, min, max);
     const { con, sys, win } = this.c;
     this.saveCon();
     con.left = 0; con.right = 0x4e;

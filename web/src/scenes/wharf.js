@@ -3,6 +3,7 @@ import { ListSelect } from "../ui/listsel.js";
 import { marketTradeLog } from "./market.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { domS16, domUmin16 } from "../domain/economy.ts";
+import { runWideTableSelect } from "../canvas_ui/wide_table.ts";
 
 class WharfMixin {
   async wharf() {
@@ -289,9 +290,37 @@ class WharfMixin {
   }
   // 27e31 補給
   async supply() {
-    const st = this.st, { con, menu } = this.c, labels = [this.WF.load, this.WF.unload];
+    const st = this.st, { con, menu, scr, codec } = this.c, labels = [this.WF.load, this.WF.unload];
     const n = this.fleetShips();
     if (!n) return 0;
+    if (scr.wideRenderer && codec) {
+      const dec = bts => { let e = bts.indexOf(0); if (e < 0) e = bts.length; return codec.decode(bts.subarray(0, e)).replace(/\{[0-9A-F]{2}\}/g, "").trim(); };
+      const hdr = dec(this.WF.supplyHdr);
+      let mode = 0;
+      for (;;) {
+        const ships = this.fleetShips();
+        const items = [];
+        for (let i = 0; i < ships; i++) {
+          const slot = this.c.persons[i], M = this.crewData(slot);
+          const nm = dec(this.dstr(this.shipOf(slot)));
+          const vals = [Math.trunc(domS16(st.u16(M)) / 10), Math.trunc(domS16(st.u16(M + 2)) / 10), domS16(st.u16(M + 4)), domS16(st.u16(M + 6))];
+          items.push({ label: nm, rightText: vals.join(" / ") });
+        }
+        const sel = await runWideTableSelect(this.c, { title: hdr, columns: 1, items, toggleLabel: dec(labels[mode]) });
+        if (sel === 0xff) break;
+        if (sel === -2) { mode ^= 1; continue; }
+        const slot = this.c.persons[sel];
+        const supNames = hdr.split(/\s+/).filter(Boolean).slice(0, 4);
+        const itemLabels = supNames.length === 4 ? supNames.map(s => this.c.font.encode(s + "{00}")) : this.c.menuItems(9).slice(0, 4);
+        const item = await menu.listMenu(0x20, 0x60, itemLabels, 1);
+        if (item !== 0xff && item < 4) {
+          if (mode === 0) await this.load(slot, item); else await this.unload(slot, item);
+          this.p.panels();
+        }
+      }
+      this.greet(0x38);
+      return 0;
+    }
     this.c.win.frame(0x0d, 0x20, 0x2e, ((n + 2) * 0x18) & 0xffff, 0);
     con.setCursor(0x10, 0x30); con.puts(labels[0]);
     con.setCursor(0x23, 0x30); con.puts(this.WF.supplyHdr);

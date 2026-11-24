@@ -2,6 +2,7 @@
 import { DS } from "../model/schema_views.ts";
 import { GameConst, MenuId, SkillFlag } from "../model/flags.ts";
 import { domS16, domUmin16, domUmax16, goodsCategory, hasTradeLicense, calcBuyPrice, calcSellPrice, calcHaggleBounds, calcBuyPriceShift, calcSellPriceShift, clampPriceIndexUp, clampPriceIndexDown } from "../domain/economy.ts";
+import { runWideTableSelect } from "../canvas_ui/wide_table.ts";
 
 const mHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const mS16 = domS16, mUmin = domUmin16, mUmax = domUmax16;
@@ -114,19 +115,30 @@ export class Market {
     if (si) items.push(g);
     for (;;) {
       if (di) this.greet(3); else this.greet(si ? 5 : 4, this.goodsName(E.specialtyGood));
-      b.table();
-      let k = 0;
-      for (; k < items.length; k++) {
-        if (k < 2) { con.setCursor(k * 0x18 + 0x12, 0x90); con.puts(T.buyHdr); }
-        const y = ((k & 0xfe) + 0x0e) * 0x0c, col = (k & 1) * 0x16 + 0x10, v = items[k];
-        con.setCursor(col, y);
-        if (k < n) printf(T.buyRow, this.goodsName(R.getBuyGoods(v)), this.price(v));
-        else printf(T.buyRow2, this.goodsName(E.specialtyGood), this.price(v));
-        const x0 = (k & 1) * 0xb0 + 0x80;
-        menu.rects[k] = { x0, x1: x0 + 0x80, y0: y, y1: y + 0x10 };
+      let r;
+      if (this.c.scr.wideRenderer && this.c.codec) {
+        const dec = bts => { let e = bts.indexOf(0); if (e < 0) e = bts.length; return this.c.codec.decode(bts.subarray(0, e)).replace(/\{[0-9A-F]{2}\}/g, "").trim(); };
+        const rows = items.map((v, k) => ({
+          label: dec(k < n ? this.goodsName(R.getBuyGoods(v)) : this.goodsName(E.specialtyGood)),
+          rightText: String(this.price(v)),
+          accent: k >= n,
+        }));
+        r = await runWideTableSelect(this.c, { title: dec(T.buyHdr), columns: 2, items: rows });
+      } else {
+        b.table();
+        let k = 0;
+        for (; k < items.length; k++) {
+          if (k < 2) { con.setCursor(k * 0x18 + 0x12, 0x90); con.puts(T.buyHdr); }
+          const y = ((k & 0xfe) + 0x0e) * 0x0c, col = (k & 1) * 0x16 + 0x10, v = items[k];
+          con.setCursor(col, y);
+          if (k < n) printf(T.buyRow, this.goodsName(R.getBuyGoods(v)), this.price(v));
+          else printf(T.buyRow2, this.goodsName(E.specialtyGood), this.price(v));
+          const x0 = (k & 1) * 0xb0 + 0x80;
+          menu.rects[k] = { x0, x1: x0 + 0x80, y0: y, y1: y + 0x10 };
+        }
+        menu.rects[k] = { x0: 0x68, x1: 0x1d8, y0: 0x88, y1: 0x128 };
+        r = await menu.customMenu(k, 2, 1);
       }
-      menu.rects[k] = { x0: 0x68, x1: 0x1d8, y0: 0x88, y1: 0x128 };
-      const r = await menu.customMenu(k, 2, 1);
       if (r === 0xff) return;
       const v = items[r], p = this.price(v);
       if ((p >>> 1) > this.money) { await this.crewSays(0x16); continue; }
@@ -213,6 +225,18 @@ export class Market {
   // 24cea 一艘船的貨物清單 (商品 < 0x2e)
   cargoMenu(cs) {
     const { con, printf, menu } = this.c, T = this.T, P = this.c.persons;
+    if (this.c.scr.wideRenderer && this.c.codec) {
+      const dec = bts => { let e = bts.indexOf(0); if (e < 0) e = bts.length; return this.c.codec.decode(bts.subarray(0, e)).replace(/\{[0-9A-F]{2}\}/g, "").trim(); };
+      const rows = [];
+      let si = 0;
+      for (let j = 0; j < GameConst.CARGO_SLOTS; j++) {
+        const g = cs.getCargoGoods(j);
+        if (g >= 46) continue;
+        rows.push({ label: `${dec(this.goodsName(g))}   ×${mS16(cs.getCargoAmts(j))}`, rightText: String(this.sellPrice(g)) });
+        P[si++] = j;
+      }
+      return runWideTableSelect(this.c, { title: dec(T.sellHdr), columns: 1, items: rows });
+    }
     this.b.table();
     con.setCursor(0x19, 0x90); con.puts(T.sellHdr);
     let si = 0;
@@ -278,12 +302,25 @@ export class Market {
   async prices() {
     const list = this.b.listSel();
     this.b.setPersons([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-    for (;;) { const r = await list.select(0x88, 10); if (r === -1) return; this.priceTable(r); }
+    for (;;) { const r = await list.select(0x88, 10); if (r === -1) return; await this.priceTable(r); }
   }
   // 251a2 分類 c 的商品: 名稱、買價 (地區清單 / 本港特產 / 「 ----」)、賣價
-  priceTable(c) {
-    const E = this.eco, { con, printf } = this.c, T = this.T;
+  async priceTable(c) {
+    const E = this.eco, { con, printf, scr, codec } = this.c, T = this.T;
     this.greet(0x97, T.cats[c], E.getPrices(c) + 50);
+    if (scr.wideRenderer && codec) {
+      const dec = b => codec.decode(b).replace(/\0.*$/, "").trim();
+      const di = c ? T.catEnd[c - 1] : 0;
+      const items = [];
+      for (let si = 0; T.catEnd[c] - di > si; si++) {
+        const g = (di + si) & 0xff;
+        const r = this.regionBuy(g);
+        const buyStr = r ? String(r) : g === E.specialtyGood ? String(this.price(g)) : dec(T.none);
+        items.push({ label: dec(this.goodsName(g)), rightText: `${buyStr} / ${this.sellPrice(g)}` });
+      }
+      await runWideTableSelect(this.c, { title: dec(T.cats[c]), columns: 2, items }, { interactive: false });
+      return;
+    }
     this.b.table();
     const di = c ? T.catEnd[c - 1] : 0;
     for (let si = 0; T.catEnd[c] - di > si; si++) {

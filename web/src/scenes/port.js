@@ -118,6 +118,7 @@ export class PortScene {
     this.redraw();                                                    // 0fea:b303 = 1b1a3
     this.panels();                                                    // 8894
     this.c.scr.setAtmosphere?.({ active: true, atSea: false });
+    this.c.scr.wideDialog = null;
     this.c.scr.wideRenderer = (ctx, scr) => renderWidePort(ctx, scr, this);
     this.needle = 0xff;
     this.portBgm();                                                   // 0fea:b516 = 1b3b6

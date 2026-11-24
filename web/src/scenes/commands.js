@@ -13,6 +13,7 @@ import { PortMove } from "./portmove.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
 import { drawWideFleetView } from "../canvas_ui/wide_fleet.ts";
+import { drawWideShipInfo, drawWidePersonInfo } from "../canvas_ui/wide_info.ts";
 
 const cmHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const cmStrlen = s => { let n = 0; while (n < s.length && s[n]) n++; return n; };
@@ -278,14 +279,26 @@ export class Commands {
     const r = await this.b.listSel().select(0x80, n);
     return r === -1 ? 0xff : this.c.persons[r];
   }
-  // ---- 1 艦船情報 1d688: 艦船調色盤 (DS:a730), 8dfd(1) 底紋, 淡入; 反覆選船 → 1c1a3(船位, 0x0f) ----
+  // ---- 1 艦船情報 1d688: 16:9 現代 Canvas 船隻詳細頁 ----
   async shipInfos() {
-    const { palette, scr } = this.c;
-    scr.wideRenderer = null;
+    const { palette, scr, menu } = this.c;
+    const prevWide = scr.wideRenderer;
     palette.setTarget(palette.table("ships"));
-    this.p.wallpaper(1);
     await palette.fadeToTarget();
-    for (;;) { const s = await this.pickShip(); if (s === 0xff) break; this.shipInfo(s, 0x0f); }
+    try {
+      for (;;) {
+        const s = await this.pickShip();
+        if (s === 0xff) break;
+        this.shipInfo(s, 0x0f);
+        if (scr.wideRenderer) {
+          await menu.waitRelease();
+          await menu.waitPress();
+          await menu.waitRelease();
+        }
+      }
+    } finally {
+      scr.wideRenderer = prevWide;
+    }
   }
   // 1c1a3 船隻詳細資料 (欄 x): 7358(x,0x20,0x29,0x150) 船圖 / 船首像 (TRANSIT.DAT 0x1980 + 0x480×n) / 補給 2×2 (圖 [0c86]+0x20d0) /
   //   船級、0x374/0x375/0x377 砲 (DS:07cc)/0x378/0x379/0x37a 人數/0x37b/0x37c 載重比例 (>79 色 2, >30 色 4)/0x37e 速度 /
@@ -327,14 +340,59 @@ export class Commands {
       this.barFrame(x + 0x18, (i << 5) + 0x94, 1);
       this.bar(x + 0x18, (i << 5) + 0x94, Math.trunc((100 * cur[i]) / (s16(max[i]) || 1)), 1);
     }
+    if (this.c.codec && this.c.art && scr.hdCtx) {
+      const dec = bts => { let e = bts.indexOf(0); if (e < 0) e = bts.length; return this.c.codec.decode(bts.subarray(0, e)).replace(/\{[0-9A-F]{2}\}/g, "").trim(); };
+      const cap = (fn) => {
+        const saved = con.putc, raw = []; let esc = 0;
+        con.putc = ch => { ch &= 0xff; if (esc) { esc = (esc === 1 && ch === 0x3d) ? 2 : (esc === 2 ? 3 : 0); return; } if (ch === 0x1b) { esc = 1; return; } if (ch >= 0x20 || ch === 0x0a) raw.push(ch); };
+        try { fn(); } finally { con.putc = saved; }
+        return this.c.codec.decode(Uint8Array.from(raw)).replace(/\{[0-9A-F]{2}\}/g, "").trim();
+      };
+      const leftLines = [
+        dec(st.cstr(tmpl)),
+        cap(() => message(0x374, st.cstr(ship))),
+        cap(() => message(0x375, st.cstr(cap))),
+        cap(() => message(0x377, T.cannons[st.u8(S + OFF.DOCK_SLOT.FLAGS) & 7])),
+      ];
+      if (st.u8(S + OFF.DOCK_SLOT.FLAGS) & 7) {
+        leftLines.push(cap(() => message(0x378, st.u8(S + OFF.DOCK_SLOT.GUNS), st.u8(ship + 0x11), s16(T.gunW[st.u8(S + OFF.DOCK_SLOT.FLAGS) & 7] * st.u8(S + OFF.DOCK_SLOT.GUNS)))));
+      }
+      leftLines.push(
+        cap(() => { message(0x379); message(0x37a, a, bb, (s0 - a - bb) & 0xffff); }),
+        cap(() => message(0x37b, st.u8(TR + 5))),
+        cap(() => { message(0x37c); message(0x37d, pct); }),
+        cap(() => message(0x37e, (b.shipSpeed(slot) + 1) >> 1)),
+      );
+      const data = {
+        typeId: st.u8(ship + 0x0f),
+        figureheadId: fh,
+        supplies: sup,
+        leftLines: leftLines.filter(Boolean),
+        bars: lab.slice(0, 7).map((l, i) => ({ label: dec(l), cur: cur[i], max: s16(max[i]) })),
+      };
+      void this.c.art.preloadUrls([this.c.art.shipUrl(data.typeId), fh ? this.c.art.figureheadUrl(fh) : null]);
+      scr.wideRenderer = ctx => drawWideShipInfo(ctx, this.c.art, data);
+      scr.dirty = true;
+    }
   }
-  // ---- 2 人物情報 1d6bf: 反覆 清單 0x86 (主角 + 船員, 12d8c) → 1c839(人物, 0x0f, 1) ----
+  // ---- 2 人物情報 1d6bf: 16:9 現代 Canvas 人物詳細頁 ----
   async personInfos() {
-    for (;;) {
-      const n = this.b.captainPool();
-      const r = await this.b.listSel().select(0x86, n);
-      if (r === -1) break;
-      this.personInfo(this.c.persons[r], 0x0f, 1);
+    const { scr, menu } = this.c;
+    const prevWide = scr.wideRenderer;
+    try {
+      for (;;) {
+        const n = this.b.captainPool();
+        const r = await this.b.listSel().select(0x86, n);
+        if (r === -1) break;
+        this.personInfo(this.c.persons[r], 0x0f, 1);
+        if (scr.wideRenderer) {
+          await menu.waitRelease();
+          await menu.waitPress();
+          await menu.waitRelease();
+        }
+      }
+    } finally {
+      scr.wideRenderer = prevWide;
     }
   }
   // 1c839 人物資料 (欄 x, mode ≠ 0 時加上 所乘的船、職務、爵位 / 酬金): 頭像 7d39、0x381 姓名、0x382 年齡、
@@ -389,6 +447,50 @@ export class Commands {
       con.setCursor(xs[i] + x, ys[i] + 0x20); message(0x380, T.skills[i]);
     }
     message(0x38c);
+    if (this.c.codec && this.c.art && scr.hdCtx) {
+      const dec = bts => { let e = bts.indexOf(0); if (e < 0) e = bts.length; return this.c.codec.decode(bts.subarray(0, e)).replace(/\{[0-9A-F]{2}\}/g, "").trim(); };
+      const cap = fn => {
+        const saved = con.putc, raw = []; let esc = 0;
+        con.putc = ch => { ch &= 0xff; if (esc) { esc = (esc === 1 && ch === 0x3d) ? 2 : (esc === 2 ? 3 : 0); return; } if (ch === 0x1b) { esc = 1; return; } if (ch >= 0x20 || ch === 0x0a) raw.push(ch); };
+        try { fn(); } finally { con.putc = saved; }
+        return this.c.codec.decode(Uint8Array.from(raw)).replace(/\{[0-9A-F]{2}\}/g, "").trim();
+      };
+      const headerLines = [
+        cap(() => message(0x381, st.cstr(P), st.cstr(P + 0x0d))),
+        cap(() => message(0x382, st.u8(P + 0x2a))),
+      ];
+      if (mode) {
+        const shipTxt = si7 !== 0xff ? cap(() => message(0x39d, st.cstr(shipR))) : "";
+        const roleTxt = cap(() => message(0x380, b.T.crewRoles[st.u8(P + 0x2e)]));
+        headerLines.push([shipTxt, roleTxt].filter(Boolean).join("  "));
+      }
+      const detailLines = [];
+      if (mode) {
+        if (isHero) {
+          const ti = st.u8(H + OFF.PERSON.FAMILY_NAME);
+          detailLines.push(cap(() => { message(0x383); if (ti) printf(S0.piTitle, st.hero === 5 ? b.T.ottomanTitles[ti] : b.T.titles[ti]); else message(0x384); }));
+        } else {
+          for (let i = 0; i < 0x1e; i++) if (st.u8(DS.PARTY_CREW + i) === n) detailLines.push(cap(() => message(0x385, 10 * st.u8(0x2e39 + i))));
+        }
+      }
+      detailLines.push(
+        cap(() => message(0x386, st.u8(P + 0x24))) + "  " + cap(() => message(0x387, st.u16(P + 0x26))),
+        cap(() => message(0x388, st.u8(P + 0x25))) + "  " + cap(() => message(0x389, st.u16(P + 0x28))),
+        cap(() => message(0x38a, this.p.nations[st.u8(P + 0x31) & 0x0f])),
+        cap(() => message(0x38b)),
+        T.skills.map((sk, i) => ((st.u8(P + 0x30) & (0x10 >> i)) ? "○ " : "· ") + dec(sk)).join("   "),
+      );
+      const faceId = (st.u8(P + 0x1b) & 0xc0) ? 0 : st.u8(P + 0x1a);
+      void this.c.art.loadImage(this.c.art.portraitUrl(faceId));
+      const data = {
+        faceId,
+        headerLines: headerLines.filter(Boolean),
+        stats: b.T.stats.slice(0, 7).map((lb, i) => ({ label: dec(lb), val: st.u8(P + 0x1c + i) })),
+        detailLines: detailLines.filter(Boolean),
+      };
+      scr.wideRenderer = ctx => drawWidePersonInfo(ctx, this.c.art, data);
+      scr.dirty = true;
+    }
   }
   // ---- 3 主公情報 1cc11: 7358(0x0f,0x20,0x1f,0xa8) 金幣 (%10000) / 金塊 (/10000)、MENU #0x2a 三種聲望、6 國友好度 (−100 → 0x394 + 絕對值) ----
   async lordInfo() {

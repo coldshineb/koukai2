@@ -1,6 +1,8 @@
 // screen.js — 現代 HD 2D Canvas 混合顯示模型 (相容原版 640x400 邏輯座標 + 2x HD RGBA PNG 圖層)
 // 邏輯解析度: 640x400 (置於 640x480 畫面第 40 行起)，內部以 HD_SCALE=2 (1280x960) 輸出，
 // 讓任何高清重繪 PNG 皆可直接以原生真彩與高解析度繪製於 hdCanvas，並與原版文字/視窗圖層無縫合成。
+import { drawWideDialog } from "../canvas_ui/wide_dialog.ts";
+
 export const SCREEN_W = 640;
 export const SCREEN_H = 400;
 export const CANVAS_H = 480;
@@ -38,8 +40,10 @@ export class Screen {
     this.fbImg = null;
     this.fbOut = null;
     this.atmosphere = { active: false, mode: "day", weather: 0, atSea: false };
-    this.wideRenderer = null;          // 16:9 (1280x720) 寬螢幕全屏渲染器 (港口/海面)
-    this.wideOverlays = [];            // 16:9 原生現代 Canvas 浮層 (選單/對話/確認框)
+    this.wideRenderer = null;          // 16:9 (1280x720) 寬螢幕全屏渲染器 (港口/海面/建築/艦隊)
+    this.wideDialog = null;            // 16:9 現代底部寬幅對話欄狀態 { text, portraitId, waiting }
+    this.wideArt = null;               // ArtRegistry 參考 (供 wideDialog 載入頭像)
+    this.wideOverlays = [];            // 16:9 原生現代 Canvas 浮層 (選單/清單/確認框/數字器)
     this.winStackRef = null;           // 連結 WindowSystem.stack，在寬螢幕地圖上僅疊加開啟中的視窗
     if (canvas) {
       this.canvas = canvas;
@@ -591,7 +595,9 @@ export class Screen {
           this.ctx.drawImage(this.fbCanvas, sx, sy + Y_OFFSET, sw, sh, dx, dy, dw, dh);
         }
       }
-      // 16:9 原生現代 Canvas 浮層 (選單 / 確認框)
+      // 16:9 現代底部寬幅對話欄
+      if (this.wideDialog) drawWideDialog(this.ctx, this.wideArt, this.wideDialog);
+      // 16:9 原生現代 Canvas 浮層 (選單 / 清單 / 確認框 / 數字輸入)
       for (const fn of this.wideOverlays) fn(this.ctx, this);
       if (maxPal < 15) {
         this.ctx.fillStyle = `rgba(0,0,0,${(1 - maxPal / 15).toFixed(3)})`;

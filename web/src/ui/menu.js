@@ -494,9 +494,18 @@ export class MenuSystem {
     this.graph.draw8(0, tdiv8(x) << 3, y);
     this.rects[2] = { x0: x, x1: x + 0x90, y0: y, y1: y + 0x10 };
   }
-  // 147ab 等待按鍵: 在文字游標下一行中央閃爍游標
+  // 147ab 等待按鍵: 寬螢幕模式下直接於現代底部對話欄顯示動畫提示三角並等待點擊/按鍵
   async waitPrompt() {
     await this.waitRelease();
+    if (this.scr.wideRenderer && this.scr.wideDialog) {
+      this.scr.wideDialog.waiting = true;
+      this.scr.dirty = true;
+      await this.waitPress();
+      this.scr.wideDialog.waiting = false;
+      this.scr.dirty = true;
+      await this.waitRelease();
+      return;
+    }
     const c = this.con;
     let col = Math.trunc((c.right - c.left) / 2) + c.left;
     let y = c.x === c.left ? c.y : c.y + 0x18;

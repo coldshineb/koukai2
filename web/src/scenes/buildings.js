@@ -45,9 +45,26 @@ export class Buildings {
   get money() { return (this.st.u16(DS.MONEY) | (this.st.u16(0x12b0) << 16)) | 0; }
   set money(v) { this.st.set16(DS.MONEY, v & 0xffff); this.st.set16(0x12b0, (v >>> 16) & 0xffff); }
   noEvent() { return this.st.u16(0x0de6) === 0 && this.st.u16(0x0d5c) === 0; }
+  captureMessage(n, ...args) {
+    const { con, message, codec } = this.c;
+    const saved = con.putc, raw = []; let esc = 0;
+    con.putc = ch => {
+      ch &= 0xff;
+      if (esc) { esc = (esc === 1 && ch === 0x3d) ? 2 : (esc === 2 ? 3 : 0); return; }
+      if (ch === 0x1b) { esc = 1; return; }
+      if (ch >= 0x20 || ch === 0x0a) raw.push(ch);
+    };
+    try { message(n, ...args); } finally { con.putc = saved; }
+    return codec ? codec.decode(Uint8Array.from(raw)).replace(/\{[0-9A-F]{2}\}/g, "").trim() : "";
+  }
   // ---------------- 共用 ----------------
   greet(n, ...args) {                                                    // seg0:8f03
-    const { sys, win, con, message } = this.c;
+    const { sys, win, con, message, scr } = this.c;
+    if (scr.wideRenderer && this.c.codec) {
+      scr.wideDialog = { text: this.captureMessage(n, ...args), portraitId: null, waiting: false };
+      scr.dirty = true;
+      return;
+    }
     sys.mouseHide();
     win.frame(0x1e, 8, 0x1e, 0x80, 0);
     con.right = 0x38; con.left = 0x20; con.setCursor(0x20, 0x10);
@@ -61,6 +78,7 @@ export class Buildings {
   }
   after() {                                                              // 1b580 → 1b496
     const s = this.c.scr, g = this.c.gfx;
+    if (s.wideRenderer) return;
     for (let r = 0; r < 4; r++) for (let k = 0; k < 3; k++) {
       s.glyphMode(k * 16 + 12, r * 64 + 0x88, 8, 0x40, g.subarray(0x3ca0), 1);
       s.glyphMode(k * 16 + 20, r * 64 + 0xa8, 8, 0x20, g.subarray(0x3ca0), 1);
