@@ -619,7 +619,11 @@ export class PortScene {
         this.npcs();
         sys.mouseShow();
       }
-      while (sys.timer.get()) { if (this.c.menu.source()) break; await sys.poll(); }
+      await sys.poll();
+      while (sys.timer.get()) {
+        if (!key && this.c.menu.source()) break;
+        await sys.poll();
+      }
     }
   }
   // 1b39a 時間迴圈中止旗標 (月/日/時刻 >= F0; 讀檔時設定)
