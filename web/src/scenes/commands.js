@@ -16,6 +16,7 @@ import { drawWideFleetView } from "../canvas_ui/wide_fleet.ts";
 import { drawWideShipInfo, drawWidePersonInfo } from "../canvas_ui/wide_info.ts";
 import { runWideFleetTableSelect, runWidePersonnelSelect, runWideControlsModal, showWideNotice } from "../canvas_ui/wide_manage.ts";
 import { runWideLordInfo, runWideInfoLinesModal, runWideLogBook, runWideWorldChart } from "../canvas_ui/wide_panels.ts";
+import { captureConsoleText, decodeCleanCstr, UI_FONT } from "../canvas_ui/text_util.ts";
 
 const cmHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const cmStrlen = s => { let n = 0; while (n < s.length && s[n]) n++; return n; };
@@ -103,22 +104,10 @@ export class Commands {
     await this.c.win.close();
   }
   dec(bts) {
-    if (!bts || !this.c.codec) return "";
-    let e = bts.indexOf(0);
-    if (e < 0) e = bts.length;
-    return this.c.codec.decode(bts.subarray(0, e)).replace(/\{[0-9A-F]{2}\}/g, "").trim();
+    return decodeCleanCstr(this.c.codec, bts);
   }
   cap(fn) {
-    const { con, codec } = this.c;
-    const saved = con.putc, raw = []; let esc = 0;
-    con.putc = ch => {
-      ch &= 0xff;
-      if (esc) { esc = (esc === 1 && ch === 0x3d) ? 2 : (esc === 2 ? 3 : 0); return; }
-      if (ch === 0x1b) { esc = 1; return; }
-      if (ch >= 0x20 || ch === 0x0a) raw.push(ch);
-    };
-    try { fn(); } finally { con.putc = saved; }
-    return codec ? codec.decode(Uint8Array.from(raw)).replace(/\{[0-9A-F]{2}\}/g, "").trim() : "";
+    return captureConsoleText(this.c, fn);
   }
   buildFleetRows({ skipScrapped = false } = {}) {
     const st = this.st, b = this.b, n = b.fleetShips(), rows = [];
@@ -278,17 +267,7 @@ export class Commands {
 
     // 16:9 原生現代 Canvas 自艦隊情報畫面 (100% 沿用原版文字與船隻/提督資料)
     if (this.c.codec && this.c.art) {
-      const capMsg = (id, ...args) => {
-        const saved = con.putc, raw = []; let esc = 0;
-        con.putc = ch => {
-          ch &= 0xff;
-          if (esc) { esc = (esc === 1 && ch === 0x3d) ? 2 : (esc === 2 ? 3 : 0); return; }
-          if (ch === 0x1b) { esc = 1; return; }
-          if (ch >= 0x20) raw.push(ch);
-        };
-        try { message(id, ...args); } finally { con.putc = saved; }
-        return this.c.codec.decode(Uint8Array.from(raw)).replace(/\{[0-9A-F]{2}\}/g, "").trim();
-      };
+      const capMsg = (id, ...args) => this.cap(() => message(id, ...args));
       const ships = [];
       for (let i = 0; i < 10; i++) {
         const S = F + OFF.FLEET.SHIPS + i * 9;
@@ -396,13 +375,8 @@ export class Commands {
       this.bar(x + 0x18, (i << 5) + 0x94, Math.trunc((100 * cur[i]) / (s16(max[i]) || 1)), 1);
     }
     if (this.c.codec && this.c.art && scr.hdCtx) {
-      const dec = bts => { let e = bts.indexOf(0); if (e < 0) e = bts.length; return this.c.codec.decode(bts.subarray(0, e)).replace(/\{[0-9A-F]{2}\}/g, "").trim(); };
-      const cap = (fn) => {
-        const saved = con.putc, raw = []; let esc = 0;
-        con.putc = ch => { ch &= 0xff; if (esc) { esc = (esc === 1 && ch === 0x3d) ? 2 : (esc === 2 ? 3 : 0); return; } if (ch === 0x1b) { esc = 1; return; } if (ch >= 0x20 || ch === 0x0a) raw.push(ch); };
-        try { fn(); } finally { con.putc = saved; }
-        return this.c.codec.decode(Uint8Array.from(raw)).replace(/\{[0-9A-F]{2}\}/g, "").trim();
-      };
+      const dec = bts => this.dec(bts);
+      const cap = fn => this.cap(fn);
       const leftLines = [
         dec(st.cstr(tmpl)),
         cap(() => message(0x374, st.cstr(ship))),
@@ -503,13 +477,8 @@ export class Commands {
     }
     message(0x38c);
     if (this.c.codec && this.c.art && scr.hdCtx) {
-      const dec = bts => { let e = bts.indexOf(0); if (e < 0) e = bts.length; return this.c.codec.decode(bts.subarray(0, e)).replace(/\{[0-9A-F]{2}\}/g, "").trim(); };
-      const cap = fn => {
-        const saved = con.putc, raw = []; let esc = 0;
-        con.putc = ch => { ch &= 0xff; if (esc) { esc = (esc === 1 && ch === 0x3d) ? 2 : (esc === 2 ? 3 : 0); return; } if (ch === 0x1b) { esc = 1; return; } if (ch >= 0x20 || ch === 0x0a) raw.push(ch); };
-        try { fn(); } finally { con.putc = saved; }
-        return this.c.codec.decode(Uint8Array.from(raw)).replace(/\{[0-9A-F]{2}\}/g, "").trim();
-      };
+      const dec = bts => this.dec(bts);
+      const cap = fn => this.cap(fn);
       const headerLines = [
         cap(() => message(0x381, st.cstr(P), st.cstr(P + 0x0d))),
         cap(() => message(0x382, st.u8(P + 0x2a))),
@@ -569,11 +538,11 @@ export class Commands {
         })),
         nations: [0, 1, 2, 3, 4, 5].map(i => {
           const v = st.u8(H + 6 + i);
-          const rawText = this.cap(() => { if (v < 100) message(0x394); printf(this.S.n3, Math.abs(v - 100)); });
+          const diff = v - 100;
           return {
             label: this.cap(() => message(0x393, this.p.nations[i])),
             value: v,
-            rawText,
+            rawText: diff < 0 ? `-${Math.abs(diff)}` : String(diff),
           };
         }),
       });
@@ -778,11 +747,11 @@ export class Commands {
   }
   // ---- 9 海港地圖 1dfaf: 原生 16:9 現代浮動港內小地圖 (直接繪製 HD PNG 圖塊 + 原版建築標籤 + 主角位置) ----
   async portMap() {
-    const { scr, sys, menu, art, codec } = this.c, p = this.p;
-    const sheet = art?.sheetMeta?.(p.chipSetName || "portchip_0");
-    const sheetImg = sheet ? art.getImage(`${art.baseUrl}/${sheet.path}`) : null;
+    const { scr, sys, menu, art } = this.c, p = this.p;
+    const sheetName = p.chipSetName || "portchip_0";
+    const meta = art?.sheet?.(sheetName);
+    const sheetImg = meta ? art.getImage(art.sheetUrl(sheetName)) : null;
     const lab = this.c.menuItems(0x3a);
-    const dec = bts => { let e = bts.indexOf(0); if (e < 0) e = bts.length; return codec ? codec.decode(bts.subarray(0, e)).replace(/\{[0-9A-F]{2}\}/g, "").trim() : ""; };
 
     const X = p.hx + p.vx, Y = p.hy + p.vy;
     let di = Math.trunc(X / 24), si = Math.trunc(Y / 24);
@@ -806,24 +775,27 @@ export class Commands {
       ctx.fillRect(bx, by, boxW, boxH);
       ctx.strokeRect(bx, by, boxW, boxH);
 
-      ctx.font = '700 17px "Noto Serif TC", "Microsoft JhengHei", serif';
+      ctx.font = `700 17px ${UI_FONT}`;
       ctx.fillStyle = "#f2d89b";
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
-      const portName = dec(this.st.model.port(p.port).nameBytes);
+      const portName = this.dec(this.st.model.port(p.port).nameBytes);
       ctx.fillText(portName, bx + 18, by + 24);
 
-      if (sheet && sheetImg) {
+      if (meta && sheetImg) {
         ctx.imageSmoothingEnabled = false;
+        const scaleX = (sheetImg.naturalWidth || meta.w) / meta.w;
+        const scaleY = (sheetImg.naturalHeight || meta.h) / meta.h;
         const M = p.map;
         for (let r = 0; r < 48; r++) {
           const mr = startRow + r;
           for (let c = 0; c < 48; c++) {
             const mc = startCol + c;
             const t = M[mr * 96 + mc];
-            const sx = (t % sheet.cols) * sheet.tileW;
-            const sy = Math.floor(t / sheet.cols) * sheet.tileH;
-            ctx.drawImage(sheetImg, sx, sy, sheet.tileW, sheet.tileH, mx + c * tilePx, my + r * tilePx, tilePx, tilePx);
+            if (t < 0 || t >= meta.count) continue;
+            const sx = (t % meta.cols) * meta.tileW * scaleX;
+            const sy = Math.floor(t / meta.cols) * meta.tileH * scaleY;
+            ctx.drawImage(sheetImg, sx, sy, meta.tileW * scaleX, meta.tileH * scaleY, mx + c * tilePx, my + r * tilePx, tilePx, tilePx);
           }
         }
       }
@@ -840,14 +812,14 @@ export class Commands {
       ctx.stroke();
 
       // 建築標籤 (100% 原版 MENU #0x3a)
-      ctx.font = '700 12px "Noto Serif TC", "Microsoft JhengHei", serif';
+      ctx.font = `700 12px ${UI_FONT}`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       for (let k = 0; k < 12; k++) {
         if (k === 7) continue;
         const dx = p.door[k * 2], dy = p.door[k * 2 + 1];
         if (dx < startCol || dx >= startCol + 48 || dy < startRow || dy >= startRow + 48) continue;
-        const text = dec(lab[k]);
+        const text = this.dec(lab[k]);
         if (!text) continue;
         const lx = mx + (dx - startCol) * tilePx + tilePx / 2;
         const ly = Math.max(my + 12, my + (dy - startRow) * tilePx - 10);

@@ -63,7 +63,7 @@ export function drawWideNumPad(ctx: CanvasRenderingContext2D, s: WideNumPadState
   ctx.stroke();
 
   // 數值顯示區
-  ctx.font = '700 26px "Consolas", "Noto Serif TC", monospace';
+  ctx.font = '700 26px "Cascadia Mono", "Consolas", "Microsoft YaHei UI", monospace';
   ctx.fillStyle = "#ffe5a3";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";

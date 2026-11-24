@@ -85,7 +85,7 @@ export function drawWideList(ctx: CanvasRenderingContext2D, s: WideListState) {
   ctx.lineTo(s.x + s.w - 12, s.y + s.headerH);
   ctx.stroke();
 
-  ctx.font = '700 16px "Noto Serif TC", "Microsoft JhengHei", serif';
+  ctx.font = '700 16px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
   ctx.fillStyle = "#f2d89b";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";

@@ -72,14 +72,14 @@ export async function runWideFleetTableSelect(ctx: any, opts: WideFleetTableOpts
     c2d.lineWidth = 1.6;
     c2d.stroke();
 
-    c2d.font = '700 18px "Noto Serif TC", "Microsoft JhengHei", serif';
+    c2d.font = '700 18px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
     c2d.fillStyle = "#f2d89b";
     c2d.textAlign = "left";
     c2d.textBaseline = "middle";
     c2d.fillText(opts.title, x + 24, y + 28);
 
     if (opts.badgeText) {
-      c2d.font = '700 15px "Noto Serif TC", "Microsoft JhengHei", serif';
+      c2d.font = '700 15px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
       c2d.fillStyle = "#ffe184";
       c2d.textAlign = "right";
       c2d.fillText(opts.badgeText, x + w - 24, y + 28);
@@ -92,7 +92,7 @@ export async function runWideFleetTableSelect(ctx: any, opts: WideFleetTableOpts
     c2d.stroke();
 
     if (opts.columnsHeader) {
-      c2d.font = '600 13px "Noto Serif TC", "Microsoft JhengHei", serif';
+      c2d.font = '600 13px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
       c2d.fillStyle = "#9ab2cc";
       c2d.textAlign = "right";
       c2d.fillText(opts.columnsHeader, x + w - 30, y + 64);
@@ -116,16 +116,16 @@ export async function runWideFleetTableSelect(ctx: any, opts: WideFleetTableOpts
       }
 
       const cy = r.y + r.h / 2 + 1;
-      c2d.font = '700 15px "Noto Serif TC", "Microsoft JhengHei", serif';
+      c2d.font = '700 15px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
       c2d.fillStyle = row.disabled ? "rgba(180,174,158,0.4)" : isSel ? "#fff4d6" : "#eadfc8";
       c2d.textAlign = "left";
       c2d.fillText(row.name, r.x + 14, cy, 200);
 
-      c2d.font = '500 14px "Noto Serif TC", "Microsoft JhengHei", serif';
+      c2d.font = '500 14px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
       c2d.fillStyle = row.disabled ? "rgba(180,174,158,0.4)" : "#c8d6e5";
       c2d.fillText(row.captain, r.x + 225, cy, 170);
 
-      c2d.font = '600 14px "Consolas", "Noto Serif TC", monospace';
+      c2d.font = '600 14px "Cascadia Mono", "Consolas", "Microsoft YaHei UI", monospace';
       c2d.fillStyle = row.disabled ? "rgba(180,174,158,0.4)" : "#f2d89b";
       c2d.textAlign = "right";
       c2d.fillText(`${row.crewText}   ${row.loadText}   ${row.speedText}`, r.x + r.w - 14, cy);
@@ -211,7 +211,7 @@ export async function runWidePersonnelSelect(
     c2d.lineWidth = 1.6;
     c2d.stroke();
 
-    c2d.font = '700 18px "Noto Serif TC", "Microsoft JhengHei", serif';
+    c2d.font = '700 18px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
     c2d.fillStyle = "#f2d89b";
     c2d.textAlign = "left";
     c2d.textBaseline = "middle";
@@ -235,7 +235,7 @@ export async function runWidePersonnelSelect(
       c2d.lineWidth = isSel ? 2 : 1.2;
       c2d.stroke();
 
-      c2d.font = '700 16px "Noto Serif TC", "Microsoft JhengHei", serif';
+      c2d.font = '700 16px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
       c2d.fillStyle = "#f2d89b";
       c2d.textAlign = "center";
       c2d.fillText(card.roleLabel, r.x + r.w / 2, r.y + 24);
@@ -252,7 +252,7 @@ export async function runWidePersonnelSelect(
       c2d.lineWidth = 1;
       c2d.strokeRect(px, py, 104, 130);
 
-      c2d.font = '700 16px "Noto Serif TC", "Microsoft JhengHei", serif';
+      c2d.font = '700 16px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
       c2d.fillStyle = isSel ? "#fff4d6" : "#eadfc8";
       c2d.fillText(card.personName || "----", r.x + r.w / 2, r.y + 204, r.w - 18);
     }
@@ -348,7 +348,7 @@ export async function runWideControlsModal(ctx: any, title: string, rows: WideCo
     c2d.lineWidth = 1.6;
     c2d.stroke();
 
-    c2d.font = '700 18px "Noto Serif TC", "Microsoft JhengHei", serif';
+    c2d.font = '700 18px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
     c2d.fillStyle = "#f2d89b";
     c2d.textAlign = "left";
     c2d.textBaseline = "middle";
@@ -375,7 +375,7 @@ export async function runWideControlsModal(ctx: any, title: string, rows: WideCo
       }
 
       const cy = rr.row.y + rr.row.h / 2;
-      c2d.font = '700 15px "Noto Serif TC", "Microsoft JhengHei", serif';
+      c2d.font = '700 15px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
       c2d.fillStyle = "#fff4d6";
       c2d.textAlign = "left";
       c2d.fillText(row.label, rr.row.x + 14, cy);
@@ -387,7 +387,7 @@ export async function runWideControlsModal(ctx: any, title: string, rows: WideCo
         c2d.strokeStyle = "#e6c67c";
         c2d.lineWidth = 1.2;
         c2d.stroke();
-        c2d.font = '700 15px "Noto Serif TC", "Microsoft JhengHei", serif';
+        c2d.font = '700 15px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
         c2d.fillStyle = "#fff4d6";
         c2d.textAlign = "center";
         c2d.fillText(row.getValueText(), rr.toggle.x + rr.toggle.w / 2, rr.toggle.y + rr.toggle.h / 2 + 1);
@@ -415,7 +415,7 @@ export async function runWideControlsModal(ctx: any, title: string, rows: WideCo
           c2d.fill();
         }
 
-        c2d.font = '600 13px "Consolas", "Noto Serif TC", monospace';
+        c2d.font = '600 13px "Cascadia Mono", "Consolas", "Microsoft YaHei UI", monospace';
         c2d.fillStyle = "#f2d89b";
         c2d.textAlign = "right";
         c2d.fillText(row.getValueText(), rr.row.x + rr.row.w - 10, cy);

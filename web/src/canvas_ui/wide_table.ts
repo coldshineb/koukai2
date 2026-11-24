@@ -32,7 +32,7 @@ export async function runWideTableSelect(
 ): Promise<number> {
   const { scr, sys, menu } = ctx;
   const cols = opts.columns ?? 1;
-  const x = 540, y = 82, w = VIEW_W - x - 36, h = 428;
+  const x = 660, y = 132, w = 420, h = 348;
   const headerH = opts.title || opts.toggleLabel ? 44 : 12;
   const rowH = 38;
   const padX = 16;
@@ -69,7 +69,7 @@ export async function runWideTableSelect(
     c2d.stroke();
 
     if (opts.title) {
-      c2d.font = '700 16px "Noto Serif TC", "Microsoft JhengHei", serif';
+      c2d.font = '700 16px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
       c2d.fillStyle = "#f2d89b";
       c2d.textAlign = "left";
       c2d.textBaseline = "middle";
@@ -85,7 +85,7 @@ export async function runWideTableSelect(
       c2d.strokeStyle = "#e6c67c";
       c2d.lineWidth = 1;
       c2d.stroke();
-      c2d.font = '700 13px "Noto Serif TC", "Microsoft JhengHei", serif';
+      c2d.font = '700 13px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
       c2d.fillStyle = hov ? "#1a1106" : "#fff4d6";
       c2d.textAlign = "center";
       c2d.textBaseline = "middle";
@@ -119,13 +119,13 @@ export async function runWideTableSelect(
         c2d.fill();
       }
 
-      c2d.font = '600 15px "Noto Serif TC", "Microsoft JhengHei", serif';
+      c2d.font = '600 15px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
       c2d.fillStyle = it.accent ? "#ffe184" : isSel ? "#fff4d6" : "#eadfc8";
       c2d.textAlign = "left";
       c2d.fillText(it.label, r.x + 12, r.y + r.h / 2 + 1, it.rightText ? r.w - 92 : r.w - 24);
 
       if (it.rightText) {
-        c2d.font = '600 15px "Consolas", "Noto Serif TC", monospace';
+        c2d.font = '600 15px "Cascadia Mono", "Consolas", "Microsoft YaHei UI", monospace';
         c2d.fillStyle = "#f2d89b";
         c2d.textAlign = "right";
         c2d.fillText(it.rightText, r.x + r.w - 12, r.y + r.h / 2 + 1);

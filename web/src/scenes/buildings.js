@@ -19,6 +19,7 @@ import { installChurchInnFortune } from "./church_inn_fortune.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { domS16, domUmin16 } from "../domain/economy.ts";
 import { calcCargoUsed, calcShipLoadTotal, calcShipSpeed } from "../domain/fleet.ts";
+import { captureConsoleText, createEscStripper, decodeCleanCstr } from "../canvas_ui/text_util.ts";
 
 const bHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const B_SPEECH = Uint8Array.of(0x1b, 0x43, 0x30, 0x01, 0x1b, 0x42, 0x37, 0);   // DS:8c12
@@ -46,16 +47,7 @@ export class Buildings {
   set money(v) { this.st.set16(DS.MONEY, v & 0xffff); this.st.set16(0x12b0, (v >>> 16) & 0xffff); }
   noEvent() { return this.st.u16(0x0de6) === 0 && this.st.u16(0x0d5c) === 0; }
   captureMessage(n, ...args) {
-    const { con, message, codec } = this.c;
-    const saved = con.putc, raw = []; let esc = 0;
-    con.putc = ch => {
-      ch &= 0xff;
-      if (esc) { esc = (esc === 1 && ch === 0x3d) ? 2 : (esc === 2 ? 3 : 0); return; }
-      if (ch === 0x1b) { esc = 1; return; }
-      if (ch >= 0x20 || ch === 0x0a) raw.push(ch);
-    };
-    try { message(n, ...args); } finally { con.putc = saved; }
-    return codec ? codec.decode(Uint8Array.from(raw)).replace(/\{[0-9A-F]{2}\}/g, "").trim() : "";
+    return captureConsoleText(this.c, () => this.c.message(n, ...args));
   }
   // ---------------- 共用 ----------------
   beginWideTalk(portraitId = null, prefix = "") {
@@ -64,19 +56,13 @@ export class Buildings {
     if (this._wideTalk) this.endWideTalk();
     const origPutc = con.putc;
     const raw = [];
-    let esc = 0;
     const sync = () => {
       const body = codec.decode(Uint8Array.from(raw)).replace(/\{[0-9A-F]{2}\}/g, "").trim();
       const text = prefix ? (body ? `${prefix}\n${body}` : prefix) : body;
       scr.wideDialog = { text, portraitId, waiting: false };
       scr.dirty = true;
     };
-    con.putc = ch => {
-      ch &= 0xff;
-      if (esc) { esc = (esc === 1 && ch === 0x3d) ? 2 : (esc === 2 ? 3 : 0); return; }
-      if (ch === 0x1b) { esc = 1; return; }
-      if (ch >= 0x20 || ch === 0x0a) { raw.push(ch); sync(); }
-    };
+    con.putc = createEscStripper(b => { raw.push(b); sync(); });
     this._wideTalk = { origPutc, raw, portraitId, prefix, sync };
     sync();
     return true;
@@ -106,7 +92,13 @@ export class Buildings {
   }
   async menu(items) {                                                    // 1b46e
     this.p.panels();
-    return this.c.menu.listMenu(0x3c, 0x68, items, 1);
+    const prev = this.c.menu.wideAnchorCmd;
+    this.c.menu.wideAnchorCmd = -3;
+    try {
+      return await this.c.menu.listMenu(0x3c, 0x68, items, 1);
+    } finally {
+      this.c.menu.wideAnchorCmd = prev;
+    }
   }
   after() {                                                              // 1b580 → 1b496
     const s = this.c.scr, g = this.c.gfx;

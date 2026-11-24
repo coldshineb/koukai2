@@ -62,7 +62,7 @@ export function drawWideYesNo(ctx: CanvasRenderingContext2D, s: WideYesNoState) 
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  ctx.font = '700 18px "Noto Serif TC", "Microsoft JhengHei", serif';
+  ctx.font = '700 18px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 

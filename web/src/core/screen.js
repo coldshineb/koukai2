@@ -47,9 +47,11 @@ export class Screen {
     this.winStackRef = null;           // 連結 WindowSystem.stack，在寬螢幕地圖上僅疊加開啟中的視窗
     if (canvas) {
       this.canvas = canvas;
-      canvas.width = VIEW_W;
-      canvas.height = VIEW_H;
+      this.dpr = typeof window !== "undefined" ? Math.min(2, Math.max(1, window.devicePixelRatio || 1)) : 1;
+      canvas.width = Math.round(VIEW_W * this.dpr);
+      canvas.height = Math.round(VIEW_H * this.dpr);
       this.ctx = canvas.getContext("2d", { alpha: false });
+      this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
       this.ctx.imageSmoothingEnabled = true;
 
       // HD RGBA 美術層 (1280x800, 對應邏輯 640x400 遊戲區)
@@ -539,6 +541,7 @@ export class Screen {
   }
   present() {
     if (!this.ctx) return;
+    if (this.dpr && this.dpr !== 1) this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     const cur = this.cursor, key = cur && cur.visible ? `${cur.x},${cur.y},${cur.shape}` : "";
     const liveFx = !!this.wideRenderer || (this.atmosphere.active && ((this.atmosphere.atSea && (this.atmosphere.weather & 15) === 1) || this.atmosphere.mode === "night"));
     if (!this.dirty && !liveFx && key === this.lastCursor) return;

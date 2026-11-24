@@ -105,7 +105,7 @@ export function drawWideShipInfo(ctx: CanvasRenderingContext2D, art: any, d: Wid
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(supImg, i * supSheet.tileW, 0, supSheet.tileW, supSheet.tileH, sx + 12, sy + 18, 28, 52);
     }
-    ctx.font = '700 18px "Consolas", "Noto Serif TC", monospace';
+    ctx.font = '700 18px "Cascadia Mono", "Consolas", "Microsoft YaHei UI", monospace';
     ctx.fillStyle = "#ffe5a3";
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
@@ -118,8 +118,8 @@ export function drawWideShipInfo(ctx: CanvasRenderingContext2D, art: any, d: Wid
   let ly = py + 242;
   d.leftLines.forEach((line, idx) => {
     ctx.font = idx === 0
-      ? '700 19px "Noto Serif TC", "Microsoft JhengHei", serif'
-      : '500 15px "Noto Serif TC", "Microsoft JhengHei", serif';
+      ? '700 19px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif'
+      : '500 15px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
     ctx.fillStyle = idx === 0 ? "#f2d89b" : "#eadfc8";
     ctx.fillText(line, px + 32, ly, 580);
     ly += idx === 0 ? 34 : 30;
@@ -136,7 +136,7 @@ export function drawWideShipInfo(ctx: CanvasRenderingContext2D, art: any, d: Wid
   const bx = px + 698, bw = pw - 730;
   d.bars.forEach((b, i) => {
     const by = py + 44 + i * 76;
-    ctx.font = '600 15px "Noto Serif TC", "Microsoft JhengHei", serif';
+    ctx.font = '600 15px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
     ctx.fillStyle = "#f2d89b";
     ctx.textAlign = "left";
     ctx.fillText(b.label, bx, by);
@@ -188,8 +188,8 @@ export function drawWidePersonInfo(ctx: CanvasRenderingContext2D, art: any, d: W
   ctx.textBaseline = "top";
   d.headerLines.forEach((line, i) => {
     ctx.font = i === 0
-      ? '700 22px "Noto Serif TC", "Microsoft JhengHei", serif'
-      : '500 16px "Noto Serif TC", "Microsoft JhengHei", serif';
+      ? '700 22px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif'
+      : '500 16px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
     ctx.fillStyle = i === 0 ? "#f2d89b" : "#eadfc8";
     ctx.fillText(line, px + 188, py + 32 + i * 34, pw - 224);
   });
@@ -205,7 +205,7 @@ export function drawWidePersonInfo(ctx: CanvasRenderingContext2D, art: any, d: W
   const sx = px + 32, sw = 420;
   d.stats.forEach((st, i) => {
     const sy = py + 232 + i * 52;
-    ctx.font = '600 15px "Noto Serif TC", "Microsoft JhengHei", serif';
+    ctx.font = '600 15px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
     ctx.fillStyle = "#e6dcc8";
     ctx.textAlign = "left";
     ctx.fillText(st.label, sx, sy);
@@ -228,7 +228,7 @@ export function drawWidePersonInfo(ctx: CanvasRenderingContext2D, art: any, d: W
 
   // 右下: 經驗 / 等級 / 爵位 / 技能原版列
   ctx.textAlign = "left";
-  ctx.font = '500 16px "Noto Serif TC", "Microsoft JhengHei", serif';
+  ctx.font = '500 16px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
   ctx.fillStyle = "#f4ead2";
   d.detailLines.forEach((line, i) => {
     ctx.fillText(line, px + 500, py + 236 + i * 34, pw - 532);

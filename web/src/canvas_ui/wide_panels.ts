@@ -33,14 +33,14 @@ function drawPanelFrame(ctx: CanvasRenderingContext2D, x: number, y: number, w: 
   ctx.lineWidth = 1.6;
   ctx.stroke();
 
-  ctx.font = '700 18px "Noto Serif TC", "Microsoft JhengHei", serif';
+  ctx.font = '700 18px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
   ctx.fillStyle = "#f2d89b";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   ctx.fillText(title, x + 24, y + 30);
 
   if (rightSub) {
-    ctx.font = '600 14px "Noto Serif TC", "Microsoft JhengHei", serif';
+    ctx.font = '600 14px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
     ctx.fillStyle = "#d8c394";
     ctx.textAlign = "right";
     ctx.fillText(rightSub, x + w - 24, y + 30);
@@ -89,20 +89,20 @@ export async function runWideLordInfo(ctx: any, data: WideLordData) {
 
     c2d.textAlign = "left";
     c2d.textBaseline = "middle";
-    c2d.font = '600 15px "Noto Serif TC", "Microsoft JhengHei", serif';
+    c2d.font = '600 15px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
     c2d.fillStyle = "#fff4d6";
     for (let i = 0; i < data.moneyLines.length; i++) {
       c2d.fillText(data.moneyLines[i], x + 152, y + 92 + i * 32, 220);
     }
 
-    c2d.font = '700 15px "Noto Serif TC", "Microsoft JhengHei", serif';
+    c2d.font = '700 15px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
     c2d.fillStyle = "#f2d89b";
     c2d.fillText(data.fameHeader, x + 28, y + 232);
 
     for (let i = 0; i < data.fameLines.length; i++) {
       const fy = y + 266 + i * 44;
       const f = data.fameLines[i];
-      c2d.font = '600 14px "Noto Serif TC", "Microsoft JhengHei", serif';
+      c2d.font = '600 14px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
       c2d.fillStyle = "#eadfc8";
       c2d.textAlign = "left";
       c2d.fillText(f.label, x + 28, fy);
@@ -128,7 +128,7 @@ export async function runWideLordInfo(ctx: any, data: WideLordData) {
     for (let i = 0; i < data.nations.length; i++) {
       const ny = y + 84 + i * 54;
       const nat = data.nations[i];
-      c2d.font = '600 15px "Noto Serif TC", "Microsoft JhengHei", serif';
+      c2d.font = '600 15px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
       c2d.fillStyle = "#eadfc8";
       c2d.textAlign = "left";
       c2d.fillText(nat.label, rx, ny);
@@ -190,7 +190,7 @@ export async function runWideInfoLinesModal(
     c2d.save();
     drawPanelFrame(c2d, x, y, w, h, title);
 
-    c2d.font = '500 15px "Noto Serif TC", "Microsoft JhengHei", serif';
+    c2d.font = '500 15px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
     c2d.fillStyle = "#f2ead8";
     c2d.textAlign = "left";
     c2d.textBaseline = "middle";
@@ -210,7 +210,7 @@ export async function runWideInfoLinesModal(
         c2d.strokeStyle = "#f0cf85";
         c2d.lineWidth = 1.2;
         c2d.stroke();
-        c2d.font = '700 15px "Noto Serif TC", "Microsoft JhengHei", serif';
+        c2d.font = '700 15px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
         c2d.fillStyle = isSel ? "#1a1106" : "#fff4d6";
         c2d.textAlign = "center";
         c2d.fillText(actionLabels[i], r.x + r.w / 2, r.y + r.h / 2 + 1);
@@ -296,7 +296,7 @@ export async function runWideLogBook(
       c2d.textBaseline = "middle";
       c2d.fillText(e.date, x + 36, ry + 23);
 
-      c2d.font = '500 15px "Noto Serif TC", "Microsoft JhengHei", serif';
+      c2d.font = '500 15px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
       c2d.fillStyle = "#f2ead8";
       c2d.fillText(e.text, x + 156, ry + 23, w - 190);
     }
@@ -307,7 +307,7 @@ export async function runWideLogBook(
       c2d.fill();
       c2d.strokeStyle = "#e6c67c";
       c2d.stroke();
-      c2d.font = '700 14px "Noto Serif TC", "Microsoft JhengHei", serif';
+      c2d.font = '700 14px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
       c2d.fillStyle = "#fff4d6";
       c2d.textAlign = "center";
       c2d.fillText(prevLabel, prevBtn.x + prevBtn.w / 2, prevBtn.y + prevBtn.h / 2 + 1);
@@ -318,7 +318,7 @@ export async function runWideLogBook(
       c2d.fill();
       c2d.strokeStyle = "#e6c67c";
       c2d.stroke();
-      c2d.font = '700 14px "Noto Serif TC", "Microsoft JhengHei", serif';
+      c2d.font = '700 14px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
       c2d.fillStyle = "#fff4d6";
       c2d.textAlign = "center";
       c2d.fillText(nextLabel, nextBtn.x + nextBtn.w / 2, nextBtn.y + nextBtn.h / 2 + 1);
@@ -358,14 +358,18 @@ export async function runWideLogBook(
   }
 }
 
-// ---------------- 4. 世界航海圖 (16:9 現代浮窗) ----------------
+// ---------------- 4. 世界航海圖 (16:9 現代浮窗，載入 GRAPH.DAT #0x19 真實大陸底圖 + 迷霧 + 已知港口) ----------------
 export async function runWideWorldChart(ctx: any, scene: any, title: string) {
-  const { scr, sys, menu, state: st, codec } = ctx;
+  const { scr, sys, menu, state: st, codec, art } = ctx;
   const dec = (bts: Uint8Array) => {
     let e = bts.indexOf(0);
     if (e < 0) e = bts.length;
     return codec ? codec.decode(bts.subarray(0, e)).replace(/\{[0-9A-F]{2}\}/g, "").trim() : "";
   };
+
+  const mapEntry = art?.graphEntry?.("GRAPH.DAT", 0x19);
+  const mapUrl = mapEntry ? `${art.baseUrl}/${mapEntry.path}` : null;
+  if (mapUrl) await art.loadImage(mapUrl).catch(() => {});
 
   const cw = 10, ch = 10; // 90×45 格 -> 900×450
   const mapW = 90 * cw, mapH = 45 * ch;
@@ -382,17 +386,27 @@ export async function runWideWorldChart(ctx: any, scene: any, title: string) {
     c2d.save();
     drawPanelFrame(c2d, bx, by, boxW, boxH, title);
 
-    // 未探索迷霧底色
-    c2d.fillStyle = "#081424";
+    c2d.fillStyle = "#0a1b32";
     c2d.fillRect(mx, my, mapW, mapH);
 
-    // 繪製已探索區塊 (EXPLORE_MAP: 45 列 × 90 欄)
+    // 繪製原版 GRAPH.DAT #0x19 世界大陸地圖 (原圖 640×400，地圖本體位於 50,50 寬540 高270)
+    const mapImg = mapUrl ? art?.getImage?.(mapUrl) : null;
+    if (mapImg) {
+      const sx = (50 / 640) * mapImg.naturalWidth;
+      const sy = (50 / 400) * mapImg.naturalHeight;
+      const sw = (540 / 640) * mapImg.naturalWidth;
+      const sh = (270 / 400) * mapImg.naturalHeight;
+      c2d.imageSmoothingEnabled = true;
+      c2d.drawImage(mapImg, sx, sy, sw, sh, mx, my, mapW, mapH);
+    }
+
+    // 未探索海域覆蓋深色戰爭迷霧
     for (let row = 0; row < 45; row++) {
       for (let col = 0; col < 90; col++) {
         const wcol = (col - 30 + 90) % 90;
         const seen = st.u8(WorkDS.EXPLORE_MAP + 12 * row + (wcol >> 3)) & (0x80 >> (wcol & 7));
-        if (!seen) continue;
-        c2d.fillStyle = "#163b66";
+        if (seen) continue;
+        c2d.fillStyle = "rgba(8, 18, 34, 0.86)";
         c2d.fillRect(mx + col * cw, my + row * ch, cw, ch);
       }
     }
@@ -436,7 +450,7 @@ export async function runWideWorldChart(ctx: any, scene: any, title: string) {
     c2d.stroke();
 
     if (hoverPortName) {
-      c2d.font = '700 13px "Noto Serif TC", "Microsoft JhengHei", serif';
+      c2d.font = '700 13px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
       const tw = c2d.measureText(hoverPortName).width + 16;
       const lx = Math.min(mx + mapW - tw - 4, Math.max(mx + 4, hoverX - tw / 2));
       const ly = Math.max(my + 4, hoverY - 28);

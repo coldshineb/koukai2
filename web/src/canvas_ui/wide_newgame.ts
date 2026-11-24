@@ -100,7 +100,7 @@ export function renderWideNewGame(
     ctx.strokeRect(px, py, 128, 160);
 
     // 姓名
-    ctx.font = '700 15px "Noto Serif TC", "Microsoft JhengHei", serif';
+    ctx.font = '700 15px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
     ctx.fillStyle = isSel ? "#fff4d6" : "#eadfc8";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -140,11 +140,11 @@ export function renderWideNewGame(
     // 姓名 + 年齡 + 技能
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
-    ctx.font = '700 22px "Noto Serif TC", "Microsoft JhengHei", serif';
+    ctx.font = '700 22px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
     ctx.fillStyle = "#fff4d6";
     ctx.fillText(cur.name, dx + 158, dy + 28, dw - 180);
 
-    ctx.font = '600 15px "Noto Serif TC", "Microsoft JhengHei", serif';
+    ctx.font = '600 15px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
     ctx.fillStyle = "#d8c394";
     ctx.fillText(`${cur.age}   ${cur.skill}`, dx + 158, dy + 64, dw - 180);
 
@@ -153,7 +153,7 @@ export function renderWideNewGame(
       const col = i % 2, row = Math.floor(i / 2);
       const sx = dx + 158 + col * 180;
       const sy = dy + 100 + row * 28;
-      ctx.font = '500 14px "Noto Serif TC", "Microsoft JhengHei", serif';
+      ctx.font = '500 14px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
       ctx.fillStyle = "#b8c7d9";
       ctx.textAlign = "left";
       ctx.fillText(statLabels[i] || "", sx, sy);
@@ -171,7 +171,7 @@ export function renderWideNewGame(
     ctx.stroke();
 
     // 原版主角介紹文字
-    ctx.font = '500 16px "Noto Serif TC", "Microsoft JhengHei", serif';
+    ctx.font = '500 16px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
     ctx.fillStyle = "#f2ead8";
     ctx.textAlign = "left";
     ctx.textBaseline = "top";

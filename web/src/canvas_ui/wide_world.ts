@@ -96,18 +96,24 @@ function drawSheetTileDirect(
   );
 }
 
-function drawWideAtmosphere(ctx: CanvasRenderingContext2D, scr: any, focusX: number, focusY: number) {
+function drawWideAtmosphere(ctx: CanvasRenderingContext2D, scr: any, focusX: number, focusY: number, rtTime?: number) {
   const a = scr.atmosphere;
-  if (!a?.active) return;
   const t = typeof performance !== "undefined" ? performance.now() * 0.001 : 0;
-  const isStorm = a.atSea && (a.weather & 15) === 1;
-  const isFog = a.atSea && (a.weather & 15) === 3;
+  const isStorm = !!(a?.active && a.atSea && (a.weather & 15) === 1);
+  const isFog = !!(a?.active && a.atSea && (a.weather & 15) === 3);
+  let mode = a?.mode || "day";
+  if (typeof rtTime === "number") {
+    if (rtTime < 12 || rtTime >= 60) mode = "night";
+    else if (rtTime < 18) mode = "dawn";
+    else if (rtTime >= 51) mode = "dusk";
+    else mode = "day";
+  }
 
   ctx.save();
   if (isStorm) {
-    ctx.fillStyle = "rgba(8, 18, 40, 0.45)";
+    ctx.fillStyle = "rgba(8, 18, 40, 0.52)";
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-    ctx.strokeStyle = "rgba(195, 220, 255, 0.4)";
+    ctx.strokeStyle = "rgba(195, 220, 255, 0.42)";
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     for (let i = 0; i < 96; i++) {
@@ -122,28 +128,33 @@ function drawWideAtmosphere(ctx: CanvasRenderingContext2D, scr: any, focusX: num
       ctx.fillStyle = `rgba(220, 238, 255, ${((flash - 0.96) * 8).toFixed(3)})`;
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     }
-  } else if (isFog || a.mode === "overcast") {
-    ctx.fillStyle = "rgba(165, 182, 202, 0.24)";
+  } else if (isFog || mode === "overcast") {
+    ctx.fillStyle = "rgba(165, 182, 202, 0.28)";
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-  } else if (a.mode === "night") {
-    ctx.fillStyle = "rgba(9, 19, 52, 0.44)";
+  } else if (mode === "night") {
+    // 明顯深藍夜幕 + 主角提燈暖光
+    ctx.fillStyle = "rgba(6, 14, 42, 0.62)";
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-    const glowR = 230 + Math.sin(t * 3.2) * 8;
-    const g = ctx.createRadialGradient(focusX, focusY, 24, focusX, focusY, glowR);
-    g.addColorStop(0, "rgba(255, 206, 124, 0.2)");
-    g.addColorStop(1, "rgba(255, 206, 124, 0)");
+    const glowR = 240 + Math.sin(t * 3.2) * 10;
+    const g = ctx.createRadialGradient(focusX, focusY, 18, focusX, focusY, glowR);
+    g.addColorStop(0, "rgba(255, 204, 118, 0.34)");
+    g.addColorStop(0.55, "rgba(255, 178, 86, 0.12)");
+    g.addColorStop(1, "rgba(255, 178, 86, 0)");
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-  } else if (a.mode === "dusk") {
+  } else if (mode === "dusk") {
+    // 黃昏暖橙暮色
     const g = ctx.createLinearGradient(0, 0, 0, VIEW_H);
-    g.addColorStop(0, "rgba(226, 112, 42, 0.24)");
-    g.addColorStop(1, "rgba(110, 48, 24, 0.16)");
+    g.addColorStop(0, "rgba(232, 108, 40, 0.34)");
+    g.addColorStop(0.6, "rgba(182, 76, 36, 0.26)");
+    g.addColorStop(1, "rgba(72, 32, 48, 0.32)");
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-  } else if (a.mode === "dawn") {
+  } else if (mode === "dawn") {
+    // 黎明晨曦柔光
     const g = ctx.createLinearGradient(0, 0, 0, VIEW_H);
-    g.addColorStop(0, "rgba(255, 178, 122, 0.16)");
-    g.addColorStop(1, "rgba(116, 148, 210, 0.10)");
+    g.addColorStop(0, "rgba(255, 176, 118, 0.24)");
+    g.addColorStop(1, "rgba(102, 136, 204, 0.18)");
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
   }
@@ -192,7 +203,7 @@ function drawFloatingHud(ctx: CanvasRenderingContext2D, scene: any, atSea: boole
   const ap = t >= 0x24 ? "PM" : "AM";
   const dateText = `A.D.${rt.year + 1501} ${monthStr} ${rt.day + 1}  ${hh}:${mm}${ap}`;
 
-  ctx.font = '600 14px "Noto Serif TC", "Microsoft JhengHei", serif';
+  ctx.font = '600 14px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
   ctx.fillStyle = "#f2d89b";
   ctx.textAlign = "left";
   ctx.fillText(dateText, 96, 36);
@@ -203,7 +214,7 @@ function drawFloatingHud(ctx: CanvasRenderingContext2D, scene: any, atSea: boole
   const bars = Math.trunc(money / 10000);
   const gold = money % 10000;
 
-  ctx.font = '500 13px "Noto Serif TC", "Microsoft JhengHei", serif';
+  ctx.font = '500 13px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
   ctx.fillStyle = "#d9cdb4";
   ctx.fillText(`聲望`, 96, 60);
   ctx.fillStyle = "#ffffff";
@@ -227,13 +238,13 @@ function drawFloatingHud(ctx: CanvasRenderingContext2D, scene: any, atSea: boole
     const regionName = E ? c.messageText(0x181 + E.priceRegion).trim() : "";
 
     drawGlassPanel(ctx, VIEW_W - 318, 14, 302, 92, 10);
-    ctx.font = '700 17px "Noto Serif TC", "Microsoft JhengHei", serif';
+    ctx.font = '700 17px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
     ctx.fillStyle = "#f2d89b";
     ctx.textAlign = "left";
     ctx.fillText(portName, VIEW_W - 302, 36);
 
     if (regionName) {
-      ctx.font = '500 12px "Noto Serif TC", "Microsoft JhengHei", serif';
+      ctx.font = '500 12px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
       ctx.fillStyle = "#b8c7dc";
       ctx.textAlign = "right";
       ctx.fillText(regionName, VIEW_W - 30, 36);
@@ -244,7 +255,7 @@ function drawFloatingHud(ctx: CanvasRenderingContext2D, scene: any, atSea: boole
       for (let i = 0; i < 10; i++) sum += E.getPrices(i);
       const avgPrice = Math.trunc(sum / 10) + 50;
       ctx.textAlign = "left";
-      ctx.font = '500 13px "Noto Serif TC", "Microsoft JhengHei", serif';
+      ctx.font = '500 13px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
       ctx.fillStyle = "#d9cdb4";
       ctx.fillText(`商業價值`, VIEW_W - 302, 62);
       ctx.fillStyle = "#ffffff";
@@ -275,7 +286,7 @@ function drawFloatingHud(ctx: CanvasRenderingContext2D, scene: any, atSea: boole
     drawSheetTileDirect(ctx, art, "dials", curStr ? curDir : 8, VIEW_W - 210, 24, 42, 42);
     drawSheetTileDirect(ctx, art, "dials", headDir < 8 ? headDir : 8, VIEW_W - 116, 24, 42, 42);
 
-    ctx.font = '600 13px "Noto Serif TC", "Microsoft JhengHei", serif';
+    ctx.font = '600 13px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
     ctx.fillStyle = "#f2d89b";
     ctx.textAlign = "center";
     ctx.fillText(String(windStr), VIEW_W - 283, 84);
@@ -315,7 +326,7 @@ function drawFloatingHud(ctx: CanvasRenderingContext2D, scene: any, atSea: boole
     ctx.lineWidth = hovered ? 2 : 1.5;
     ctx.stroke();
 
-    ctx.font = '700 15px "Noto Serif TC", "Microsoft JhengHei", serif';
+    ctx.font = '700 15px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
     ctx.fillStyle = hovered ? "#1a1106" : "#f4ead2";
     ctx.textAlign = "center";
     ctx.fillText(r.label, r.x + r.w / 2, r.y + r.h / 2 + 1);
@@ -376,7 +387,7 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
   drawSheetTileDirect(ctx, art, "chars", heroSpriteIdx, hxPx, hyPx, TILE * 2, TILE * 2);
 
   // 全屏 16:9 晝夜光影 (提燈微光跟隨主角)
-  drawWideAtmosphere(ctx, scr, hxPx + TILE, hyPx + TILE);
+  drawWideAtmosphere(ctx, scr, hxPx + TILE, hyPx + TILE, portScene.c.rt?.time);
 
   // 懸浮現代 Canvas HUD
   drawFloatingHud(ctx, portScene, false);
@@ -449,6 +460,6 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
 
   const shipPxX = (shipLX - camX) * TILE + TILE;
   const shipPxY = (shipLY - camY) * TILE + TILE;
-  drawWideAtmosphere(ctx, scr, shipPxX, shipPxY);
+  drawWideAtmosphere(ctx, scr, shipPxX, shipPxY, seaScene.c.rt?.time);
   drawFloatingHud(ctx, seaScene, true);
 }

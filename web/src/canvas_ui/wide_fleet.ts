@@ -75,7 +75,7 @@ export function drawWideFleetView(ctx: CanvasRenderingContext2D, art: any, data:
     }
 
     // 船名 (原版名)
-    ctx.font = '700 15px "Noto Serif TC", "Microsoft JhengHei", serif';
+    ctx.font = '700 15px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
     ctx.fillStyle = "#f2d89b";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -122,11 +122,11 @@ export function drawWideFleetView(ctx: CanvasRenderingContext2D, art: any, data:
   // 左側提督資訊 (100% 原版 message 0x397..0x399)
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.font = '700 20px "Noto Serif TC", "Microsoft JhengHei", serif';
+  ctx.font = '700 20px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
   ctx.fillStyle = "#f2d89b";
   ctx.fillText(data.lineAdmiral, botX + 144, botY + 42);
 
-  ctx.font = '600 16px "Noto Serif TC", "Microsoft JhengHei", serif';
+  ctx.font = '600 16px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
   ctx.fillStyle = "#e6dcc8";
   ctx.fillText(data.lineNav, botX + 144, botY + 84);
   ctx.fillText(data.lineBat, botX + 144, botY + 118);
