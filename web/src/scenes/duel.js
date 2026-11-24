@@ -5,6 +5,7 @@
 //   9d4a / 9d4b 雙方的出招歷史 (每回合 << 2 | 招)  9d4c 位置  9d4e 這回合的攻方 (0 = 9d44)  9d50 / 9d52 主角那方 dx / dy  9d54 / 9d56 對手 dx / dy
 //   9f5e + 8k 精靈畫布第 k 格的 x, y, w, h (word)   a01e + 7k 裝備 (k = 0 是 9d44, 1 是 9d46): +0 武器 +1 防具 +2 武器種類 +3 武器值 +5 防具值
 import { PlanarBuf, LsFile, frameHeader } from "../gfx/duelanim.js";
+import { DS } from "../model/schema_views.ts";
 
 const duHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const duS16 = v => (v << 16) >> 16;
@@ -37,17 +38,17 @@ export class Duel {
     this.scratch = (c.duelScratch ??= new Uint8Array(0x10000));          // [0c8a] 合成緩衝 (原版是共用的緩衝, 內容跨呼叫保留)
   }
   get st() { return this.c.state; }
-  u8(a) { a &= 0xffff; return a >= 0x0ca4 && a < 0x8d18 ? this.st.u8(a) : this.W[a]; }
+  u8(a) { a &= 0xffff; return a >= DS.OPTIONS && a < 0x8d18 ? this.st.u8(a) : this.W[a]; }
   u16(a) { return this.u8(a) | (this.u8(a + 1) << 8); }
   s16(a) { return duS16(this.u16(a)); }
-  set8(a, v) { a &= 0xffff; if (a >= 0x0ca4 && a < 0x8d18) this.st.set8(a, v); else this.W[a] = v & 0xff; }
+  set8(a, v) { a &= 0xffff; if (a >= DS.OPTIONS && a < 0x8d18) this.st.set8(a, v); else this.W[a] = v & 0xff; }
   set16(a, v) { this.set8(a, v & 0xff); this.set8(a + 1, (v >> 8) & 0xff); }
   ds(a) { let e = a; while (this.W[e]) e++; return this.W.subarray(a, e + 1); }    // DS 上的 C 字串
   rnd(n) { n &= 0xffff; return n ? this.c.sys.rng.random(n) & 0xffff : 0; }         // seg0:4dc4 (n = 0 時不取亂數)
   get h() { return this.u16(0x9d48); }                                                // 1 = 電腦發起
   get side() { return (this.u16(0x9d4e) + this.h) % 2; }                              // 0 = 主角那方是攻方
   wait(n) { return this.c.sys.waitTicks(n); }                                         // seg0:5998
-  itemName(n) { return this.st.cstr(0x8248 + 0x14 * (n & 0xff)); }                   // 5cde
+  itemName(n) { return this.st.cstr(DS.TBL_ITEM + 0x14 * (n & 0xff)); }                   // 5cde
 
   // ================= 12998 本體 =================
   async body() {
@@ -94,7 +95,7 @@ export class Duel {
     const di = h === 0 ? this.u16(0x9d44) : this.u16(0x9d46), si = h === 0 ? this.u16(0x9d46) : this.u16(0x9d44);
     scr.clear(0);                                                       // 07f7
     graph.draw(0x17, 0, 0);
-    if (st.u8(0x0cae) !== 0xff) graph.draw(0x18, 0x50, 0xa8);
+    if (st.u8(DS.PORT) !== 0xff) graph.draw(0x18, 0x50, 0xa8);
     kao.drawPerson(scr, st.bytes(si, 0x32), 0x0c, 0x38);                // 7d39
     kao.drawPerson(scr, st.bytes(di, 0x32), 0x3c, 0x38);
     con.puts(this.ds(0xa0f3));
@@ -108,7 +109,7 @@ export class Duel {
     this.msgClear();                                                    // 11275
     // DATA1 (DS:09e4): 在海上 #0 / 在港 #1 → [03ee]:0 (最多 0x5a00); #2 → 5a00、#3 → 6b00 (最多 0x10e0)
     const D = this.data;
-    this.data1.decodeTo(st.u8(0x0cae) === 0xff ? 0 : 1, D, 0, 0x5a00);
+    this.data1.decodeTo(st.u8(DS.PORT) === 0xff ? 0 : 1, D, 0, 0x5a00);
     this.data1.decodeTo(2, D, 0x5a00, 0x10e0);
     this.data1.decodeTo(3, D, 0x6b00, 0x10e0);
     this.main.fill(0, 0, 0x5a, 0x78, 8);                                // 110da + 23f7
@@ -118,7 +119,7 @@ export class Duel {
     this.main.maskIn(0x49, 0, 8, 0x78, D, 0x5a00, 9);
     this.main.maskIn(0x51, 0, 8, 0x78, D, 0x6b00, 9);
     this.main.maskIn(0x59, 0, 1, 0x78, D, 0x6b20, 9);
-    this.iap = new LsFile(this.P.duel.iap[st.u8(0x12b5)]);              // [0aff] = '1' + 主角編號, [9d5a]
+    this.iap = new LsFile(this.P.duel.iap[st.u8(DS.HERO)]);              // [0aff] = '1' + 主角編號, [9d5a]
     this.iae = new LsFile(this.P.duel.iae);                             // [9d5c]
     this.set8(0x9d58, 0);
     await this.enter();                                                 // 11cbd
@@ -144,8 +145,8 @@ export class Duel {
     const st = this.st, k = this.h & 0xff, A = 0xa01e + 7 * k;
     this.set8(A + 2, 0); this.set8(A + 1, 0xff); this.set8(A, 0xff); this.set16(A + 5, 0); this.set16(A + 3, 0);
     for (let i = 0; i < 0x14; i++) {
-      const n = st.u8(0x2e57 + i); if (n === 0xff) continue;
-      const R = 0x8248 + 0x14 * n; if (!(st.u8(R + 0x13) & 0x10)) continue;
+      const n = st.u8(DS.INVENTORY + i); if (n === 0xff) continue;
+      const R = DS.TBL_ITEM + 0x14 * n; if (!(st.u8(R + 0x13) & 0x10)) continue;
       const t = st.u8(R + 0x13) & 0x0f;
       if (t < 4) { this.set8(A, n); this.set8(A + 2, t); this.set16(A + 3, st.u8(R + 0x12)); }
       if (t === 6) { this.set8(A + 1, n); this.set16(A + 5, this.u16(A + 5) + st.u8(R + 0x12)); }
@@ -155,9 +156,9 @@ export class Duel {
     const W = [0x0f, 0x07, 0x0d, 0x0c, 0x0e, 0x0b], Ar = [0x11, 0x12, 0x13, 0x13];
     const wi = a === 0x18 ? (st.u8(si + 0x24) % 3) + 3 : a >> 3;
     const w = W[wi]; this.set8(B, w);
-    const R = 0x8248 + 0x14 * w;
+    const R = DS.TBL_ITEM + 0x14 * w;
     this.set8(B + 2, st.u8(R + 0x13) & 0x0f); this.set16(B + 3, st.u8(R + 0x12));
-    const ar = Ar[b >> 3]; this.set8(B + 1, ar); this.set16(B + 5, st.u8(0x8248 + 0x14 * ar + 0x12));
+    const ar = Ar[b >> 3]; this.set8(B + 1, ar); this.set16(B + 5, st.u8(DS.TBL_ITEM + 0x14 * ar + 0x12));
   }
 
   // ================= 畫面的格 (RE_NOTES 30.17) =================
@@ -201,7 +202,7 @@ export class Duel {
   }
   // 11847 船舷前景 (只在海上): 主畫布欄 0x48..0x59 依位置疊到 [0c8a] 的左右邊
   rail(pos) {
-    if (this.st.u8(0x0cae) !== 0xff) return;
+    if (this.st.u8(DS.PORT) !== 0xff) return;
     const p = (pos + 7) & 0xffff, M = this.main, S = this.scratch;
     if (duS16(p) <= 8) {
       const di = (9 - p) & 0xffff, si = duUmin(di, 1);
@@ -491,7 +492,7 @@ export async function duelFromScenario(sc, person) {
   await d.body();                                                       // 12998
   c.con.puts(d.ds(0xa127));
   await c.palette.fadeBlack();                                          // 99f2
-  if (st.u8(0x0cae) === 0xff) { /* 84de: 海上圖塊常駐 (移植版不需要) */ } else scene?.loadPort?.();   // 88e9
+  if (st.u8(DS.PORT) === 0xff) { /* 84de: 海上圖塊常駐 (移植版不需要) */ } else scene?.loadPort?.();   // 88e9
   c.graph.draw8(st.options & 0x80 ? 3 : 5, 0, 0);                      // 5a91 ([8b1e] 前後各反轉一次, 兩次相同)
   sc.panels();                                                          // 8894
   if (scene?.interior) await scene.interior(sc.b876);                  // 8ebc([b876])

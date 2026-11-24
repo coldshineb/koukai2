@@ -18,6 +18,8 @@ import { WorldMap } from "../gfx/worldmap.js";
 import { CellSelect } from "../ui/cellsel.js";
 import { FleetAI } from "../game/fleetai.js";
 import { Land } from "./land.js";
+import { DS, OFF } from "../model/schema_views.ts";
+import { WorkDS } from "../model/flags.ts";
 
 const seaHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const seaS16 = v => (v << 16) >> 16;
@@ -39,19 +41,19 @@ export class SeaScene extends PortScene {
     this.region = 0xffff; this.item = 0xff; this.bda6 = 0; this.bdaa = 0;   // DS 初值: [06c8] = FFFF、[06ca] = FF、[bda6] = [bdaa] = 0
     this.speed = 0; this.sight = 0; this.a9c8 = 0; this.bda8 = 0; this.btnX = 0; this.btnY = 0;
   }
-  get fleet() { return 0x2e76 + ((0x85 * this.st.u8(this.st.personRecord(this.st.hero) + 0x2c)) & 0xffff); }   // [c2d4] (162e3)
+  get fleet() { return DS.TBL_FLEET + ((0x85 * this.st.u8(this.st.personRecord(this.st.hero) + 0x2c)) & 0xffff); }   // [c2d4] (162e3)
   get b() { return (this.buildings ??= new Buildings(this)); }
   get ai() { return (this.fleetAI ??= new FleetAI(this)); }             // 艦隊 AI (game/fleetai.js)
   get mapBuf() { return this.map || this.seaBuf; }                      // [03f6]: 在港時是港口地圖 (艦隊 AI 的陸地判斷照樣讀它, 原版如此)
   slotOf(i) { return i < 10 ? (this.fleet + 0x2b + 9 * i) & 0xffff : 0x572a + 9 * i; }   // seg0:5c58
-  crewOf(i) { return 0x52d4 + ((0x1e * i) & 0xffff); }                                    // seg0:5c38
-  shipRec(n) { return 0x5892 + ((0x16 * n) & 0xffff); }                                   // seg0:5c7a
-  typeOf(t) { return 0x5e28 + ((0x0c * t) & 0xffff); }                                    // seg0:5c8a
+  crewOf(i) { return DS.TBL_CREW_SLOT + ((0x1e * i) & 0xffff); }                                    // seg0:5c38
+  shipRec(n) { return DS.TBL_SHIP + ((0x16 * n) & 0xffff); }                                   // seg0:5c7a
+  typeOf(t) { return DS.TBL_SHIP_TYPE + ((0x0c * t) & 0xffff); }                                    // seg0:5c8a
   present(i) { return (this.st.u8(this.slotOf(i) + 8) & 0x30) === 0x10; }
   loadSum(i) { const st = this.st, S = this.slotOf(i); return (this.b.cargoUsed(i) + st.u8(S + 6) + st.u16(S)) & 0xffff; }   // seg0:5d8b
-  wx(F) { return seaS16(this.st.u16(F)); } wy(F) { return seaS16(this.st.u16(F + 2)); }
-  get vx1006() { return seaS16(this.st.u16(0x1006)); } set vx1006(v) { this.st.set16(0x1006, v); }
-  get vy1008() { return seaS16(this.st.u16(0x1008)); } set vy1008(v) { this.st.set16(0x1008, v); }
+  wx(F) { return seaS16(this.st.u16(F)); } wy(F) { return seaS16(this.st.u16(F + OFF.FLEET.Y)); }
+  get vx1006() { return seaS16(this.st.u16(DS.SEA_VIEW_X)); } set vx1006(v) { this.st.set16(DS.SEA_VIEW_X, v); }
+  get vy1008() { return seaS16(this.st.u16(DS.SEA_VIEW_Y)); } set vy1008(v) { this.st.set16(DS.SEA_VIEW_Y, v); }
 
   // ================= 出港 (碼頭 27a07 之後) =================
   // 0fea:9348 = 191e8 糧食 / 0fea:9401 = 192a1 水: 每艘船從自己 (沒有時從第一艘還有的船) 扣一天的量
@@ -71,23 +73,23 @@ export class SeaScene extends PortScene {
   waterDaily() { this.dailySupply(0, 0x2e19); }                         // 192a1
   // 19056 / 19109
   consume(found, i, off, rateAddr) {
-    const st = this.st, M = this.crewOf(found), P = st.personRecord(st.u8(M + 0x1b)), rate = st.u8(rateAddr);
-    const div = (st.u8(0x1005) & 0x18) ? 200 : 100;
+    const st = this.st, M = this.crewOf(found), P = st.personRecord(st.u8(M + OFF.CREW_SLOT.CAPTAIN)), rate = st.u8(rateAddr);
+    const div = (st.u8(DS.SEA_FLAGS2) & 0x18) ? 200 : 100;
     const amt = seaUmin(Math.floor(((rate * st.u16(this.slotOf(i))) & 0xffff) / div) + 1, st.u16(M + off));
     st.set16(M + off, st.u16(M + off) - amt);
-    const v = seaS16(100 - Math.floor(st.u8(P + 0x1c) / 5) - rate);
+    const v = seaS16(100 - Math.floor(st.u8(P + OFF.PERSON.STATS) / 5) - rate);
     const d = Math.trunc(v / (v > 0 ? 5 : 10));
-    let m = st.u8(M + 0x1c) - d;
+    let m = st.u8(M + OFF.CREW_SLOT.MORALE) - d;
     m = m < 0 ? 0 : m > 100 ? 100 : m;
-    st.set8(M + 0x1c, m);
+    st.set8(M + OFF.CREW_SLOT.MORALE, m);
     if (m < 0x14) this.desert(i);
   }
   // 191ba
-  starve(i) { const st = this.st, M = this.crewOf(i); st.set8(M + 0x1c, st.u8(M + 0x1c) - seaUmin(16, st.u8(M + 0x1c))); if (st.u8(M + 0x1c) < 0x14) this.desert(i); }
+  starve(i) { const st = this.st, M = this.crewOf(i); st.set8(M + OFF.CREW_SLOT.MORALE, st.u8(M + OFF.CREW_SLOT.MORALE) - seaUmin(16, st.u8(M + OFF.CREW_SLOT.MORALE))); if (st.u8(M + OFF.CREW_SLOT.MORALE) < 0x14) this.desert(i); }
   // 19016 士氣 < 20: 水手 −min(⌊(20 − 士氣) × 水手 / 100⌋ + 1, 水手)
   desert(i) {
     const st = this.st, M = this.crewOf(i), S = this.slotOf(i), n = seaS16(st.u16(S));
-    const loss = (Math.trunc(Math.imul(20 - st.u8(M + 0x1c), n) / 100) + 1) & 0xffff;
+    const loss = (Math.trunc(Math.imul(20 - st.u8(M + OFF.CREW_SLOT.MORALE), n) / 100) + 1) & 0xffff;
     st.set16(S, st.u16(S) - seaUmin(loss, st.u16(S)));
   }
 
@@ -97,16 +99,16 @@ export class SeaScene extends PortScene {
     if (palette.ending) { await palette.fadeBlack(); return; }
     // 地點表 [0c96] (DATA1 #4, [bd7e] = DATA1 #5 筆): DS:1046 位元表中已探索的地點 +1 |= 0x80 (執行期緩衝, 不在存檔內)
     const N = this.nodes;
-    for (let i = 0; i < this.SJ.nodeCount; i++) if ((st.u8(0x1046 + (i >> 3)) & (0x80 >> (i & 7))) && N.length > i * 16 + 1) N[i * 16 + 1] |= 0x80;
+    for (let i = 0; i < this.SJ.nodeCount; i++) if ((st.u8(DS.EXPLORE_LOC + (i >> 3)) & (0x80 >> (i & 7))) && N.length > i * 16 + 1) N[i * 16 + 1] |= 0x80;
     this.bda8 = 0;
-    for (let i = 0; i < 0x14; i++) { const v = st.u8(0x2e57 + i); if (v === 0x18) this.bda8 |= 0x80; else if (v === 0x19) this.bda8 |= 0x40; }
-    st.set8(0x0cae, 0xff);
+    for (let i = 0; i < 0x14; i++) { const v = st.u8(DS.INVENTORY + i); if (v === 0x18) this.bda8 |= 0x80; else if (v === 0x19) this.bda8 |= 0x40; }
+    st.set8(DS.PORT, 0xff);
     this.item = Math.trunc(this.vx1006 / 0x2d0) & 0xff;               // [06ca]
     // 849a: WORLDMAP 第 [06ca] 項 → [06ce]; 84de: DATA1 #11 → [03ee] (海上圖塊與船隻精靈); DATA1 #7 → [0c86]+0x3ea0 (羅盤指針)
     if (this.map && this.map !== this.seaBuf) this.seaBuf.set(this.map.subarray(0, 0x2400));   // [03f6] 原本是出港港口的 PORTMAP
     this.map = this.seaBuf; this.chip = this.P.seachip; this.tileCache.clear();
     await palette.fadeBlack();                                         // 99f2
-    this.c.bgm.playSong(st.u8(0x12b5) + 4);                            // 9670 主角的海上曲目
+    this.c.bgm.playSong(st.u8(DS.HERO) + 4);                            // 9670 主角的海上曲目
     sys.mouseHide();
     // 9630: [03d5] 恆為 1, 不動作
     con.right = 0x50;                                                  // [8a22]
@@ -116,10 +118,10 @@ export class SeaScene extends PortScene {
     this.clearCache();                                                 // 2103
     this.region = 0xffff;
     this.seaView();                                                    // 6b30
-    palette.selectTimePalette(this.time, true, st.u8(0x0cb3));         // 0fea:98ce = 1976e
+    palette.selectTimePalette(this.time, true, st.u8(DS.WEATHER));         // 0fea:98ce = 1976e
     this.seaPanel();                                                   // 8067
     this.needle = 0xff;
-    if ((st.u8(0x0cb3) & 15) === 1) this.stormSound();                // 9768(DS:0c5a) + 9804(0x30)
+    if ((st.u8(DS.WEATHER) & 15) === 1) this.stormSound();                // 9768(DS:0c5a) + 9804(0x30)
     sys.mouseShow();
     await palette.fadeToTarget();
   }
@@ -152,8 +154,8 @@ export class SeaScene extends PortScene {
     for (let k = 0; k < 3; k++, ry++) {
       if (ry < 0 || ry >= 0x2d) continue;
       for (let j = 0, cx = cx0; j < 3; j++, cx = (cx + 1) % 0x5a) {
-        const a = 0x0de8 + 12 * ry + (cx >> 3), m = 0x80 >> (cx & 7);
-        if (!(st.u8(a) & m)) { st.set16(0x100e, st.u16(0x100e) + 1); st.set16(0x1010, st.u16(0x1010) + 1); }
+        const a = WorkDS.EXPLORE_MAP + 12 * ry + (cx >> 3), m = 0x80 >> (cx & 7);
+        if (!(st.u8(a) & m)) { st.set16(WorkDS.EXPLORE_TOTAL, st.u16(WorkDS.EXPLORE_TOTAL) + 1); st.set16(WorkDS.EXPLORE_UNREP, st.u16(WorkDS.EXPLORE_UNREP) + 1); }
         st.set8(a, st.u8(a) | m);
       }
     }
@@ -193,10 +195,10 @@ export class SeaScene extends PortScene {
     const st = this.st, dx = this.wx(F) - this.vx1006, dy = this.wy(F) - this.vy1008, T = this.SJ.tab.shipDir;
     let si;
     if (F === this.fleet) {
-      let i = 0; while (i < 10 && st.u8(this.crewOf(i) + 0x1b) !== st.u8(0x12b5)) i++;   // 旗艦 = 船長是主角的船位
+      let i = 0; while (i < 10 && st.u8(this.crewOf(i) + 0x1b) !== st.u8(DS.HERO)) i++;   // 旗艦 = 船長是主角的船位
       si = (st.u8(this.shipRec(st.u8(this.slotOf(i) + 7)) + 0x10) & 0x10) << 8;
     } else si = (((st.u8(this.shipRec(st.u8(F + 0x32)) + 0x10) & 0x10) << 8) + 0x2000) & 0xffff;
-    const d = T[st.u8(F + 0x1a) & 7] + 0x10;
+    const d = T[st.u8(F + OFF.FLEET.DIR) & 7] + 0x10;
     si = heroOnly ? (si + (((d * 2 + (this.time & 1)) << 9) & 0xffff)) & 0xffff : (si + ((d << 10) & 0xffff) + (((k + this.time) & 1) << 9)) & 0xffff;
     this.sprite((dx + 6) * 2, dy * 16 + 8, si);
     this.invalidate(24 * dy + dx);                                     // 2119
@@ -209,18 +211,18 @@ export class SeaScene extends PortScene {
     // 507c: 空函式
     this.toggle ^= 1;
     this.viewOffset();
-    if (st.u8(0x0ca6)) {
-      sys.timer.set(st.u8(0x0ca6));
+    if (st.u8(DS.SEA_SPEED)) {
+      sys.timer.set(st.u8(DS.SEA_SPEED));
       while (sys.timer.get()) { if (menu.source()) break; await sys.poll(); }
     }
     sys.mouseHide();
     this.drawMap();
-    const w = st.u8(0x0cb3) & 15;
+    const w = st.u8(DS.WEATHER) & 15;
     if (w === 0 || w === 2) {
       for (let row = 0; row < 0x17; row++) for (let k = 0; k < 0x46; k++) {
-        const F = 0x2e76 + k * 0x85, dx = this.wx(F) - this.vx1006, dy = this.wy(F) - this.vy1008;
+        const F = DS.TBL_FLEET + k * 0x85, dx = this.wx(F) - this.vx1006, dy = this.wy(F) - this.vy1008;
         if (dx < 0 || dx >= 0x17 || row !== dy) continue;
-        if (st.u8(F + 0x29) & 0x10 || !(st.u8(F + 0x29) & 1)) continue;
+        if (st.u8(F + OFF.FLEET.FLAGS) & 0x10 || !(st.u8(F + OFF.FLEET.FLAGS) & 1)) continue;
         if (this.landAt(this.wx(F), this.wy(F))) continue;
         this.drawFleet(F, k, false);
       }
@@ -242,7 +244,7 @@ export class SeaScene extends PortScene {
   // 8fbf 風向 (y 0x40)、海流 (0x70)、航向 (0xa0, 不印數字) 的轉盤
   dials() {
     if (this.port !== 0xff) return;
-    const st = this.st, a = st.u8(0x0cb1), b = st.u8(0x0cb2);
+    const st = this.st, a = st.u8(DS.PORT_FLAGS), b = st.u8(DS.WIND_CUR);
     this.dial(0x40, (a & 0x38) >> 3, a & 7);
     this.dial(0x70, (b & 0x38) >> 3, b & 7);
     this.dial(0xa0, st.u8(this.fleet + 0x1a), 0xffff);
@@ -270,18 +272,18 @@ export class SeaScene extends PortScene {
     const F = this.fleet, T = this.SJ.tab.windSpeed;
     let minSpd = 10000, slowSlot = this.slotOf(0), slowIdx = 0, minDur = 100, maxLook = 0, crewSum = 0, maxCrewSum = 0, morale = 0;
     const sums = [0, 0, 0, 0];
-    const row = ((Math.abs(((st.u8(0x0cb1) & 0x38) >> 3) - st.u8(F + 0x1a)) & 0xff) * 8);
+    const row = ((Math.abs(((st.u8(DS.PORT_FLAGS) & 0x38) >> 3) - st.u8(F + OFF.FLEET.DIR)) & 0xff) * 8);
     for (let i = 0; i < 10; i++) {
       const S = this.slotOf(i);
       if ((st.u8(S + 8) & 0x30) !== 0x10) continue;
       const ship = this.shipRec(st.u8(S + 7)), t = st.u8(ship + 0x0f), Ty = this.typeOf(t), t5 = st.u8(Ty + 5);
       const crew = seaS16(st.u16(S));
       crewSum = (crewSum + st.u16(S)) & 0xffff; maxCrewSum = (maxCrewSum + st.u16(ship + 0x12)) & 0xffff;
-      const M = this.crewOf(i), drv = st.u8(M + 9);
-      const load = this.loadSum(i); st.set16(M + 0x0a, load);
+      const M = this.crewOf(i), drv = st.u8(M + OFF.CREW_SLOT.LOOK_RATIO);
+      const load = this.loadSum(i); st.set16(M + OFF.CREW_SLOT.LOAD_TOTAL, load);
       const cap = seaS16(st.u16(Ty + 6));
-      const P = st.personRecord(st.u8(M + 0x1b)), nav = st.u8(P + 0x24), sk = st.u8(P + 0x1d);
-      morale += crew * st.u8(M + 0x1c);
+      const P = st.personRecord(st.u8(M + OFF.CREW_SLOT.CAPTAIN)), nav = st.u8(P + OFF.PERSON.NAV_LEVEL), sk = st.u8(P + 0x1d);
+      morale += crew * st.u8(M + OFF.CREW_SLOT.MORALE);
       const w2 = seaS16(T[row + t] * st.u8(S + 5));
       const q = seaUmin(100, Math.trunc((drv * crew) / t5) & 0xffff);
       const c = seaUmin(0x96, (0xb4 - seaUmin(0xb4, Math.trunc(seaS16(Math.imul(100, seaS16(load))) / cap))) & 0xffff);
@@ -291,7 +293,7 @@ export class SeaScene extends PortScene {
       const spd = seaUmin(40, Math.trunc(seaS16(Math.imul(v1, sk)) / 75) & 0xffff);
       if (spd < minSpd) { minSpd = spd; slowSlot = S; slowIdx = i; }
       if (st.u8(S + 2) < minDur) minDur = st.u8(S + 2);
-      const lk = (st.u8(M + 8) * st.u16(S)) & 0xffff; if (lk > maxLook) maxLook = lk;
+      const lk = (st.u8(M + OFF.CREW_SLOT.NAV_RATIO) * st.u16(S)) & 0xffff; if (lk > maxLook) maxLook = lk;
       for (let k = 0; k < 4; k++) sums[k] = (sums[k] + st.u16(M + 2 * k)) & 0xffff;
     }
     const sT = st.u8(this.shipRec(st.u8(slowSlot + 7)) + 0x0f);
@@ -309,7 +311,7 @@ export class SeaScene extends PortScene {
       B(0xd8, Math.trunc(morale / seaS16(crewSum)));
       for (let k = 0; k < 2; k++) { con.setCursor(6, k * 32 + 0x108); printf(this.SS.n5, Math.floor(sums[k] / 10)); }
       for (let k = 2; k < 4; k++) { con.setCursor(6, k * 32 + 0x108); printf(this.SS.n5b, seaS16(sums[k])); }
-      con.setCursor(0x45, 0xf0); printf(this.SS.n3, st.u8(0x2e18));
+      con.setCursor(0x45, 0xf0); printf(this.SS.n3, st.u8(DS.DAYS_AT_SEA));
     }
     sys.mouseShow();
   }
@@ -346,7 +348,7 @@ export class SeaScene extends PortScene {
       if (key === B[o + 8]) break;
       if ((this.a9c8 & 3) && x0 <= this.btnX && x0 + w >= this.btnX && y0 <= this.btnY && y0 + h >= this.btnY) break;
     }
-    if (di < 13 && !((st.u8(0x1005) & 0x18) && di < 9)) {
+    if (di < 13 && !((st.u8(DS.SEA_FLAGS2) & 0x18) && di < 9)) {
       if (di < 8) this.steer(di);                                       // 20fec
       else if (di === 8) await this.chooseDest();                        // 2e09:310b
       else {
@@ -365,7 +367,7 @@ export class SeaScene extends PortScene {
     this.a9c8 &= 0xfc;
   }
   // 20fec 轉舵: [1005] &= 0x5f, 方位 = d, 95f2(d)
-  steer(d) { const st = this.st; st.set8(0x1005, st.u8(0x1005) & 0x5f); st.set8(this.fleet + 0x1a, d); this.helm(d); }
+  steer(d) { const st = this.st; st.set8(DS.SEA_FLAGS2, st.u8(DS.SEA_FLAGS2) & 0x5f); st.set8(this.fleet + 0x1a, d); this.helm(d); }
   // 95f2 舵輪指針 [8c1d]
   helm(d) {
     if (this.needle === d) return;
@@ -390,22 +392,22 @@ export class SeaScene extends PortScene {
   //   該格是港口 (1bb4a) → 23e19 換成附近可到達的海面; +0c = 0x6000, [1005] = (&DF) | 0x80, 回傳 1
   async chooseDest() {
     const st = this.st, { sys, win, con, printf } = this.c, F = this.fleet;
-    st.set8(0x1005, st.u8(0x1005) | 0x20);
+    st.set8(DS.SEA_FLAGS2, st.u8(DS.SEA_FLAGS2) | 0x20);
     sys.mouseHide();
     this.cursor = 0x2840; sys.setCursorShape(0x2840);                 // [06d6] = 0x2840, seg0:5050
-    const deleg = st.u8(0x1005) & 0x80;
+    const deleg = st.u8(DS.SEA_FLAGS2) & 0x80;
     if (!deleg) { win.labelBox(0x1b, 0xc8, 0x12, 0x20); printf(this.SS.destPrompt); con.right = 0x50; }
     await this.c.menu.waitRelease();                                   // 0fea:3343 = 131e3
-    const init = (Math.imul(0x18, seaS16(st.u16(F + 2) - this.vy1008)) - this.vx1006 + st.u16(F)) & 0xffff;
+    const init = (Math.imul(0x18, seaS16(st.u16(F + OFF.FLEET.Y) - this.vy1008)) - this.vx1006 + st.u16(F)) & 0xffff;
     const si = await this.cellSel().select(0x60, 8, 0x18, 0x10, 0x10, 0x18, seaS16(init));
     if (!deleg) await win.close();
     sys.mouseShow();
     if (si === -1) return 0;
     const x = (si % 0x18) + this.vx1006, y = Math.trunc(si / 0x18) + this.vy1008;
-    st.set16(F + 4, x); st.set16(F + 6, y);
-    if (this.portIdAt(x, y) !== 0xffff) { const W = this.ptLocal(x, y); this.nearSea(F, W); st.set16(F + 4, W.x); st.set16(F + 6, W.y); }
-    st.set16(F + 0x0c, 0x6000);
-    st.set8(0x1005, (st.u8(0x1005) & 0xdf) | 0x80);
+    st.set16(F + OFF.FLEET.DEST_X, x); st.set16(F + OFF.FLEET.DEST_Y, y);
+    if (this.portIdAt(x, y) !== 0xffff) { const W = this.ptLocal(x, y); this.nearSea(F, W); st.set16(F + OFF.FLEET.DEST_X, W.x); st.set16(F + OFF.FLEET.DEST_Y, W.y); }
+    st.set16(F + OFF.FLEET.ROUTE_FLAGS, 0x6000);
+    st.set8(DS.SEA_FLAGS2, (st.u8(DS.SEA_FLAGS2) & 0xdf) | 0x80);
     return 1;
   }
 
@@ -418,18 +420,18 @@ export class SeaScene extends PortScene {
   //   委任中到達目的地 (+0/+2 = +4/+6, 1fd9:33d4) → 0fea:c0d9 靠港 (隱藏游標), [1005] &= 7F; 進了港 → 回傳 0;
   //   沒進港 → 3119b 再指定目的地 (此時 [1005] bit7 已清, 會顯示「請指定目的地」); 之後 313b1 求方向 (−1 或 > 7 → [1005] &= 7F, 停船)
   async heading() {
-    const st = this.st, F = this.fleet, f = st.u8(0x1005), { sys } = this.c;
-    if (!(f & 0xc0)) return f & 0x20 ? 8 : st.u8(F + 0x1a);
-    if (st.u16(F) === st.u16(F + 4) && st.u16(F + 2) === st.u16(F + 6)) {
+    const st = this.st, F = this.fleet, f = st.u8(DS.SEA_FLAGS2), { sys } = this.c;
+    if (!(f & 0xc0)) return f & 0x20 ? 8 : st.u8(F + OFF.FLEET.DIR);
+    if (st.u16(F) === st.u16(F + OFF.FLEET.DEST_X) && st.u16(F + OFF.FLEET.Y) === st.u16(F + OFF.FLEET.DEST_Y)) {
       sys.mouseHide(); await this.dock(); sys.mouseShow();
-      st.set8(0x1005, st.u8(0x1005) & 0x7f);
-      if (st.u8(0x0cae) !== 0xff) return 0;
+      st.set8(DS.SEA_FLAGS2, st.u8(DS.SEA_FLAGS2) & 0x7f);
+      if (st.u8(DS.PORT) !== 0xff) return 0;
       await this.chooseDest();
     }
     const si = this.autoSteer(F);
-    if (si === 0xffff || si > 7) { st.set8(0x1005, st.u8(0x1005) & 0x7f); return 8; }
-    st.set8(F + 0x1a, si);
-    return st.u8(F + 0x1a);
+    if (si === 0xffff || si > 7) { st.set8(DS.SEA_FLAGS2, st.u8(DS.SEA_FLAGS2) & 0x7f); return 8; }
+    st.set8(F + OFF.FLEET.DIR, si);
+    return st.u8(F + OFF.FLEET.DIR);
   }
 
   // ================= 委任航行的路線 (1fd9 段 231c7..241c2, 艦隊 AI 共用) =================
@@ -446,14 +448,14 @@ export class SeaScene extends PortScene {
   //   以 Bresenham 式誤差 (+0e) 在長軸上每步前進、短軸依誤差前進 → DS:b7da[3 dy + dx + 4] (與 ae38 相同的表)
   autoSteer(F) {
     const st = this.st;
-    if (st.u16(F) === st.u16(F + 4) && st.u16(F + 2) === st.u16(F + 6)) return 8;
+    if (st.u16(F) === st.u16(F + OFF.FLEET.DEST_X) && st.u16(F + OFF.FLEET.Y) === st.u16(F + OFF.FLEET.DEST_Y)) return 8;
     if (!this.route(F)) return 0xffff;
     let tx, ty;
     const fd = st.u8(F + 0x0d);
-    if (fd & 0x80) { tx = st.u16(F + 8); ty = st.u16(F + 0x0a); }
-    else if (fd & 0x20) { tx = st.u16(F + 4); ty = st.u16(F + 6); }
-    else { const n = st.u16(F + 0x10 + 2 * (st.u8(F + 0x0c) & 7)); tx = this.nodeW(n, 0) & 0x7fff; ty = this.nodeW(n, 2); }
-    const fx = st.u16(F), fy = st.u16(F + 2);
+    if (fd & 0x80) { tx = st.u16(F + OFF.FLEET.MID_X); ty = st.u16(F + OFF.FLEET.MID_Y); }
+    else if (fd & 0x20) { tx = st.u16(F + OFF.FLEET.DEST_X); ty = st.u16(F + OFF.FLEET.DEST_Y); }
+    else { const n = st.u16(F + OFF.FLEET.ROUTE_PTS + 2 * (st.u8(F + OFF.FLEET.ROUTE_FLAGS) & 7)); tx = this.nodeW(n, 0) & 0x7fff; ty = this.nodeW(n, 2); }
+    const fx = st.u16(F), fy = st.u16(F + OFF.FLEET.Y);
     const di = Math.abs(seaS16(fx - tx)) & 0xffff, dy = Math.abs(seaS16(fy - ty)) & 0xffff;   // seg0:4d76
     let ex, ey;
     if (st.u8(F + 0x0d) & 2) { st.set16(F + 0x0e, -Math.trunc(seaS16(di) / 2)); st.set8(F + 0x0d, st.u8(F + 0x0d) & 0xfd); }
@@ -470,9 +472,9 @@ export class SeaScene extends PortScene {
   }
   // 1fd9:4432 = 241c2: 已到達目前路線格的地點 → 下一格 (24206); 艦隊在區域內 → 240a7; 否則 (只有艦隊 AI 會走到) 清中途點, 需搜尋時 232a6
   route(F) {
-    const st = this.st, di = st.u8(F + 0x0c) & 7, n = st.u16(F + 0x10 + 2 * di);
-    if ((this.nodeW(n, 0) & 0x7fff) === st.u16(F) && this.nodeW(n, 2) === st.u16(F + 2)) this.nextNode(F, di);
-    if (this.inRegion(st.u16(F), st.u16(F + 2))) return this.regionRoute(F);
+    const st = this.st, di = st.u8(F + OFF.FLEET.ROUTE_FLAGS) & 7, n = st.u16(F + OFF.FLEET.ROUTE_PTS + 2 * di);
+    if ((this.nodeW(n, 0) & 0x7fff) === st.u16(F) && this.nodeW(n, 2) === st.u16(F + OFF.FLEET.Y)) this.nextNode(F, di);
+    if (this.inRegion(st.u16(F), st.u16(F + OFF.FLEET.Y))) return this.regionRoute(F);
     st.set8(F + 0x0d, st.u8(F + 0x0d) & 0x7f);
     if (!(st.u8(F + 0x0d) & 0x40)) return 1;
     if (st.u8(F + 0x0d) & 8) { st.set8(F + 0x0d, st.u8(F + 0x0d) | 0x20); return 1; }
@@ -481,9 +483,9 @@ export class SeaScene extends PortScene {
   // 24206 / 24112: 清掉路線格 di 的遮罩, 目前格 = (di + 1) & 3, +0d |= 2; 路線格都空了 (+0c & F0 = 0) 時 +0d |= 40 (重新搜尋)
   nextNode(F, di) {
     const st = this.st, AE = [0x80, 0x40, 0x20, 0x10];
-    let c = st.u16(F + 0x0c) & ~AE[di] & 0xffff;
+    let c = st.u16(F + OFF.FLEET.ROUTE_FLAGS) & ~AE[di] & 0xffff;
     c = (c & 0xfff8) | ((di + 1) & 3) | 0x200;
-    st.set16(F + 0x0c, c);
+    st.set16(F + OFF.FLEET.ROUTE_FLAGS, c);
     if (!(c & 0xf0)) st.set8(F + 0x0d, st.u8(F + 0x0d) | 0x40);
   }
   // 2317c 點在目前區域 (72 × 72) 內
@@ -495,12 +497,12 @@ export class SeaScene extends PortScene {
   //   需搜尋 (+0d&40): 已到目的地的地點 (&8) → 直接駛向目的地 (|= 20), 否則 232a6; 之後 23e53 取目標 → 區域內就以 23a97(模式 1) 求中途點;
   //   失敗時 24008 (項的左右 / 南北邊界), 再失敗 23ef7 把目標投影到區域邊上後 23a97
   regionRoute(F) {
-    const st = this.st, W = this.pt(F + 8);
+    const st = this.st, W = this.pt(F + OFF.FLEET.MID_X);
     if (!(st.u8(F + 0x0d) & 0x80)) st.set8(F + 0x0d, st.u8(F + 0x0d) | 0x82);
     else {
-      if (W.x !== st.u16(F) || W.y !== st.u16(F + 2)) return 1;
-      const di = st.u8(F + 0x0c) & 7, n = st.u16(F + 0x10 + 2 * di);
-      if ((this.nodeW(n, 0) & 0x7fff) === st.u16(F) && this.nodeW(n, 2) === st.u16(F + 2)) this.nextNode(F, di);
+      if (W.x !== st.u16(F) || W.y !== st.u16(F + OFF.FLEET.Y)) return 1;
+      const di = st.u8(F + OFF.FLEET.ROUTE_FLAGS) & 7, n = st.u16(F + OFF.FLEET.ROUTE_PTS + 2 * di);
+      if ((this.nodeW(n, 0) & 0x7fff) === st.u16(F) && this.nodeW(n, 2) === st.u16(F + OFF.FLEET.Y)) this.nextNode(F, di);
     }
     if (st.u8(F + 0x0d) & 0x40) { if (st.u8(F + 0x0d) & 8) st.set8(F + 0x0d, st.u8(F + 0x0d) | 0x20); else this.routeSearch(F); }
     if (this.wayTarget(F, W) && this.pathStep(F, W, 1)) return 1;
@@ -513,12 +515,12 @@ export class SeaScene extends PortScene {
   wayTarget(F, W) {
     const st = this.st;
     if (st.u8(F + 0x0d) & 0x20) {
-      const b = st.u8(F + 0x1b);
-      if ((b <= 3 || b === 9) && this.inRegion(st.u16(F + 4), st.u16(F + 6)) && this.landAt(st.u16(F + 4), st.u16(F + 6))) {
-        this.nearSea(F, W); st.set16(F + 4, W.x); st.set16(F + 6, W.y);
+      const b = st.u8(F + OFF.FLEET.MISSION);
+      if ((b <= 3 || b === 9) && this.inRegion(st.u16(F + OFF.FLEET.DEST_X), st.u16(F + OFF.FLEET.DEST_Y)) && this.landAt(st.u16(F + OFF.FLEET.DEST_X), st.u16(F + OFF.FLEET.DEST_Y))) {
+        this.nearSea(F, W); st.set16(F + OFF.FLEET.DEST_X, W.x); st.set16(F + OFF.FLEET.DEST_Y, W.y);
       }
-      W.x = st.u16(F + 4); W.y = st.u16(F + 6);
-    } else { const n = st.u16(F + 0x10 + 2 * (st.u8(F + 0x0c) & 7)); W.x = this.nodeW(n, 0) & 0x7fff; W.y = this.nodeW(n, 2); }
+      W.x = st.u16(F + OFF.FLEET.DEST_X); W.y = st.u16(F + OFF.FLEET.DEST_Y);
+    } else { const n = st.u16(F + OFF.FLEET.ROUTE_PTS + 2 * (st.u8(F + OFF.FLEET.ROUTE_FLAGS) & 7)); W.x = this.nodeW(n, 0) & 0x7fff; W.y = this.nodeW(n, 2); }
     return this.inRegion(W.x, W.y);
   }
   // 艦隊在第 0 項而目標在第 2 項 (或相反) 時把目標 x 換到相鄰的一圈 (±0x870)
@@ -528,7 +530,7 @@ export class SeaScene extends PortScene {
   }
   // 24008 艦隊在項的左右邊緣 (x mod 720 = 0 / 0x2ce) 或南北邊緣 (y = 0 / 0x436) 而目標在外側 → 目標 = 艦隊位置外 2 格, 回傳 1
   edgeTarget(F, W) {
-    const st = this.st, fx = seaS16(st.u16(F)), fy = seaS16(st.u16(F + 2)), fm = fx % 0x2d0;
+    const st = this.st, fx = seaS16(st.u16(F)), fy = seaS16(st.u16(F + OFF.FLEET.Y)), fm = fx % 0x2d0;
     const si = this.wrapX(fx, seaS16(W.x));
     if (fm === 0 && fx > si) { W.x = fx - 2; return 1; }
     if (fm === 0x2ce && si > fx) { W.x = fx + 2; return 1; }
@@ -539,7 +541,7 @@ export class SeaScene extends PortScene {
   // 23ef7 目標在區域外: 沿艦隊 → 目標的直線投影到區域的左 / 右 (left / left + 0x46)、上 / 下 (top / top + 0x46) 邊; 乘積只取低 16 位元 (imul 後 cwd)
   clipTarget(F, W) {
     const st = this.st, left = seaS16(this.item * 0x2d0 + this.bda6), top = seaS16(this.bdaa);
-    const fx = seaS16(st.u16(F)), fy = seaS16(st.u16(F + 2));
+    const fx = seaS16(st.u16(F)), fy = seaS16(st.u16(F + OFF.FLEET.Y));
     let si = this.wrapX(fx, seaS16(W.x)), di = seaS16(W.y);
     const q = (a, b, c) => Math.trunc(seaS16(Math.imul(a, b)) / seaS16(c));
     if (left > si) { di = seaS16(di + q(fy - di, left - si, fx - si)); si = left; }
@@ -553,7 +555,7 @@ export class SeaScene extends PortScene {
   nearSea(F, W) {
     const st = this.st, D = [0, -2, 0, 2, 2, 0, -2, 0, -1, -2, 1, -2, 2, -1, 2, 1, -1, 2, 1, 2, -2, -1, -2, 1];
     for (let i = 0; i < 12; i++) {
-      W.x = st.u16(F + 4) + D[2 * i]; W.y = st.u16(F + 6) + D[2 * i + 1];
+      W.x = st.u16(F + OFF.FLEET.DEST_X) + D[2 * i]; W.y = st.u16(F + OFF.FLEET.DEST_Y) + D[2 * i + 1];
       if (!this.inRegion(W.x, W.y) || this.landAt(W.x, W.y)) continue;
       if (this.pathField(F, W)) return 1;
     }
@@ -578,8 +580,8 @@ export class SeaScene extends PortScene {
   routeSearch(F) {
     const st = this.st, N = this.nodes, AE = [0x80, 0x40, 0x20, 0x10];
     const link = (n, k) => this.nodeW(n, 4 + 2 * k), cost = (n, k) => N?.[((n << 4) + 0x0c + k) & 0xffff] ?? 0;
-    const s0 = this.nearestNode(st.u16(F), st.u16(F + 2)), start = s0 & 0x7fff;
-    const goal = this.nearestNode(st.u16(F + 4), st.u16(F + 6)) & 0x7fff;
+    const s0 = this.nearestNode(st.u16(F), st.u16(F + OFF.FLEET.Y)), start = s0 & 0x7fff;
+    const goal = this.nearestNode(st.u16(F + OFF.FLEET.DEST_X), st.u16(F + OFF.FLEET.DEST_Y)) & 0x7fff;
     if ((s0 & 0x8000) && start === goal) { st.set8(F + 0x0d, st.u8(F + 0x0d) | 0x28); return 1; }
     const E = [{ flags: 0, node: goal, cost: 0 }], vis = new Int16Array(0x300).fill(-1);
     vis[goal] = 0;
@@ -617,12 +619,12 @@ export class SeaScene extends PortScene {
       cur = link(e.node, k);                                           // k = 4 (都不符) 時讀到距離欄位, 原版如此
       path.push(cur);
     }
-    let slot = st.u8(F + 0x0c) & 7;
-    for (let g = 0; g < 4 && (AE[slot & 3] & st.u16(F + 0x0c)); g++) slot = (slot + 1) & 3;
+    let slot = st.u8(F + OFF.FLEET.ROUTE_FLAGS) & 7;
+    for (let g = 0; g < 4 && (AE[slot & 3] & st.u16(F + OFF.FLEET.ROUTE_FLAGS)); g++) slot = (slot + 1) & 3;
     for (let i = 0; i < path.length; i++, slot = (slot + 1) & 3) {
-      if ((st.u8(F + 0x0c) & 0xf0) === 0xf0) break;
-      st.set16(F + 0x0c, st.u16(F + 0x0c) | AE[slot & 3]);
-      st.set16(F + 0x10 + 2 * slot, path[i]);
+      if ((st.u8(F + OFF.FLEET.ROUTE_FLAGS) & 0xf0) === 0xf0) break;
+      st.set16(F + OFF.FLEET.ROUTE_FLAGS, st.u16(F + OFF.FLEET.ROUTE_FLAGS) | AE[slot & 3]);
+      st.set16(F + OFF.FLEET.ROUTE_PTS + 2 * slot, path[i]);
       if (path[i] === goal) { st.set8(F + 0x0d, st.u8(F + 0x0d) | 8); break; }
     }
     st.set8(F + 0x0d, st.u8(F + 0x0d) & 0xbf);
@@ -639,16 +641,16 @@ export class SeaScene extends PortScene {
       const S = this.slotOf(i), M = this.crewOf(i);
       if ((st.u8(S + 8) & 0x30) !== 0x10) continue;
       const ship = this.shipRec(st.u8(S + 7)), Ty = this.typeOf(st.u8(ship + 0x0f));
-      const P = st.personRecord(st.u8(M + 0x1b));
+      const P = st.personRecord(st.u8(M + OFF.CREW_SLOT.CAPTAIN));
       let ws;
       if (!(st.u8(ship + 0x10) & 0x10)) { ws = wStr < 3 ? 3 : wStr; fore = (fore - 1) & 0xff; } else ws = wStr;
       let v = Math.trunc(seaS16(Math.imul((T[row + st.u8(Ty + 9)] * st.u8(S + 5)) & 0xffff, ws)) / 0x96) & 0xff;
-      const q = Math.trunc(Math.imul(st.u8(M + 9), seaS16(st.u16(S))) / st.u8(Ty + 5));
+      const q = Math.trunc(Math.imul(st.u8(M + OFF.CREW_SLOT.LOOK_RATIO), seaS16(st.u16(S))) / st.u8(Ty + 5));
       v = Math.trunc(((seaUmin(100, q & 0xffff) * v) & 0xffff) / 100) & 0xff;
-      const pct = Math.trunc(seaS16(Math.imul(100, seaS16(st.u16(M + 0x0a)))) / seaS16(st.u16(Ty + 6)));
+      const pct = Math.trunc(seaS16(Math.imul(100, seaS16(st.u16(M + OFF.CREW_SLOT.LOAD_TOTAL)))) / seaS16(st.u16(Ty + 6)));
       const c = seaUmin(0x96, (0xb4 - pct) & 0xffff);
       v = Math.floor(((v * c) & 0xffff) / 100) & 0xff;
-      const a = seaS16(Math.imul(st.u8(P + 0x24), v));
+      const a = seaS16(Math.imul(st.u8(P + OFF.PERSON.NAV_LEVEL), v));
       const b7 = seaUmin(30, (Math.trunc(a / 10) + v) & 0xffff) & 0xff;
       let sp = seaUmin(40, Math.trunc(((st.u8(P + 0x1d) * b7) & 0xffff) / 75) & 0xffff) & 0xff;
       if (beat) sp = Math.trunc((st.u8(S + 4) * sp) / 100) & 0xff;
@@ -661,15 +663,15 @@ export class SeaScene extends PortScene {
   //   跨格時檢查陸地 (3135c); 走到 WORLDMAP 項的左右邊界 (x mod 720 < 0 或 >= 719) / 南北邊界時不檢查陸地並設 crossed
   //   回傳 1 = 被陸地擋住 (連斜向也不行)
   stepFleet(h, out) {
-    const st = this.st, F = this.fleet, X = this.SJ.tab.dirX, Y = this.SJ.tab.dirY, b = st.u8(0x0cb2);
+    const st = this.st, F = this.fleet, X = this.SJ.tab.dirX, Y = this.SJ.tab.dirY, b = st.u8(DS.WIND_CUR);
     const cd = (b & 0x38) >> 3, cs = b & 7;
     out.crossed = 0;
     const ddx = seaS8(Math.imul(X[h], seaS8(this.speed)) + Math.imul(X[cd], cs)), ddy = seaS8(Math.imul(Y[h], seaS8(this.speed)) + Math.imul(Y[cd], cs));
-    const fx = seaS8(ddx + st.u8(F + 0x18)), fy = seaS8(ddy + st.u8(F + 0x19));
+    const fx = seaS8(ddx + st.u8(F + OFF.FLEET.SUB_X)), fy = seaS8(ddy + st.u8(F + OFF.FLEET.SUB_Y));
     let px = this.wx(F) % 0x2d0, py = this.wy(F), ax = 0, ay = 0;
     if (fx >= 0x3c) { px++; ax = -0x3c; } else if (fx < 0) { px--; ax = 0x3c; }
     if (fy >= 0x3c) { py++; ay = -0x3c; } else if (fy < 0) { py--; ay = 0x3c; }
-    else if (!ax) { st.set8(F + 0x18, fx); st.set8(F + 0x19, fy); out.x = px; out.y = py; return 0; }
+    else if (!ax) { st.set8(F + OFF.FLEET.SUB_X, fx); st.set8(F + OFF.FLEET.SUB_Y, fy); out.x = px; out.y = py; return 0; }
     const base = (this.item * 0x2d0) & 0xffff;
     if (px < 0 || px >= 0x2cf) { px += seaSgn(ddx); py = this.wy(F); out.crossed = 1; }
     if (py < 0 || py >= 0x437) {
@@ -680,14 +682,14 @@ export class SeaScene extends PortScene {
     if (!out.crossed && this.landAt(px, py)) {
       out.x = this.wx(F) % 0x2d0; out.y = this.wy(F);
       if (this.landAt(this.wx(F) + seaSgn(ddx), this.wy(F) + seaSgn(ddy))) return 1;
-      st.set8(F + 0x18, fx); st.set8(F + 0x19, fy);
-      if (ax) st.set8(F + 0x18, ddx > 0 ? 0x3b : 0);
-      if (ay) st.set8(F + 0x19, ddy > 0 ? 0x3b : 0);
+      st.set8(F + OFF.FLEET.SUB_X, fx); st.set8(F + OFF.FLEET.SUB_Y, fy);
+      if (ax) st.set8(F + OFF.FLEET.SUB_X, ddx > 0 ? 0x3b : 0);
+      if (ay) st.set8(F + OFF.FLEET.SUB_Y, ddy > 0 ? 0x3b : 0);
       return 0;
     }
     st.set16(F, (px + base + 0x870) % 0x870);
-    st.set16(F + 2, (py + 0x438) % 0x438);
-    st.set8(F + 0x18, ax + fx); st.set8(F + 0x19, ay + fy);
+    st.set16(F + OFF.FLEET.Y, (py + 0x438) % 0x438);
+    st.set8(F + OFF.FLEET.SUB_X, ax + fx); st.set8(F + OFF.FLEET.SUB_Y, ay + fy);
     return 0;
   }
   async heroMove() {
@@ -695,9 +697,9 @@ export class SeaScene extends PortScene {
     let si = await this.heading();
     if (this.port !== 0xff) return;
     if (si !== 8) {
-      const a = st.u8(0x0cb1), b = st.u8(0x0cb2);
+      const a = st.u8(DS.PORT_FLAGS), b = st.u8(DS.WIND_CUR);
       this.speed = this.shipSpeedAt(si, a & 7, (a & 0x38) >> 3) & 0xff;   // [bdac] (海流方向/強度是傳入的參數, 但 314eb 沒有用到)
-      const ox = st.u16(F), oy = st.u16(F + 2), out = {};
+      const ox = st.u16(F), oy = st.u16(F + OFF.FLEET.Y), out = {};
       if (this.stepFleet(si, out)) {
         si = (si + 1) & 7;
         if (this.stepFleet(si, out)) { si = (si - 2) & 7; if (this.stepFleet(si, out)) this.blocked(); }
@@ -706,14 +708,14 @@ export class SeaScene extends PortScene {
         this.item = Math.trunc(this.wx(F) / 0x2d0) & 0xff;             // 849a 換 WORLDMAP 項
         const r = this.regionOf(); this.region = r; this.decodeRegion(r);
         if (this.landAt(this.wx(F), this.wy(F))) {
-          st.set16(F, ox); st.set16(F + 2, oy);
+          st.set16(F, ox); st.set16(F + OFF.FLEET.Y, oy);
           this.item = Math.trunc(this.wx(F) / 0x2d0) & 0xff;           // 849a (區域緩衝保留新項的內容, [06c8] 之後設為 FFFF)
         } else {
           if (out.x < 0 || out.x >= 0x2cf) this.vx1006 = Math.trunc(this.wx(F) / 24) * 24;
           if (out.y < 0 || out.y >= 0x437) this.vy1008 = Math.trunc(this.wy(F) / 24) * 24;
         }
         this.region = 0xffff;
-        st.set16(F + 8, (seaS16(st.u16(F + 8)) + 0x870) % 0x870);
+        st.set16(F + OFF.FLEET.MID_X, (seaS16(st.u16(F + OFF.FLEET.MID_X)) + 0x870) % 0x870);
       }
     }
     this.scroll();
@@ -727,7 +729,7 @@ export class SeaScene extends PortScene {
     const st = this.st, D = this.SJ.tab.path8, N = 72 * 72, Q = new Int32Array(N);
     const buf = (this.pathBuf ??= new Uint16Array(0x8000)); buf.fill(0);
     const left = (this.item * 0x2d0 + this.bda6) & 0xffff, top = this.bdaa & 0xffff;
-    const sx = (st.u16(F) - left) & 0xff, sy = (st.u16(F + 2) - top) & 0xff, tx = (T.x - left) & 0xff, ty = (T.y - top) & 0xff;
+    const sx = (st.u16(F) - left) & 0xff, sy = (st.u16(F + OFF.FLEET.Y) - top) & 0xff, tx = (T.x - left) & 0xff, ty = (T.y - top) & 0xff;
     for (let y = 0; y < 72; y++) for (let x = 0; x < 72; x++) buf[y * 72 + x] = this.mapBuf[y * 0x60 + x] >= 0x34 ? 0x801 : 0x800;
     const ti = ty * 72 + tx;
     if (buf[ti] > 0x800) return 0;
@@ -765,7 +767,7 @@ export class SeaScene extends PortScene {
     if (!this.pathField(F, T)) return 0;
     const buf = this.pathBuf;
     const left = (this.item * 0x2d0 + this.bda6) & 0xffff, top = this.bdaa & 0xffff;
-    const fx = seaS16(st.u16(F) - left), fy = seaS16(st.u16(F + 2) - top), tx = seaS16(T.x - left), ty = seaS16(T.y - top);
+    const fx = seaS16(st.u16(F) - left), fy = seaS16(st.u16(F + OFF.FLEET.Y) - top), tx = seaS16(T.x - left), ty = seaS16(T.y - top);
     const ti = seaS16(ty * 72 + tx); let cur = seaS16(fy * 72 + fx);
     if (cur === ti) { T.x = left; T.y = top; return 1; }
     const path = []; let x = fx, y = fy;
@@ -802,7 +804,7 @@ export class SeaScene extends PortScene {
   }
   // 31b73 地圖視窗捲動: 主角離視窗左上 < 11 − [0ca9] 或 > 11 + [0ca9] 時移動一格 (x 限 項內 0..0x2b8, y 0..0x420)
   scroll() {
-    const st = this.st, F = this.fleet, m = st.u8(0x0ca9);
+    const st = this.st, F = this.fleet, m = st.u8(DS.SEA_SCROLL);
     const rx = this.wx(F) - this.vx1006, si = this.vx1006 % 0x2d0;
     if (11 - m > rx) { if (si > 0) this.vx1006 = this.vx1006 - 1; }
     else if (m + 11 < rx) { if (si < 0x2b8) this.vx1006 = this.vx1006 + 1; }
@@ -817,7 +819,7 @@ export class SeaScene extends PortScene {
     if (this.port !== 0xff) return;
     const sight = seaUmax(this.sight, 2);
     for (let i = 0; i < 10; i++) {
-      if (st.u16(0x1012 + 4 * i) !== st.u16(F) || st.u16(0x1014 + 4 * i) !== st.u16(F + 2)) continue;
+      if (st.u16(0x1012 + 4 * i) !== st.u16(F) || st.u16(0x1014 + 4 * i) !== st.u16(F + OFF.FLEET.Y)) continue;
       st.set16(0x1012 + 4 * i, 0); st.set16(0x1014 + 4 * i, 0);
       await this.seaEvent(st.u8(0x103a + i));                          // 30e9f
       this.monsterRead(i);                                             // 31047
@@ -825,9 +827,9 @@ export class SeaScene extends PortScene {
       return;
     }
     let skill = st.u8(this.b.hero + 0x1f);
-    for (let i = 0; i < 0x1e; i++) { const n = st.u8(0x2e1b + i); if (n !== 0xff && st.u8(st.personRecord(n) + 0x1f) > skill) skill = st.u8(st.personRecord(n) + 0x1f); }
+    for (let i = 0; i < 0x1e; i++) { const n = st.u8(DS.PARTY_CREW + i); if (n !== 0xff && st.u8(st.personRecord(n) + 0x1f) > skill) skill = st.u8(st.personRecord(n) + 0x1f); }
     for (let di = 0; di < 0x82; di++) {
-      const R = 0x5f54 + di * 0x16;
+      const R = DS.TBL_PORT + di * 0x16;
       if (st.u8(R + 0x15) & 0x30) continue;
       const x = seaS16(st.u16(R)), y = seaS16(st.u16(R + 2));
       if (!this.near(2, x, y)) {
@@ -840,7 +842,7 @@ export class SeaScene extends PortScene {
       return;
     }
     for (let di = 0; di < 0x64; di++) {
-      const R = 0x7f8c + di * 7;
+      const R = DS.TBL_DISCOVERY + di * 7;
       if (st.u8(R + 6) & 0xc0) continue;
       const x = seaS16(st.u16(R)), y = seaS16(st.u16(R + 2));
       if (!this.near(2, x, y)) {
@@ -860,7 +862,7 @@ export class SeaScene extends PortScene {
   }
   // 30f81: 霧 (天候 3) 以外、距離 <= r 且在地圖視窗內
   inSight(r, x, y) {
-    if ((this.st.u8(0x0cb3) & 15) === 3) return false;
+    if ((this.st.u8(DS.WEATHER) & 15) === 3) return false;
     if (!this.near(r, x, y)) return false;
     return x >= this.vx1006 && x < this.vx1006 + 0x18 && y >= this.vy1008 && y < this.vy1008 + 0x18;
   }
@@ -875,11 +877,11 @@ export class SeaScene extends PortScene {
     win.shadowedSaved(0x10, 0xa0, 0x24, 0x80, 0);                      // 30b1e
     con.puts(this.SS.captain);
     if (kind === 0) {
-      printf(this.SS.foundPort, st.cstr(0x5f54 + id * 0x16 + 4));
-      fame = id >= 0x64 ? 0x32 : (0x19 * st.u8(0x6a80 + id * 0x25 + 0x1c)) & 0xffff;
+      printf(this.SS.foundPort, st.cstr(DS.TBL_PORT + id * 0x16 + 4));
+      fame = id >= 0x64 ? 0x32 : (0x19 * st.u8(DS.TBL_PORT_ECONOMY + id * 0x25 + 0x1c)) & 0xffff;
     } else con.puts(this.SS.foundVillage);
     if (fame) {
-      const H = 0x125a + st.u8(0x12b5) * 0x0e;
+      const H = DS.TBL_HERO_DATA + st.u8(DS.HERO) * 0x0e;
       st.set16(H + 4, st.u16(H + 4) + seaUmin(50000 - st.u16(H + 4), fame));
       message(0x1dc, fame);
     }
@@ -917,7 +919,7 @@ export class SeaScene extends PortScene {
   }
   // DS:b796 的 10 個函式 (回傳 1 = 發生)
   seaEventFn(n) {
-    const st = this.st, H = st.u8(0x12b5);
+    const st = this.st, H = st.u8(DS.HERO);
     // 事件 2 / 5 / 8: 從第 9 艘往前找第一艘「有船且船長不是主角」的 (10 艘都不是 → 0)
     const other = () => { for (let i = 9; i >= 0; i--) if ((st.u8(this.slotOf(i) + 8) & 0x30) === 0x10 && st.u8(this.crewOf(i) + 0x1b) !== H) return i; return -1; };
     const has = i => (st.u8(this.slotOf(i) + 8) & 0x30) === 0x10;
@@ -936,24 +938,24 @@ export class SeaScene extends PortScene {
       case 2: {                                                        // 30c6a: 那艘船離隊 (+8 &= EF), 船長 +2e = 6, 船長欄 = FF
         const i = other(); if (i < 0) return 0;
         const S = this.slotOf(i), M = this.crewOf(i);
-        st.set8(S + 8, st.u8(S + 8) & 0xef); st.set8(st.personRecord(st.u8(M + 0x1b)) + 0x2e, 6); st.set8(M + 0x1b, 0xff);
+        st.set8(S + 8, st.u8(S + 8) & 0xef); st.set8(st.personRecord(st.u8(M + OFF.CREW_SLOT.CAPTAIN)) + 0x2e, 6); st.set8(M + OFF.CREW_SLOT.CAPTAIN, 0xff);
         return 1;
       }
       case 3: return 1;                                                // 30cce: 沒有效果
       case 4: {                                                        // 30cd2: 有船的船位 (12c8a → [0538]) 士氣 +1c += min(10, 100 − +1c)
         const cnt = this.b.fleetShips(), L = this.c.persons;
-        for (let i = 0; i < cnt; i++) { const M = this.crewOf(L[i] & 0xff); st.set8(M + 0x1c, st.u8(M + 0x1c) + seaUmin(10, 100 - st.u8(M + 0x1c))); }
+        for (let i = 0; i < cnt; i++) { const M = this.crewOf(L[i] & 0xff); st.set8(M + OFF.CREW_SLOT.MORALE, st.u8(M + OFF.CREW_SLOT.MORALE) + seaUmin(10, 100 - st.u8(M + OFF.CREW_SLOT.MORALE))); }
         return 1;
       }
       case 5: { const i = other(); if (i < 0) return 0; const S = this.slotOf(i); st.set8(S + 5, st.u8(S + 5) >> 1); return 1; }   // 30d24
       case 6:                                                          // 30d75: 各船 +16..+1a = FF、+0c..+14 (5 字) = 0, 每艘之後 0fea:9d01 (19ba1, 只計算)
         for (let i = 0; i < 10; i++) if (has(i)) {
           const M = this.crewOf(i);
-          for (let k = 0; k < 5; k++) { st.set8(M + 0x16 + k, 0xff); st.set16(M + 0x0c + 2 * k, 0); }
+          for (let k = 0; k < 5; k++) { st.set8(M + OFF.CREW_SLOT.CARGO_GOODS + k, 0xff); st.set16(M + OFF.CREW_SLOT.CARGO_AMTS + 2 * k, 0); }
         }
         return 1;
       case 7:                                                          // 30dd9: 各船士氣 +1c −= min(+1c, 10)
-        for (let i = 0; i < 10; i++) if (has(i)) { const M = this.crewOf(i); st.set8(M + 0x1c, st.u8(M + 0x1c) - seaUmin(st.u8(M + 0x1c), 10)); }
+        for (let i = 0; i < 10; i++) if (has(i)) { const M = this.crewOf(i); st.set8(M + OFF.CREW_SLOT.MORALE, st.u8(M + OFF.CREW_SLOT.MORALE) - seaUmin(st.u8(M + OFF.CREW_SLOT.MORALE), 10)); }
         return 1;
       case 8: {                                                        // 30e29: 那艘船 +2 >>= 1, 0fea:83f9 艦隊重算
         const i = other(); if (i < 0) return 0;
@@ -974,17 +976,17 @@ export class SeaScene extends PortScene {
   // 19427: 鼠患 (0cb3 bit4): 未發生時 19358 判斷發生, 發生中 193dc 每船糧食 −min(10, 糧食)
   async rats() {
     const st = this.st;
-    if (!(st.u8(0x0cb3) & 0x10)) await this.ratsStart();
-    if (st.u8(0x0cb3) & 0x10) for (let i = 0; i < 10; i++) if (this.present(i)) { const M = this.crewOf(i); st.set16(M + 2, st.u16(M + 2) - seaUmin(10, st.u16(M + 2))); }
+    if (!(st.u8(DS.WEATHER) & 0x10)) await this.ratsStart();
+    if (st.u8(DS.WEATHER) & 0x10) for (let i = 0; i < 10; i++) if (this.present(i)) { const M = this.crewOf(i); st.set16(M + OFF.CREW_SLOT.FOOD, st.u16(M + OFF.CREW_SLOT.FOOD) - seaUmin(10, st.u16(M + OFF.CREW_SLOT.FOOD))); }
   }
   // 19358: 出港 > 30 天、沒有貓 ([bda8]&0x40)、random(主角 +24 / 5 + 2) = 0 且 random(105) > 主角 +23 → GRAPH #0x39、0x1d9
   async ratsStart() {
     const st = this.st, H = this.b.hero, rng = this.c.sys.rng, di = st.u8(H + 0x23), si = st.u8(H + 0x24);
-    if (st.u8(0x0cb3) & 0x10 || this.bda8 & 0x40 || st.u8(0x2e18) <= 0x1e) return;
+    if (st.u8(DS.WEATHER) & 0x10 || this.bda8 & 0x40 || st.u8(DS.DAYS_AT_SEA) <= 0x1e) return;
     if (rng.random(Math.trunc(si / 5) + 2)) return;
     if (rng.random(0x69) <= di) return;
     await this.seaNotice(0x39, 0x1d9);
-    st.set8(0x0cb3, st.u8(0x0cb3) | 0x10);
+    st.set8(DS.WEATHER, st.u8(DS.WEATHER) | 0x10);
   }
   async seaNotice(pic, msg) {
     const { sys, graph, message, menu, win } = this.c;
@@ -994,10 +996,10 @@ export class SeaScene extends PortScene {
   // 19511: 壞血病 (0cb3 bit5): 出港 > 60 天且 random(105) > 主角 +23 時發生 (GRAPH #0x3b、0x1da); 發生中每船水手 −min(random(2) + (100 − 船長 +1e) / 5, 水手)
   async scurvy() {
     const st = this.st, rng = this.c.sys.rng;
-    if (!(st.u8(0x0cb3) & 0x20)) {
-      if (st.u8(0x2e18) > 0x3c && rng.random(0x69) > st.u8(this.b.hero + 0x23)) { await this.seaNotice(0x3b, 0x1da); st.set8(0x0cb3, st.u8(0x0cb3) | 0x20); }
+    if (!(st.u8(DS.WEATHER) & 0x20)) {
+      if (st.u8(DS.DAYS_AT_SEA) > 0x3c && rng.random(0x69) > st.u8(this.b.hero + 0x23)) { await this.seaNotice(0x3b, 0x1da); st.set8(DS.WEATHER, st.u8(DS.WEATHER) | 0x20); }
     }
-    if (st.u8(0x0cb3) & 0x20) for (let i = 0; i < 10; i++) {
+    if (st.u8(DS.WEATHER) & 0x20) for (let i = 0; i < 10; i++) {
       if (!this.present(i)) continue;
       const S = this.slotOf(i), P = st.personRecord(st.u8(this.crewOf(i) + 0x1b));
       const v = (rng.random(2) + Math.trunc((100 - st.u8(P + 0x1e)) / 5)) & 0xffff;
@@ -1027,8 +1029,8 @@ export class SeaScene extends PortScene {
     if (!(w & 0x80)) return;
     let best = st.u8(this.b.hero + 0x23);
     for (let i = 0; i < 0x1e; i++) {
-      const n = st.u8(0x2e1b + i); if (n === 0xff) continue;
-      const P = st.personRecord(n), job = st.u8(P + 0x2e);
+      const n = st.u8(DS.PARTY_CREW + i); if (n === 0xff) continue;
+      const P = st.personRecord(n), job = st.u8(P + OFF.PERSON.ROLE);
       if ((job === 3 || job === 5) && st.u8(P + 0x23) > best) best = st.u8(P + 0x23);
     }
     let sum = 0, cnt = 0;
@@ -1037,9 +1039,9 @@ export class SeaScene extends PortScene {
     if (rng.random(0x0b) <= Math.floor(sum / cnt)) return;
     if (w & 0x40) await this.overboard();
     switch (c & 0xc0) {
-      case 0x40: if (rng.random(7) + 3 >= (st.u8(0x0cb1) & 7) && !st.u8(0x10a6)) { await this.weatherBegin(0x154, 1); this.stormSound(); } break;
-      case 0x80: if (rng.random(6) >= (st.u8(0x0cb1) & 7)) await this.weatherBegin(0x158, 2); break;
-      case 0xc0: if (!rng.random(10) && rng.random(6) >= (st.u8(0x0cb1) & 7)) await this.weatherBegin(0x15c, 3); break;
+      case 0x40: if (rng.random(7) + 3 >= (st.u8(DS.PORT_FLAGS) & 7) && !st.u8(DS.COOLDOWN_10A6)) { await this.weatherBegin(0x154, 1); this.stormSound(); } break;
+      case 0x80: if (rng.random(6) >= (st.u8(DS.PORT_FLAGS) & 7)) await this.weatherBegin(0x158, 2); break;
+      case 0xc0: if (!rng.random(10) && rng.random(6) >= (st.u8(DS.PORT_FLAGS) & 7)) await this.weatherBegin(0x15c, 3); break;
     }
   }
   // 1988c 海難: 非主角當船長、船長 +1b & 0xc0 且 random(100) > 船長 +23 的第一艘船 → 19849 (船長離隊、船 5deb 移除) → 197f7
@@ -1047,8 +1049,8 @@ export class SeaScene extends PortScene {
     const st = this.st, rng = this.c.sys.rng;
     for (let i = 0; i < 10; i++) {
       const M = this.crewOf(i);
-      if (!this.present(i) || st.u8(M + 0x1b) === st.u8(0x12b5)) continue;
-      const P = st.personRecord(st.u8(M + 0x1b));
+      if (!this.present(i) || st.u8(M + OFF.CREW_SLOT.CAPTAIN) === st.u8(DS.HERO)) continue;
+      const P = st.personRecord(st.u8(M + OFF.CREW_SLOT.CAPTAIN));
       if (rng.random(100) <= st.u8(P + 0x23)) continue;
       if (!(st.u8(P + 0x1b) & 0xc0)) continue;
       this.dropShip(i, M);
@@ -1058,10 +1060,10 @@ export class SeaScene extends PortScene {
   }
   // 19849: 船長從船員名單 (DS:2e1b) 移除 (+2d = FF, +31 &= DF), 再 5deb 移除船位 i
   dropShip(i, M) {
-    const st = this.st, c = st.u8(M + 0x1b);
-    for (let k = 0; k < 0x1e; k++) if (st.u8(0x2e1b + k) === c) {
-      st.set8(0x2e1b + k, 0xff);
-      const P = st.personRecord(c); st.set8(P + 0x2d, 0xff); st.set8(P + 0x31, st.u8(P + 0x31) & 0xdf);
+    const st = this.st, c = st.u8(M + OFF.CREW_SLOT.CAPTAIN);
+    for (let k = 0; k < 0x1e; k++) if (st.u8(DS.PARTY_CREW + k) === c) {
+      st.set8(DS.PARTY_CREW + k, 0xff);
+      const P = st.personRecord(c); st.set8(P + OFF.PERSON.STAY_PORT, 0xff); st.set8(P + OFF.PERSON.FACE, st.u8(P + OFF.PERSON.FACE) & 0xdf);
       break;
     }
     this.removeShip(i);
@@ -1072,11 +1074,11 @@ export class SeaScene extends PortScene {
     st.set8(ship + 0x0f, 0xff); st.set8(ship + 0x11, 0); st.set8(ship + 0x10, 0); st.set16(ship + 0x14, 0); st.set16(ship + 0x12, 0);
     for (const k of [5, 4, 3, 2, 6]) st.set8(S + k, 0xff);
     st.set16(S, 0); st.set8(S + 8, 0);
-    st.set16(M + 6, 0); st.set16(M + 4, 0); st.set16(M + 2, 0); st.set16(M, 0);
-    for (let k = 0; k < 5; k++) { st.set8(M + 0x16 + k, 0xff); st.set16(M + 0x0c + 2 * k, 0); }
-    st.set16(M + 0x0a, 0);
-    if (st.u8(M + 0x1b) !== st.u8(0x12b5)) st.set8(st.personRecord(st.u8(M + 0x1b)) + 0x2e, 6);
-    st.set8(M + 0x1b, 0xff); st.set8(M + 0x1c, 0); st.set8(M + 0x1d, 0); st.set8(M + 8, 0x19); st.set8(M + 8, 0x32);
+    st.set16(M + OFF.CREW_SLOT.AMMO, 0); st.set16(M + OFF.CREW_SLOT.MATERIAL, 0); st.set16(M + OFF.CREW_SLOT.FOOD, 0); st.set16(M, 0);
+    for (let k = 0; k < 5; k++) { st.set8(M + OFF.CREW_SLOT.CARGO_GOODS + k, 0xff); st.set16(M + OFF.CREW_SLOT.CARGO_AMTS + 2 * k, 0); }
+    st.set16(M + OFF.CREW_SLOT.LOAD_TOTAL, 0);
+    if (st.u8(M + OFF.CREW_SLOT.CAPTAIN) !== st.u8(DS.HERO)) st.set8(st.personRecord(st.u8(M + OFF.CREW_SLOT.CAPTAIN)) + 0x2e, 6);
+    st.set8(M + OFF.CREW_SLOT.CAPTAIN, 0xff); st.set8(M + OFF.CREW_SLOT.MORALE, 0); st.set8(M + OFF.CREW_SLOT.FIGUREHEAD, 0); st.set8(M + OFF.CREW_SLOT.NAV_RATIO, 0x19); st.set8(M + OFF.CREW_SLOT.NAV_RATIO, 0x32);
   }
   // 197f7: 0x150 / 0x151「%s 不見了」— 原版以「船位編號」當船編號取船名 (5c7a(i)), 照搬
   async shipLostMsg(i) {
@@ -1093,8 +1095,8 @@ export class SeaScene extends PortScene {
   watcher() {
     const st = this.st; let a = 0xffff, b = 0xffff, pa = 0, pb = 0;
     for (let i = 0; i < 0x1e; i++) {
-      const n = st.u8(0x2e1b + i); if (n === 0xff) continue;
-      const P = st.personRecord(n), j = st.u8(P + 0x2e);
+      const n = st.u8(DS.PARTY_CREW + i); if (n === 0xff) continue;
+      const P = st.personRecord(n), j = st.u8(P + OFF.PERSON.ROLE);
       if (j === 3) { pa = P; a = n; } else if (j === 5) { pb = P; b = n; }
     }
     if (b === 0xffff && a === 0xffff) return 0xffff;
@@ -1106,7 +1108,7 @@ export class SeaScene extends PortScene {
   async weatherBegin(msg, kind) {
     const st = this.st, { sys, message, menu, win } = this.c;
     const di = this.watcher();
-    st.set8(0x0cb3, (st.u8(0x0cb3) & 0xf0) | kind | 0x40);
+    st.set8(DS.WEATHER, (st.u8(DS.WEATHER) & 0xf0) | kind | 0x40);
     if (di === 0xffff) return;
     const P = st.personRecord(di);
     if ((this.c.sys.rng.random(100) & 0xff) > st.u8(P + 0x1f)) return;
@@ -1114,7 +1116,7 @@ export class SeaScene extends PortScene {
     sys.mouseHide();
     this.b.talkPerson(di);
     if (st.u8(P + 0x1e) < 0x46) msg += 2;
-    message(st.u8(P + 0x2f) & 8 ? msg + 1 : msg);
+    message(st.u8(P + OFF.PERSON.FLAGS) & 8 ? msg + 1 : msg);
     await menu.waitPrompt(); await win.close();
     sys.mouseShow();
   }
@@ -1127,21 +1129,21 @@ export class SeaScene extends PortScene {
   // 19f48 天候進行中: 剛開始 (bit6) 時船員報告 (暴風雨先 2103 + GRAPH #0x3a), 重畫地圖, bit6 → bit7; 依種類 19bd1 / 19e84 / 19efc; 1976e
   async weatherOngoing() {
     const st = this.st, { sys, graph } = this.c;
-    if (st.u8(0x0cb3) & 0x40) {
+    if (st.u8(DS.WEATHER) & 0x40) {
       sys.mouseHide();
-      if ((st.u8(0x0cb3) & 15) === 1) { this.clearCache(); graph.draw(0x3a, 0xa0, 0x10); }
-      const si = ((st.u8(0x0cb3) & 15) + 0xaf) * 2;
+      if ((st.u8(DS.WEATHER) & 15) === 1) { this.clearCache(); graph.draw(0x3a, 0xa0, 0x10); }
+      const si = ((st.u8(DS.WEATHER) & 15) + 0xaf) * 2;
       await this.crewSay(si, si + 1);
       this.drawMap();
       sys.mouseShow();
-      st.set8(0x0cb3, (st.u8(0x0cb3) & 0xbf) | 0x80);
+      st.set8(DS.WEATHER, (st.u8(DS.WEATHER) & 0xbf) | 0x80);
     }
-    switch (st.u8(0x0cb3) & 15) {
+    switch (st.u8(DS.WEATHER) & 15) {
       case 1: await this.storm(); break;
       case 2: await this.calm(); break;
       case 3: await this.fog(); break;
     }
-    this.c.palette.selectTimePalette(this.time, true, st.u8(0x0cb3));   // 1976e
+    this.c.palette.selectTimePalette(this.time, true, st.u8(DS.WEATHER));   // 1976e
   }
   // 19bd1 暴風雨 (每時刻): 各船損傷 si = min(10, (100 − 船長 +1d) / (+24/5 + 3) + 1) + random(2), 非 +10 bit6 的船 ×5;
   //   耐久度 (+2) −si, 轉向力 (+4)、推進力 (+5) −si/2; 最大耐久 (+3) = max(船型 +1 / 4, +3 − 1), 耐久度 <= 最大耐久;
@@ -1149,12 +1151,12 @@ export class SeaScene extends PortScene {
   //   [1005]&0x18 時不損傷。之後 18299、風力 = 7; 非當天開始且 (random(8) = 0 或離開天候區) → 結束 0x168/0x169; 8067
   async storm() {
     const st = this.st, { sys, palette, message, menu, win } = this.c, rng = this.c.sys.rng, F = this.fleet;
-    if (!(st.u8(0x1005) & 0x18)) {
+    if (!(st.u8(DS.SEA_FLAGS2) & 0x18)) {
       for (let i = 0; i < 10; i++) {
         const M = this.crewOf(i), S = this.slotOf(i);
         if ((st.u8(S + 8) & 0x30) !== 0x10) continue;
-        const P = st.personRecord(st.u8(M + 0x1b)), ship = this.shipRec(st.u8(S + 7));
-        const cx = Math.floor(st.u8(P + 0x24) / 5) + 3;
+        const P = st.personRecord(st.u8(M + OFF.CREW_SLOT.CAPTAIN)), ship = this.shipRec(st.u8(S + 7));
+        const cx = Math.floor(st.u8(P + OFF.PERSON.NAV_LEVEL) / 5) + 3;
         let si = seaUmin(10, (Math.trunc((100 - st.u8(P + 0x1d)) / cx) + 1) & 0xffff);
         si = (si + rng.random(2)) & 0xffff;
         if (!(st.u8(ship + 0x10) & 0x40)) si = (5 * si) & 0xffff;
@@ -1166,16 +1168,16 @@ export class SeaScene extends PortScene {
         st.set8(S + 3, mx);
         st.set8(S + 2, seaUmin(mx, st.u8(S + 2)));
         if (st.u8(S + 2)) continue;
-        if (st.u8(M + 0x1b) === st.u8(0x12b5)) { await palette.fadeBlack(); palette.ending = 0x18; return; }
+        if (st.u8(M + OFF.CREW_SLOT.CAPTAIN) === st.u8(DS.HERO)) { await palette.fadeBlack(); palette.ending = 0x18; return; }
         sys.mouseHide();
-        const cap = st.u8(M + 0x1b), Pc = st.personRecord(cap);
+        const cap = st.u8(M + OFF.CREW_SLOT.CAPTAIN), Pc = st.personRecord(cap);
         if (!(st.u8(Pc + 0x1b) & 0xc0)) {
-          let k = 0; while (k < 0x1e && st.u8(0x2e1b + k) !== cap) k++;
-          if (k < 0x1e) st.set8(0x2e1b + k, 0xff);
+          let k = 0; while (k < 0x1e && st.u8(DS.PARTY_CREW + k) !== cap) k++;
+          if (k < 0x1e) st.set8(DS.PARTY_CREW + k, 0xff);
           const p = this.b.crewSpeaks();
           message(p !== 0xff && (st.u8(st.personRecord(p) + 0x2f) & 8) ? 0x167 : 0x166, this.b.dstr(this.shipRec(st.u8(S + 7))));
           message(0x329, this.b.dstr(Pc));
-          st.set8(0x2e1b + k, cap);                                      // 原版把船長放回原位 (找不到時寫到 DS:2e39)
+          st.set8(DS.PARTY_CREW + k, cap);                                      // 原版把船長放回原位 (找不到時寫到 DS:2e39)
           this.removeShip(i);
         } else {
           this.dropShip(i, M);
@@ -1187,10 +1189,10 @@ export class SeaScene extends PortScene {
       }
       this.fleetDurability(F);                                         // 18299
     }
-    st.set8(0x0cb1, st.u8(0x0cb1) | 7);
-    if (!(st.u8(0x0cb3) & 0x80) && (!rng.random(8) || !(st.u8(0x0cb1) & 0x80))) {
+    st.set8(DS.PORT_FLAGS, st.u8(DS.PORT_FLAGS) | 7);
+    if (!(st.u8(DS.WEATHER) & 0x80) && (!rng.random(8) || !(st.u8(DS.PORT_FLAGS) & 0x80))) {
       this.c.sfx?.off();                                               // 9888 停止效果音
-      st.set8(0x0cb3, st.u8(0x0cb3) & 0xf0);
+      st.set8(DS.WEATHER, st.u8(DS.WEATHER) & 0xf0);
       sys.mouseHide(); await this.crewSay(0x168, 0x169); sys.mouseShow();
     }
     this.seaPanel();                                                   // 8067
@@ -1198,25 +1200,25 @@ export class SeaScene extends PortScene {
   // 18299 艦隊 +28 = (各船耐久度和 + 4) / 5; 和為 0 時 +29 bit0 清除
   fleetDurability(F) {
     const st = this.st; let sum = 0;
-    for (let i = 0; i < 10; i++) { const S = F + 0x2b + 9 * i; if ((st.u8(S + 8) & 0x30) === 0x10) sum += st.u8(S + 2); }
-    st.set8(F + 0x28, Math.trunc((sum + 4) / 5));
-    if (!sum) st.set8(F + 0x29, st.u8(F + 0x29) & 0xfe);
+    for (let i = 0; i < 10; i++) { const S = F + OFF.FLEET.SHIPS + 9 * i; if ((st.u8(S + 8) & 0x30) === 0x10) sum += st.u8(S + 2); }
+    st.set8(F + OFF.FLEET.STRENGTH, Math.trunc((sum + 4) / 5));
+    if (!sum) st.set8(F + OFF.FLEET.FLAGS, st.u8(F + OFF.FLEET.FLAGS) & 0xfe);
   }
   // 19e84 無風: 非當天開始、random(20) = 0 且所在海域風力 (風向表 &7) ≠ 0 → 結束 0x16a/0x16b; 期間風力 = 0
   async calm() {
     const st = this.st, rng = this.c.sys.rng, [w] = this.clock.windAt(this.fleet), { sys } = this.c;
-    if (!(st.u8(0x0cb3) & 0x80) && !rng.random(0x14) && (w & 7)) {
-      st.set8(0x0cb3, st.u8(0x0cb3) & 0xf0);
+    if (!(st.u8(DS.WEATHER) & 0x80) && !rng.random(0x14) && (w & 7)) {
+      st.set8(DS.WEATHER, st.u8(DS.WEATHER) & 0xf0);
       sys.mouseHide(); await this.crewSay(0x16a, 0x16b); sys.mouseShow();
     }
-    st.set8(0x0cb1, st.u8(0x0cb1) & 0xf8);
+    st.set8(DS.PORT_FLAGS, st.u8(DS.PORT_FLAGS) & 0xf8);
   }
   // 19efc 霧: 非當天開始且 (random(30) = 0 或離開天候區 (風 bit7 = 0)) → 結束 0x16c
   async fog() {
     const st = this.st, rng = this.c.sys.rng, { sys, message, menu, win } = this.c;
-    if (st.u8(0x0cb3) & 0x80) return;
-    if (rng.random(0x1e) && (st.u8(0x0cb1) & 0x80)) return;
-    st.set8(0x0cb3, st.u8(0x0cb3) & 0xf0);
+    if (st.u8(DS.WEATHER) & 0x80) return;
+    if (rng.random(0x1e) && (st.u8(DS.PORT_FLAGS) & 0x80)) return;
+    st.set8(DS.WEATHER, st.u8(DS.WEATHER) & 0xf0);
     sys.mouseHide(); this.b.crewSpeaks(); message(0x16c); await menu.waitPrompt(); await win.close(); sys.mouseShow();
   }
 
@@ -1234,10 +1236,10 @@ export class SeaScene extends PortScene {
       if (x < 0 || x >= 0x60 || y < 0 || y >= 0x60) continue;
       const t = this.map[y * 0x60 + x];
       if (t !== 0x74 && t !== 0x78) continue;
-      st.set8(0x0cae, this.portIdAt(this.wx(F) + T[2 * k], this.wy(F) + T[2 * k + 1]) & 0xff);
-      if (!(await this.askDock())) { st.set8(0x0cae, 0xff); return; }
-      st.set8(0x1005, st.u8(0x1005) | 0x20);
-      marketTradeLog(st, this.c.rt, 0, st.u8(0x2e18), 0, 0, st.u8(0x0cae));
+      st.set8(DS.PORT, this.portIdAt(this.wx(F) + T[2 * k], this.wy(F) + T[2 * k + 1]) & 0xff);
+      if (!(await this.askDock())) { st.set8(DS.PORT, 0xff); return; }
+      st.set8(DS.SEA_FLAGS2, st.u8(DS.SEA_FLAGS2) | 0x20);
+      marketTradeLog(st, this.c.rt, 0, st.u8(DS.DAYS_AT_SEA), 0, 0, st.u8(DS.PORT));
       await this.arrival();                                            // 1bd16
       await this.enter();                                              // 8c53
     }
@@ -1245,14 +1247,14 @@ export class SeaScene extends PortScene {
   // 1bb4a 座標完全相同的港口 (130 個), 沒有 → 0xffff
   portIdAt(x, y) {
     const st = this.st;
-    for (let i = 0; i < 0x82; i++) { const R = 0x5f54 + i * 0x16; if (st.u16(R) === (x & 0xffff) && st.u16(R + 2) === (y & 0xffff)) return i; }
+    for (let i = 0; i < 0x82; i++) { const R = DS.TBL_PORT + i * 0x16; if (st.u16(R) === (x & 0xffff) && st.u16(R + 2) === (y & 0xffff)) return i; }
     return 0xffff;
   }
   // 1bf4c 船員「要進入%s港嗎？」(0x16d) 是/否
   async askDock() {
     const st = this.st, { message, menu, win } = this.c;
     this.b.crewSpeaks();
-    message(0x16d, this.b.dstr(0x5f54 + st.u8(0x0cae) * 0x16 + 4));
+    message(0x16d, this.b.dstr(DS.TBL_PORT + st.u8(DS.PORT) * 0x16 + 4));
     const r = await menu.yesNo();
     await win.close();
     return r;
@@ -1260,24 +1262,24 @@ export class SeaScene extends PortScene {
   // 1bd16 到港: 港口 +15 |= 0x50、[1005] |= 0x20、[0cb3] &= C0; 依出港天數 d 給經驗 (主角與職務 2/3 的船員 2·min(d,70)², 其他船員 min(d,100)²);
   //   1fd9:333a 地點位元表; 港口 < 100 時更新中古船清單 DS:7f74 (3 筆 × 8: +0..+4 船型, +5 港口)
   async arrival() {
-    const st = this.st, rng = this.c.sys.rng, port = st.u8(0x0cae);
-    st.set8(0x5f54 + port * 0x16 + 0x15, st.u8(0x5f54 + port * 0x16 + 0x15) | 0x50);
-    st.set8(0x1005, st.u8(0x1005) | 0x20);
-    st.set8(0x0cb3, st.u8(0x0cb3) & 0xc0);
+    const st = this.st, rng = this.c.sys.rng, port = st.u8(DS.PORT);
+    st.set8(DS.TBL_PORT + port * 0x16 + 0x15, st.u8(DS.TBL_PORT + port * 0x16 + 0x15) | 0x50);
+    st.set8(DS.SEA_FLAGS2, st.u8(DS.SEA_FLAGS2) | 0x20);
+    st.set8(DS.WEATHER, st.u8(DS.WEATHER) & 0xc0);
     this.c.sfx?.off();                                                 // 9888 停止效果音
-    const a = seaUmin(st.u8(0x2e18), 0x46), b2 = seaUmin(st.u8(0x2e18), 0x64);
+    const a = seaUmin(st.u8(DS.DAYS_AT_SEA), 0x46), b2 = seaUmin(st.u8(DS.DAYS_AT_SEA), 0x64);
     const g2 = Math.imul(b2, b2) & 0xffff, g1 = (Math.imul(a, a) << 1) & 0xffff;
     const H = this.b.hero;
     if (this.levelUp(H, g1)) await this.levelMsg(H, 0);
     for (let k = 0; k < 0x1e; k++) {
-      const n = st.u8(0x2e1b + k); if (n === 0xff) continue;
-      const P = st.personRecord(n), j = st.u8(P + 0x2e);
+      const n = st.u8(DS.PARTY_CREW + k); if (n === 0xff) continue;
+      const P = st.personRecord(n), j = st.u8(P + OFF.PERSON.ROLE);
       if (j === 2 || j === 3) { if (this.levelUp(P, g1)) await this.levelMsg(P, 1); }
       else if (this.levelUp(P, g2)) await this.levelMsg(P, 2);
     }
     this.locationBits();                                               // 1fd9:333a
     if (port >= 0x64) return;
-    const E = 0x6a80 + port * 0x25, L = 0x7f74;
+    const E = DS.TBL_PORT_ECONOMY + port * 0x25, L = DS.TBL_USED_SHIP_CACHE;
     const ent = i => L + 8 * i, copy = (d, s0) => { for (let i = 0; i < 8; i++) st.set8(d + i, st.u8(s0 + i)); };
     let si = 0; while (si < 3 && st.u8(ent(si) + 5) !== port) si++;
     if (si < 3) {
@@ -1300,14 +1302,14 @@ export class SeaScene extends PortScene {
   levelUp(P, g) {
     const st = this.st, rng = this.c.sys.rng;
     let n = 0;
-    st.set16(P + 0x26, st.u16(P + 0x26) + g);
+    st.set16(P + OFF.PERSON.NAV_EXP, st.u16(P + OFF.PERSON.NAV_EXP) + g);
     for (;;) {
-      const lv = st.u8(P + 0x24), need = seaS16(Math.imul(seaUmin(lv, 0x12) * seaUmin(lv, 0x12), 0x1e));
-      if (need > seaS16(st.u16(P + 0x26))) break;
-      if (lv === 0x64) { st.set16(P + 0x26, 0); break; }
-      n++; st.set16(P + 0x26, st.u16(P + 0x26) - need); st.set8(P + 0x24, lv + 1);
+      const lv = st.u8(P + OFF.PERSON.NAV_LEVEL), need = seaS16(Math.imul(seaUmin(lv, 0x12) * seaUmin(lv, 0x12), 0x1e));
+      if (need > seaS16(st.u16(P + OFF.PERSON.NAV_EXP))) break;
+      if (lv === 0x64) { st.set16(P + OFF.PERSON.NAV_EXP, 0); break; }
+      n++; st.set16(P + OFF.PERSON.NAV_EXP, st.u16(P + OFF.PERSON.NAV_EXP) - need); st.set8(P + OFF.PERSON.NAV_LEVEL, lv + 1);
     }
-    if (n) for (let i = 0; i < 4; i++) st.set8(P + 0x1c + i, st.u8(P + 0x1c + i) + seaUmin(rng.random(3), (100 - st.u8(P + 0x1c + i)) & 0xffff));
+    if (n) for (let i = 0; i < 4; i++) st.set8(P + OFF.PERSON.STATS + i, st.u8(P + OFF.PERSON.STATS + i) + seaUmin(rng.random(3), (100 - st.u8(P + OFF.PERSON.STATS + i)) & 0xffff));
     return n;
   }
   // 1bc14 升級訊息: 發言者就是本人 → 「助手」, 主角 → 「船長」, 其他 → 姓名; 「的航海等級有所提高．」+ 3 項能力各 + min(random(3), 100 − 值) (有增加的列出) + 「上昇．」
@@ -1320,10 +1322,10 @@ export class SeaScene extends PortScene {
     con.puts(this.SS.levelUp);
     let up = 0;
     for (let i = 0; i < 3; i++) {
-      const v = seaUmin(rng.random(3), (100 - st.u8(P + 0x1c + i)) & 0xffff) & 0xff;
+      const v = seaUmin(rng.random(3), (100 - st.u8(P + OFF.PERSON.STATS + i)) & 0xffff) & 0xff;
       if (!v) continue;
       printf(this.SS.listSep, this.SJ.statNames[i] ? seaHex(this.SJ.statNames[i]) : Uint8Array.of(0));
-      st.set8(P + 0x1c + i, st.u8(P + 0x1c + i) + v); up = 1;
+      st.set8(P + OFF.PERSON.STATS + i, st.u8(P + OFF.PERSON.STATS + i) + v); up = 1;
     }
     if (up) { con.setCursor(con.x - 2, con.y); con.puts(this.SS.rise); }
     this.c.sfx?.voice(0x0c2e); this.c.sfx?.note(0x3c);                // 9768(DS:0c2e) + 9804(0x3c) 效果音, 5998(0x14) 延遲, 9888
@@ -1339,8 +1341,8 @@ export class SeaScene extends PortScene {
     if (!N) return;
     for (let i = 0; i < this.SJ.nodeCount; i++) {
       const x = Math.floor(((N[i * 16] | (N[i * 16 + 1] << 8)) & 0x7fff) / 24), y = Math.trunc(seaS16(N[i * 16 + 2] | (N[i * 16 + 3] << 8)) / 24);
-      const a = 0x0de8 + ((y * 12) & 0xffff) + (x >> 3);
-      if (st.u8(a) & (0x80 >> (x & 7))) st.set8(0x1046 + (i >> 3), st.u8(0x1046 + (i >> 3)) | (0x80 >> (i & 7)));
+      const a = WorkDS.EXPLORE_MAP + ((y * 12) & 0xffff) + (x >> 3);
+      if (st.u8(a) & (0x80 >> (x & 7))) st.set8(DS.EXPLORE_LOC + (i >> 3), st.u8(DS.EXPLORE_LOC + (i >> 3)) | (0x80 >> (i & 7)));
     }
   }
 
@@ -1351,30 +1353,30 @@ export class SeaScene extends PortScene {
     const st = this.st;
     let ok = 0;
     for (let i = 0; i < 0x1e; i++) {
-      const n = st.u8(0x2e1b + i); if (n === 0xff) continue;
+      const n = st.u8(DS.PARTY_CREW + i); if (n === 0xff) continue;
       if (st.u8(st.personRecord(n) + 0x2e) === 3) { if (st.u8(st.personRecord(n) + 0x30) & 0x10) ok = 1; break; }
     }
     if (!ok) { await this.crewSay(0x358, 0x357); return 0; }
     const si = await this.b.listSel().select(0x85, this.knownPorts());
     if (si < 0) return 0;
-    const R = 0x5f54 + (((this.c.persons[si] & 0xff) * 0x16) & 0xffff), F = this.fleet;   // seg0:5c9a
-    st.set16(F + 4, st.u16(R)); st.set16(F + 6, st.u16(R + 2));
-    st.set16(F + 0x0c, 0x4000); st.set8(F + 0x1b, 0);
-    st.set8(0x1005, (st.u8(0x1005) & 0xdf) | 0x80);
+    const R = DS.TBL_PORT + (((this.c.persons[si] & 0xff) * 0x16) & 0xffff), F = this.fleet;   // seg0:5c9a
+    st.set16(F + OFF.FLEET.DEST_X, st.u16(R)); st.set16(F + OFF.FLEET.DEST_Y, st.u16(R + 2));
+    st.set16(F + OFF.FLEET.ROUTE_FLAGS, 0x4000); st.set8(F + OFF.FLEET.MISSION, 0);
+    st.set8(DS.SEA_FLAGS2, (st.u8(DS.SEA_FLAGS2) & 0xdf) | 0x80);
     return 1;
   }
   // 0fea:321a = 130ba 已發現 (+15 bit4) 的港口編號 → [0538], 回傳個數
   knownPorts() {
     const st = this.st, P = this.c.persons; let n = 0;
-    for (let i = 0; i < 0x82; i++) if (st.u8(0x5f54 + i * 0x16 + 0x15) & 0x10) P[n++] = i;
+    for (let i = 0; i < 0x82; i++) if (st.u8(DS.TBL_PORT + i * 0x16 + 0x15) & 0x10) P[n++] = i;
     return n;
   }
   // ================= 停船 / 出航 20ee3 =================
   async stopToggle() {
     const st = this.st, { win, con, menu } = this.c;
     win.shadowedSaved(0x10, 0xa0, 0x24, 0x48, 1);
-    if (st.u8(0x1005) & 0x20) { con.puts(this.SS.move); st.set8(0x1005, st.u8(0x1005) & 0xdf); }
-    else { con.puts(this.SS.stop); st.set8(0x1005, (st.u8(0x1005) | 0x20) & 0x7f); }
+    if (st.u8(DS.SEA_FLAGS2) & 0x20) { con.puts(this.SS.move); st.set8(DS.SEA_FLAGS2, st.u8(DS.SEA_FLAGS2) & 0xdf); }
+    else { con.puts(this.SS.stop); st.set8(DS.SEA_FLAGS2, (st.u8(DS.SEA_FLAGS2) | 0x20) & 0x7f); }
     await menu.waitPrompt(); await win.close();
   }
 
@@ -1384,7 +1386,7 @@ export class SeaScene extends PortScene {
   //   [1005]&0x18 時直接 34d54
   async land() {
     const st = this.st, F = this.fleet, { menu, message, win } = this.c;
-    if (st.u8(0x1005) & 0x18) { await this.landExplore(); return; }
+    if (st.u8(DS.SEA_FLAGS2) & 0x18) { await this.landExplore(); return; }
     const rx = this.wx(F) - this.vx1006, ry = this.wy(F) - this.vy1008, DX = this.SJ.tab.landDX, DY = this.SJ.tab.landDY, Pn = this.c.persons;
     let n = 0;
     for (let d = 0; d < 8; d++) {
@@ -1398,7 +1400,7 @@ export class SeaScene extends PortScene {
     const sel = await this.pickRect();                                 // 0fea:37d1
     if (sel === 0xff) return;
     const x = Math.trunc(seaS16(Pn[2 * sel] - 0x60) / 16), y = Math.trunc(seaS16(Pn[2 * sel + 1] - 8) / 16);
-    st.set8(0x8246, this.discNear(x, y));                              // [8246] (在存檔範圍內)
+    st.set8(DS.DISCOVERY_ID, this.discNear(x, y));                              // [8246] (在存檔範圍內)
     let cx = (Math.trunc(this.wx(F) / 24) % 30) - 1, cy = (Math.trunc(this.wy(F) / 24) % 45) - 1;
     cx = cx < 0 ? 0 : cx > 0x1b ? 0x1b : cx; cy = cy < 0 ? 0 : cy > 0x2a ? 0x2a : cy;
     const bx = seaS16((this.wx(F) % 0x2d0) - 24 * cx), by = seaS16(this.wy(F) - 24 * cy);
@@ -1413,7 +1415,7 @@ export class SeaScene extends PortScene {
   discNear(x, y) {
     const st = this.st;
     for (let d = 0; d < 0x64; d++) for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) {
-      const R = 0x7f8c + d * 7;
+      const R = DS.TBL_DISCOVERY + d * 7;
       if (((x - st.u16(R) + this.vx1006) & 0xffff) === a && ((this.vy1008 - st.u16(R + 2) + y) & 0xffff) === b) return d;
     }
     return 0xff;
@@ -1447,9 +1449,9 @@ export class SeaScene extends PortScene {
   nearFleets(r) {
     const st = this.st, P = this.c.persons; let n = 0;
     for (let k = 0; k < 0x46; k++) {
-      const F = 0x2e76 + k * 0x85;
-      if (!(st.u8(F + 0x29) & 1) || (st.u8(F + 0x29) & 0x10) || st.u8(F + 0x2a) === st.u8(0x12b5)) continue;
-      if (this.near(r, seaS16(st.u16(F)), seaS16(st.u16(F + 2)))) P[n++] = st.u8(F + 0x2a);
+      const F = DS.TBL_FLEET + k * 0x85;
+      if (!(st.u8(F + OFF.FLEET.FLAGS) & 1) || (st.u8(F + OFF.FLEET.FLAGS) & 0x10) || st.u8(F + OFF.FLEET.ADMIRAL) === st.u8(DS.HERO)) continue;
+      if (this.near(r, seaS16(st.u16(F)), seaS16(st.u16(F + OFF.FLEET.Y)))) P[n++] = st.u8(F + OFF.FLEET.ADMIRAL);
     }
     return n;
   }
@@ -1472,7 +1474,7 @@ export class SeaScene extends PortScene {
         const ok = await menu.yesNo(); await win.close();
         if (!ok) continue;
       }
-      await this.navalBattle(st.u8(0x12b5), tg, 0xff, 0xff);
+      await this.navalBattle(st.u8(DS.HERO), tg, 0xff, 0xff);
       return;
     }
   }
@@ -1508,7 +1510,7 @@ export class SeaScene extends PortScene {
   chartQuad(col, y, bc, br, T, mode) {
     const st = this.st, scr = this.c.scr;
     bc %= 0x5a;
-    if (mode === 0 && !(st.u8(0x0de8 + ((12 * br) & 0xffff) + (bc >> 3)) & (0x80 >> (bc & 7)))) { scr.fillCols(col, y, 0x18, 0xc0, 9); return; }
+    if (mode === 0 && !(st.u8(WorkDS.EXPLORE_MAP + ((12 * br) & 0xffff) + (bc >> 3)) & (0x80 >> (bc & 7)))) { scr.fillCols(col, y, 0x18, 0xc0, 9); return; }
     const it = (3 * Math.trunc(br / 0x2d) + Math.trunc(bc / 0x1e)) & 0xff;
     if (it !== this.item) this.item = it;                              // 849a
     let ox = 0x18, oy = 0x18, r = (br % 0x2d) - 1, c = (bc % 0x1e) - 1;
@@ -1535,12 +1537,12 @@ export class SeaScene extends PortScene {
     for (let r = 0; r < 0x2d; r++) {
       let si = 0x5a - 0x1e;
       for (let c = 0; c < 0x5a; c++) {
-        if (!(st.u8(0x0de8 + 12 * r + (si >> 3)) & (0x80 >> (si & 7)))) scr.fillRectPxPlanes(6 * c + 0x32, 6 * r + 0x32, 6 * c + 0x37, 6 * r + 0x37, 0x0d, 4);   // 1fd9:227c
+        if (!(st.u8(WorkDS.EXPLORE_MAP + 12 * r + (si >> 3)) & (0x80 >> (si & 7)))) scr.fillRectPxPlanes(6 * c + 0x32, 6 * r + 0x32, 6 * c + 0x37, 6 * r + 0x37, 0x0d, 4);   // 1fd9:227c
         si = (si + 1) % 0x5a;
       }
     }
     const x = Math.trunc((((0x18 * 0x1e + st.u16(F)) % 0x870) - 0x0c) / 4) + 0x32;
-    let y = Math.trunc((seaS16(st.u16(F + 2)) - 0x0c) / 4) + 0x32;
+    let y = Math.trunc((seaS16(st.u16(F + OFF.FLEET.Y)) - 0x0c) / 4) + 0x32;
     for (let i = 0; i < 6; i++, y++) this.xorLine(x, y, x + 5, 0x0b);
     await palette.fadeTo(palette.table("chart"));                      // 99ce(DS:a700)
   }
@@ -1554,13 +1556,13 @@ export class SeaScene extends PortScene {
     if (inPort) this.item = 0xff;                                      // 84de (移植版的 seachip 常駐)
     const T = this.chartTiles();                                       // 1d8ac(0x80)
     await this.worldView();                                            // 1d9be
-    let init = Math.trunc(st.u16(F + 2) / 0x18) * 0x5a + Math.trunc(((0x1e * 0x18 + st.u16(F)) % 0x870) / 0x18);
+    let init = Math.trunc(st.u16(F + OFF.FLEET.Y) / 0x18) * 0x5a + Math.trunc(((0x1e * 0x18 + st.u16(F)) % 0x870) / 0x18);
     for (;;) {
       const r = await this.cellSel().select(0x32, 0x32, 0x5a, -6, 6, 0x2d, init);
       if (r === -1) break;
       const col = ((r % 0x5a) - 0x1e + 0x5a) % 0x5a, row = Math.trunc(r / 0x5a);
       let seen = 0;
-      for (let yy = row; yy < row + 2; yy++) for (let xx = col; xx < col + 2; xx++) seen |= st.u8(0x0de8 + 12 * yy + (xx >> 3)) & (0x80 >> (xx & 7));
+      for (let yy = row; yy < row + 2; yy++) for (let xx = col; xx < col + 2; xx++) seen |= st.u8(WorkDS.EXPLORE_MAP + 12 * yy + (xx >> 3)) & (0x80 >> (xx & 7));
       if (!seen) continue;
       init = r;
       await palette.fadeBlack();                                       // 99f2
@@ -1583,7 +1585,7 @@ export class SeaScene extends PortScene {
       graph.draw8(st.options & 0x80 ? 2 : 4, 0, 0);
       this.helm(0xff); this.helm(needle0);                             // 95f2
     }
-    palette.selectTimePalette(this.time, !inPort, st.u8(0x0cb3));      // 1976e
+    palette.selectTimePalette(this.time, !inPort, st.u8(DS.WEATHER));      // 1976e
     this.clearCache(); this.drawMap();                                 // 2103 + 1fac
     await palette.fadeToTarget();                                      // 99e8
     sys.flush();                                                       // 3fae
@@ -1602,7 +1604,7 @@ export class SeaScene extends PortScene {
       if (si === 1) { T[0x7c * 32 + o] = src | a; T[0x7e * 32 + o] = src | b; }
       else { T[0x7c * 32 + o] = src & ~a & 0xff; T[0x7e * 32 + o] = src & ~b & 0xff; }
     }
-    const R = 0x7f8c + ((st.u8(0x8248 + ((it * 0x14) & 0xffff) + 0x12) * 7) & 0xffff);   // seg0:5cde → +12 → seg0:5cce
+    const R = DS.TBL_DISCOVERY + ((st.u8(DS.TBL_ITEM + ((it * 0x14) & 0xffff) + 0x12) * 7) & 0xffff);   // seg0:5cde → +12 → seg0:5cce
     const x = seaS16(st.u16(R)), y = seaS16(st.u16(R + 2));
     let di = Math.trunc(x / 0x18), si = Math.trunc(y / 0x18);
     if (x % 0x18 < 0x0c) di += 0x59;
@@ -1614,7 +1616,7 @@ export class SeaScene extends PortScene {
     if (inPort) this.loadPort();                                       // 88e9
     else { if (this.item !== item0) this.item = item0; this.decodeRegion(this.region); }
     await palette.fadeBlack();
-    palette.selectTimePalette(this.time, !inPort, st.u8(0x0cb3));      // 1976e
+    palette.selectTimePalette(this.time, !inPort, st.u8(DS.WEATHER));      // 1976e
     this.clearCache(); this.drawMap();                                 // 2103 + 1fac
     await palette.fadeToTarget();                                      // 99e8
     sys.flush();                                                       // 3fae
@@ -1632,23 +1634,23 @@ export class SeaScene extends PortScene {
       const al = await this.scoutPick();                               // 1fd9c
       if (al === 0xff) return;
       if (al === 0x80) continue;
-      const P = st.personRecord(al), F = 0x2e76 + ((0x85 * st.u8(P + 0x2c)) & 0xffff);   // seg0:5c28
-      let nat = st.u8(P + 0x31) & 0x0f; if (nat === 6) nat = al % 6;
-      let ty = st.u8(P + 0x2c) % 10; ty = ty ? Math.trunc(ty / 5) + 1 : 0;
+      const P = st.personRecord(al), F = DS.TBL_FLEET + ((0x85 * st.u8(P + OFF.PERSON.FLEET)) & 0xffff);   // seg0:5c28
+      let nat = st.u8(P + OFF.PERSON.FACE) & 0x0f; if (nat === 6) nat = al % 6;
+      let ty = st.u8(P + OFF.PERSON.FLEET) % 10; ty = ty ? Math.trunc(ty / 5) + 1 : 0;
       win.shadowedSaved(0x0f, 0x20, 0x21, 0xd8, 1);                    // 7849
       con.left = 0x11; con.right = 0x2e;
       con.setCursor(-1, 0x30);                                         // seg0:4434
-      printf(S.scName, st.cstr(P), st.cstr(P + 0x0d));
+      printf(S.scName, st.cstr(P), st.cstr(P + OFF.PERSON.FAMILY_NAME));
       printf(S.scNation, nations[nat], types[ty]);
-      const a = st.u8(0x0cb1), b = st.u8(0x0cb2);
+      const a = st.u8(DS.PORT_FLAGS), b = st.u8(DS.WIND_CUR);
       const spd = this.fleetSpeed(F, a & 7, a >> 3, b >> 3, b & 7);    // 0fea:ae1f = 1acbf
       printf(S.scSpeed, Math.trunc(seaS16(spd) / 2));
-      printf(S.scHead, heads[st.u8(F + 0x1a)] ?? Uint8Array.of(0));
+      printf(S.scHead, heads[st.u8(F + OFF.FLEET.DIR)] ?? Uint8Array.of(0));
       con.setCursor(-1, 0x98);
       con.lineH = 0x10;                                                // [8a1e]
       let col = 0;
       for (let i = 0; i < 10; i++) {
-        const Sl = F + 0x2b + 9 * i;
+        const Sl = F + OFF.FLEET.SHIPS + 9 * i;
         if ((st.u8(Sl + 8) & 0x30) !== 0x10) continue;
         con.setCursor(col ? 0x20 : 0x11, -1);                          // seg0:442c
         printf(S.scShip, st.cstr(this.shipRec(st.u8(Sl + 7))));
@@ -1657,7 +1659,7 @@ export class SeaScene extends PortScene {
       }
       await menu.waitPrompt(); await win.close();
       con.lineH = 0x18;
-      if (Math.trunc(st.u8(P + 0x2c) / 10) !== 6 || st.u8(P + 0x2c) === 0x3c) continue;
+      if (Math.trunc(st.u8(P + OFF.PERSON.FLEET) / 10) !== 6 || st.u8(P + OFF.PERSON.FLEET) === 0x3c) continue;
       const n = this.b.crewCount(); let mx = 0;
       for (let i = 0; i < n; i++) { const v = st.u8(st.personRecord(this.c.persons[i] & 0xff) + 0x1e); if (v > mx) mx = v; }
       if (rng.random(0x5a) < mx) { this.b.crewSpeaks(); message(0x2fe, nations[nat], types[ty]); await menu.waitPrompt(); await win.close(); }
@@ -1667,12 +1669,12 @@ export class SeaScene extends PortScene {
   //   0fea:31a8 該格的他艦隊: 0 → 0xd7「那兒什麼也沒有」0x80; 1 → 指揮者; 多個 → 清單 0x8c (種類 12) 選 (取消 0x80)
   async scoutPick() {
     const st = this.st, F = this.fleet, { win, printf, message, menu } = this.c;
-    const init = seaS16(Math.imul(seaS16(st.u16(F + 2) - this.vy1008), 0x18) + seaS16(st.u16(F) - this.vx1006));
+    const init = seaS16(Math.imul(seaS16(st.u16(F + OFF.FLEET.Y) - this.vy1008), 0x18) + seaS16(st.u16(F) - this.vx1006));
     const c = await this.cellSel().select(0x60, 8, 0x18, 0x10, 0x10, 0x18, init);
     if (c < 0) return 0xff;
     for (let di = 0; di < 0x82; di++) {
-      const R = 0x5f54 + di * 0x16;
-      if (((st.u16(R) - (c % 0x18)) & 0xffff) !== st.u16(0x1006) || ((st.u16(R + 2) - Math.trunc(c / 0x18)) & 0xffff) !== st.u16(0x1008)) continue;
+      const R = DS.TBL_PORT + di * 0x16;
+      if (((st.u16(R) - (c % 0x18)) & 0xffff) !== st.u16(DS.SEA_VIEW_X) || ((st.u16(R + 2) - Math.trunc(c / 0x18)) & 0xffff) !== st.u16(DS.SEA_VIEW_Y)) continue;
       if (!(st.u8(R + 0x15) & 0x10)) continue;
       win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0);
       printf(this.SS.scPort, st.cstr(R + 4));
@@ -1690,9 +1692,9 @@ export class SeaScene extends PortScene {
   fleetsAt(c) {
     const st = this.st, P = this.c.persons; let n = 0;
     for (let k = 0; k < 0x46; k++) {
-      const F = 0x2e76 + k * 0x85;
-      if (!(st.u8(F + 0x29) & 1) || (st.u8(F + 0x29) & 0x10) || st.u8(F + 0x2a) === st.u8(0x12b5)) continue;
-      if (((st.u16(F) - (c % 0x18)) & 0xffff) === st.u16(0x1006) && ((st.u16(F + 2) - Math.trunc(c / 0x18)) & 0xffff) === st.u16(0x1008)) P[n++] = st.u8(F + 0x2a);
+      const F = DS.TBL_FLEET + k * 0x85;
+      if (!(st.u8(F + OFF.FLEET.FLAGS) & 1) || (st.u8(F + OFF.FLEET.FLAGS) & 0x10) || st.u8(F + OFF.FLEET.ADMIRAL) === st.u8(DS.HERO)) continue;
+      if (((st.u16(F) - (c % 0x18)) & 0xffff) === st.u16(DS.SEA_VIEW_X) && ((st.u16(F + OFF.FLEET.Y) - Math.trunc(c / 0x18)) & 0xffff) === st.u16(DS.SEA_VIEW_Y)) P[n++] = st.u8(F + OFF.FLEET.ADMIRAL);
     }
     return n;
   }
@@ -1703,17 +1705,17 @@ export class SeaScene extends PortScene {
   // DS 位元組: 存檔區 (0ca4..8a18) 讀遊戲狀態, 其他讀 MAIN.EXE 的 DS 初值 (assets/data/fleet.json dsLow; 原版在表外讀取時用到, 例: 航向 FF)
   dsb(a) {
     a &= 0xffff;
-    if (a >= 0x0ca4 && a < 0x8a18) return this.st.u8(a);
+    if (a >= DS.OPTIONS && a < DS.TRADE_LOGS) return this.st.u8(a);
     const D = (this.dsLow ??= Uint8Array.from((this.P.fleet?.dsLow ?? "").match(/../g) ?? [], h => parseInt(h, 16)));
     return D[a] ?? 0;
   }
   fleetSpeed(F, wDir, wStr, cB, cA) {
-    const st = this.st, P = st.personRecord(st.u8(F + 0x2a));
-    const lv = st.u8(P + 0x24), sk = st.u8(P + 0x1d), hd = st.u8(F + 0x1a);
+    const st = this.st, P = st.personRecord(st.u8(F + OFF.FLEET.ADMIRAL));
+    const lv = st.u8(P + OFF.PERSON.NAV_LEVEL), sk = st.u8(P + 0x1d), hd = st.u8(F + OFF.FLEET.DIR);
     let best = 0xff, fore = 0;
     const k = Math.abs(seaS16(wDir - hd)) & 0xff, k2 = Math.abs(seaS16(cA - hd)) & 0xff, beat = k >= 3 && k <= 5;
     for (let i = 0; i < 10; i++) {
-      const S = F + 0x2b + 9 * i;
+      const S = F + OFF.FLEET.SHIPS + 9 * i;
       if ((st.u8(S + 8) & 0x30) !== 0x10) continue;
       const ship = this.shipRec(st.u8(S + 7));
       if (!(st.u8(ship + 0x10) & 0x10)) fore = (fore - 1) & 0xff;

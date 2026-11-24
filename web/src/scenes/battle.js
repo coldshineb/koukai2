@@ -16,6 +16,8 @@
 import { Scenario, ENV_COMMON, ENV_HERO } from "../game/scenario.js";
 import { duelInBattle } from "./duel.js";
 import { marketTradeLog } from "./market.js";
+import { DS, OFF } from "../model/schema_views.ts";
+import { WorkDS } from "../model/flags.ts";
 
 const btHex = s => Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16)));
 const btS16 = v => (v << 16) >> 16;
@@ -43,31 +45,31 @@ export class NavalBattle {
   }
   get st() { return this.c.state; }
   // ---- DS 存取: 存檔區走 GameState, 其他走 W ----
-  u8(a) { a &= 0xffff; return a >= 0x0ca4 && a < 0x8d18 ? this.st.u8(a) : this.W[a]; }
+  u8(a) { a &= 0xffff; return a >= DS.OPTIONS && a < 0x8d18 ? this.st.u8(a) : this.W[a]; }
   u16(a) { return this.u8(a) | (this.u8(a + 1) << 8); }
   s16(a) { return btS16(this.u16(a)); }
-  set8(a, v) { a &= 0xffff; if (a >= 0x0ca4 && a < 0x8d18) this.st.set8(a, v); else this.W[a] = v & 0xff; }
+  set8(a, v) { a &= 0xffff; if (a >= DS.OPTIONS && a < 0x8d18) this.st.set8(a, v); else this.W[a] = v & 0xff; }
   set16(a, v) { this.set8(a, v & 0xff); this.set8(a + 1, (v >> 8) & 0xff); }
   or8(a, v) { this.set8(a, this.u8(a) | v); }
   and8(a, v) { this.set8(a, this.u8(a) & v); }
   ds(a) { const W = this.W; let e = a; while (W[e]) e++; return W.subarray(a, e + 1); }   // DS 上的 C 字串 (含結尾 0)
-  cstr(a) { return a >= 0x0ca4 && a < 0x8d18 ? this.st.cstr(a) : this.ds(a); }
+  cstr(a) { return a >= DS.OPTIONS && a < 0x8d18 ? this.st.cstr(a) : this.ds(a); }
   rnd(n) { n &= 0xffff; return n ? this.c.sys.rng.random(n) & 0xffff : 0; }                // seg0:4dc4 (n = 0 時不取亂數)
   // ---- 記錄位址 (seg0) ----
-  person(n) { return (0x12b6 + 0x32 * (n & 0xff)) & 0xffff; }                             // 5bf8
-  fleetOf(n) { return (0x2e76 + 0x85 * (n & 0xff)) & 0xffff; }                             // 5c28 (AL × 0x85, 8 位元乘法)
-  crew(i) { return (0x52d4 + 0x1e * (i & 0xff)) & 0xffff; }                                // 5c38
+  person(n) { return (DS.TBL_PERSON + 0x32 * (n & 0xff)) & 0xffff; }                             // 5bf8
+  fleetOf(n) { return (DS.TBL_FLEET + 0x85 * (n & 0xff)) & 0xffff; }                             // 5c28 (AL × 0x85, 8 位元乘法)
+  crew(i) { return (DS.TBL_CREW_SLOT + 0x1e * (i & 0xff)) & 0xffff; }                                // 5c38
   slot(i) { return this.sea.slotOf(i & 0xff); }                                            // 5c58
-  shipRec(n) { return (0x5892 + 0x16 * (n & 0xff)) & 0xffff; }                             // 5c7a
-  typeRec(t) { return (0x5e28 + 0x0c * (t & 0xff)) & 0xffff; }                             // 5c8a
-  get heroRec() { return this.person(this.st.u8(0x12b5)); }                                 // [c2ce]
+  shipRec(n) { return (DS.TBL_SHIP + 0x16 * (n & 0xff)) & 0xffff; }                             // 5c7a
+  typeRec(t) { return (DS.TBL_SHIP_TYPE + 0x0c * (t & 0xff)) & 0xffff; }                             // 5c8a
+  get heroRec() { return this.person(this.st.u8(DS.HERO)); }                                 // [c2ce]
   get heroFleet() { return this.sea.fleet; }                                                // [c2d4]
   pos(B) { const p = this.s16(B + 4); return [btImod(p, 0x34), btIdiv(p, 0x34)]; }       // 位置 → (欄, 列)
   mapAt(x, y) { return (0x8e14 + y * 0x34 + x) & 0xffff; }
 
   // ================= 10f7e 海戰 =================
   async run(al, dl, bl, arg) {
-    const st = this.st, hero = st.u8(0x12b5);
+    const st = this.st, hero = st.u8(DS.HERO);
     const enemy = hero === al ? dl : al;
     st.set16(0x0de0, enemy); st.set16(0x0d56, enemy);
     // 0be20: HDAT.PUT → [03ee]:0 (移植版直接使用資源 hdat.bin)
@@ -132,7 +134,7 @@ export class NavalBattle {
 
   // f84d 編成
   setup(al, dl, bl, arg) {
-    const st = this.st, hero = st.u8(0x12b5);
+    const st = this.st, hero = st.u8(DS.HERO);
     this.set8(0x97e6, al); this.set8(0x97ee, dl); this.set8(0x97f6, bl); this.set8(0x97fe, arg);
     this.set16(0x9d3e, hero === al || hero === bl ? 1 : 0);
     const si = this.sides();                                            // f58a
@@ -153,7 +155,7 @@ export class NavalBattle {
         this.fleetPower(F);                                             // 0fea:83f9
         const mine = (A && !(k & 1)) || (!A && (k & 1));
         const w = mine ? 0x9d40 : 0x9d42;
-        this.set16(w, this.u16(w) + this.st.u8(F + 0x28));
+        this.set16(w, this.u16(w) + this.st.u8(F + OFF.FLEET.STRENGTH));
         this.set8(E + 7, this.ships(E, k));                             // f3dd
         this.set16(E + 2, this.u16(E));
         di = (di + this.crewSum(E)) & 0xffff;                           // f568
@@ -166,9 +168,9 @@ export class NavalBattle {
   // 0fea:83f9 = 18299: 艦隊 +28 = (Σ 在的船 +2 + 4) / 5; 總和 0 → +29 &= FE
   fleetPower(F) {
     const st = this.st; let sum = 0;
-    for (let i = 0; i < 10; i++) { const S = (F + 0x2b + 9 * i) & 0xffff; if ((st.u8(S + 8) & 0x30) === 0x10) sum += st.u8(S + 2); }
-    st.set8(F + 0x28, Math.trunc((sum + 4) / 5));
-    if (!sum) st.set8(F + 0x29, st.u8(F + 0x29) & 0xfe);
+    for (let i = 0; i < 10; i++) { const S = (F + OFF.FLEET.SHIPS + 9 * i) & 0xffff; if ((st.u8(S + OFF.DOCK_SLOT.FLAGS) & 0x30) === 0x10) sum += st.u8(S + OFF.DOCK_SLOT.DURABILITY); }
+    st.set8(F + OFF.FLEET.STRENGTH, Math.trunc((sum + 4) / 5));
+    if (!sum) st.set8(F + OFF.FLEET.FLAGS, st.u8(F + OFF.FLEET.FLAGS) & 0xfe);
   }
   // f568 船鏈的 Σ 船位 +3 (開頭的船 +0d bit7 = 主角方時 0)
   crewSum(E) {
@@ -180,11 +182,11 @@ export class NavalBattle {
   // f3dd 一方的船 (DS:9800 + 0xf0 × k): 艦隊的 10 個船位
   ships(E, k) {
     const st = this.st, F = this.u16(E + 4), A = this.u16(0x9d3e), hf = this.heroFleet;
-    let S = (F + 0x2b) & 0xffff, si = 0x9800 + ((0xf0 * k) & 0xffff), first = 1, cnt = 0;
+    let S = (F + OFF.FLEET.SHIPS) & 0xffff, si = 0x9800 + ((0xf0 * k) & 0xffff), first = 1, cnt = 0;
     const mine = (A && !(k & 1)) || (!A && (k & 1));
     const fl = mine ? (F === hf ? 0x80 : 0xc0) : k >= 2 ? 0x40 : 0;
     for (let i = 0; i < 10; i++, si += 0x18, S = (S + 9) & 0xffff) {
-      if ((st.u8(S + 8) & 0x30) === 0x10) {
+      if ((st.u8(S + OFF.DOCK_SLOT.FLAGS) & 0x30) === 0x10) {
         const cap = F === hf ? st.u8(this.crew(i) + 0x1b) : this.u8(E + 6);
         this.set8(si + 0x0d, ((k << 4) | fl | i) & 0xff);
         this.set16(si, this.person(cap)); this.set16(si + 2, S); this.set16(si + 4, 0); this.set16(si + 6, 0); this.set16(si + 8, 0);
@@ -192,7 +194,7 @@ export class NavalBattle {
         let mo;
         // 主角艦隊: 100 − 船員 +8 − 船員 +9; 原版第二次呼叫 5c38 時 AL 還是 +9 的值, 所以 +8 取的是「船員 (+9 的值)」的 (照搬)
         if (F === hf) { const v9 = st.u8(this.crew(i) + 9); mo = (100 - st.u8(this.crew(v9) + 8) - v9) & 0xff; }
-        else mo = st.u8(this.shipRec(this.u8(S + 7)) + 0x10) & 0x10 ? 0x19 : 0x32;
+        else mo = st.u8(this.shipRec(this.u8(S + OFF.DOCK_SLOT.SHIP)) + 0x10) & 0x10 ? 0x19 : 0x32;
         this.set8(si + 0x17, mo);
         this.shipStats(si, E, first);                                    // f259
         this.set8(si + 0x0c, this.shipFlags(si));                        // f0c6
@@ -252,10 +254,10 @@ export class NavalBattle {
     let flag = 0, best = 0;
     for (let i = 0, si = base; i < 10; i++, si += 0x18) {
       const S = this.u16(si + 2);
-      if (!S || (st.u8(S + 8) & 0x30) !== 0x10) continue;
+      if (!S || (st.u8(S + OFF.DOCK_SLOT.FLAGS) & 0x30) !== 0x10) continue;
       list.push(i);
-      if (this.u16(E + 4) === this.heroFleet) { if (st.u8(this.crew(i) + 0x1b) === st.u8(0x12b5)) flag = i; }
-      else if (st.u8(S + 3) > best) { flag = i; best = st.u8(S + 3); }
+      if (this.u16(E + 4) === this.heroFleet) { if (st.u8(this.crew(i) + 0x1b) === st.u8(DS.HERO)) flag = i; }
+      else if (st.u8(S + OFF.DOCK_SLOT.MAX_DURABILITY) > best) { flag = i; best = st.u8(S + OFF.DOCK_SLOT.MAX_DURABILITY); }
     }
     const head = (base + 0x18 * flag) & 0xffff;
     this.set16(E, head);
@@ -331,7 +333,7 @@ export class NavalBattle {
       if (!this.u16(E + 4)) continue;
       this.sideDir(E);                                                  // f63b
       const F = this.u16(E + 4);
-      let gx = this.s16(F) - x0 + 2; const cy = this.s16(F + 2) - y0 + 2;
+      let gx = this.s16(F) - x0 + 2; const cy = this.s16(F + OFF.FLEET.Y) - y0 + 2;
       if (gx < 0) gx = 0;
       if (gx > 4) gx = 4;
       let gy = cy < 0 ? 0 : cy;                                         // 原版: cy ≥ 0 時 di = cy (再夾到 4), 否則 di = 0
@@ -527,7 +529,7 @@ export class NavalBattle {
   }
   async closeAllWin() { const sc = (this.c.events ??= new Scenario(this.c)); await sc.init(); await sc.closeAll(); }   // 2e09:3d2b
   async parley(arg) {
-    return this.u8(0x97e6) === this.st.u8(0x12b5) ? this.parleyHero(arg) : this.parleyEnemy();
+    return this.u8(0x97e6) === this.st.u8(DS.HERO) ? this.parleyHero(arg) : this.parleyEnemy();
   }
   // f972 主角開戰: 對方是海盜 (艦隊 / 10 = 6 或 +31 & 0f = 6) → 0x32b (劇本開戰時 0x32a) …; 其他 → 0x32c, 對方 0x32e / 0x330 / 0x32f (是 → [9bfb] = 2, 不打)
   async parleyHero(arg) {
@@ -606,9 +608,9 @@ export class NavalBattle {
         if ((st.u8(this.slot(i) + 8) & 0x30) !== 0x10) continue;
         const M = this.crew(i);
         for (let k = 0; k < 5; k++) {
-          const v = btIdiv(btS16(st.u16(M + 0x0c + 2 * k)) * keep, 3);
-          st.set16(M + 0x0c + 2 * k, v);
-          if (!(v & 0xffff)) st.set8(M + 0x16 + k, 0xff);
+          const v = btIdiv(btS16(st.u16(M + OFF.CREW_SLOT.CARGO_AMTS + 2 * k)) * keep, 3);
+          st.set16(M + OFF.CREW_SLOT.CARGO_AMTS + 2 * k, v);
+          if (!(v & 0xffff)) st.set8(M + OFF.CREW_SLOT.CARGO_GOODS + k, 0xff);
         }
       }
       this.set8(0x9bfb, 9); di = 1;
@@ -638,8 +640,8 @@ export class NavalBattle {
   }
   // eb3f 主角艦隊第 i 艘的船長離隊
   leave(i) {
-    const st = this.st, M = this.crew(i), cap = st.u8(M + 0x1b), P = this.person(cap);
-    for (let k = 0; k < 0x1e; k++) if (st.u8(0x2e1b + k) === cap) st.set8(0x2e1b + k, 0xff);
+    const st = this.st, M = this.crew(i), cap = st.u8(M + OFF.CREW_SLOT.CAPTAIN), P = this.person(cap);
+    for (let k = 0; k < 0x1e; k++) if (st.u8(DS.PARTY_CREW + k) === cap) st.set8(DS.PARTY_CREW + k, 0xff);
     this.sea.b.removeShip(i);                                           // seg0:5deb
     st.set8(P + 0x2e, 0); st.set8(P + 0x2c, 0xff); st.set8(P + 0x2d, this.rnd(0x36) + 3);
   }
@@ -667,7 +669,7 @@ export class NavalBattle {
     const B = this.u16(0x9bc2);
     if (!B) return si;
     const S = this.u16(B + 2);
-    if (this.u8(S + 2) && this.u16(S) && !(this.u8(B + 0x0c) & 0x40)) {
+    if (this.u8(S + OFF.DOCK_SLOT.DURABILITY) && this.u16(S) && !(this.u8(B + 0x0c) & 0x40)) {
       const E = this.u16(0x9bc0);
       if (this.u16(E + 4) === this.heroFleet && this.u16(E) === B) si = await this.playerTurn();   // b8b1
       else si = await this.cpuTurn();                                                               // a3ce
@@ -695,10 +697,10 @@ export class NavalBattle {
   }
   // 9aaa 本方旗艦健全: 水手 > 船型 +12 × 4 / 10 (有號)、耐久 > 最大耐久 × 4 / 10 (的低位元組)、未沉
   flagHealthy() {
-    const F = this.u16(this.u16(0x9bc0)), S = this.u16(F + 2), R = this.shipRec(this.u8(S + 7));
+    const F = this.u16(this.u16(0x9bc0)), S = this.u16(F + OFF.FLEET.Y), R = this.shipRec(this.u8(S + OFF.DOCK_SLOT.SHIP));
     if (btIdiv(btS16((this.u16(R + 0x12) << 2) & 0xffff), 10) >= btS16(this.u16(S))) return 0;
-    if ((btIdiv(btS16((this.u8(S + 3) << 2) & 0xffff), 10) & 0xff) >= this.u8(S + 2)) return 0;
-    return this.u8(F + 0x0c) & 0x40 ? 0 : 1;
+    if ((btIdiv(btS16((this.u8(S + OFF.DOCK_SLOT.MAX_DURABILITY) << 2) & 0xffff), 10) & 0xff) >= this.u8(S + OFF.DOCK_SLOT.DURABILITY)) return 0;
+    return this.u8(F + OFF.FLEET.ROUTE_FLAGS) & 0x40 ? 0 : 1;
   }
   distTo(B, x, y) { const [bx, by] = this.pos(B); return this.dist(bx, by, x, y) & 0xff; }   // d5b6
   // a263 + e1c6: mv 填 0x0f、mv3 / mv2 填 0; 本船位置 |= 0x10; dd88 威脅; 本船的左前 / 正前 / 右前三個方向各 de1f(原地); df41 可到達; e18d 友船
@@ -958,7 +960,7 @@ export class NavalBattle {
       this.infoEnable();                                                // b19c
       const r = await menu.popupMenu(items, 1);
       if (r === 0xff) return 0;
-      await [() => this.fleetLook(this.st.u8(0x12b5)), () => this.infoCrew(), () => this.infoShips(), () => this.infoEnemyFleet(),
+      await [() => this.fleetLook(this.st.u8(DS.HERO)), () => this.infoCrew(), () => this.infoShips(), () => this.infoEnemyFleet(),
         () => this.infoEnemyPerson(), () => this.infoEnemyShip(), () => this.infoOrders()][r]();   // ad9f / ada7 / addc / ae57 / aebc / af32 / b0bc
       this.redraw();                                                    // c608
       await this.fadeIn();                                              // bcfa
@@ -1020,7 +1022,7 @@ export class NavalBattle {
   // ae57 / aebc 共用: 主角艦隊以外、艦隊 ≠ 0 的各方的提督 → [0538]
   enemyCommanders() {
     const P = this.c.persons; let n = 0;
-    for (let k = 0; k < 4; k++) { const F = this.u16(0x97e0 + 8 * k + 4); if (F === this.heroFleet || !F) continue; P[n++] = this.u8(F + 0x2a); }
+    for (let k = 0; k < 4; k++) { const F = this.u16(0x97e0 + 8 * k + 4); if (F === this.heroFleet || !F) continue; P[n++] = this.u8(F + OFF.FLEET.ADMIRAL); }
     return n;
   }
   // ae57 對方的艦隊一覽
@@ -1057,7 +1059,7 @@ export class NavalBattle {
       const E = 0x97e0 + ((this.u8(B + 0x0d) & 0x30) >> 1), F = this.u16(E + 4), idx = this.u8(B + 0x0d) & 0x0f;
       if (!palette.invert) palette.stopCycle();
       palette.setTarget(palette.table("ships")); await palette.fadeToTarget();
-      for (let i = 0; i < 10; i++) if (this.u16(B + 2) === ((F + 0x2b + 9 * i) & 0xffff)) this.enemyShipInfo(i, idx, this.u8(F + 0x2a));   // 0fea:c7b2
+      for (let i = 0; i < 10; i++) if (this.u16(B + 2) === ((F + OFF.FLEET.SHIPS + 9 * i) & 0xffff)) this.enemyShipInfo(i, idx, this.u8(F + OFF.FLEET.ADMIRAL));   // 0fea:c7b2
       await menu.waitPrompt();                                          // 490b
       this.msgArea(); this.redraw(); await this.fadeIn();
     }
@@ -1096,8 +1098,8 @@ export class NavalBattle {
     const st = this.st, { win, graph, con, message, printf, scr } = this.c, cm = this.sea.commandsObj(), T0 = cm.T;
     const lab = this.c.menuItems(0x29);                                 // 2e09:57aa(0x29)
     const P = this.person(cmdr), F = this.fleetOf(st.u8(P + 0x2c)), S = (F + 9 * i + 0x2b) & 0xffff;
-    const R = this.shipRec(st.u8(S + 7)), T = this.typeRec(st.u8(R + 0x0f));
-    const cur = [st.u8(S + 2), st.u8(S + 4), st.u8(S + 5), st.u16(S)], max = [st.u8(S + 3), st.u8(T + 2), st.u8(T + 3), st.u16(R + 0x12)];
+    const R = this.shipRec(st.u8(S + OFF.DOCK_SLOT.SHIP)), T = this.typeRec(st.u8(R + 0x0f));
+    const cur = [st.u8(S + OFF.DOCK_SLOT.DURABILITY), st.u8(S + OFF.DOCK_SLOT.TURN), st.u8(S + OFF.DOCK_SLOT.PROPULSION), st.u16(S)], max = [st.u8(S + OFF.DOCK_SLOT.MAX_DURABILITY), st.u8(T + 2), st.u8(T + 3), st.u16(R + 0x12)];
     win.frame(6, 0x20, 0x29, 0x150, 0);                                 // 7358
     graph.draw(st.u8(R + 0x0f) + 0x1c, 8 << 3, 0x30);                   // 8050
     con.puts(this.dstr("a779"));
@@ -1105,10 +1107,10 @@ export class NavalBattle {
     con.left = 8; con.setCursor(8, 0x98);
     message(0x376, st.cstr(P));
     printf(this.dstr("a780"), this.shipName(idx));
-    const k = st.u8(S + 8) & 7;
+    const k = st.u8(S + OFF.DOCK_SLOT.FLAGS) & 7;
     message(0x377, T0.cannons[k]);
     con.left++; con.setCursor(con.left, -1);                            // 442c
-    if (k) message(0x378, st.u8(S + 6), st.u8(R + 0x11), btS16(T0.gunW[k] * st.u8(S + 6)));
+    if (k) message(0x378, st.u8(S + OFF.DOCK_SLOT.GUNS), st.u8(R + 0x11), btS16(T0.gunW[k] * st.u8(S + OFF.DOCK_SLOT.GUNS)));
     this.c.barColors = [2, 1];                                          // 9376(2, 1)
     for (let j = 0; j < 4; j++) {
       con.setCursor(0x1c, (j + 4) << 5); message(0x37f, lab[j], cur[j], max[j]);
@@ -1289,13 +1291,13 @@ export class NavalBattle {
   abil(B, k) { return this.u8(this.u16(B) + 0x1c + k); }               // d419: 船長 +1c + k
   // d745 慣性: s = (轉向 × 船長 +1d) / 200 (有號), min(100, s + (船長 +24 × s) / 15)
   inertia(B) {
-    const S = this.u16(B + 2), si = btIdiv(btS16((this.u8(S + 4) * this.abil(B, 1)) & 0xffff), 200) & 0xffff;
+    const S = this.u16(B + 2), si = btIdiv(btS16((this.u8(S + OFF.DOCK_SLOT.TURN) * this.abil(B, 1)) & 0xffff), 200) & 0xffff;
     return btUmin(0x64, (Math.floor(((this.u8(this.u16(B) + 0x24) * si) & 0xffff) / 15) + si) & 0xffff);
   }
   // d792 移動力: s = ((推進 × 風力) << 3) / 150 + 20, s = s × 船長 +1d / 100, max(10, min(25, s + (船長 +24 × s) / 15))
   movePts(B) {
     const S = this.u16(B + 2);
-    let si = Math.floor((((this.u8(S + 5) * this.u8(0x9bf9)) << 3) & 0xffff) / 0x96) + 0x14;
+    let si = Math.floor((((this.u8(S + OFF.DOCK_SLOT.PROPULSION) * this.u8(0x9bf9)) << 3) & 0xffff) / 0x96) + 0x14;
     si = Math.floor(((si * this.abil(B, 1)) & 0xffff) / 0x64);
     const a = btUmin(0x19, (Math.floor(((this.u8(this.u16(B) + 0x24) * si) & 0xffff) / 15) + si) & 0xffff);
     return (a >= 0x0a ? a : 0x0a) & 0xff;
@@ -1303,9 +1305,9 @@ export class NavalBattle {
   // d6f6 一步的消耗 (新方向 nd, 原方向 dir)
   stepCost(B, nd, dir) {
     const S = this.u16(B + 2), w = this.u8(0x9bf2 + (nd & 0xff));
-    if ((nd & 0xff) === (dir & 0xff)) return (Math.floor((this.u8(S + 5) * w) / 0x64) + 5) & 0xff;
+    if ((nd & 0xff) === (dir & 0xff)) return (Math.floor((this.u8(S + OFF.DOCK_SLOT.PROPULSION) * w) / 0x64) + 5) & 0xff;
     if (w < 3) return 5;
-    return (0x0a - Math.floor((5 * this.u8(S + 4)) / 0x64)) & 0xff;
+    return (0x0a - Math.floor((5 * this.u8(S + OFF.DOCK_SLOT.TURN)) / 0x64)) & 0xff;
   }
   // dc3c 可到達範圍
   reach(B, p, dir, pts, mom) {
@@ -1561,7 +1563,7 @@ export class NavalBattle {
     this.damage(T);                                                     // e735
     await this.shotAnim(T);                                             // cdcd
     const S = this.u16(T + 2);
-    if (!this.u8(S + 2)) this.sink(T);                                  // e679
+    if (!this.u8(S + OFF.DOCK_SLOT.DURABILITY)) this.sink(T);                                  // e679
     else if (!this.u16(S)) this.unmanned(T);                            // e6bb
     else if (this.u16(this.u16(0x9bc0) + 4) === this.heroFleet) this.gainExp(this.u16(this.u16(0x9bc2)), 0x0a);   // e616
     const B = this.u16(0x9bc2);
@@ -1604,7 +1606,7 @@ export class NavalBattle {
     const a10 = this.bestAbil(B, 0), lv = this.bestLevel(B);
     const v8 = (btIdiv(btS16((this.bestAbil(B, 0) * lv) & 0xffff), 0x64) + (a10 >> 1)) & 0xffff;               // [bp-8]
     const m1 = btUdiv32((this.u8(B + 0x17) * btS16(this.u16(S))) >>> 0, 0x64) & 0xffff;                       // 士氣 × 水手 / 100
-    const m = btUmin(this.u8(S + 6) >> 1, m1 >>> 1);                                                           // [bp-0a]
+    const m = btUmin(this.u8(S + OFF.DOCK_SLOT.GUNS) >> 1, m1 >>> 1);                                                           // [bp-0a]
     const q = btUdiv32((this.u8(B + 0x0f + (d & 0xff)) * m) >>> 0, 0x0a);                                       // 命中率[d] × m / 10
     const r = this.gunSkill(B) ? btUdiv32((q + 0x13) >>> 0, 0x14) : btUdiv32((q + 0x27) >>> 0, 0x28);
     let v = btUdiv32(btMul32(r, v8), 0x64) & 0xffff;
@@ -1621,15 +1623,15 @@ export class NavalBattle {
     if (di >= 0x0a || !this.rnd(5)) k = [1, 1, 1, 1, 2, 2, 2, 2, 4, 4, 4, 4, 3, 3, 5, 5, 6, 6, 7][this.rnd(0x13)];
     if (di >= 0x14) k = [3, 3, 5, 5, 6, 6, 7][this.rnd(7)];
     if (di >= 0x28) k = 7;
-    this.set8(S + 2, this.u8(S + 2) - btUmin(this.u8(S + 2), di));
-    this.set8(S + 2, btUmin(this.u8(S + 2), this.u8(S + 3)));
+    this.set8(S + OFF.DOCK_SLOT.DURABILITY, this.u8(S + OFF.DOCK_SLOT.DURABILITY) - btUmin(this.u8(S + OFF.DOCK_SLOT.DURABILITY), di));
+    this.set8(S + OFF.DOCK_SLOT.DURABILITY, btUmin(this.u8(S + OFF.DOCK_SLOT.DURABILITY), this.u8(S + OFF.DOCK_SLOT.MAX_DURABILITY)));
     { const v = (this.rnd(3) + (di >>> 1)) & 0xffff; this.set16(S, this.u16(S) - btUmin(this.u16(S), v)); }
     if (k & 1) {
-      const t = st.u8(this.typeRec(st.u8(this.shipRec(this.u8(S + 7)) + 0x0f)) + 1) >> 2;
-      this.set8(S + 3, btUmax(t, (this.u8(S + 3) - 1) & 0xffff));        // 4d87 (最大耐久 0 時是 FFFF → 寫入 FF, 照搬)
+      const t = st.u8(this.typeRec(st.u8(this.shipRec(this.u8(S + OFF.DOCK_SLOT.SHIP)) + 0x0f)) + 1) >> 2;
+      this.set8(S + OFF.DOCK_SLOT.MAX_DURABILITY, btUmax(t, (this.u8(S + OFF.DOCK_SLOT.MAX_DURABILITY) - 1) & 0xffff));        // 4d87 (最大耐久 0 時是 FFFF → 寫入 FF, 照搬)
     }
-    if (k & 2) { const v = (this.rnd(3) + (di >>> 1)) & 0xffff; this.set8(S + 5, this.u8(S + 5) - btUmin(this.u8(S + 5), v)); }
-    if (k & 4) { const v = (this.rnd(3) + (di >>> 1)) & 0xffff; this.set8(S + 4, this.u8(S + 4) - btUmin(this.u8(S + 4), v)); }
+    if (k & 2) { const v = (this.rnd(3) + (di >>> 1)) & 0xffff; this.set8(S + OFF.DOCK_SLOT.PROPULSION, this.u8(S + OFF.DOCK_SLOT.PROPULSION) - btUmin(this.u8(S + OFF.DOCK_SLOT.PROPULSION), v)); }
+    if (k & 4) { const v = (this.rnd(3) + (di >>> 1)) & 0xffff; this.set8(S + OFF.DOCK_SLOT.TURN, this.u8(S + OFF.DOCK_SLOT.TURN) - btUmin(this.u8(S + OFF.DOCK_SLOT.TURN), v)); }
   }
   // 063e 遮罩 (模式 0x20f) + 3d2 圖像 (模式 3), 都在 HDAT 段
   spr(col, y, w, h, mask, img) {
@@ -1749,10 +1751,10 @@ export class NavalBattle {
   // e679 擊沉: 主角艦隊打沉的 → e616(本船船長, 10 × 目標最大耐久); c6fa 擦掉; e5b1; 目標船位 +8 = 0 (船從艦隊消失)
   sink(T) {
     const S = this.u16(T + 2);
-    if (this.u16(this.u16(0x9bc0) + 4) === this.heroFleet) this.gainExp(this.u16(this.u16(0x9bc2)), (0x0a * this.u8(S + 3)) & 0xffff);
+    if (this.u16(this.u16(0x9bc0) + 4) === this.heroFleet) this.gainExp(this.u16(this.u16(0x9bc2)), (0x0a * this.u8(S + OFF.DOCK_SLOT.MAX_DURABILITY)) & 0xffff);
     this.erase(T);                                                      // c6fa
     this.untarget(T);                                                   // e5b1
-    this.set8(S + 8, 0);
+    this.set8(S + OFF.DOCK_SLOT.FLAGS, 0);
   }
   // e6bb 無人船: 地圖格 &= 1f 後 |= 0x80 (變成障礙); 經驗同上; e5b1; c0ad 重畫所有的船
   unmanned(T) {
@@ -1909,7 +1911,7 @@ export class NavalBattle {
   // d62e 對方的第一方: 方為偶數 → 97e8 (方 1), 奇數 → 97e0 (方 0); 再 +0x10 是其援軍
   enemySide(B) { return 0x97e8 - ((this.side(B) & 1) << 3); }
   // d52c 活著: 船位 +0 (水手) ≠ 0、+2 (耐久) ≠ 0、未沉
-  alive(B) { const S = this.u16(B + 2); return this.u16(S) !== 0 && this.u8(S + 2) !== 0 && !(this.u8(B + 0x0c) & 0x40); }
+  alive(B) { const S = this.u16(B + 2); return this.u16(S) !== 0 && this.u8(S + OFF.DOCK_SLOT.DURABILITY) !== 0 && !(this.u8(B + 0x0c) & 0x40); }
   // d931 射程內: 沒有砲 (+0e = 0) → 否; 否則 d808(射程 = +15)
   inRange(B, x, y, tx, ty, dir) { return this.u16(B + 0x0e) ? this.arc(x, y, this.u8(B + 0x15), tx, ty, dir) : 0; }
   // d808 射界: 六角格距離 ≤ 射程且 ≠ 1, 並依方向 % 3 判斷目標在船的側面
@@ -1964,9 +1966,9 @@ export class NavalBattle {
     if (r !== 5 && r !== 7) {
       for (let i = 0; i < 10; i++) {
         const M = this.crew(i);
-        if (st.u8(M + 0x1b) >= 0x78) continue;
+        if (st.u8(M + OFF.CREW_SLOT.CAPTAIN) >= 0x78) continue;
         if ((st.u8(this.slot(i) + 8) & 0x30) !== 0x10) { b.removeShip(i); continue; }          // 5deb (被擊沉的船)
-        if (!(r & 1)) this.gainExp(this.person(st.u8(M + 0x1b)), btIdiv(btS16(si), 5) & 0xffff);  // e616(船長, si / 5)
+        if (!(r & 1)) this.gainExp(this.person(st.u8(M + OFF.CREW_SLOT.CAPTAIN)), btIdiv(btS16(si), 5) & 0xffff);  // e616(船長, si / 5)
       }
     }
     await this.result(other);                                           // 10679
@@ -1981,8 +1983,8 @@ export class NavalBattle {
       this.sea.ai.strength(F);                                          // 18299
       if (F === this.heroFleet) continue;
       const S = this.u16(B + 2);
-      if ((this.u8(S + 8) & 0x30) === 0x10 && (this.u8(this.u16(B) + 0x31) & 0x20) && this.u16(S) && this.u8(S + 2) && this.u8(0x9bfb) !== 6) continue;
-      this.dissolve(this.u8(F + 0x2a));                                 // ff62
+      if ((this.u8(S + OFF.DOCK_SLOT.FLAGS) & 0x30) === 0x10 && (this.u8(this.u16(B) + 0x31) & 0x20) && this.u16(S) && this.u8(S + OFF.DOCK_SLOT.DURABILITY) && this.u8(0x9bfb) !== 6) continue;
+      this.dissolve(this.u8(F + OFF.FLEET.ADMIRAL));                                 // ff62
     }
     if (!this.c.noEvents) {                                             // 2e09:5525(0xa2, [0de0]) 共用 / 2e09:5678(0xa2, [0d56]) 主角
       const sc = (this.c.events ??= new Scenario(this.c)); sc.scene = this.sea;
@@ -2037,7 +2039,7 @@ export class NavalBattle {
         marketTradeLog(st, rt, 2, f, 0, 0, 1); pic(0x37); small(); await say(0x233);
         break;
       case 3: case 9:
-        if (r === 9 && !(st.u8(F + 0x29) & 0x40) && st.u8(F + 0x1b) !== 7) this.sea.ai.goPort(0, st.u8(F + 0x26), F);   // 2e09:5891 回母港
+        if (r === 9 && !(st.u8(F + OFF.FLEET.FLAGS) & 0x40) && st.u8(F + OFF.FLEET.MISSION) !== 7) this.sea.ai.goPort(0, st.u8(F + OFF.FLEET.HOME_PORT), F);   // 2e09:5891 回母港
         marketTradeLog(st, rt, 2, f, 0, 0, 2); pic(0x36); small(); await say(r === 3 ? 0x234 : 0x236);
         for (let i = 0; i < 10; i++) {
           if ((st.u8(this.slot(i) + 8) & 0x30) !== 0x10) continue;
@@ -2058,11 +2060,11 @@ export class NavalBattle {
   }
   // fea0 戰鬥的分類: 主角有本國的私掠許可證 (隨身物 = 國籍 + 0x1d) 時 1..6, 否則 0
   classify() {
-    const st = this.st, hn = st.u8(this.heroRec + 0x31) & 0x0f, hero = st.u8(0x12b5);
+    const st = this.st, hn = st.u8(this.heroRec + 0x31) & 0x0f, hero = st.u8(DS.HERO);
     let r = 0;
-    for (let i = 0; i < 0x14; i++) if (((hn - st.u8(0x2e57 + i)) & 0xff) === 0xe3) r = 1;
+    for (let i = 0; i < 0x14; i++) if (((hn - st.u8(DS.INVENTORY + i)) & 0xff) === 0xe3) r = 1;
     const on = Math.floor(st.u8(this.person(this.u8(0x97e6) === hero ? this.u8(0x97ee) : this.u8(0x97e6)) + 0x2c) / 10);
-    const NH = 0x117a + (hn << 5), NO = 0x117a + (on << 5);             // 5bde
+    const NH = DS.TBL_COUNTRY + (hn << 5), NO = DS.TBL_COUNTRY + (on << 5);             // 5bde
     if (r) {
       if (st.u8(NH + 0x0b + on) <= 0x28) r = 2;
       if (st.u8(NO + 0x12 + hn) & 0x10) r = 3;
@@ -2082,16 +2084,16 @@ export class NavalBattle {
     let item = 0xff;
     const F = this.u16(E + 4);
     if (!(this.u8(this.u16(E) + 0x0d) & 0x80)) {
-      const L = []; for (let i = 0; i < 0x14; i++) if (st.u8(0x2e57 + i) !== 0xff) L.push(st.u8(0x2e57 + i));
+      const L = []; for (let i = 0; i < 0x14; i++) if (st.u8(DS.INVENTORY + i) !== 0xff) L.push(st.u8(DS.INVENTORY + i));
       b.setPersons(L);                                                  // 13146 → [0538]
       if (L.length < 0x14) item = st.u8(F + 0x1d);
     }
-    const money = (((st.u16(F + 0x24) + 1) & 0xffff) * 100) >>> 0;
+    const money = (((st.u16(F + OFF.FLEET.FUNDS) + 1) & 0xffff) * 100) >>> 0;
     win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0);                       // 7849
     message(0x230, money);
     if (item !== 0xff) {
-      message(0x231, st.cstr(0x8248 + 0x14 * item));                    // 5cde
-      for (let i = 0; i < 0x14; i++) if (st.u8(0x2e57 + i) === 0xff) { st.set8(0x2e57 + i, item); break; }
+      message(0x231, st.cstr(DS.TBL_ITEM + 0x14 * item));                    // 5cde
+      for (let i = 0; i < 0x14; i++) if (st.u8(DS.INVENTORY + i) === 0xff) { st.set8(DS.INVENTORY + i, item); break; }
     }
     message(0x232);
     b.money = (b.money + money) | 0;
@@ -2111,16 +2113,16 @@ export class NavalBattle {
     if (!n) return;
     let cap = 0; for (let i = 0; i < n; i++) cap = (cap + this.u16(this.shipRec(this.u8(this.u16(list[i] + 2) + 7)) + 0x14)) & 0xffff;
     const f = st.u8(this.person(this.u8(E + 6)) + 0x2c), F = this.u16(E + 4);
-    const g16 = () => btS16(st.u16(F + 0x22));
-    if (st.u8(F + 0x21) !== 0xff) st.set16(F + 0x22, btSdiv32(Math.imul(g16(), n), t) & 0xffff);   // 3722
+    const g16 = () => btS16(st.u16(F + OFF.FLEET.CARGO_AMT));
+    if (st.u8(F + OFF.FLEET.CARGO_GOOD) !== 0xff) st.set16(F + OFF.FLEET.CARGO_AMT, btSdiv32(Math.imul(g16(), n), t) & 0xffff);   // 3722
     else if (this.rnd(2) && f % 10 && f % 10 < 5) {
-      st.set16(F + 0x22, cap);
-      if (this.rnd(10)) st.set8(F + 0x21, this.rnd(6) + 10);
-      else { st.set8(F + 0x21, this.rnd(7) + 0x1a); st.set16(F + 0x22, btIdiv(g16(), 4) & 0xffff); }
-      st.set16(F + 0x22, btIdiv(g16(), 5) & 0xffff);
-    } else st.set16(F + 0x22, 0);
+      st.set16(F + OFF.FLEET.CARGO_AMT, cap);
+      if (this.rnd(10)) st.set8(F + OFF.FLEET.CARGO_GOOD, this.rnd(6) + 10);
+      else { st.set8(F + OFF.FLEET.CARGO_GOOD, this.rnd(7) + 0x1a); st.set16(F + OFF.FLEET.CARGO_AMT, btIdiv(g16(), 4) & 0xffff); }
+      st.set16(F + OFF.FLEET.CARGO_AMT, btIdiv(g16(), 5) & 0xffff);
+    } else st.set16(F + OFF.FLEET.CARGO_AMT, 0);
     const g = btIdiv(g16(), n) & 0xffff;
-    const types = [0x80, 0x81, 0x82, 0x83, st.u8(F + 0x21), 0xff, 0xff, 0xff, 0xff], amt = new Array(9).fill(0);
+    const types = [0x80, 0x81, 0x82, 0x83, st.u8(F + OFF.FLEET.CARGO_GOOD), 0xff, 0xff, 0xff, 0xff], amt = new Array(9).fill(0);
     for (let i = 0; i < n; i++) {
       const B = list[i], sh = this.u16(B + 0x0e);
       const d = (this.u16(this.shipRec(this.u8(this.u16(B + 2) + 7)) + 0x14) - sh - g) & 0xffff;
@@ -2169,21 +2171,21 @@ export class NavalBattle {
   }
   // ffc1 掳獲 S (對方船位) → 主角艦隊第一個空船位 / 第一個空船記錄; 新船長 capt
   async captureShip(S, capt) {
-    const b = this.sea.b, R = this.shipRec(this.u8(S + 7));
+    const b = this.sea.b, R = this.shipRec(this.u8(S + OFF.DOCK_SLOT.SHIP));
     let i = 0; for (; i < 10; i++) { const v = this.u8(this.slot(i) + 8) & 0x30; if (v !== 0x10 && v !== 0x20) break; }
     const D = this.slot(i), M = i < 10 ? this.crew(i) : 0;              // 10 個都滿時原版寫到 DS:0 一帶
     let n = 0, N = this.shipRec(0);
     for (let k = 0; k < 0x28; k++, N = (N + 0x16) & 0xffff) if (this.u8(N + 0x0f) === 0xff) { n = k; break; }
     for (const o of [3, 2, 4, 5, 6]) this.set8(D + o, this.u8(S + o));
     this.set16(D, btUmin(btIdiv(btS16(this.u16(S)), 10) & 0xffff, this.u16(R + 0x12)));
-    this.set8(D + 7, n); this.set8(D + 8, this.u8(S + 8));
+    this.set8(D + 7, n); this.set8(D + 8, this.u8(S + OFF.DOCK_SLOT.FLAGS));
     for (const o of [0x11, 0x0f, 0x10]) this.set8(N + o, this.u8(R + o));
     this.set16(N + 0x12, this.u16(R + 0x12)); this.set16(N + 0x14, this.u16(R + 0x14));
     for (const o of [0, 2, 4, 6]) this.set16(M + o, 0);
-    this.set8(M + 8, 0x19); this.set8(M + 9, 0x32); this.set8(M + 0x1b, capt); this.set8(M + 0x1c, 0x3c);
+    this.set8(M + OFF.CREW_SLOT.NAV_RATIO, 0x19); this.set8(M + OFF.CREW_SLOT.LOOK_RATIO, 0x32); this.set8(M + OFF.CREW_SLOT.CAPTAIN, capt); this.set8(M + OFF.CREW_SLOT.MORALE, 0x3c);
     this.set8(this.person(capt) + 0x2e, 2);
-    this.set16(M + 0x0a, 0);
-    for (let k = 0; k < 5; k++) { this.set8(M + 0x16 + k, 0xff); this.set16(M + 0x0c + 2 * k, 0); }
+    this.set16(M + OFF.CREW_SLOT.LOAD_TOTAL, 0);
+    for (let k = 0; k < 5; k++) { this.set8(M + OFF.CREW_SLOT.CARGO_GOODS + k, 0xff); this.set16(M + OFF.CREW_SLOT.CARGO_AMTS + 2 * k, 0); }
     await this.scWin(0); this.c.message(0x22d);
     const ni = b.nameInput();
     for (;;) { ni.prompt(2, 7); if ((await ni.run(N, 7)) === 1) break; await b.closeTalk(); }   // 2e09:29a0 / 26a5
@@ -2193,10 +2195,10 @@ export class NavalBattle {
   async repute() {
     const st = this.st, { message, menu, win } = this.c, b = this.sea.b;
     if (this.u8(0x9bfb) & 1) return;
-    const hero = st.u8(0x12b5), H = this.heroRec;
+    const hero = st.u8(DS.HERO), H = this.heroRec;
     const O = this.person(this.u8(0x97e6) === hero ? this.u8(0x97ee) : this.u8(0x97e6));
     const hn = st.u8(H + 0x31) & 0x0f, on = Math.floor(st.u8(O + 0x2c) / 10);
-    const NH = 0x117a + (hn << 5), NO = 0x117a + (on << 5);
+    const NH = DS.TBL_COUNTRY + (hn << 5), NO = DS.TBL_COUNTRY + (on << 5);
     const x = btUmin(this.rnd(5) + 3, st.u8(NH + 0x0b + on));
     st.set8(NH + 0x0b + on, st.u8(NH + 0x0b + on) - x);
     st.set8(NO + 0x0b + hn, st.u8(NH + 0x0b + on));
@@ -2228,15 +2230,15 @@ export class NavalBattle {
       win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0); message(0x239); await menu.waitPrompt(); await b.closeTalk();
       st.set8(D + 0x0d, 0);
     } else return;
-    st.set8(0x0d5f, 0); st.set8(0x0d5e, 0); st.set8(0x0d62, st.u8(0x0d62) & 0xf8);
+    st.set8(DS.COMMON_SEC, 0); st.set8(DS.COMMON_CHAP, 0); st.set8(WorkDS.FLAGS, st.u8(WorkDS.FLAGS) & 0xf8);
   }
   // ff62 解散指揮者 p 的艦隊
   dissolve(p) {
     const st = this.st, P = this.person(p), F = this.fleetOf(st.u8(P + 0x2c));
-    st.set8(F + 0x28, 0); st.set8(F + 0x29, st.u8(F + 0x29) & 0xfe); st.set8(F + 0x2a, 0xff);
+    st.set8(F + OFF.FLEET.STRENGTH, 0); st.set8(F + OFF.FLEET.FLAGS, st.u8(F + OFF.FLEET.FLAGS) & 0xfe); st.set8(F + OFF.FLEET.ADMIRAL, 0xff);
     st.set8(P + 0x2e, 0); st.set8(P + 0x2c, 0xff); st.set8(P + 0x2d, this.rnd(0x2a));
     if (st.u8(P + 0x1b) & 0xc0) st.set8(P + 0x31, st.u8(P + 0x31) & 0xdf);
-    for (let i = 0; i < 10; i++) st.set8(F + 0x2b + 9 * i + 8, 0);
+    for (let i = 0; i < 10; i++) st.set8(F + OFF.FLEET.SHIPS + 9 * i + 8, 0);
   }
   // bd26: [03ea] = 0 且未反色 → 停止調色盤循環 (1743); 淡出 (99f2)
   async fadeOutField() {

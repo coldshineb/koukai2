@@ -8,16 +8,18 @@ import { STATE_BASE, STATE_END } from "./state.js";
 import { faFleet } from "./fleetai.js";
 import { duelFromScenario } from "../scenes/duel.js";
 import { mainEnding } from "./endgame.js";
+import { DS } from "../model/schema_views.ts";
+import { WorkDS } from "../model/flags.ts";
 
 const scS16 = v => (v << 16) >> 16;
 const scUmin = (a, b) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);   // seg0:4d7c
 const scHex = h => Uint8Array.from((h.match(/../g) || []).map(x => parseInt(x, 16)));
-export const ENV_COMMON = { name: "SNR0", ch: 0x0d5e, flags: 0x0d60, vars: 0x0d68, event: 0x0de6, portMax: 0x82, addTime: false };
-export const ENV_HERO = { name: "SNRn", ch: 0x0cd4, flags: 0x0cd6, vars: 0x0cde, event: 0x0d5c, portMax: 0x64, addTime: true };
+export const ENV_COMMON = { name: "SNR0", ch: DS.COMMON_CHAP, flags: 0x0d60, vars: WorkDS.KINDS, event: 0x0de6, portMax: 0x82, addTime: false };
+export const ENV_HERO = { name: "SNRn", ch: DS.HERO_CHAP, flags: 0x0cd6, vars: 0x0cde, event: 0x0d5c, portMax: 0x64, addTime: true };
 // 31f0b 記錄種類 → [基底, 每筆大小] (7 = 艦隊船位, 18 = COLONY.DAT 記錄, 另行處理)
-const SC_KINDS = [[0x117a, 0x20], [0x125a, 0x0e], [0x12ae, 0], [0x12b6, 0x32], [0x2a26, 0x16], [0x2bde, 0x13], [0x2e18, 0], null,
-  [0x2e76, 0x85], [0x52d4, 0x1e], [0x5892, 0x16], [0x5e28, 0x0c], [0x5f54, 0x16], [0x6a80, 0x25], [0x78f4, 0x80], [0x7f74, 8],
-  [0x7f8c, 7], [0x8248, 0x14], null, [0xbd06, 2]];
+const SC_KINDS = [[DS.TBL_COUNTRY, 0x20], [DS.TBL_HERO_DATA, 0x0e], [DS.MONEY, 0], [DS.TBL_PERSON, 0x32], [DS.TBL_NOBLE, 0x16], [DS.TBL_BARMAID, 0x13], [DS.DAYS_AT_SEA, 0], null,
+  [DS.TBL_FLEET, 0x85], [DS.TBL_CREW_SLOT, 0x1e], [DS.TBL_SHIP, 0x16], [DS.TBL_SHIP_TYPE, 0x0c], [DS.TBL_PORT, 0x16], [DS.TBL_PORT_ECONOMY, 0x25], [DS.TBL_REGION_PRICE, 0x80], [DS.TBL_USED_SHIP_CACHE, 8],
+  [DS.TBL_DISCOVERY, 7], [DS.TBL_ITEM, 0x14], null, [0xbd06, 2]];
 const SC_STRBUF = 0x041e, SC_STRLEN = 0x100;
 const SC_COLONY = 0xbb64;                                                  // DS:bb64 COLONY.DAT 記錄緩衝 (0xb1 bytes, 種類 18)
 const scWarned = new Set();
@@ -92,7 +94,7 @@ export class Scenario {
     const st = this.st;
     st.set16(env.event, 0);
     this.b876 = building;
-    if (env === ENV_HERO && (st.u8(0x0cd4) === 0xff || !(st.u8(0x0ca4) & 0x40))) return 0;
+    if (env === ENV_HERO && (st.u8(DS.HERO_CHAP) === 0xff || !(st.u8(DS.OPTIONS) & 0x40))) return 0;
     this.env = env;
     this.fileNo = env === ENV_COMMON ? 0 : st.hero + 1;
     this.F = await this.file(this.fileNo);
@@ -172,9 +174,9 @@ export class Scenario {
       if (n === 0) { const a = this.dstAddr(ins.dst); for (let i = 0; ; i++) { const b = this.str[i]; this.wr8(a + i, b); if (!b) break; } return; }
       let v = 0;
       switch (n) {
-        case 1: { const F = 0x2e76 + st.u8(st.personRecord(st.hero) + 0x2c) * 0x85; v = Math.trunc(scS16(st.u16(F)) / 24) + Math.trunc(scS16(st.u16(F + 2)) / 24) * 90; break; }
+        case 1: { const F = DS.TBL_FLEET + st.u8(st.personRecord(st.hero) + 0x2c) * 0x85; v = Math.trunc(scS16(st.u16(F)) / 24) + Math.trunc(scS16(st.u16(F + 2)) / 24) * 90; break; }
         case 2: v = r.year; break; case 3: v = r.month; break; case 4: v = r.day; break;
-        case 5: v = st.u8(0x0cae); break; case 6: v = this.duelHp(); break; case 7: v = r.time; break;
+        case 5: v = st.u8(DS.PORT); break; case 6: v = this.duelHp(); break; case 7: v = r.time; break;
       }
       this.setVar("var" in ins.dst ? ins.dst.var : ins.dst.ptr, v);
       return;
@@ -294,7 +296,7 @@ export class Scenario {
   // 31f0b 記錄位址
   recordAddr(kind, i, field) {
     let base = 0;
-    if (kind === 7) base = i < 10 ? 0x2e76 + this.st.u8(this.st.personRecord(this.st.hero) + 0x2c) * 0x85 + 0x2b + 9 * i : 0x572a + 9 * i;
+    if (kind === 7) base = i < 10 ? DS.TBL_FLEET + this.st.u8(this.st.personRecord(this.st.hero) + 0x2c) * 0x85 + 0x2b + 9 * i : 0x572a + 9 * i;
     else if (kind === 18) { this.colonyRead(i); base = SC_COLONY; }
     else if (kind < 20) { const [b, n] = SC_KINDS[kind]; base = b + n * i; }
     return (base + field) & 0xffff;
@@ -308,9 +310,9 @@ export class Scenario {
   }
   async op_addr({ var: v, kind, index, field }) { this.setVar(v, this.recordAddr(kind, index, field)); }
   async op_addr_var({ var: v, kind, index_var, field }) { this.setVar(v, this.recordAddr(kind, this.getVar(index_var) & 0xff, field)); }
-  get money() { return (this.st.u16(0x12ae) | (this.st.u16(0x12b0) << 16)) | 0; }
-  set money(v) { if (v > 600000000) v = 600000000; this.st.set16(0x12ae, v & 0xffff); this.st.set16(0x12b0, (v >>> 16) & 0xffff); }
-  panels() { if (this.st.u8(0x0cae) !== 0xff) this.scene?.panels(); }                                       // seg0:8894
+  get money() { return (this.st.u16(DS.MONEY) | (this.st.u16(0x12b0) << 16)) | 0; }
+  set money(v) { if (v > 600000000) v = 600000000; this.st.set16(DS.MONEY, v & 0xffff); this.st.set16(0x12b0, (v >>> 16) & 0xffff); }
+  panels() { if (this.st.u8(DS.PORT) !== 0xff) this.scene?.panels(); }                                       // seg0:8894
   async op_money_set({ var: v }) { this.money = scS16(this.getVar(v)); this.panels(); }                              // 322ac
   async op_money_add({ var: v }) { this.money = (this.money + scS16(this.getVar(v))) | 0; this.panels(); }          // 322e8
   async op_money_sub({ var: v }) {                                                                                 // 3232a
@@ -326,9 +328,9 @@ export class Scenario {
   async op_seed_set({ var: v }) { this.seed = (scS16(this.getVar(v)) << 8) >>> 0; }                                 // 324a4
   async op_seed_get({ var: v }) { this.setVar(v, (this.seed >>> 8) & 0xffff); }                                   // 324c2
   // 艦隊
-  slot(i) { return 0x2e76 + this.st.u8(this.st.personRecord(this.st.hero) + 0x2c) * 0x85 + 0x2b + 9 * i; }        // seg0:5c58
-  crew(i) { return 0x52d4 + 0x1e * i; }                                                                            // seg0:5c38
-  ship(n) { return 0x5892 + 0x16 * n; }                                                                            // seg0:5c7a
+  slot(i) { return DS.TBL_FLEET + this.st.u8(this.st.personRecord(this.st.hero) + 0x2c) * 0x85 + 0x2b + 9 * i; }        // seg0:5c58
+  crew(i) { return DS.TBL_CREW_SLOT + 0x1e * i; }                                                                            // seg0:5c38
+  ship(n) { return DS.TBL_SHIP + 0x16 * n; }                                                                            // seg0:5c7a
   active(i) { return (this.st.u8(this.slot(i) + 8) & 0x30) === 0x10; }
   used(i) {                                                                                                         // seg0:5d36 船上已用的載貨量
     const st = this.st, M = this.crew(i);
@@ -378,7 +380,7 @@ export class Scenario {
   }
   // 3254c 獲得新船 (船型 type; 第二個參數未使用)
   async op_ship_new({ type }) {
-    const st = this.st, T = 0x5e28 + type * 0x0c, tmpl = this.ship(type + 0x28);
+    const st = this.st, T = DS.TBL_SHIP_TYPE + type * 0x0c, tmpl = this.ship(type + 0x28);
     let si = 0, M = 0, slot = 0;
     for (; slot < 10; slot++) { const f = st.u8(this.slot(slot) + 8) & 0x30; if (f !== 0x10 && f !== 0x20) break; }
     si = this.slot(slot);
@@ -390,12 +392,12 @@ export class Scenario {
     st.set8(si + 6, 0); st.set16(si, 0); st.set8(si + 7, n); st.set8(si + 8, 0x20);
     if (M) {
       for (let k = 0; k < 4; k++) st.set16(M + 2 * k, 0);
-      st.set8(M + 8, 0x19); st.set8(M + 9, 0x32); st.set8(M + 0x1b, st.u8(0x0cae) | 0x80); st.set16(M + 0x0a, 0);
+      st.set8(M + 8, 0x19); st.set8(M + 9, 0x32); st.set8(M + 0x1b, st.u8(DS.PORT) | 0x80); st.set16(M + 0x0a, 0);
       for (let k = 0; k < 5; k++) { st.set8(M + 0x16 + k, 0xff); st.set16(M + 0x0c + 2 * k, 0); }
     }
     st.set8(S + 0x11, st.u8(tmpl + 0x11)); st.set8(S + 0x0f, type); st.set8(S + 0x10, st.u8(tmpl + 0x10)); st.set16(S + 0x12, st.u16(tmpl + 0x12));
     st.set16(S + 0x14, st.u16(T + 6) - st.u8(S + 0x11) - st.u16(S + 0x12));
-    st.set8(0x6a80 + st.u8(0x0cae) * 0x25 + 0x23, 0);
+    st.set8(DS.TBL_PORT_ECONOMY + st.u8(DS.PORT) * 0x25 + 0x23, 0);
   }
   // 32694 新船命名 (名字 = 訊息 msg 展開); 船長 = 0fea:2f43 名單第一人
   async op_ship_name({ msg }) {
@@ -409,9 +411,9 @@ export class Scenario {
       st.set8(M + 0x1b, cap);
       st.set8(st.personRecord(cap) + 0x2e, cap === st.hero ? 1 : 2);
     }
-    st.set8(0x6a80 + st.u8(0x0cae) * 0x25 + 0x23, 0xff);
+    st.set8(DS.TBL_PORT_ECONOMY + st.u8(DS.PORT) * 0x25 + 0x23, 0xff);
     for (let i = 0; ; i++) { st.set8(S + i, this.str[i]); if (!this.str[i]) break; }
-    const F = 0x2e76 + st.u8(st.personRecord(st.hero) + 0x2c) * 0x85;                                       // [c2d4]
+    const F = DS.TBL_FLEET + st.u8(st.personRecord(st.hero) + 0x2c) * 0x85;                                       // [c2d4]
     if (this.scene?.ai) this.scene.ai.strength(F); else scTodo("劇本新船命名後的 0fea:83f9 (艦隊重算)");   // 0fea:83f9 = 18299
   }
   // 0fea:2f43 = 12de3: 主角沒有擔任任何船的船長時列入主角, 再列入職務 > 2 的船員 → [0538]; 名單為空時 [0538] 不變
@@ -419,18 +421,18 @@ export class Scenario {
     const st = this.st, L = [];
     let k = 0; for (; k < 10; k++) if (st.u8(this.crew(k) + 0x1b) === st.hero) break;
     if (k === 10) L.push(st.hero);
-    for (let i = 0; i < 0x1e; i++) { const n = st.u8(0x2e1b + i); if (n !== 0xff && st.u8(st.personRecord(n) + 0x2e) > 2) L.push(n); }
+    for (let i = 0; i < 0x1e; i++) { const n = st.u8(DS.PARTY_CREW + i); if (n !== 0xff && st.u8(st.personRecord(n) + 0x2e) > 2) L.push(n); }
     this.c.persons ??= [];
     for (let i = 0; i < L.length; i++) this.c.persons[i] = L[i];
     return this.c.persons[0] & 0xff;
   }
   async op_crew_join({ person }) {                                                                                  // 3273a
     const st = this.st;
-    for (let i = 0; i < 0x1e; i++) if (st.u8(0x2e1b + i) === 0xff) { st.set8(0x2e1b + i, person); break; }
+    for (let i = 0; i < 0x1e; i++) if (st.u8(DS.PARTY_CREW + i) === 0xff) { st.set8(DS.PARTY_CREW + i, person); break; }
     const P = st.personRecord(person), H = st.personRecord(st.hero);
     st.set8(P + 0x2e, 6); st.set8(P + 0x2c, st.u8(H + 0x2c)); st.set8(P + 0x2d, st.u8(H + 0x2d));
   }
-  async op_barmaid_love({ girl, amount }) { const g = 0x2bde + 0x13 * girl; this.st.set8(g + 0x0f, scUmin(this.st.u8(g + 0x0f) + amount, 100)); }   // 32790
+  async op_barmaid_love({ girl, amount }) { const g = DS.TBL_BARMAID + 0x13 * girl; this.st.set8(g + 0x0f, scUmin(this.st.u8(g + 0x0f) + amount, 100)); }   // 32790
   // 320ba D1 v: 變數的低位元組 = 艦隊編號 → 33aaf 依任務恢復目的地 (game/fleetai.js resume)
   async op_d1({ var: v }) { const k = this.getVar(v) & 0xff; if (this.scene?.ai) this.scene.ai.resume(faFleet(k)); else scTodo("劇本命令 D1 (艦隊移動 33aaf)"); }
   // 32377 E8 一騎打: 31dbb → 0fea:2ca9(1, 主角, 對手) → 外框 / 8894 / 8ebc([b876]) / 99e8 (scenes/duel.js)
