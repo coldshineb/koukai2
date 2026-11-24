@@ -138,32 +138,21 @@ html, body {
 
 #uw2-stage {
   position: relative;
-  aspect-ratio: 4 / 3;
-  max-height: calc(100dvh - 56px);
-  height: min(calc(100dvh - 56px), calc((100vw - 24px) * 3 / 4));
+  aspect-ratio: 16 / 9;
+  max-height: calc(100dvh - 52px);
+  height: min(calc(100dvh - 52px), calc((100vw - 24px) * 9 / 16));
   width: auto;
   max-width: calc(100vw - 24px);
   border: 2px solid var(--uw2-gold-dim);
   border-radius: 6px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.65), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
   overflow: hidden;
-  background: #000;
+  background: #070f1c;
   flex: 0 1 auto;
 }
 
 #uw2-sidepanel {
-  width: 248px;
-  flex: 0 0 248px;
-  max-height: calc(100dvh - 56px);
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px;
-  border-radius: 8px;
-  background: rgba(11, 22, 38, 0.92);
-  border: 1px solid var(--uw2-gold-dim);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  display: none !important;
 }
 
 #uw2-sidepanel[hidden] {

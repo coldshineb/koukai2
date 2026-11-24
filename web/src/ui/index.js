@@ -14,6 +14,7 @@ export async function createUI(ctx) {
   const sys = ctx.sys;
   const con = new TextConsole(ctx.scr, ctx.font, { beep: () => {}, wait: n => sys.waitSpeed(n) });
   const win = new WindowSystem(ctx.scr, con, gfx, { wait: n => sys.waitTicks(n), options: ctx.options, sys });
+  ctx.scr.winStackRef = win.stack;
   const graph = await new Graph(ctx.scr, ctx.art).load(ctx.ASSETS);
   const kao = new Kao(ctx.art);
   const menu = new MenuSystem({ sys, scr: ctx.scr, con, win, gfx, graph });

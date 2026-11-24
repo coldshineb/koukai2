@@ -16,6 +16,7 @@ import { Scenario, ENV_COMMON, ENV_HERO } from "../game/scenario.js";
 import { loadDuelAssets } from "./duel.js";
 import { PortMove } from "./portmove.js";
 import { GameConst, OptionFlag, TreatyFlag } from "../model/flags.ts";
+import { renderWidePort, hitWideCommandButton } from "../canvas_ui/wide_world.ts";
 
 const pHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const P_MAP_W = 96, P_VIEW = 24, P_VIEW_X = 96, P_VIEW_Y = 8;
@@ -117,6 +118,7 @@ export class PortScene {
     this.redraw();                                                    // 0fea:b303 = 1b1a3
     this.panels();                                                    // 8894
     this.c.scr.setAtmosphere?.({ active: true, atSea: false });
+    this.c.scr.wideRenderer = (ctx, scr) => renderWidePort(ctx, scr, this);
     this.needle = 0xff;
     this.portBgm();                                                   // 0fea:b516 = 1b3b6
     sys.mouseShow();
@@ -196,6 +198,7 @@ export class PortScene {
   }
   // 60e0 主角 (每次呼叫切換走路相位)
   drawHero(x, y, dir) {
+    this._lastDir = dir;
     this.phase ^= 0x280;
     this.drawFigure(x, y, dir * 0x500 + this.phase);
     this.invalidate(y * P_VIEW + x);
@@ -205,6 +208,7 @@ export class PortScene {
     this.clearCache();
     this.drawMap();
     this.drawHero(this.hx, this.hy, 2);
+    if (this.port !== 0xff) this.c.scr.wideRenderer = (ctx, scr) => renderWidePort(ctx, scr, this);
   }
   // 9453 羅盤指針 (compass.png)
   needleDraw(base) {
@@ -265,6 +269,7 @@ export class PortScene {
   async interior(k) {
     const { palette, sys, graph, scr } = this.c;
     scr.setAtmosphere?.({ active: false });
+    scr.wideRenderer = null;
     await palette.fadeBlack();
     sys.mouseHide();
     this.wallpaper(1);
@@ -531,6 +536,14 @@ export class PortScene {
   }
   // 1b8c8 畫面按鈕: 0..3 / 4..7 = 方向 1..4; 8..11 = 指令按鈕 (scenes/commands.js), 回傳 FF
   async buttons(key) {
+    const m = this.c.sys.mouse;
+    if (this.c.scr.wideRenderer && key && m?.vx !== undefined) {
+      const cmd = hitWideCommandButton(m.vx, m.vy);
+      if (cmd >= 0) {
+        await (this.commands ??= new Commands(this)).button(cmd);
+        return 0xff;
+      }
+    }
     const { x, y } = this.c.sys.mousePos(), B = this.P.data.buttons;
     for (let i = 0; i < 12; i++) {
       const [x0, y0, x1, y1, k] = B[i];

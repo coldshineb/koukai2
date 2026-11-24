@@ -20,6 +20,7 @@ import { FleetAI } from "../game/fleetai.js";
 import { Land } from "./land.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
+import { renderWideSea, hitWideCommandButton } from "../canvas_ui/wide_world.ts";
 
 const seaHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const seaS16 = v => (v << 16) >> 16;
@@ -120,6 +121,7 @@ export class SeaScene extends PortScene {
     this.seaView();                                                    // 6b30
     palette.selectTimePalette(this.time, true, st.u8(DS.WEATHER));         // 0fea:98ce = 1976e
     this.c.scr.setAtmosphere?.({ active: true, atSea: true, weather: st.u8(DS.WEATHER) & 15 });
+    this.c.scr.wideRenderer = (ctx, scr) => renderWideSea(ctx, scr, this);
     this.seaPanel();                                                   // 8067
     this.needle = 0xff;
     if ((st.u8(DS.WEATHER) & 15) === 1) this.stormSound();                // 9768(DS:0c5a) + 9804(0x30)
@@ -333,6 +335,22 @@ export class SeaScene extends PortScene {
   // 21008 海上畫面按鈕 (DS:a9d8, 13 個 × 9 bytes: x, y, w, h, 鍵): 0..7 舵輪方向, 8 中央 (指定目的地), 9..12 情報/經營/命令/航海術
   async seaButton(key) {
     const { sys, con } = this.c, st = this.st, B = this.SJ.tab.buttons;
+    const m = sys.mouse;
+    if (this.c.scr.wideRenderer && (this.a9c8 & 3) && m?.vx !== undefined) {
+      const cmd = hitWideCommandButton(m.vx, m.vy);
+      if (cmd >= 0) {
+        sys.mouseHide();
+        const cm = this.commandsObj();
+        await [() => cm.info(), () => cm.manage(), () => cm.order(), () => cm.nav()][cmd]();
+        sys.mouseShow();
+        if (this.timeAbort()) return;
+        con.left = 0; con.right = 0x50;
+        if (!this.c.palette.ending) this.seaPanel();
+        if (this.a9c8 & 1) await this.c.menu.waitRelease();
+        this.a9c8 &= 0xfc;
+        return;
+      }
+    }
     const p = sys.mousePos(); this.btnX = p.x; this.btnY = p.y;
     let di = 0;
     for (; di < 13; di++) {
@@ -1512,6 +1530,7 @@ export class SeaScene extends PortScene {
   async worldView() {
     const st = this.st, { palette, graph, scr } = this.c, F = this.fleet;
     scr.setAtmosphere?.({ active: false });
+    scr.wideRenderer = null;
     await palette.fadeBlack();                                         // 99f2
     graph.draw(0x19, 0, 0);
     for (let r = 0; r < 0x2d; r++) {

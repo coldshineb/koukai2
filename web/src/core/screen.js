@@ -6,6 +6,10 @@ export const SCREEN_H = 400;
 export const CANVAS_H = 480;
 export const Y_OFFSET = 40;
 export const HD_SCALE = 2;
+export const VIEW_W = 1280;
+export const VIEW_H = 720;
+export const LEGACY_SCALE = 1.8;   // 640×1.8 = 1152, 400×1.8 = 720 (剛好填滿 720 高，無上下黑邊)
+export const LEGACY_OFF_X = 64;    // (1280 - 1152) / 2 = 64
 
 export function dac8(v4) { const v6 = v4 * 4; return (v6 << 2) | (v6 >> 4); }
 
@@ -34,12 +38,14 @@ export class Screen {
     this.fbImg = null;
     this.fbOut = null;
     this.atmosphere = { active: false, mode: "day", weather: 0, atSea: false };
+    this.wideRenderer = null;          // 16:9 (1280x720) 寬螢幕全屏渲染器 (港口/海面)
+    this.winStackRef = null;           // 連結 WindowSystem.stack，在寬螢幕地圖上僅疊加開啟中的視窗
     if (canvas) {
       this.canvas = canvas;
-      canvas.width = SCREEN_W * HD_SCALE;
-      canvas.height = CANVAS_H * HD_SCALE;
+      canvas.width = VIEW_W;
+      canvas.height = VIEW_H;
       this.ctx = canvas.getContext("2d", { alpha: false });
-      this.ctx.imageSmoothingEnabled = false;
+      this.ctx.imageSmoothingEnabled = true;
 
       // HD RGBA 美術層 (1280x800, 對應邏輯 640x400 遊戲區)
       this.hdCanvas = document.createElement("canvas");
@@ -525,7 +531,7 @@ export class Screen {
   present() {
     if (!this.ctx) return;
     const cur = this.cursor, key = cur && cur.visible ? `${cur.x},${cur.y},${cur.shape}` : "";
-    const liveFx = this.atmosphere.active && ((this.atmosphere.atSea && (this.atmosphere.weather & 15) === 1) || this.atmosphere.mode === "night");
+    const liveFx = !!this.wideRenderer || (this.atmosphere.active && ((this.atmosphere.atSea && (this.atmosphere.weather & 15) === 1) || this.atmosphere.mode === "night"));
     if (!this.dirty && !liveFx && key === this.lastCursor) return;
     this.lastCursor = key;
     const fb = this.fb, hm = this.hdMask, out = this.out, lut = this.lut, base = Y_OFFSET * SCREEN_W;
@@ -534,32 +540,67 @@ export class Screen {
       for (let i = 0; i < f.length; i++) out[i] = lut[f[i] & 15];
       if (key) this.drawCursor(cur);
       this.fbCtx.putImageData(this.img, 0, 0);
+      this.ctx.fillStyle = "#070f1c";
+      this.ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      const scale = VIEW_H / CANVAS_H;
+      const dw = Math.round(SCREEN_W * scale), dx = Math.round((VIEW_W - dw) / 2);
       this.ctx.imageSmoothingEnabled = false;
-      this.ctx.drawImage(this.fbCanvas, 0, 0, SCREEN_W * HD_SCALE, CANVAS_H * HD_SCALE);
+      this.ctx.drawImage(this.fbCanvas, 0, 0, SCREEN_W, CANVAS_H, dx, 0, dw, VIEW_H);
       this.dirty = false;
       return;
     }
-    // 1. 主畫布先清黑邊並貼上 2x HD RGBA 美術層
-    this.ctx.fillStyle = "#000";
-    this.ctx.fillRect(0, 0, SCREEN_W * HD_SCALE, CANVAS_H * HD_SCALE);
-    this.ctx.imageSmoothingEnabled = false;
-    this.ctx.drawImage(this.hdCanvas, 0, Y_OFFSET * HD_SCALE);
-    // 2. 疊加即時晝夜光影 / 暴風雨 60fps 粒子 (僅限地圖視口內)
-    this.drawAtmosphere(this.ctx);
-    // 若調色盤正處於淡出/全黑過場，對 HD 美術層套用一致的亮度衰減
-    let maxPal = 0;
-    for (let i = 0; i < 48; i++) if (this.raw[i] > maxPal) maxPal = this.raw[i];
-    if (maxPal < 15) {
-      this.ctx.fillStyle = `rgba(0,0,0,${(1 - maxPal / 15).toFixed(3)})`;
-      this.ctx.fillRect(0, Y_OFFSET * HD_SCALE, SCREEN_W * HD_SCALE, SCREEN_H * HD_SCALE);
-    }
-    // 3. 將索引層 (hdMask===0 的像素) 疊加於 HD 層之上
+
+    // 準備索引層 (hdMask===0 的像素)
     out.fill(0, 0, base);
     out.fill(0, base + fb.length);
     for (let i = 0; i < fb.length; i++) out[base + i] = hm[i] ? 0 : lut[fb[i] & 15];
     if (key) this.drawCursor(cur);
     this.fbCtx.putImageData(this.img, 0, 0);
-    this.ctx.drawImage(this.fbCanvas, 0, 0, SCREEN_W * HD_SCALE, CANVAS_H * HD_SCALE);
+
+    // 計算目前淡出遮罩強度
+    let maxPal = 0;
+    for (let i = 0; i < 48; i++) if (this.raw[i] > maxPal) maxPal = this.raw[i];
+
+    if (this.wideRenderer) {
+      // 模式 A: 16:9 (1280x720) 全屏現代遊戲佈局 (港口 / 海面 + 懸浮 Canvas HUD)
+      this.wideRenderer(this.ctx, this);
+      // 若有開啟中的視窗/選單 (winStackRef)，只將開啟視窗區域清晰疊加於全屏地圖上
+      const stack = this.winStackRef;
+      if (stack && stack.length > 0) {
+        this.ctx.fillStyle = "rgba(6, 12, 24, 0.24)";
+        this.ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+        for (const w of stack) {
+          const sx = Math.max(0, w.x * 8), sy = Math.max(0, w.y);
+          const sw = Math.min(SCREEN_W - sx, w.w * 8 + 8), sh = Math.min(SCREEN_H - sy, w.h + 4);
+          if (sw <= 0 || sh <= 0) continue;
+          const dx = LEGACY_OFF_X + sx * LEGACY_SCALE, dy = sy * LEGACY_SCALE;
+          const dw = sw * LEGACY_SCALE, dh = sh * LEGACY_SCALE;
+          this.ctx.imageSmoothingEnabled = true;
+          this.ctx.drawImage(this.hdCanvas, sx * HD_SCALE, sy * HD_SCALE, sw * HD_SCALE, sh * HD_SCALE, dx, dy, dw, dh);
+          this.ctx.imageSmoothingEnabled = false;
+          this.ctx.drawImage(this.fbCanvas, sx, sy + Y_OFFSET, sw, sh, dx, dy, dw, dh);
+        }
+      }
+      if (maxPal < 15) {
+        this.ctx.fillStyle = `rgba(0,0,0,${(1 - maxPal / 15).toFixed(3)})`;
+        this.ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      }
+      this.dirty = false;
+      return;
+    }
+
+    // 模式 B: 非全屏過渡場景 (標題 / 建築內景 / 海戰 / 一騎打) 居中無黑邊高畫質顯示 (1152x720)
+    this.ctx.fillStyle = "#081222";
+    this.ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    const dw = Math.round(SCREEN_W * LEGACY_SCALE);
+    this.ctx.imageSmoothingEnabled = true;
+    this.ctx.drawImage(this.hdCanvas, 0, 0, SCREEN_W * HD_SCALE, SCREEN_H * HD_SCALE, LEGACY_OFF_X, 0, dw, VIEW_H);
+    if (maxPal < 15) {
+      this.ctx.fillStyle = `rgba(0,0,0,${(1 - maxPal / 15).toFixed(3)})`;
+      this.ctx.fillRect(LEGACY_OFF_X, 0, dw, VIEW_H);
+    }
+    this.ctx.imageSmoothingEnabled = false;
+    this.ctx.drawImage(this.fbCanvas, 0, Y_OFFSET, SCREEN_W, SCREEN_H, LEGACY_OFF_X, 0, dw, VIEW_H);
     this.dirty = false;
   }
   // 原版軟體游標 (seg0:31fd): 24 行 x 24 像素; 每個平面 先 AND 遮罩 (gfx+off+0x48) 再 OR 圖像 (gfx+off) 於顏色 [2f14]=15 的平面

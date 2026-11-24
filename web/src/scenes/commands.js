@@ -155,6 +155,7 @@ export class Commands {
     const F = DS.TBL_FLEET + f * 0x85, hero = st.u8(st.personRecord(st.hero) + 0x2c) === f;
     await palette.fadeBlack();
     scr.setAtmosphere?.({ active: false });
+    scr.wideRenderer = null;
     palette.setTarget(palette.table("ships"));
     for (let c = 0; c < 0x28; c++) for (let r = 0; r < 0x14; r++) scr.putPlanar(c * 2, r << 4, 2, 0x10, gfx, 0x2ba0);
     let cnt = 0;
@@ -222,7 +223,8 @@ export class Commands {
   }
   // ---- 1 艦船情報 1d688: 艦船調色盤 (DS:a730), 8dfd(1) 底紋, 淡入; 反覆選船 → 1c1a3(船位, 0x0f) ----
   async shipInfos() {
-    const { palette } = this.c;
+    const { palette, scr } = this.c;
+    scr.wideRenderer = null;
     palette.setTarget(palette.table("ships"));
     this.p.wallpaper(1);
     await palette.fadeToTarget();

@@ -31,6 +31,8 @@ export class Title {
   }
   // 171a2(1); restart = 171a2(0) (1757d: 功能「結束遊戲」後回到標題: 不做 1752c, 以 DATA1 #15 重新載入初始狀態代替 162fd)
   async run(restart = false) {
+    this.c.scr.wideRenderer = null;
+    this.c.scr.setAtmosphere?.({ active: false });
     if (!restart) await this.init();
     await this.c.palette.fadeToTarget();
     this.c.bgm.playSong(SONG_TITLE);
