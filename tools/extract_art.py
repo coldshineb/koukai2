@@ -364,6 +364,86 @@ def extract_sheets(pals, manifest):
     print("[gamble.bin] cards & dice sheets extracted")
 
 
+def extract_ending_and_opening(pals, manifest):
+    """批次 C: 結局 (ENDGRP.DAT 60 張) 與片頭 (opgraph/00..13.dat 107 張)"""
+    # 1) ENDGRP.DAT (#0..58 16色 + #0x3a 固定偏移 0x61232 8色)
+    js_end = r"""
+const fs = require('fs');
+require('./tools/work/ui_bundle.js');
+const U = globalThis.UI;
+const dat = new Uint8Array(fs.readFileSync('web/assets/gfx/ENDGRP.DAT'));
+const g = new U.GraphDat(dat);
+const items = [];
+for (let i = 0; i < g.offsets.length; i++) items.push({ off: g.offsets[i], hasTable: true });
+items.push({ off: 0x61232, hasTable: false });
+const chunks = [Buffer.from([items.length])];
+for (const it of items) {
+  const sz = U.graphSize(dat, it.off);
+  const fb = new Uint8Array(640 * 400);
+  U.decodeGraph(fb, dat, 0, 0, it.hasTable, it.off);
+  const out = new Uint8Array(sz.w * sz.h);
+  for (let y = 0; y < sz.h; y++) out.set(fb.subarray(y * 640, y * 640 + sz.w), y * sz.w);
+  const hdr = Buffer.alloc(4); hdr.writeUInt16LE(sz.w, 0); hdr.writeUInt16LE(sz.h, 2);
+  chunks.push(hdr, Buffer.from(out));
+}
+process.stdout.write(Buffer.concat(chunks));
+"""
+    raw = run_node_dump(js_end)
+    count = raw[0]
+    pos = 1
+    pal = pals["day"]
+    for i in range(count):
+        w = int.from_bytes(raw[pos : pos + 2], "little")
+        h = int.from_bytes(raw[pos + 2 : pos + 4], "little")
+        pos += 4
+        px = raw[pos : pos + w * h]
+        pos += w * h
+        rel = f"ending/end_{i:02d}.png"
+        save_indexed_png(os.path.join(ART, rel), w, h, px, pal)
+        manifest["ending"].append({"path": rel, "w": w, "h": h})
+    print(f"[ENDGRP.DAT] {count} ending graphics extracted")
+
+    # 2) opgraph/00.dat..13.dat
+    total_op = 0
+    for pack in range(14):
+        tag = f"op{pack:02d}"
+        rel_dat = f"web/assets/gfx/opgraph/{pack:02d}.dat"
+        js_op = f"""
+const fs = require('fs');
+require('./tools/work/ui_bundle.js');
+const U = globalThis.UI;
+const dat = new Uint8Array(fs.readFileSync('{rel_dat}'));
+const g = new U.GraphDat(dat);
+const chunks = [Buffer.from([g.offsets.length])];
+for (let i = 0; i < g.offsets.length; i++) {{
+  const off = g.offsets[i];
+  const sz = U.graphSize(dat, off);
+  const fb = new Uint8Array(640 * 400);
+  U.decodeGraph(fb, dat, 0, 0, true, off);
+  const out = new Uint8Array(sz.w * sz.h);
+  for (let y = 0; y < sz.h; y++) out.set(fb.subarray(y * 640, y * 640 + sz.w), y * sz.w);
+  const hdr = Buffer.alloc(4); hdr.writeUInt16LE(sz.w, 0); hdr.writeUInt16LE(sz.h, 2);
+  chunks.push(hdr, Buffer.from(out));
+}}
+process.stdout.write(Buffer.concat(chunks));
+"""
+        raw_op = run_node_dump(js_op)
+        cnt = raw_op[0]
+        p = 1
+        manifest["opening"][tag] = []
+        for idx in range(cnt):
+            w = int.from_bytes(raw_op[p : p + 2], "little")
+            h = int.from_bytes(raw_op[p + 2 : p + 4], "little")
+            p += 4
+            px = raw_op[p : p + w * h]
+            p += w * h
+            rel = f"opening/{tag}_{idx:02d}.png"
+            save_indexed_png(os.path.join(ART, rel), w, h, px, pal)
+            manifest["opening"][tag].append({"path": rel, "w": w, "h": h})
+            total_op += 1
+    print(f"[opgraph/*.dat] {total_op} opening graphics extracted")
+
+
 def main():
     pals = load_palettes()
     manifest = {
@@ -376,12 +456,15 @@ def main():
         "events": {},
         "backgrounds": {},
         "sheets": {},
+        "ending": [],
+        "opening": {},
     }
     extract_kao(pals, manifest)
     extract_graph_art(pals, manifest)
     extract_events(pals, manifest)
     extract_figureheads(pals, manifest)
     extract_sheets(pals, manifest)
+    extract_ending_and_opening(pals, manifest)
     os.makedirs(ART, exist_ok=True)
     mpath = os.path.join(ART, "manifest.json")
     with open(mpath, "w", encoding="utf-8") as f:

@@ -26,6 +26,8 @@ export interface ArtManifest {
   events: Record<string, ArtEntry[]>;
   backgrounds: Record<string, ArtEntry>;
   sheets?: Record<string, ArtSheetEntry>;
+  ending?: ArtEntry[];
+  opening?: Record<string, ArtEntry[]>;
 }
 
 export class ArtRegistry {
@@ -84,5 +86,14 @@ export class ArtRegistry {
 
   sheetUrl(name: string): string | null {
     return this.resolve(this.sheet(name));
+  }
+
+  endingUrl(index: number): string | null {
+    return this.resolve(this.manifest?.ending?.[index]);
+  }
+
+  openingUrl(pack: number, index: number): string | null {
+    const key = `op${String(pack).padStart(2, "0")}`;
+    return this.resolve(this.manifest?.opening?.[key]?.[index]);
   }
 }
