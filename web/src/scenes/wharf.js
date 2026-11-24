@@ -5,6 +5,7 @@ import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
 import { domS16, domUmin16 } from "../domain/economy.ts";
 import { runWideTableSelect } from "../canvas_ui/wide_table.ts";
+import { decodeCleanCstr } from "../canvas_ui/text_util.ts";
 
 class WharfMixin {
   async wharf() {
@@ -255,7 +256,7 @@ class WharfMixin {
     let noDriver = 0, crewT = 0, waterT = 0, foodT = 0;
     let wideDepartDraw = null;
     if (scr.wideRenderer && codec) {
-      const dec = bts => { let e = bts.indexOf(0); if (e < 0) e = bts.length; return codec.decode(bts.subarray(0, e)).replace(/\{[0-9A-F]{2}\}/g, "").trim(); };
+      const dec = bts => decodeCleanCstr(codec, bts);
       const hdr = dec(this.WF.departHdr);
       const rows = [];
       for (let i = 0; i < n; i++) {
@@ -350,7 +351,7 @@ class WharfMixin {
     const n = this.fleetShips();
     if (!n) return 0;
     if (scr.wideRenderer && codec) {
-      const dec = bts => { let e = bts.indexOf(0); if (e < 0) e = bts.length; return codec.decode(bts.subarray(0, e)).replace(/\{[0-9A-F]{2}\}/g, "").trim(); };
+      const dec = bts => decodeCleanCstr(codec, bts);
       const hdr = dec(this.WF.supplyHdr);
       let mode = 0;
       for (;;) {

@@ -2,6 +2,7 @@
 // 嚴格遵守: 零 DOM 遊戲介面、100% 原版文本 (所有標籤/名稱/日期均直接取自原版資料表)。
 import { DS, OFF } from "../model/schema_views.ts";
 import { VIEW_W, VIEW_H } from "../core/screen.js";
+import { decodeCleanCstr } from "./text_util.ts";
 
 const TILE = 32; // 40×23 格 = 1280×736，無黑邊鋪滿整個 16:9 畫面
 const COLS = Math.ceil(VIEW_W / TILE) + 1;
@@ -35,10 +36,7 @@ export function hitWideCommandButton(vx: number, vy: number): number {
 }
 
 function decodeCstr(codec: any, bytes: Uint8Array): string {
-  if (!codec || !bytes) return "";
-  let end = bytes.indexOf(0);
-  if (end < 0) end = bytes.length;
-  return codec.decode(bytes.subarray(0, end)).replace(/\{[0-9A-F]{2}\}/g, "").trim();
+  return decodeCleanCstr(codec, bytes);
 }
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {

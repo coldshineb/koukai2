@@ -4,6 +4,7 @@
 import { VIEW_W, VIEW_H } from "../core/screen.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
+import { decodeCleanCstr } from "./text_util.ts";
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath();
@@ -361,11 +362,7 @@ export async function runWideLogBook(
 // ---------------- 4. 世界航海圖 (16:9 現代浮窗，載入 GRAPH.DAT #0x19 真實大陸底圖 + 迷霧 + 已知港口) ----------------
 export async function runWideWorldChart(ctx: any, scene: any, title: string) {
   const { scr, sys, menu, state: st, codec, art } = ctx;
-  const dec = (bts: Uint8Array) => {
-    let e = bts.indexOf(0);
-    if (e < 0) e = bts.length;
-    return codec ? codec.decode(bts.subarray(0, e)).replace(/\{[0-9A-F]{2}\}/g, "").trim() : "";
-  };
+  const dec = (bts: Uint8Array) => decodeCleanCstr(codec, bts);
 
   const mapEntry = art?.graphEntry?.("GRAPH.DAT", 0x19);
   const mapUrl = mapEntry ? `${art.baseUrl}/${mapEntry.path}` : null;

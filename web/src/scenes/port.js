@@ -18,6 +18,7 @@ import { PortMove } from "./portmove.js";
 import { GameConst, OptionFlag, TreatyFlag } from "../model/flags.ts";
 import { renderWidePort, hitWideCommandButton } from "../canvas_ui/wide_world.ts";
 import { renderWideBuilding } from "../canvas_ui/wide_building.ts";
+import { captureConsoleText } from "../canvas_ui/text_util.ts";
 
 const pHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const P_MAP_W = 96, P_VIEW = 24, P_VIEW_X = 96, P_VIEW_Y = 8;
@@ -520,10 +521,7 @@ export class PortScene {
   async closed() {
     const { sys, win, menu, message, scr, con, codec } = this.c;
     if (scr.wideRenderer && codec) {
-      const saved = con.putc, raw = []; let esc = 0;
-      con.putc = ch => { ch &= 0xff; if (esc) { esc = (esc === 1 && ch === 0x3d) ? 2 : (esc === 2 ? 3 : 0); return; } if (ch === 0x1b) { esc = 1; return; } if (ch >= 0x20 || ch === 0x0a) raw.push(ch); };
-      try { message(0x2fd); } finally { con.putc = saved; }
-      scr.wideDialog = { text: codec.decode(Uint8Array.from(raw)).replace(/\{[0-9A-F]{2}\}/g, "").trim(), portraitId: null, waiting: false };
+      scr.wideDialog = { text: captureConsoleText(this.c, () => message(0x2fd)), portraitId: null, waiting: false };
       scr.dirty = true;
       await menu.waitPrompt();
       scr.wideDialog = null;

@@ -2,6 +2,7 @@
 import type { IGameUI, IScenarioHost, ScenarioWindowDef } from "./protocol.ts";
 import { DS } from "../model/schema_views.ts";
 import { GameConst } from "../model/flags.ts";
+import { stripEscBytes } from "../canvas_ui/text_util.ts";
 
 /** 橋接現有 ctx (Screen / WindowSystem / MenuSystem / NumPad / ListSelect) */
 export class LegacyGameUI implements IGameUI {
@@ -113,9 +114,7 @@ export class LegacyScenarioHost implements IScenarioHost {
   }
   showText(bytes: Uint8Array): void {
     if (this.c.scr.wideRenderer && this.c.codec) {
-      let end = bytes.indexOf(0);
-      if (end < 0) end = bytes.length;
-      const chunk = this.c.codec.decode(bytes.subarray(0, end)).replace(/\{[0-9A-F]{2}\}/g, "");
+      const chunk = this.c.codec.decode(stripEscBytes(bytes)).replace(/\{[0-9A-F]{2}\}/g, "");
       const cur = this.c.scr.wideDialog ?? { text: "", portraitId: null, waiting: false };
       cur.text = (cur.text + chunk).trim();
       this.c.scr.wideDialog = cur;

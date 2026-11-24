@@ -7,6 +7,7 @@ import { NameInput } from "../ui/nameinput.js";
 import { DS } from "../model/schema_views.ts";
 import { DiscoveryFlag, FleetFlag, WorkDS } from "../model/flags.ts";
 import { renderWideNewGame, hitWideHeroCard } from "../canvas_ui/wide_newgame.ts";
+import { captureConsoleText, decodeCleanCstr } from "../canvas_ui/text_util.ts";
 
 const ngHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const ngDiv8 = v => (v < 0 ? -((-v) >> 3) : v >> 3);
@@ -38,22 +39,13 @@ export class NewGame {
     for (let i = 5; i >= 0; i--) { const [x, y] = this.d.portraits[i]; this.c.kao.drawNamed(this.c.scr, i, ngDiv8(x), y); }
   }
   captureMessage(n, ...args) {
-    const { con, message, codec } = this.c;
-    const saved = con.putc, raw = []; let esc = 0;
-    con.putc = ch => {
-      ch &= 0xff;
-      if (esc) { esc = (esc === 1 && ch === 0x3d) ? 2 : (esc === 2 ? 3 : 0); return; }
-      if (ch === 0x1b) { esc = 1; return; }
-      if (ch >= 0x20 || ch === 0x0a) raw.push(ch);
-    };
-    try { message(n, ...args); } finally { con.putc = saved; }
-    return codec ? codec.decode(Uint8Array.from(raw)).replace(/\{[0-9A-F]{2}\}/g, "").trim() : "";
+    return captureConsoleText(this.c, () => this.c.message(n, ...args));
   }
   // 16564 主角選擇; 回傳主角編號, 取消回傳 -1
   async select(di) {
     const { palette, graph, menu, win, scr, art, codec, sys } = this.c;
     if (scr.hdCtx && art && codec) {
-      const dec = b => codec.decode(b).replace(/\0.*$/, "").trim();
+      const dec = b => decodeCleanCstr(codec, b);
       const buildHero = i => {
         this.m.globals.hero = i;
         const p = this.m.heroPerson();

@@ -7,6 +7,7 @@ import { Commands } from "../scenes/commands.js";
 import { loadPortAssets } from "../scenes/port.js";
 import { GameConst, MenuId, OptionFlag } from "../model/flags.ts";
 import { renderWideTitle } from "../canvas_ui/wide_title.ts";
+import { captureConsoleText, decodeCleanCstr } from "../canvas_ui/text_util.ts";
 
 const ESC = 0x1b;
 const STR_STAR = Uint8Array.of(ESC, 0x43, 0x32, 0x2a, ESC, 0x43, 0x30, 0);   // DS:a37a  ESC C2 * ESC C0
@@ -96,16 +97,8 @@ export class Title {
   async quit(items) {
     const { win, con, menu, scr, codec } = this.c;
     if (scr.wideRenderer && codec) {
-      const saved = con.putc, raw = []; let esc = 0;
-      con.putc = ch => {
-        ch &= 0xff;
-        if (esc) { esc = (esc === 1 && ch === 0x3d) ? 2 : (esc === 2 ? 3 : 0); return; }
-        if (ch === 0x1b) { esc = 1; return; }
-        if (ch >= 0x20 || ch === 0x0a) raw.push(ch);
-      };
-      try { this.c.message(0x3be); } finally { con.putc = saved; }
-      const titleTxt = codec.decode(items[3]).replace(/\0.*$/, "").trim();
-      const bodyTxt = codec.decode(Uint8Array.from(raw)).replace(/\{[0-9A-F]{2}\}/g, "").trim();
+      const titleTxt = decodeCleanCstr(codec, items[3]);
+      const bodyTxt = captureConsoleText(this.c, () => this.c.message(0x3be));
       scr.wideDialog = { text: `${titleTxt}\n${bodyTxt}`, portraitId: null, waiting: false };
       scr.dirty = true;
       const yes = await menu.yesNo();

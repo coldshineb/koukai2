@@ -7,6 +7,7 @@
 // 沿用選單引擎的狀態: cur=a160 prev=a15a count=a158 mouseFlag=a14e hit=a150 bracket=a162 rects=bdcc
 
 import { createWideListState, drawWideList, hitWideListRow, hitWideListBox } from "../canvas_ui/wide_list.ts";
+import { captureConsoleText, decodeCleanCstr } from "../canvas_ui/text_util.ts";
 
 const lsUmin = (a, b) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);   // seg0:4d7c (無號)
 const lsDiv = (a, b) => Math.trunc(a / b);                                          // idiv
@@ -57,26 +58,14 @@ export class ListSelect {
     return r;
   }
   captureRowText(val) {
-    const con = this.c.con;
-    const savedPutc = con.putc;
-    const raw = [];
-    let esc = 0;
-    con.putc = ch => {
-      ch &= 0xff;
-      if (esc) { esc = (esc === 1 && ch === 0x3d) ? 2 : (esc === 2 ? 3 : 0); return; }
-      if (ch === 0x1b) { esc = 1; return; }
-      if (ch >= 0x20 || ch === 0x0a) raw.push(ch);
-    };
-    try { this.format(val); } finally { con.putc = savedPutc; }
-    return this.c.codec.decode(Uint8Array.from(raw)).replace(/\{[0-9A-F]{2}\}/g, "").trim();
+    return captureConsoleText(this.c, () => this.format(val));
   }
   async wideSelect(al, count) {
     const { sys, scr, codec } = this.c, m = this.m;
     this.total = count;
     this.k = al & 0x3f;
     const titleBytes = (this.titles ??= this.c.menuItems(0x2f))[this.k] ?? Uint8Array.of(0);
-    let end = titleBytes.indexOf(0); if (end < 0) end = titleBytes.length;
-    const title = codec.decode(titleBytes.subarray(0, end)).replace(/\{[0-9A-F]{2}\}/g, "").trim();
+    const title = decodeCleanCstr(codec, titleBytes);
     const rows = [];
     for (let i = 0; i < count; i++) rows.push(this.captureRowText(this.c.persons[i]));
 

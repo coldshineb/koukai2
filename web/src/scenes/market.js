@@ -3,6 +3,7 @@ import { DS } from "../model/schema_views.ts";
 import { GameConst, MenuId, SkillFlag } from "../model/flags.ts";
 import { domS16, domUmin16, domUmax16, goodsCategory, hasTradeLicense, calcBuyPrice, calcSellPrice, calcHaggleBounds, calcBuyPriceShift, calcSellPriceShift, clampPriceIndexUp, clampPriceIndexDown } from "../domain/economy.ts";
 import { runWideTableSelect } from "../canvas_ui/wide_table.ts";
+import { decodeCleanCstr } from "../canvas_ui/text_util.ts";
 
 const mHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const mS16 = domS16, mUmin = domUmin16, mUmax = domUmax16;
@@ -117,7 +118,7 @@ export class Market {
       if (di) this.greet(3); else this.greet(si ? 5 : 4, this.goodsName(E.specialtyGood));
       let r;
       if (this.c.scr.wideRenderer && this.c.codec) {
-        const dec = bts => { let e = bts.indexOf(0); if (e < 0) e = bts.length; return this.c.codec.decode(bts.subarray(0, e)).replace(/\{[0-9A-F]{2}\}/g, "").trim(); };
+        const dec = bts => decodeCleanCstr(this.c.codec, bts);
         const rows = items.map((v, k) => ({
           label: dec(k < n ? this.goodsName(R.getBuyGoods(v)) : this.goodsName(E.specialtyGood)),
           rightText: String(this.price(v)),
@@ -226,7 +227,7 @@ export class Market {
   cargoMenu(cs) {
     const { con, printf, menu } = this.c, T = this.T, P = this.c.persons;
     if (this.c.scr.wideRenderer && this.c.codec) {
-      const dec = bts => { let e = bts.indexOf(0); if (e < 0) e = bts.length; return this.c.codec.decode(bts.subarray(0, e)).replace(/\{[0-9A-F]{2}\}/g, "").trim(); };
+      const dec = bts => decodeCleanCstr(this.c.codec, bts);
       const rows = [];
       let si = 0;
       for (let j = 0; j < GameConst.CARGO_SLOTS; j++) {
@@ -309,7 +310,7 @@ export class Market {
     const E = this.eco, { con, printf, scr, codec } = this.c, T = this.T;
     this.greet(0x97, T.cats[c], E.getPrices(c) + 50);
     if (scr.wideRenderer && codec) {
-      const dec = b => codec.decode(b).replace(/\0.*$/, "").trim();
+      const dec = b => decodeCleanCstr(codec, b);
       const di = c ? T.catEnd[c - 1] : 0;
       const items = [];
       for (let si = 0; T.catEnd[c] - di > si; si++) {

@@ -7,6 +7,7 @@
 // 遊戲內按鍵碼: 0D 確定, 1B / 30('0') 取消, 1C → 1D ← 1E ↑ 1F ↓, 32/34/36/38 = 數字鍵 2/4/6/8
 import { createWideMenuState, drawWideMenu, hitWideMenuItem, hitWideMenuBox } from "../canvas_ui/wide_menu.ts";
 import { createWideYesNoState, drawWideYesNo, hitWideYesNo } from "../canvas_ui/wide_yesno.ts";
+import { decodeCleanCstr } from "../canvas_ui/text_util.ts";
 
 const HL_SOLID = 0x0000;      // 外框圖形 [0c86] 偏移 0: 640 bytes 全 FF, 用作高亮反白位圖
 const GREY_PATTERN = 0x0280;  // AA 55 交錯點陣, 用於不可選項目
@@ -301,11 +302,7 @@ export class MenuSystem {
   }
   async wideListMenu(table, cancelable) {
     await this.waitRelease();
-    const labels = table.map(bytes => {
-      let end = bytes.indexOf(0);
-      if (end < 0) end = bytes.length;
-      return this.codec.decode(bytes.subarray(0, end)).replace(/\{[0-9A-F]{2}\}/g, "").trim();
-    });
+    const labels = table.map(bytes => decodeCleanCstr(this.codec, bytes));
     const state = createWideMenuState(labels, this.disabled, this.wideAnchorCmd);
     const drawFn = ctx => drawWideMenu(ctx, state);
     this.scr.wideOverlays.push(drawFn);
