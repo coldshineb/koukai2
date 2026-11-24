@@ -317,8 +317,12 @@ export class SfxPort {
   constructor(url, opts = {}) {
     this.url = url; this.present = true;                           // [03e4]: 移植版恆有音源驅動
     this.state = null;                                             // GameState ([0ca4] bit3)
-    this.gain = opts.gain ?? 1; this.log = opts.log || null; this.node = null; this.q = [];
+    this.gain = opts.gain ?? 2; this.volume = 0.8; this.muted = false;
+    this.log = opts.log || null; this.node = null; this.gainNode = null; this.q = [];
   }
+  get effectiveGain() { return this.muted ? 0 : this.gain * Math.max(0, Math.min(1, this.volume)); }
+  setVolume(v) { this.volume = Math.max(0, Math.min(1, +v || 0)); if (this.gainNode) this.gainNode.gain.value = this.effectiveGain; }
+  setMuted(m) { this.muted = !!m; if (this.gainNode) this.gainNode.gain.value = this.effectiveGain; }
   // 第一次使用者操作時建立 AudioContext (瀏覽器的自動播放限制)
   resume() {
     if (!this.url || typeof AudioContext === "undefined") return;
@@ -326,7 +330,8 @@ export class SfxPort {
     const ac = this.ac = new AudioContext();
     ac.audioWorklet.addModule(this.url).then(() => {
       const node = new AudioWorkletNode(ac, "uw2-sfx", { numberOfInputs: 0, outputChannelCount: [2] });
-      const g = ac.createGain(); g.gain.value = this.gain; node.connect(g); g.connect(ac.destination);
+      const g = ac.createGain(); g.gain.value = this.effectiveGain; node.connect(g); g.connect(ac.destination);
+      this.gainNode = g;
       this.node = node; for (const m of this.q) node.port.postMessage(m); this.q = [];
     }).catch(e => console.warn("效果音無法啟動", e));
   }

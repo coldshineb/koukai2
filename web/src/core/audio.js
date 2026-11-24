@@ -9,10 +9,14 @@ export const SONG_TO_DRIVER = [21, 19, 22, 18, 2, 3, 4, 7, 6, 5, 11, 9, 8, 10, 1
 export class BGM {
   constructor(base) {
     this.base = base; this.el = typeof Audio !== "undefined" ? new Audio() : null; if (this.el) this.el.loop = true; this.cur = null; this.enabled = true;
+    this.volume = 0.8; this.muted = false;
     this.song = 0xff;                    // [8c1e] 目前曲目 (遊戲內編號; 9670 寫入, 環境設定打開 BGM 時重播它)
     this.optionOff = null;               // () => 環境設定「BGM」關閉 ([0ca4] bit2 = 0); title.js init 設定
     if (this.el) this.el.addEventListener?.("ended", () => { this.cur = null; this.done(); if (this.next) this.start(); });   // 只播一次的曲子播完 = 停止
   }
+  get effectiveVolume() { return this.muted ? 0 : Math.max(0, Math.min(1, this.volume)); }
+  setVolume(v) { this.volume = Math.max(0, Math.min(1, +v || 0)); if (this.el && !this.fading) this.el.volume = this.effectiveVolume; }
+  setMuted(m) { this.muted = !!m; if (this.el && !this.fading) this.el.volume = this.effectiveVolume; }
   async init() { this.map = await loadJSON(this.base + "/data/bgm.json"); return this; }
   // 原版 0:9670: 同一首播放中不重播; 不同的曲子播放中 → 先淡出, 等驅動回報停止 (AH=03) 後才播放新曲。
   //   回傳的 Promise 在新曲開始播放時完成 (呼叫端要像原版一樣等待時 await 它)
@@ -26,7 +30,7 @@ export class BGM {
   }
   start() {
     const { f, loop } = this.next; this.next = null;
-    this.cur = f; this.el.loop = loop; this.el.src = this.base + "/../bgm/" + f; this.el.currentTime = 0; this.el.volume = 1;
+    this.cur = f; this.el.loop = loop; this.el.src = this.base + "/../bgm/" + f; this.el.currentTime = 0; this.el.volume = this.effectiveVolume;
     this.el.play().catch(() => { this.pending = true; });
   }
   // 目前的曲子停止 (含淡出完成) 時完成

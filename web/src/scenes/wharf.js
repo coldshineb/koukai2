@@ -1,12 +1,8 @@
 // wharf.js — 碼頭 (補給 / 出航前檢查 / 船塢 / 補給港命名 / 出航清除畫面)
 import { ListSelect } from "../ui/listsel.js";
 import { marketTradeLog } from "./market.js";
-import { CPU } from "../core/cpucost.js";
-import { COST_TABLE } from "../core/cpucost_table.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { domS16, domUmin16 } from "../domain/economy.ts";
-
-const WIPE_CYC = COST_TABLE.find(r => r[0] === "Buildings" && r[1] === "wipe")?.[2].n || 0;
 
 class WharfMixin {
   async wharf() {
@@ -244,25 +240,9 @@ class WharfMixin {
     if (!r) await this.p.interior(3);
     return r;
   }
-  // seg0:2260 清除畫面 (欄 12..59, y 8..391): 16 步, 偶數行由每 16 像素組的第 7 像素往左、奇數行由第 8 像素往右逐點清成 0
-  //   網頁版: 原版這 16 步之間沒有計時等待, 靠慢 CPU 逐步呈現 (約 0.3 秒, 記帳表 Buildings.wipe); 整段耗時已在呼叫時記帳,
-  //   這裡把每步畫完的畫面依比例排在虛擬時間上 (CPU.hold) 讓瀏覽器逐步顯示。不改畫面內容, 測試模式 (capture = null) 不受影響
+  // 清除地圖畫面區域 (欄 12..59, y 8..391)
   wipe() {
-    const fb = this.c.scr.fb;
-    const total = CPU.active && CPU.khz ? WIPE_CYC / (CPU.khz * (1 - CPU.irqLoad)) : 0, t0 = CPU.v - total;
-    let dx = 0xfffe, cx = 0x7fff;
-    for (let step = 0; step < 16; step++) {
-      for (let y = 8; y < 8 + 0x180; y++) {
-        const m = (y - 8) & 1 ? cx : dx, row = y * 640;
-        for (let col = 12; col < 60; col += 2)
-          for (let b = 0; b < 2; b++) {
-            const bits = b ? m >> 8 : m & 0xff;
-            for (let px = 0; px < 8; px++) if (!((bits >> (7 - px)) & 1)) fb[row + (col + b) * 8 + px] = 0;
-          }
-      }
-      dx = (dx << 1) & 0xffff; cx >>= 1;
-      if (total) CPU.hold(t0 + total * (step + 1) / 16);
-    }
+    this.c.scr.fillCols(0x0c, 8, 0x30, 0x180, 0);
     this.c.scr.dirty = true;
   }
   // 27802 出航: 艦隊資料表 → 補給天數 → 是/否

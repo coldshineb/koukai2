@@ -19,10 +19,13 @@ export function bindInput(canvas, sys) {
   canvas.addEventListener("pointerenter", () => { inside = true; });
   canvas.addEventListener("pointerleave", () => { inside = false; });
   addEventListener("keydown", e => {
+    if (document.body?.dataset.uw2Modal === "open") return;
+    const tag = e.target?.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
     if (!inside || browserReserved(e)) return;
     const k = keyToBios(e); if (!k) return;
     e.preventDefault();
-    sys.pushKey(k[0], k[1]);              // BIOS 會自動重複, 瀏覽器 keydown 的 repeat 亦同
+    sys.pushKey(k[0], k[1]);
   });
   const pos = e => {
     const r = canvas.getBoundingClientRect();
@@ -39,5 +42,5 @@ export function bindInput(canvas, sys) {
   canvas.addEventListener("mousedown", e => { pos(e); sys.mouse.buttons |= e.button === 2 ? 2 : e.button === 0 ? 1 : 0; e.preventDefault(); });
   addEventListener("mouseup", e => { sys.mouse.buttons &= ~(e.button === 2 ? 2 : e.button === 0 ? 1 : 0); });
   canvas.addEventListener("contextmenu", e => e.preventDefault());
-  canvas.style.cursor = "none";           // 改畫原版軟體游標
+  canvas.style.cursor = "default";        // 階段 4: 使用瀏覽器原生高精度指標
 }
