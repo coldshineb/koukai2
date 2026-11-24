@@ -3,6 +3,8 @@
 import { Scenario, ENV_COMMON, ENV_HERO } from "../game/scenario.js";
 import { mainEnding } from "../game/endgame.js";
 import { GameConst, MenuId, OptionFlag, ShipSlotFlag, WorkDS } from "../model/flags.ts";
+import { captureConsoleText, decodeCleanCstr } from "../canvas_ui/text_util.ts";
+import { runWideInfoLinesModal } from "../canvas_ui/wide_panels.ts";
 
 const plHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const plS16 = v => (v << 16) >> 16;
@@ -23,17 +25,33 @@ export class Palace {
   same(mask = 0x0f) { return ((this.nation ^ this.m.heroPerson().face) & mask) === 0; }   // 港口所屬國 = 主角國籍
   heroName() { return this.m.heroPerson().familyNameBytes; }
   async gw(n, ...a) { this.b.greet(n, ...a); await this.b.wait(); }
-  // seg0:7e60 國王視窗 (不保存背景): 頭像於 (0x0e, 0x12c), 「〔名〕」於 (0x17, 0x128)
+  // seg0:7e60 國王視窗
   king() {
-    const { win, kao, scr, con, printf } = this.c, K = this.kingRec;
+    const { win, kao, scr, con, printf, art, codec } = this.c, K = this.kingRec;
+    if (scr.wideRenderer && codec) {
+      const fid = K.portrait & 0xff;
+      if (art?.portraitUrl) void art.loadImage(art.portraitUrl(fid)).catch(() => {});
+      this._kingPrefix = decodeCleanCstr(codec, K.nameBytes);
+      this._kingPortrait = fid;
+      scr.wideDialog = { text: this._kingPrefix, portraitId: fid, waiting: false };
+      scr.dirty = true;
+      return;
+    }
     win.frame(0x0c, 0x120, 0x2f, 0x68, 0);
     kao.drawNamed(scr, K.portrait, 0x0e, 0x12c);
     con.right = 0x38; con.left = 0x17; con.setCursor(0x17, 0x128);
     printf(this.F.kingName, K.nameBytes);
   }
-  // seg0:7fa8 國王說話 (清除 (0x16,0x140) 0x24 欄 × 0x40 行)
+  // seg0:7fa8 國王說話
   kingSay(n, ...a) {
-    const { sys, con, scr, message } = this.c;
+    const { sys, con, scr, message, codec } = this.c;
+    if (scr.wideRenderer && codec) {
+      const body = captureConsoleText(this.c, () => message(n, ...a));
+      const text = this._kingPrefix ? `〔${this._kingPrefix}〕\n${body}` : body;
+      scr.wideDialog = { text, portraitId: this._kingPortrait ?? null, waiting: false };
+      scr.dirty = true;
+      return;
+    }
     sys.mouseHide();
     con.right = 0x38; con.left = 0x17; con.setCursor(0x17, 0x140);
     con.puts(this.F.kingTalk);
@@ -143,9 +161,27 @@ export class Palace {
     }
     await this.kingSayWait(0x1c6);
   }
-  // 29eb1 該地區的本國港口表 (每 7 筆等一次)
+  // 29eb1 該地區的本國港口表
   async regionPorts(sel) {
-    const m = this.m, b = this.b, { con, printf, message } = this.c, n = this.nation;
+    const m = this.m, b = this.b, { con, printf, message, scr, codec } = this.c, n = this.nation;
+    if (scr.wideRenderer && codec) {
+      const lines = [];
+      for (let q = 0; q < 100; q++) {
+        const P = m.port(q), E = m.portEconomy(q);
+        if (E.regionGroup !== sel || (P.region & 7) !== n) continue;
+        lines.push(captureConsoleText(this.c, () => printf(this.F.portRow, P.nameBytes, E.getInfluence(P.region & 7), E.industry, E.commerce)));
+      }
+      if (!lines.length) {
+        const body = captureConsoleText(this.c, () => { message(0x1d1 + sel); message(0x1c7); });
+        scr.wideDialog = { text: this._kingPrefix ? `〔${this._kingPrefix}〕\n${body}` : body, portraitId: this._kingPortrait ?? null, waiting: false };
+        scr.dirty = true;
+        await b.wait();
+        return 0;
+      }
+      const hdr = captureConsoleText(this.c, () => message(0x1db));
+      await runWideInfoLinesModal(this.c, hdr, lines);
+      return 1;
+    }
     con.left = 0x0e; con.right = 0x37;
     let cnt = 0, row = 0;
     for (let q = 0; q < 100; q++) {
@@ -174,6 +210,17 @@ export class Palace {
     if (sel <= 2) ok = a(sel);
     else if (sel === 3) ok = (a(2) || a(4)) && a(3);
     else if (sel <= 7) { ok = true; for (let i = 4; i <= sel; i++) if (!a(i)) ok = false; }
+    if (this.c.scr.wideRenderer && this.c.codec) {
+      const body = captureConsoleText(this.c, () => {
+        this.c.message(0x1d1 + sel);
+        if (ok) this.c.message(0x1c9, Math.trunc(B[n * 8 + sel] / this.div[sel]));
+        else this.c.message(0x1c8);
+      });
+      this.c.scr.wideDialog = { text: this._kingPrefix ? `〔${this._kingPrefix}〕\n${body}` : body, portraitId: this._kingPortrait ?? null, waiting: false };
+      this.c.scr.dirty = true;
+      await this.b.wait();
+      return;
+    }
     this.kingSay(0x1d1 + sel);
     if (ok) this.c.message(0x1c9, Math.trunc(B[n * 8 + sel] / this.div[sel]));   // 29fc0
     else this.c.message(0x1c8);

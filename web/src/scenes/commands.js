@@ -638,14 +638,7 @@ export class Commands {
       const n = this.discList(0);
       const r = await this.b.listSel().select(0x92, n);
       if (r === -1) break;
-      const d = this.c.persons[r];
-      if (this.c.scr.wideRenderer && this.c.codec) {
-        const text = this.cap(() => this.b.discInfoText?.(d) ?? this.c.message(0x285 + d));
-        const lines = text.split("\n").filter(Boolean);
-        await runWideInfoLinesModal(this.c, lines[0] || "", lines.slice(1).length ? lines.slice(1) : lines);
-      } else {
-        await this.b.discInfo(d);
-      }
+      await this.b.discInfo(this.c.persons[r]);
     }
   }
   // ---- 8 航海日誌 1e31e ----

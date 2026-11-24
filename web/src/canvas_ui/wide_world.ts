@@ -178,9 +178,10 @@ function drawFloatingHud(ctx: CanvasRenderingContext2D, scene: any, atSea: boole
   // ---------------- 1. 左上懸浮狀態欄 (主角頭像 + 日期/時刻 + 聲望/金幣/金塊) ----------------
   drawGlassPanel(ctx, 16, 14, 344, 92, 10);
 
-  const heroP = m.heroPerson();
-  const portUrl = art?.portraitUrl?.(heroP.face & 0xff) ?? null;
+  const heroFaceId = st.u8(st.personRecord(m.globals.hero) + 0x1a);
+  const portUrl = art?.portraitUrl?.(heroFaceId) ?? null;
   const portImg = art?.getImage?.(portUrl);
+  if (portUrl && !portImg) void art?.loadImage?.(portUrl);
   ctx.fillStyle = "#102138";
   ctx.fillRect(26, 22, 58, 74);
   if (portImg) {
@@ -290,16 +291,55 @@ function drawFloatingHud(ctx: CanvasRenderingContext2D, scene: any, atSea: boole
     ctx.fillText(`${spd}kt · ${days}`, VIEW_W - 95, 84);
   }
 
-  // ---------------- 3. 左下懸浮羅盤 ----------------
-  drawGlassPanel(ctx, 16, VIEW_H - 96, 80, 80, 40);
-  ctx.imageSmoothingEnabled = false;
-  if (!atSea) {
-    const n = scene.needle === 0xff ? 0 : scene.needle;
-    drawSheetTileDirect(ctx, art, "compass", n + 4, 36, VIEW_H - 68, 40, 24);
-  } else {
-    const n = scene.needle === 0xff ? 0 : scene.needle;
-    drawSheetTileDirect(ctx, art, "seacompass", n + 9, 40, VIEW_H - 72, 32, 32);
-  }
+  // ---------------- 3. 左下懸浮現代矢量羅盤 ----------------
+  const cx = 56, cy = VIEW_H - 56, cr = 36;
+  drawGlassPanel(ctx, cx - cr, cy - cr, cr * 2, cr * 2, cr);
+  ctx.save();
+  ctx.strokeStyle = "rgba(214, 174, 96, 0.35)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(cx, cy, cr - 6, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.font = '700 10px "Microsoft YaHei UI", "Segoe UI", sans-serif';
+  ctx.fillStyle = "rgba(232, 206, 148, 0.85)";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("N", cx, cy - cr + 11);
+  ctx.fillText("S", cx, cy + cr - 10);
+  ctx.fillText("W", cx - cr + 11, cy);
+  ctx.fillText("E", cx + cr - 11, cy);
+
+  // 依原版方向角旋轉羅盤指針 (港內 0..3 = N/E/S/W; 海上 0..7 = N/NE/E/SE/S/SW/W/NW)
+  const rawNeedle = scene.needle === 0xff ? 0 : scene.needle;
+  const angle = atSea
+    ? ((rawNeedle & 7) * Math.PI) / 4
+    : ((rawNeedle & 3) * Math.PI) / 2;
+  ctx.translate(cx, cy);
+  ctx.rotate(angle);
+  // 北向金紅箭頭
+  ctx.beginPath();
+  ctx.moveTo(0, -18);
+  ctx.lineTo(5, 2);
+  ctx.lineTo(0, -1);
+  ctx.lineTo(-5, 2);
+  ctx.closePath();
+  ctx.fillStyle = "#e85c4a";
+  ctx.fill();
+  // 南向銀白尾針
+  ctx.beginPath();
+  ctx.moveTo(0, 16);
+  ctx.lineTo(4, 1);
+  ctx.lineTo(-4, 1);
+  ctx.closePath();
+  ctx.fillStyle = "#d8e4f2";
+  ctx.fill();
+  // 中心鉚釘
+  ctx.beginPath();
+  ctx.arc(0, 0, 3, 0, Math.PI * 2);
+  ctx.fillStyle = "#f4d78e";
+  ctx.fill();
+  ctx.restore();
 
   // ---------------- 4. 右下懸浮 4 枚主指令按鈕 (情報 / 經營 / 命令 / 航海術) ----------------
   const mx = c.sys?.mouse?.vx ?? -1;

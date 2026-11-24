@@ -341,33 +341,45 @@ export class PortScene {
   }
   // 64c6 與行人交談
   async talk(code) {
-    const { sys, win, menu, message } = this.c, m = this.m, P = this.port, port = m.port(P);
+    const { sys, win, menu, message, scr, codec } = this.c, m = this.m, P = this.port, port = m.port(P);
+    const nation = port.region & 7;
+    const emit = () => {
+      switch (code) {
+        case 1: message(0x282 + P); break;
+        case 2: message((this.c.rt.day % 10) + 0x276); break;
+        case 3: {
+          const cache = m.usedShipCache(0); let k = 0;
+          while (k < 5 && cache.getShipTypes(k) === GameConst.EMPTY_SLOT) k++;
+          if (k < 5) message(0x280, m.ship(cache.getShipTypes(k) + 40).nameBytes); else message(0x281);
+          break; }
+        case 4: message(nation + 0x26f); break;
+        case 5:
+          if (P >= 100) { message(0x242, port.nameBytes); break; }
+          if (this.isCapital()) { message(0x243, this.nations[nation], port.nameBytes); break; }
+          if (nation !== 6) message(0x244, this.nations[nation], port.region & 0x80 ? this.F.colony : this.F.ally, port.nameBytes);
+          else message(0x245, port.nameBytes);
+          break;
+        case 6: message((P % 3) + 0x26b); break;
+        case 7: message(0x26e, this.nations[m.heroPerson().face & 15]); break;
+        case 8: {
+          message(0x268);
+          const g = m.portEconomy(P).specialtyGood;
+          if (g !== GameConst.EMPTY_SLOT) message(0x269, this.goods[g]); else message(0x26a);
+          break; }
+      }
+    };
+    if (scr.wideRenderer && codec) {
+      scr.wideDialog = { text: captureConsoleText(this.c, emit), portraitId: null, waiting: false };
+      scr.dirty = true;
+      sys.flush();
+      await menu.waitPrompt();
+      scr.wideDialog = null;
+      scr.dirty = true;
+      return;
+    }
     sys.mouseHide();
     win.shadowedSaved(0x10, 0xa0, 0x24, 0x80, 0);
-    const nation = port.region & 7;
-    switch (code) {
-      case 1: message(0x282 + P); break;
-      case 2: message((this.c.rt.day % 10) + 0x276); break;
-      case 3: {
-        const cache = m.usedShipCache(0); let k = 0;
-        while (k < 5 && cache.getShipTypes(k) === GameConst.EMPTY_SLOT) k++;
-        if (k < 5) message(0x280, m.ship(cache.getShipTypes(k) + 40).nameBytes); else message(0x281);
-        break; }
-      case 4: message(nation + 0x26f); break;
-      case 5:
-        if (P >= 100) { message(0x242, port.nameBytes); break; }
-        if (this.isCapital()) { message(0x243, this.nations[nation], port.nameBytes); break; }
-        if (nation !== 6) message(0x244, this.nations[nation], port.region & 0x80 ? this.F.colony : this.F.ally, port.nameBytes);
-        else message(0x245, port.nameBytes);
-        break;
-      case 6: message((P % 3) + 0x26b); break;
-      case 7: message(0x26e, this.nations[m.heroPerson().face & 15]); break;
-      case 8: {
-        message(0x268);
-        const g = m.portEconomy(P).specialtyGood;
-        if (g !== GameConst.EMPTY_SLOT) message(0x269, this.goods[g]); else message(0x26a);
-        break; }
-    }
+    emit();
     sys.flush();
     sys.mouseShow();
     await menu.waitPrompt();
@@ -607,7 +619,7 @@ export class PortScene {
         this.npcs();
         sys.mouseShow();
       }
-      while (sys.timer.get()) await sys.poll();
+      while (sys.timer.get()) { if (this.c.menu.source()) break; await sys.poll(); }
     }
   }
   // 1b39a 時間迴圈中止旗標 (月/日/時刻 >= F0; 讀檔時設定)

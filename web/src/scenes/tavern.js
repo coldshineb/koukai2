@@ -4,6 +4,8 @@ import { Gamble } from "./gamble.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
 import { domS16, domUmin16 } from "../domain/economy.ts";
+import { captureConsoleText, decodeCleanCstr } from "../canvas_ui/text_util.ts";
+import { runWideInfoLinesModal } from "../canvas_ui/wide_panels.ts";
 
 class TavernMixin {
   // 27592 / 275d2 本港的酒吧女郎 (DS:2bde, 每筆 0x13)
@@ -387,9 +389,19 @@ class TavernMixin {
   }
   // 2e09:681c (348ac → 347a0) 發現物資料視窗: COLONY.DAT 第 n 筆 (+0 名稱, +0f 圖, +10 說明), 種類 DS:0952[+6 & 7], 重要度 MENU #0x22[+5 / 25]
   async discInfo(n) {
-    const st = this.st, { con, printf, kao, scr, win } = this.c, B = this.BG, d = DS.TBL_DISCOVERY + n * 7;
+    const st = this.st, { con, printf, kao, scr, win, codec } = this.c, B = this.BG, d = DS.TBL_DISCOVERY + n * 7;
     st.set8(DS.DISCOVERY_ID, n);                                                      // 348ac: [8246] = 發現物編號
     const imp = this.c.menuItems(0x22), rec = ListSelect.colonyRec(this.c, n);
+    if (scr.wideRenderer && codec) {
+      const title = decodeCleanCstr(codec, rec);
+      const catLine = captureConsoleText(this.c, () => printf(B.cat, B.discCats[st.u8(d + 6) & 7]));
+      const impLine = captureConsoleText(this.c, () => printf(B.imp, imp[Math.trunc(st.u8(d + 5) / 0x19)] ?? Uint8Array.of(0)));
+      const desc = decodeCleanCstr(codec, rec.subarray(0x10));
+      const descLines = [];
+      for (let i = 0; i < desc.length; i += 24) descLines.push(desc.slice(i, i + 24));
+      await runWideInfoLinesModal(this.c, title, [catLine, impLine, "", ...descLines]);
+      return;
+    }
     await win.open(0x0f, 0x20, 0x1c, 0xd0, 0);                              // seg0:74f7
     kao.drawItem(scr, rec[0x0f], 0x11, 0x30);                               // seg0:7d4c
     con.puts(B.discHdr);
