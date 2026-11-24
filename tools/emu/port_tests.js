@@ -7,6 +7,10 @@ const K = { down: [0x50, 0], up: [0x48, 0], left: [0x4b, 0], right: [0x4d, 0], e
 const NEWGAME = S.NEWGAME || [K.down, K.enter, K.enter, K.enter, K.left, K.left, K.enter, K.left, K.left, K.enter, K.enter];   // S.NEWGAME: 改選其他主角 (event_route.js 的 S.EVENT_HERO)
 const KEYS = NEWGAME.concat(S.PORT_KEYS || [K.left, K.left, K.left, K.right, K.right, K.down, K.up, K.up, K.enter, K.left, K.down, K.down, K.right]);
 const TAIL = 30;                    // 最後一鍵之後再等多少次輸入查詢才截最終狀態
+// S.SLICE_MS = n: 長路線分次執行 — 每次呼叫執行約 n 毫秒就暫停 (原版與移植版都是), 由下一次呼叫接續 (沙盒的單次執行時間有上限)。
+//   用法 (每次呼叫): S.sliceT0 = Date.now(); const p = new Promise(r => S.sliceSignal = r); if (!S.PTP) S.PTP = S.RUNF["port_tests.js"](); else S.sliceResume();
+//                    await Promise.race([S.PTP, p]);   → S.PTP 完成才是跑完
+const sliceWait = async () => { if (S.SLICE_MS && Date.now() - S.sliceT0 > S.SLICE_MS) await new Promise(r => { S.sliceResume = r; S.sliceSignal?.(); }); };
 // S.EXTRA_DS = [[起, 迄], ...]: 另外比對存檔區以外的 DS 範圍 (移植版為 ctx.battleDS 等 DS 鏡像, 例: 海戰工作區)
 // S.DAC_N = n: 調色盤只比前 n 色 (例: 海戰的調色盤循環 16ee 由 IRQ0 驅動, 兩邊換格的時間點不同, 只比 0..7)
 const grabEmu = c => { const d = c.s[3] * 16; return { x: (S.EXTRA_DS || []).map(([a, b]) => c.mem.slice(d + a, d + b)), st: c.mem.slice(d + 0x0ca4, d + 0x8a18), rt: Array.from(c.mem.slice(d + 0x532, d + 0x536)),
@@ -19,7 +23,7 @@ function fbHash(fb, ms) {
   let h = 0x811c9dc5; for (let i = 0; i < f.length; i++) h = Math.imul(h ^ f[i], 0x01000193);
   return h >>> 0;
 }
-function runEmu() {
+async function runEmu() {
   S.restoreTitle();
   const env = S.titleEnv, c = env.cpu, shots = [];
   Object.assign(env.mouse, { x: 0x27f, y: 0x18f + 0x28, b: 0 });       // 標題時的滑鼠位置 (1752c), 上一次測試可能移動過
@@ -29,7 +33,9 @@ function runEmu() {
   S.installEmuServices(sc, () => { let fb = S.emuFb480(); fb[399 * 640 + 639] = 0xff; const m = { x: env.mouse.x, y: env.mouse.y };
     // S.FB_HASH = n: 長路線省記憶體 — 每張只存遮掉游標 (本張與上一張的位置) 後的雜湊, 每 n 張與最後一張才存完整畫面
     let fh; if (S.FB_HASH) { fh = fbHash(fb, [m, ...Array.from({ length: S.CURSOR_LAG ?? 1 }, (_, k) => shots[shots.length - 1 - k]?.mouse)]); if (shots.length % S.FB_HASH && sc.keys.length && !(S.FB_KEEP && shots.length >= S.FB_KEEP[0] && shots.length <= S.FB_KEEP[1])) fb = null; }
-    shots.push({ mouse: m, fb, fh, dac: Array.from(c.vga.dac.slice(0, 48)), ...grabEmu(c) });
+    // S.SHOT_RANGE = [起, 迄): 長路線省記憶體 — 範圍外的畫面只記游標位置, 不保存畫面與狀態 (不比對; 最後一張照常保存)
+    if (S.SHOT_RANGE && (shots.length < S.SHOT_RANGE[0] || shots.length >= S.SHOT_RANGE[1]) && sc.keys.length) shots.push({ mouse: m, skip: true });
+    else shots.push({ mouse: m, fb, fh, dac: Array.from(c.vga.dac.slice(0, 48)), ...grabEmu(c) });
     const tp = S.TELEPORT?.[shots.length - 1]; if (tp) for (const [a, v] of tp) c.mem[S.DSEG * 16 + a] = v;              // S.TELEPORT[畫面序號] = [[DS 位址, 值], ...]
     if (!sc.keys.length) { done = true; c.halted = true; } });
   S.env = saveEnv; S._H16 = sH16; S._H33 = sH33;
@@ -68,7 +74,7 @@ function runEmu() {
   };
   const t0 = Date.now();
   // S.EMU_DONE: 由外部 (例: cycle_measure.js 的 S.CM.stop) 提前結束原版; S.EMU_MS: 原版執行的時間上限 (預設 230 秒)
-  while (!done && !S.EMU_DONE && Date.now() - t0 < (S.EMU_MS || 230000)) c.run(2e7);
+  while (!done && !S.EMU_DONE && (S.SLICE_MS || Date.now() - t0 < (S.EMU_MS || 230000))) { c.run(2e7); await sliceWait(); }
   c.onTick = null; c.halted = false;
   return { shots, done, ip: (c.s[1] * 16 + c.ip - L).toString(16) };
 }
@@ -89,7 +95,7 @@ const msg = f["MESSAGE.DAT"], initState = new Uint8Array(fs.readFileSync(S.W + "
 async function runJS(rng0) {
   const scr = new U.Screen(); let polls = 0;
   // S.JS_SYS: 移植版改用指定的 Sys 設定 (例: cycle_realtime.js 的即時模式 { virtual: false }); 預設為測試模式 (虛擬計時器)
-  const sys = S.JS_SYS ? new U.Sys(S.JS_SYS) : new U.Sys({ virtual: true, poll: async () => { if (++polls > 8e6) throw new Error("poll limit"); } });
+  const sys = S.JS_SYS ? new U.Sys(S.JS_SYS) : new U.Sys({ virtual: true, poll: async () => { if (++polls > (S.POLL_LIMIT || 8e6)) throw new Error("poll limit"); if (S.SLICE_MS && !(polls & 1023)) await sliceWait(); } });
   sys.mouse.x = 320; sys.mouse.y = 240;
   const state = new U.GameState(initState);
   const ctx = { scr, sys, state, initState, font, ASSETS: "", options: { get animate() { return !!(state.options & 1); } } };
@@ -121,7 +127,8 @@ async function runJS(rng0) {
     if (k && k.mouse) { if ('x' in k.mouse) s.mouse.x = k.mouse.x; if ('y' in k.mouse) s.mouse.y = k.mouse.y; if ('b' in k.mouse) s.mouse.buttons = k.mouse.b; }
     let fb = scr.fb.slice(), fh;
     if (S.FB_HASH) { const R = S.emuShotsRef, n = shots.length, e = R?.[n]; fh = fbHash(fb, Array.from({ length: (S.CURSOR_LAG ?? 1) + 1 }, (_, k) => R?.[n - k]?.mouse)); if (!e?.fb) fb = null; }
-    shots.push({ fb, fh, x: (S.EXTRA_DS || []).map(([a, b]) => (ctx.battleDS || new Uint8Array(0x10000)).slice(a, b)), dac: Array.from(scr.raw), st: state.b.slice(0, 0x8a18 - 0x0ca4), rt: ctx.rt ? [ctx.rt.year, ctx.rt.month, ctx.rt.day, ctx.rt.time] : [], rng: sys.rng.state });
+    if (S.SHOT_RANGE && (shots.length < S.SHOT_RANGE[0] || shots.length >= S.SHOT_RANGE[1]) && sc.keys.length) shots.push({ skip: true });
+    else shots.push({ fb, fh, x: (S.EXTRA_DS || []).map(([a, b]) => (ctx.battleDS || new Uint8Array(0x10000)).slice(a, b)), dac: Array.from(scr.raw), st: state.b.slice(0, 0x8a18 - 0x0ca4), rt: ctx.rt ? [ctx.rt.year, ctx.rt.month, ctx.rt.day, ctx.rt.time] : [], rng: sys.rng.state });
     { const tp = S.TELEPORT?.[shots.length - 1]; if (tp) for (const [a, v] of tp) state.set8(a, v); }
     if (!sc.keys.length) throw new Error("STOP");
   });
@@ -140,7 +147,7 @@ S.restoreTitle(); const c0 = S.titleEnv.cpu, d0 = c0.s[3] * 16;
 const rngTitle = (c0.mem[d0 + 0xbd88] | (c0.mem[d0 + 0xbd89] << 8) | (c0.mem[d0 + 0xbd8a] << 16) | (c0.mem[d0 + 0xbd8b] << 24)) >>> 0;
 const save0 = new Uint8Array(fs.readFileSync(S.W + "/uw2_remake/tools/work/sea2/KOUKAI2.DAT"));   // 原始存檔 (模擬磁碟上的 f["KOUKAI2.DAT"] 會被存檔路線改寫)
 if (f["KOUKAI2.DAT"].length === save0.length) f["KOUKAI2.DAT"].set(save0);   // 兩邊都從原始存檔開始 (上一次測試的存檔路線改寫過模擬磁碟)
-const E = runEmu();
+const E = await runEmu();
 S.emuShotsRef = E.shots;
 const J = await runJS(rngTitle);
 S.emuShotsRef = null;
@@ -164,6 +171,7 @@ const n = Math.min(E.shots.length, J.shots.length);
 let firstStateDiff = -1;
 for (let i = 0; i < n; i++) {
   const e = E.shots[i], j = J.shots[i];
+  if (e.skip || j.skip) continue;
   if (!e.fb || !j.fb) {                                              // S.FB_HASH: 只比雜湊
     let dd = 0; for (let k = 0; k < (S.DAC_N ?? 16); k++) if (e.dac[k * 3] !== j.dac[k * 3 + 1] * 4 || e.dac[k * 3 + 1] !== j.dac[k * 3 + 2] * 4 || e.dac[k * 3 + 2] !== j.dac[k * 3] * 4) dd++;
     const sd = []; for (let k = 0; k < e.st.length; k++) if (e.st[k] !== j.st[k]) sd.push((0x0ca4 + k).toString(16) + ":" + e.st[k].toString(16) + "/" + j.st[k].toString(16));

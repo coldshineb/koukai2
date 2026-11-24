@@ -326,7 +326,7 @@ export class PortScene {
       }
       const set = (di & 1) * 4 + dir + 4;
       let nd;
-      if (!this.collide(di, x, y) && x < 0x5e && y < 0x5e && !this.blockedAt((y + 1) * P_MAP_W + x)) {
+      if (!this.collide(di, x, y) && (x & 0xffff) < 0x5e && (y & 0xffff) < 0x5e && !this.blockedAt((y + 1) * P_MAP_W + x)) {   // 63c1 / 63c7: word 無號比較 (x 或 y 從 0 減 1 = FFFF 時不能走)
         if (!this.outOfView(x, y)) this.drawFigure(x - this.vx, y - this.vy, set * 0x500 + (((x + y) & 1) === 0 ? 0x280 : 0));
         this.setNpc(di, 0, x); this.setNpc(di, 1, y);
         nd = dir;
