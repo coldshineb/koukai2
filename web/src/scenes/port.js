@@ -233,6 +233,7 @@ export class PortScene {
   panels() { const s = this.c.sys; s.mouseHide(); this.panel(); this.panel(); s.mouseShow(); this.c.hud?.updatePort(this); }
   // 869f 日期 / 時刻 / 聲望 / 現金 / 港口情報
   panel() {
+    if (this.c.scr.wideRenderer) return;
     const { con, printf, message } = this.c, m = this.m, g = m.globals, F = this.F, rt = this.c.rt, P = this.port;
     con.puts(F.color);
     con.setCursor(6, 0x10); printf(F.year, rt.year + 1);

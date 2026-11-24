@@ -88,11 +88,8 @@ export class Title {
   // 16ff2 環境設定: [8b1e] = 1 → 1fd9:173f (= 214cf, 與港口 / 海上同一個環境設定視窗, scenes/commands.js settings) → [8b1e] = 0, 回傳 0 (回到標題選單)
   //   [8b1e] (地圖精靈的動畫相位) 在 214cf 以下都沒有被讀, 之後進港 / 出海各場景另行初始化, 移植版不另外保存
   async settings() {
-    const prevWide = this.c.scr.wideRenderer;
-    this.c.scr.wideRenderer = null;
     this.c.portAssets ??= await loadPortAssets(this.c);
     await new Commands({ c: this.c, P: this.c.portAssets }).settings();
-    this.c.scr.wideRenderer = prevWide;
     return 0;
   }
   // 17004 結束遊戲

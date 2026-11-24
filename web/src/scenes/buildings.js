@@ -302,7 +302,10 @@ export class Buildings {
     scr.fillCols(0x18, 0x20, 0x1b, 0x70, 7);
   }
   // seg0:7e15 下方視窗, 隨機無名人物
-  randomTalk() { const { kao, scr, sys } = this.c; this.talkWindow(0x14, 0xc0); kao.drawRandomType(scr, sys.rng, sys.rng.random(0x3fff) | 0xc000, 0x16, 0xd0); }
+  randomTalk() {
+    if (this.c.scr.wideRenderer && this.c.codec) { this.beginWideTalk(null); return; }
+    const { kao, scr, sys } = this.c; this.talkWindow(0x14, 0xc0); kao.drawRandomType(scr, sys.rng, sys.rng.random(0x3fff) | 0xc000, 0x16, 0xd0);
+  }
   async shipInfo(slot) {
     const st = this.st, { palette, con, printf, graph } = this.c;
     const M = this.crewData(slot), S = this.fleetSlot(slot), ship = ListSelect.shipRec(st.u8(S + OFF.DOCK_SLOT.SHIP)), type = st.u8(ship + 0x0f), T = DS.TBL_SHIP_TYPE + type * 0x0c;

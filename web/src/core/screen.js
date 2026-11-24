@@ -571,37 +571,11 @@ export class Screen {
     for (let i = 0; i < 48; i++) if (this.raw[i] > maxPal) maxPal = this.raw[i];
 
     if (this.wideRenderer) {
-      // 模式 A: 16:9 (1280x720) 全屏現代遊戲佈局 (港口 / 海面 + 懸浮 Canvas HUD)
+      // 模式 A: 16:9 (1280x720) 全屏現代遊戲佈局 (絕不疊加舊版 winStackRef 羊皮紙框)
       this.wideRenderer(this.ctx, this);
-      // 若有開啟中的視窗/選單 (winStackRef)，只將開啟視窗區域清晰疊加於全屏地圖上
-      const stack = this.winStackRef;
-      if (stack && stack.length > 0) {
-        this.ctx.fillStyle = "rgba(6, 12, 24, 0.24)";
-        this.ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-        for (const w of stack) {
-          const sx = Math.max(0, w.x * 8), sy = Math.max(0, w.y);
-          const sw = Math.min(SCREEN_W - sx, (w.frameW ?? w.w) * 8);
-          const sh = Math.min(SCREEN_H - sy, w.frameH ?? w.h);
-          if (sw <= 0 || sh <= 0) continue;
-          const dx = LEGACY_OFF_X + sx * LEGACY_SCALE, dy = sy * LEGACY_SCALE;
-          const dw = sw * LEGACY_SCALE, dh = sh * LEGACY_SCALE;
-          this.ctx.save();
-          this.ctx.shadowColor = "rgba(0, 0, 0, 0.55)";
-          this.ctx.shadowBlur = 18;
-          this.ctx.shadowOffsetX = 0;
-          this.ctx.shadowOffsetY = 6;
-          this.ctx.fillStyle = "rgba(0, 0, 0, 1)";
-          this.ctx.fillRect(dx, dy, dw, dh);
-          this.ctx.restore();
-          this.ctx.imageSmoothingEnabled = true;
-          this.ctx.drawImage(this.hdCanvas, sx * HD_SCALE, sy * HD_SCALE, sw * HD_SCALE, sh * HD_SCALE, dx, dy, dw, dh);
-          this.ctx.imageSmoothingEnabled = false;
-          this.ctx.drawImage(this.fbCanvas, sx, sy + Y_OFFSET, sw, sh, dx, dy, dw, dh);
-        }
-      }
       // 16:9 現代底部寬幅對話欄
       if (this.wideDialog) drawWideDialog(this.ctx, this.wideArt, this.wideDialog);
-      // 16:9 原生現代 Canvas 浮層 (選單 / 清單 / 確認框 / 數字輸入)
+      // 16:9 原生現代 Canvas 浮層 (選單 / 清單 / 確認框 / 數字輸入 / 經營與情報浮窗)
       for (const fn of this.wideOverlays) fn(this.ctx, this);
       if (maxPal < 15) {
         this.ctx.fillStyle = `rgba(0,0,0,${(1 - maxPal / 15).toFixed(3)})`;

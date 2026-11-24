@@ -60,9 +60,21 @@ export class LegacyScenarioHost implements IScenarioHost {
     this.deps = deps;
   }
   clearWindowText(w: ScenarioWindowDef): void {
+    if (this.c.scr.wideRenderer) {
+      if (this.c.scr.wideDialog) {
+        this.c.scr.wideDialog.text = "";
+        this.c.scr.dirty = true;
+      }
+      return;
+    }
     this.c.scr.fillCols(w.textX, w.textY, w.textW, w.textH, 7);
   }
   selectWindow(w: ScenarioWindowDef, textColor: Uint8Array): void {
+    if (this.c.scr.wideRenderer) {
+      this.c.scr.wideDialog = { text: "", portraitId: this.c.scr.wideDialog?.portraitId ?? null, waiting: false };
+      this.c.scr.dirty = true;
+      return;
+    }
     const { con } = this.c;
     con.left = w.textX;
     con.right = w.textW + w.textX - 2;
@@ -71,18 +83,45 @@ export class LegacyScenarioHost implements IScenarioHost {
     con.puts(textColor);
   }
   openWindow(id: number, w: ScenarioWindowDef): void {
+    if (this.c.scr.wideRenderer) {
+      this.c.scr.wideDialog = { text: "", portraitId: null, waiting: false };
+      this.c.scr.dirty = true;
+      return;
+    }
     const { win } = this.c;
     if (id !== 0) win.save(w.x, w.y, w.w, w.h);
     win.frame(w.x, w.y, w.w, w.h, 0);
   }
   async closeWindow(id: number, w: ScenarioWindowDef): Promise<void> {
+    if (this.c.scr.wideRenderer) {
+      this.c.scr.wideDialog = null;
+      this.c.scr.dirty = true;
+      return;
+    }
     if (id !== 0) await this.c.win.close();
     else this.clearWindowText(w);
   }
   drawFace(faceId: number, w: ScenarioWindowDef): void {
+    if (this.c.scr.wideRenderer) {
+      const fid = faceId & 0xff;
+      if (this.c.art?.portraitUrl) void this.c.art.loadImage(this.c.art.portraitUrl(fid)).catch(() => {});
+      this.c.scr.wideDialog = { text: this.c.scr.wideDialog?.text ?? "", portraitId: fid, waiting: false };
+      this.c.scr.dirty = true;
+      return;
+    }
     this.c.kao.drawNamed(this.c.scr, faceId & 0xff, w.faceX, w.faceY);
   }
   showText(bytes: Uint8Array): void {
+    if (this.c.scr.wideRenderer && this.c.codec) {
+      let end = bytes.indexOf(0);
+      if (end < 0) end = bytes.length;
+      const chunk = this.c.codec.decode(bytes.subarray(0, end)).replace(/\{[0-9A-F]{2}\}/g, "");
+      const cur = this.c.scr.wideDialog ?? { text: "", portraitId: null, waiting: false };
+      cur.text = (cur.text + chunk).trim();
+      this.c.scr.wideDialog = cur;
+      this.c.scr.dirty = true;
+      return;
+    }
     this.c.con.puts(bytes);
   }
   async waitKey(): Promise<void> {

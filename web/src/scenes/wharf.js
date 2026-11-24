@@ -413,18 +413,30 @@ class WharfMixin {
   }
   // 27a83 裝上 (0 水 1 食物 2 資材 3 砲彈)
   async load(slot, item) {
-    const st = this.st, { message, win } = this.c, M = this.crewData(slot), E = this.eco;
+    const st = this.st, { message, win, scr } = this.c, M = this.crewData(slot), E = this.eco;
     let space = domS16(st.u16(this.shipOf(slot) + 0x14) - this.cargoUsed(slot)), price = 0;
-    win.save(0x15, 0x148, 0x1e, 0x40);
-    this.winText(0x15, 0x148, 0x1e, 0x38);
-    if (item === 0) message(0x3e, space);
-    else {
-      const [cx, off] = [[0x14, 0x10], [0x5a, 0x17], [0x78, 0x10]][item - 1];
-      price = Math.trunc(((st.u8(E + off) + 0x32) * cx) / 100);
-      let mx = Math.trunc(this.money / price);
-      if (mx > space) mx = space;
-      space = mx;
-      message(0x3e + item, price, space);
+    if (scr.wideRenderer) {
+      if (item === 0) this.greet(0x3e, space);
+      else {
+        const [cx, off] = [[0x14, 0x10], [0x5a, 0x17], [0x78, 0x10]][item - 1];
+        price = Math.trunc(((st.u8(E + off) + 0x32) * cx) / 100);
+        let mx = Math.trunc(this.money / price);
+        if (mx > space) mx = space;
+        space = mx;
+        this.greet(0x3e + item, price, space);
+      }
+    } else {
+      win.save(0x15, 0x148, 0x1e, 0x40);
+      this.winText(0x15, 0x148, 0x1e, 0x38);
+      if (item === 0) message(0x3e, space);
+      else {
+        const [cx, off] = [[0x14, 0x10], [0x5a, 0x17], [0x78, 0x10]][item - 1];
+        price = Math.trunc(((st.u8(E + off) + 0x32) * cx) / 100);
+        let mx = Math.trunc(this.money / price);
+        if (mx > space) mx = space;
+        space = mx;
+        message(0x3e + item, price, space);
+      }
     }
     const v = await this.numpad.input(0, space);
     const add = (o, d) => st.set16(M + o, st.u16(M + o) + d);
@@ -435,15 +447,20 @@ class WharfMixin {
       case 3: add(6, v); break;
     }
     if (item) this.money = (this.money - Math.imul(v, price)) | 0;
-    await this.closeTalk();
+    if (!scr.wideRenderer) await this.closeTalk();
   }
   // 27c16 卸下
   async unload(slot, item) {
-    const st = this.st, { printf, win } = this.c, M = this.crewData(slot);
-    win.save(0x15, 0x148, 0x1e, 0x40);
-    this.winText(0x15, 0x148, 0x1e, 0x38);
+    const st = this.st, { printf, win, scr } = this.c, M = this.crewData(slot);
     const off = [0, 2, 4, 6][item], have = item < 2 ? Math.trunc(domS16(st.u16(M + off)) / 10) : domS16(st.u16(M + off));
-    printf(this.WF.unloadAsk, have);
+    if (scr.wideRenderer) {
+      this.beginWideTalk(null);
+      printf(this.WF.unloadAsk, have);
+    } else {
+      win.save(0x15, 0x148, 0x1e, 0x40);
+      this.winText(0x15, 0x148, 0x1e, 0x38);
+      printf(this.WF.unloadAsk, have);
+    }
     const v = await this.numpad.input(0, have);
     st.set16(M + off, st.u16(M + off) - (item < 2 ? 10 * v : v));
     await this.closeTalk();
