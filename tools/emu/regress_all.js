@@ -45,6 +45,7 @@ const LIST = [
   ...M("fleet_route", "FLEET_MODE", ["month", "year", "launch", "misc", "pirate", "unpaid"], [], LONG), ...M("fleet_route", "FLEET_MODE", ["seamonth"], SEA, LONG),
   ...M("mouse_route", "MOUSE_MODE", ["list", "yesno", "walk"]),                                           // 滑鼠操作 (RE_NOTES 38)
   ...M("mouse_route", "MOUSE_MODE", ["popup"], ["battle_route.js", ...SEA], LONG), ...M("mouse_route", "MOUSE_MODE", ["sea"], SEA, LONG),
+  ...M("title_settings_route", null, [""]),                                                                 // 標題選單 環境設定 (RE_NOTES 38.7)
 ];
 S.REGRESS_LIST = LIST;
 // 每項執行前把上一項設定的 session 大寫鍵 (路線設定) 清掉; S.QUIET 讓 port_tests 只印不一致的畫面與總計

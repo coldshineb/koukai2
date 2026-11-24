@@ -1209,15 +1209,17 @@ export class Commands {
       this.bar(0x28, 0x74 + (si << 5), v);
     }
   }
-  // 213c5: 0 表示效果; 1 BGM (有音源驅動 [03e4] 且 [8c1e] ≠ FF 時): 開 → (暴風雨中 9768(DS:0c5a) + 9804(0x30)) 9670 重播目前曲目, 關 → 9888 + 9712(5) 淡出並等待
+  // 213c5: 0 表示效果; 1 BGM ([8c1e] ≠ FF 且有音源驅動 [03e4] 時, 否則連開關位元都不改): 開 → (暴風雨中 9768(DS:0c5a) + 9804(0x30)) 9670([8c1e]) 重播目前曲目,
+  //   關 → 9888 + 9712(5) 淡出並等到停止 (9739)。[8c1e] = core/audio.js BGM.song (港口 / 海上 / 標題各自的目前曲目; 不是重算港口曲目)
   //   (效果音跟著背景音樂開關: 關掉音樂也停掉暴風雨聲, 打開音樂時重新開始, 照搬)
   async settingsToggle(r) {
     const st = this.st;
     if ((r >> 1) === 0) { st.options = st.options ^ 1; return; }
-    if (this.c.noSoundDriver) return;
+    const bgm = this.c.bgm, song = bgm.song ?? 0xff;
+    if (song === 0xff || this.c.noSoundDriver) return;
     st.options = st.options ^ 4;
-    if (st.options & 4) { if ((st.u8(0x0cb3) & 15) === 1) { this.c.sfx?.voice(0x0c5a); this.c.sfx?.note(0x30); } this.p.portBgm(); }
-    else { this.c.sfx?.off(); this.c.bgm.fadeOut(); }
+    if (st.options & 4) { if ((st.u8(0x0cb3) & 15) === 1) { this.c.sfx?.voice(0x0c5a); this.c.sfx?.note(0x30); } bgm.playSong(song); }
+    else { this.c.sfx?.off(); bgm.fadeOut(); await bgm.stopped?.(); }
   }
   // 21432: si = 項目 − 4; 奇數 +1 (不超過上限), 偶數 −1 (不低於 0); 之後 seg0:5022 以 ([0ca8]+2)×2 設定滑鼠速度
   settingsStep(si) {

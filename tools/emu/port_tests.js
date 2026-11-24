@@ -104,7 +104,7 @@ async function runJS(rng0) {
   const lazy = dir => new Proxy({}, { get: (o, k) => (o[k] ??= rdj(`${dir}${k}.json`)) });
   ctx.scenarioData = { vm: rdj("scenario/vm.json"), snr: lazy("scenario/snr"), mes: lazy("text/snr") };
   ctx.palette = new U.Palette(scr, sys, U.paletteTables(palJson));
-  ctx.bgm = { playSong() {}, fadeOut() {}, resume() {} };
+  ctx.bgm = { song: 0xff, playSong(id) { if (id <= 0x17) this.song = id; }, fadeOut() {}, resume() {} };   // song = [8c1e] (環境設定的 BGM 開關重播它, core/audio.js)
   const sfxJ = S.sfxJ = [];                                          // S.SFX_LOG: 移植版的效果音指令 (見 runEmu); 沒有 SFX_LOG 時 ctx.sfx 不存在, 效果音呼叫一律略過
   if (S.SFX_LOG) { ctx.sfx = new U.SfxPort(null, { log: m => sfxJ.push([shots.length, m.ah, m.al, m.ah === 5 ? m.addr : m.ah === 6 ? m.dl : 0]) }); ctx.sfx.state = state; }
   const con = new U.TextConsole(scr, font, { wait: n => sys.waitSpeed(n) });

@@ -9,6 +9,8 @@ export const SONG_TO_DRIVER = [21, 19, 22, 18, 2, 3, 4, 7, 6, 5, 11, 9, 8, 10, 1
 export class BGM {
   constructor(base) {
     this.base = base; this.el = typeof Audio !== "undefined" ? new Audio() : null; if (this.el) this.el.loop = true; this.cur = null; this.enabled = true;
+    this.song = 0xff;                    // [8c1e] 目前曲目 (遊戲內編號; 9670 寫入, 環境設定打開 BGM 時重播它)
+    this.optionOff = null;               // () => 環境設定「BGM」關閉 ([0ca4] bit2 = 0); title.js init 設定
     if (this.el) this.el.addEventListener?.("ended", () => { this.cur = null; this.done(); if (this.next) this.start(); });   // 只播一次的曲子播完 = 停止
   }
   async init() { this.map = await loadJSON(this.base + "/data/bgm.json"); return this; }
@@ -33,7 +35,9 @@ export class BGM {
     return new Promise(r => (this.waiters ??= []).push(r));
   }
   done() { const w = this.waiters || []; this.waiters = []; for (const r of w) r(); }
+  // 0:9670: 編號 ≤ 0x17 時 [8c1e] = 編號; BGM 關閉時只記下編號、不播放 ([8c1f] = FF; 之後打開 BGM 由環境設定 213c5 重播)
   playSong(id) {
+    if (id <= 0x17) { this.song = id; if (this.optionOff?.()) return Promise.resolve(); }
     const songs = this.map.songs, k = String(id);
     if (songs && k in songs) {
       if (!songs[k]) { this.stop(); return Promise.resolve(); }                              // FMDRV 樂曲 0: 停止

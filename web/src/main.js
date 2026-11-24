@@ -122,6 +122,7 @@ requestAnimationFrame(frame);
   } catch (e) {
     if (!(e instanceof MainExit)) throw e;
     // MAIN.EXE 以結束碼 1 結束 → KOUKAI2.COM 執行 END.EXE (INT 65h 的值 = e.params); 結局播完回到 DOS
+    ctx.bgm.optionOff = null;                    // END.EXE 是另一個程式, 不看 MAIN.EXE 的 [0ca4] BGM 開關 (core/audio.js 9670)
     const end = await loadEndingData(ASSETS, loadBinary, loadJSON);
     await new Ending({ scr, sys, bgm: ctx.bgm, font: ctx.font }, end).run(e.params);
     ctx.halted = true;

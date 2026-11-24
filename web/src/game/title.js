@@ -3,6 +3,8 @@
 import { GameState, STATE_LOAD_SIZE } from "./state.js";
 import { SaveFile, SLOTS, HEADER_SIZE } from "./savefile.js";
 import { NewGame } from "./newgame.js";
+import { Commands } from "../scenes/commands.js";
+import { loadPortAssets } from "../scenes/port.js";
 
 const ESC = 0x1b;
 const STR_STAR = Uint8Array.of(ESC, 0x43, 0x32, 0x2a, ESC, 0x43, 0x30, 0);   // DS:a37a  ESC C2 * ESC C0
@@ -24,6 +26,7 @@ export class Title {
     //   之後是/否框在滑鼠位於 (27F,18F) 時改跟隨文字游標 (0FEA:146d4), 所以這一步會影響確認框的位置
     this.c.sys.setMousePos(0x27f, 0x18f);
     this.c.con.f29 = 1;                   // [8a29] = 1
+    this.c.bgm.optionOff = () => !(this.c.state.options & 4);   // 9670 依 [0ca4] bit2 決定播不播 (core/audio.js)
   }
   // 171a2(1); restart = 171a2(0) (1757d: 功能「結束遊戲」後回到標題: 不做 1752c, 以 DATA1 #15 重新載入初始狀態代替 162fd)
   async run(restart = false) {
@@ -55,8 +58,13 @@ export class Title {
   async cont() { return this.loadMenu(); }
   // 16f96 開始新航海: 主角選擇 (16564, 期間 [03d8] 仍是 GRAPH2.DAT) → 新遊戲初始化 (16949)
   async newVoyage() { return new NewGame(this.c, this.c.newgameData, this.c.mapNodes).run(); }
-  // 16ff2 環境設定 — 1fd9:173f 下一步移植
-  async settings() { return 0; }
+  // 16ff2 環境設定: [8b1e] = 1 → 1fd9:173f (= 214cf, 與港口 / 海上同一個環境設定視窗, scenes/commands.js settings) → [8b1e] = 0, 回傳 0 (回到標題選單)
+  //   [8b1e] (地圖精靈的動畫相位) 在 214cf 以下都沒有被讀, 之後進港 / 出海各場景另行初始化, 移植版不另外保存
+  async settings() {
+    this.c.portAssets ??= await loadPortAssets(this.c);
+    await new Commands({ c: this.c, P: this.c.portAssets }).settings();
+    return 0;
+  }
   // 17004 結束遊戲
   async quit(items) {
     const { win, con, menu } = this.c;
