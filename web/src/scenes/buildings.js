@@ -20,6 +20,8 @@ import { Bank } from "./bank.js";
 import { ItemShop } from "./itemshop.js";
 import { CPU } from "../core/cpucost.js";
 import { COST_TABLE } from "../core/cpucost_table.js";
+import { DS, OFF } from "../model/schema_views.ts";
+import { WorkDS } from "../model/flags.ts";
 const WIPE_CYC = COST_TABLE.find(r => r[0] === "Buildings" && r[1] === "wipe")?.[2].n || 0;   // seg0:2260 清除畫面的量測週期
 
 const bHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
@@ -46,11 +48,11 @@ export class Buildings {
         ...Object.fromEntries(Object.entries(G.fmt).map(([k, v]) => [k, bHex(v)])) }; }
   }
   get st() { return this.c.state; }
-  get port() { return this.st.u8(0x0cae); }
+  get port() { return this.st.u8(DS.PORT); }
   get hero() { return this.st.personRecord(this.st.hero); }           // [c2ce]
-  get heroData() { return 0x125a + this.st.hero * 0x0e; }             // seg0:5be8
-  get money() { return (this.st.u16(0x12ae) | (this.st.u16(0x12b0) << 16)) | 0; }
-  set money(v) { this.st.set16(0x12ae, v & 0xffff); this.st.set16(0x12b0, (v >>> 16) & 0xffff); }
+  get heroData() { return DS.TBL_HERO_DATA + this.st.hero * 0x0e; }             // seg0:5be8
+  get money() { return (this.st.u16(DS.MONEY) | (this.st.u16(0x12b0) << 16)) | 0; }
+  set money(v) { this.st.set16(DS.MONEY, v & 0xffff); this.st.set16(0x12b0, (v >>> 16) & 0xffff); }
   noEvent() { return this.st.u16(0x0de6) === 0 && this.st.u16(0x0d5c) === 0; }
   // ---------------- 共用 ----------------
   greet(n, ...args) {                                                    // seg0:8f03
@@ -103,7 +105,7 @@ export class Buildings {
     for (let k = 0; k < 5; k++) {
       let found = false;
       for (let i = 0; i < 0x1e; i++) {
-        const n = st.u8(0x2e1b + i); if (n === 0xff) continue;
+        const n = st.u8(DS.PARTY_CREW + i); if (n === 0xff) continue;
         who = n;
         if (st.u8(st.personRecord(n) + 0x2e) === order[k]) { found = true; break; }
       }
@@ -120,7 +122,7 @@ export class Buildings {
   }
   // 12e5a: 在本港的人物 (主角除外, +31 bit5): 停留港 = 本港, 或在主角艦隊, 或所屬艦隊停泊在本港
   portPersonsAll() {
-    const st = this.st, P = 0x5f54 + this.port * 0x16, heroFleet = st.u8(this.hero + 0x2c), L = [];
+    const st = this.st, P = DS.TBL_PORT + this.port * 0x16, heroFleet = st.u8(this.hero + 0x2c), L = [];
     for (let i = 0; i < 0x78; i++) {
       if (i === st.hero) continue;
       const p = st.personRecord(i);
@@ -128,8 +130,8 @@ export class Buildings {
       const f = st.u8(p + 0x2c);
       if (st.u8(p + 0x2d) === this.port || f === heroFleet) { L.push(i); continue; }
       if (f >= 0x46) continue;
-      const F = 0x2e76 + f * 0x85;
-      if ((st.u8(F + 0x29) & 0x10) && st.u16(F) === st.u16(P) && st.u16(F + 2) === st.u16(P + 2)) L.push(i);
+      const F = DS.TBL_FLEET + f * 0x85;
+      if ((st.u8(F + OFF.FLEET.FLAGS) & 0x10) && st.u16(F) === st.u16(P) && st.u16(F + OFF.FLEET.Y) === st.u16(P + 2)) L.push(i);
     }
     return L;
   }
@@ -152,18 +154,18 @@ export class Buildings {
     }
   }
   // ================= 1 酒館 1fd9:78f5 =================
-  get eco() { return 0x6a80 + this.port * 0x25; }                         // [c2dc] = seg0:5caa(港)
+  get eco() { return DS.TBL_PORT_ECONOMY + this.port * 0x25; }                         // [c2dc] = seg0:5caa(港)
   fleetSlot(i) { return ListSelect.fleetSlot(this.st, i); }                // seg0:5c58
   // [0538] 是固定的字陣列: 只覆寫前 L.length 項, 後面保留舊值 (原版如此)
   setPersons(L) { const P = (this.c.persons ??= new Array(0x50).fill(0)); for (let i = 0; i < L.length; i++) P[i] = L[i]; }
-  crewData(i) { return 0x52d4 + i * 0x1e; }                               // seg0:5c38 (+08/+09 配置比例, +1b 船長, +1c 士氣)
+  crewData(i) { return DS.TBL_CREW_SLOT + i * 0x1e; }                               // seg0:5c38 (+08/+09 配置比例, +1b 船長, +1c 士氣)
   // 0fea:2dea = 12c8a: 主角艦隊有船的位置 → [0538]
   fleetShips() {
     const L = []; for (let i = 0; i < 10; i++) if ((this.st.u8(this.fleetSlot(i) + 8) & 0x30) === 0x10) L.push(i);
     this.setPersons(L); return L.length;
   }
   dstr(a) { return Buildings.inState(a) ? this.st.cstr(a) : Uint8Array.of(0); }
-  static inState(a) { return a >= 0x0ca4 && a < 0x8a18; }
+  static inState(a) { return a >= DS.OPTIONS && a < DS.TRADE_LOGS; }
   // seg0:8894 後的金錢增減 (2553b: 上限 600000000)
   addMoney(v) { let m = this.money + v; if (m > 600000000) m = 600000000; this.money = m; this.p.panels(); }
   payMoney(v) { if ((v >>> 0) > (this.money >>> 0)) return 0; this.money = (this.money - v) | 0; this.p.panels(); return 1; }   // 25515
@@ -195,12 +197,12 @@ export class Buildings {
   // 27592 / 275d2 本港的酒吧女郎 (DS:2bde, 每筆 0x13)
   tavernGirlA() {
     if (this.st.u8(this.hero + 0x31) & 0x10) return 0;
-    for (let i = 0; i < 0x1e; i++) { const g = 0x2bde + i * 0x13, f = this.st.u8(g + 0x12); if (this.st.u8(g + 0x0e) === this.port && (f & 8) && (f & 0x40)) return g; }
+    for (let i = 0; i < 0x1e; i++) { const g = DS.TBL_BARMAID + i * 0x13, f = this.st.u8(g + 0x12); if (this.st.u8(g + 0x0e) === this.port && (f & 8) && (f & 0x40)) return g; }
     return 0;
   }
   tavernGirl() {
     for (let i = 0; i < 0x1e; i++) {
-      const g = 0x2bde + i * 0x13, f = this.st.u8(g + 0x12);
+      const g = DS.TBL_BARMAID + i * 0x13, f = this.st.u8(g + 0x12);
       if (this.st.u8(g + 0x0e) === this.port && (f & 8) && !(f & 0x40)) {
         if ((this.st.u8(this.hero + 0x31) & 0x10) && !(this.st.u8(g + 0x12) & 1)) return 0;
         return g;
@@ -216,7 +218,7 @@ export class Buildings {
     const drink = this.T.liquors[st.u8(this.eco + 0x24)];
     if (this.noEvent()) {
       if (girlA) {
-        this.talkGirl(0x61, 0x2bde);
+        this.talkGirl(0x61, DS.TBL_BARMAID);
         this.talkMessage2(0x11, this.dstr(this.hero), drink);
         await this.wait(); await this.closeTalk();
       } else this.greet(0x12, drink);
@@ -225,7 +227,7 @@ export class Buildings {
     const items = this.c.menuItems(15);
     let sel;
     do {
-      if (st.u8(0x0cb0) & 1) menu.disabled |= 1;
+      if (st.u8(DS.DAILY_FLAGS) & 1) menu.disabled |= 1;
       if (!this.girl) menu.disabled |= 0x10;
       if (!this.fleetShips()) menu.disabled |= 3;
       sel = await this.menu(items);
@@ -233,7 +235,7 @@ export class Buildings {
         () => this.chat(), () => this.barGirl(), () => (this.gambleG ??= new Gamble(this)).run()][sel]();
       this.after();
     } while (sel !== 0xff);
-    palette.selectTimePalette(st.u8(0x0cad), false, st.weather);             // 0fea:98ce
+    palette.selectTimePalette(st.u8(DS.TIME), false, st.weather);             // 0fea:98ce
   }
   tvTodo(n) { bTodo(n); }
   // ---------- 對話視窗 (上方 = 主角/對象, 下方 = 店家/路人) ----------
@@ -274,18 +276,18 @@ export class Buildings {
     for (let i = 0; i < 3; i++) if (st.u16(D + i * 2) > fame) { di = i; fame = st.u16(D + i * 2); }
     this.randomTalk();
     if (fame < 1000) message(0x24);
-    else if (fame < 5000) message(0x84, kinds[di], this.dstr(H), this.dstr(H + 0x0d));
-    else message(0x85, this.dstr(H), this.dstr(H + 0x0d));
+    else if (fame < 5000) message(0x84, kinds[di], this.dstr(H), this.dstr(H + OFF.PERSON.FAMILY_NAME));
+    else message(0x85, this.dstr(H), this.dstr(H + OFF.PERSON.FAMILY_NAME));
     await this.wait();
     let done = false;
-    if (st.u8(0x0d5e)) done = await this.rumorScenario();
-    else if ((st.u8(0x0d62) & 3) && !(st.u8(0x0d62) & 4)) { await this.rumorNation(); st.set8(0x0d62, st.u8(0x0d62) | 2); done = true; }
+    if (st.u8(DS.COMMON_CHAP)) done = await this.rumorScenario();
+    else if ((st.u8(WorkDS.FLAGS) & 3) && !(st.u8(WorkDS.FLAGS) & 4)) { await this.rumorNation(); st.set8(WorkDS.FLAGS, st.u8(WorkDS.FLAGS) | 2); done = true; }
     if (!done) {
       let found = -1;
       if (sys.rng.random(200) < st.u8(H + 0x23))
         for (let i = 0; i < 7; i++) {
           if (!sys.rng.random(3)) continue;
-          const v = st.u8(0x117a + i * 0x20 + 3);
+          const v = st.u8(DS.TBL_COUNTRY + i * 0x20 + 3);
           if (v === 3 || v === 7) { found = i; break; }
         }
       if (found >= 0) { this.talkClear(); message(0x25); message(0x28, this.p.nations[found]); await this.wait(); }
@@ -308,13 +310,13 @@ export class Buildings {
       if (!b && a > port) continue;
       if (b && a + port > 0x63) continue;
       const q = (b ? port + a : port - a) & 0xff;
-      if (st.u8(0x5f54 + q * 0x16 + 0x15) & 0x10) continue;
+      if (st.u8(DS.TBL_PORT + q * 0x16 + 0x15) & 0x10) continue;
       return this.portInfo(q);
     }
   }
   // 25a1a 港口 q 的位置與特產
   async portInfo(q) {
-    const st = this.st, { message } = this.c, P = 0x5f54 + q * 0x16, E = 0x6a80 + q * 0x25;
+    const st = this.st, { message } = this.c, P = DS.TBL_PORT + q * 0x16, E = DS.TBL_PORT_ECONOMY + q * 0x25;
     this.talkClear();
     message(0x25);
     this.latLong(st.u16(P), st.u16(P + 2));
@@ -336,27 +338,27 @@ export class Buildings {
   async rumorTrade() {
     const st = this.st, rng = this.c.sys.rng;
     let m = 0, k = 0;
-    for (let n = 0; n < 0x32; n++) { m = 0x52d4 + rng.random(10) * 0x1e; k = rng.random(5); if (st.u8(m + 0x16 + k) !== 0xff) break; }
+    for (let n = 0; n < 0x32; n++) { m = DS.TBL_CREW_SLOT + rng.random(10) * 0x1e; k = rng.random(5); if (st.u8(m + 0x16 + k) !== 0xff) break; }
     if (st.u8(m + 0x16 + k) !== 0xff) await this.rumorGoods(st.u8(m + 0x16 + k)); else await this.rumorPort();
   }
   // 25b17 商品 g 最貴的地區 (物價表 0x78f4 + 0x80×地區, 8 區)
   async rumorGoods(g) {
     const st = this.st, rng = this.c.sys.rng, { message } = this.c;
     let top = 0, best = 0;
-    for (let r = 0; r < 8; r++) { const v = s16b(st.u16(0x78f4 + r * 0x80 + g * 2)); if (v > top && rng.random(8)) { top = v; best = r; } }
+    for (let r = 0; r < 8; r++) { const v = s16b(st.u16(DS.TBL_REGION_PRICE + r * 0x80 + g * 2)); if (v > top && rng.random(8)) { top = v; best = r; } }
     this.talkClear(); message(0x34e, this.p.goods[g]); message(0x181 + best); message(0x34f);
     await this.wait();
   }
   // 25c01 劇本進行中 ([0d5e]) 的特別傳聞
   async rumorScenario() {
-    const st = this.st, { message } = this.c, ev = s16b(st.u16(0x0d74)), who = st.u16(0x0d8a), item = st.u16(0x0d8c);
+    const st = this.st, { message } = this.c, ev = s16b(st.u16(WorkDS.CUR_KIND)), who = st.u16(WorkDS.TARGET_PERSON), item = st.u16(WorkDS.TARGET_ITEM);
     if (ev === 0x0b && who !== 0xff)
-      for (let i = 0; i < 0x14; i++) { const v = st.u8(0x2e57 + i); if (((v - item) & 0xff) === 0xf6 || v === (item & 0xff)) return false; }
+      for (let i = 0; i < 0x14; i++) { const v = st.u8(DS.INVENTORY + i); if (((v - item) & 0xff) === 0xf6 || v === (item & 0xff)) return false; }
     if (!((ev === 0x0b && who !== 0xff) || ev === 5)) return false;
     if (s16b(who) % 3 !== this.port % 3) return false;
     const M = st.personRecord(who & 0xff);
     if (st.u8(M + 0x2d) !== 0xff) {
-      const P = 0x5f54 + st.u8(M + 0x2d) * 0x16;
+      const P = DS.TBL_PORT + st.u8(M + 0x2d) * 0x16;
       this.talkClear(); message(0x257, this.dstr(M), this.dstr(M + 0x0d), st.cstr(P + 4)); await this.wait();
       this.talkClear(); message(0x258, st.cstr(P + 4)); this.latLong(st.u16(P), st.u16(P + 2)); message(0x259);
     } else {
@@ -430,10 +432,10 @@ export class Buildings {
   }
   // [0d5e] 劇本中, 對象是劇本人物時: 回傳 null = 沒有劇本動作
   async mateScenario(needItem) {
-    const st = this.st, ev = s16b(st.u16(0x0d74));
-    if (!st.u8(0x0d5e) || st.u8(0x0d8a) !== this.mateNo) return null;
-    if (ev === 0x0b && (!needItem || st.u16(0x0d8c))) { this.talkPerson(this.mateNo); await this.questItem(); await this.closeTalk(); return 1; }
-    if (ev === 5 && st.u16(0x0d8c)) return this.questReward();
+    const st = this.st, ev = s16b(st.u16(WorkDS.CUR_KIND));
+    if (!st.u8(DS.COMMON_CHAP) || st.u8(WorkDS.TARGET_PERSON) !== this.mateNo) return null;
+    if (ev === 0x0b && (!needItem || st.u16(WorkDS.TARGET_ITEM))) { this.talkPerson(this.mateNo); await this.questItem(); await this.closeTalk(); return 1; }
+    if (ev === 5 && st.u16(WorkDS.TARGET_ITEM)) return this.questReward();
     return null;
   }
   // 2633b 請客喝酒
@@ -444,7 +446,7 @@ export class Buildings {
     const sc = await this.mateScenario(true); if (sc !== null) return sc;
     this.talkClear();
     let mul;
-    if (!((st.u8(H + 0x2f) ^ st.u8(M + 0x2f)) & 3)) { message(0x331 * this.aef0 + 0x2c); mul = 3; } else { message(0x330 * this.aef0 + 0x2d); mul = 1; }
+    if (!((st.u8(H + OFF.PERSON.FLAGS) ^ st.u8(M + 0x2f)) & 3)) { message(0x331 * this.aef0 + 0x2c); mul = 3; } else { message(0x330 * this.aef0 + 0x2d); mul = 1; }
     await this.wait();
     st.set8(M + 0x2b, umin16(((st.u8(M + 0x2f) & 0x40 ? 2 : 1) * 6 * mul + st.u8(M + 0x2b)) & 0xffff, 100));
     let mx = 0, di = 0;
@@ -460,7 +462,7 @@ export class Buildings {
     q = (q - umin16(sys.rng.random(4), q)) & 0xff;
     let i = 0, rec = st.personRecord(0);
     for (; i < 0x78; i++, rec += 0x32) if (st.u8(rec + 0x2d) === q && (st.u8(rec + 0x31) & 0x20)) break;
-    const P = 0x5f54 + q * 0x16;
+    const P = DS.TBL_PORT + q * 0x16;
     this.talkClear();
     if (q === this.port) message(0x2f, this.T.liquors[st.u8(this.eco + 0x24)]);
     else if (i !== 0x78) message(0x23a, st.cstr(P + 4), this.dstr(rec + 0x0d));
@@ -477,7 +479,7 @@ export class Buildings {
     let mx = 0, di = 0;
     for (let i = 0; i < 7; i++) if (st.u8(M + 0x1c + i) > mx) { di = i; mx = st.u8(M + 0x1c + i); }
     const worth = s16b(st.u8(M + 0x1c + di) * (st.u8(M + 0x24) + st.u8(M + 0x25)));
-    let need = s16b(st.u8(H + 0x1c + di) * (st.u8(H + 0x24) + st.u8(H + 0x25)));
+    let need = s16b(st.u8(H + OFF.PERSON.STATS + di) * (st.u8(H + OFF.PERSON.NAV_LEVEL) + st.u8(H + OFF.PERSON.BATTLE_LEVEL)));
     need = (need + Math.trunc(s16b(need * st.u8(this.heroData + 0x0d)) / 10)) & 0xffff;
     if (((sys.rng.random(0x14) + worth) & 0xffff) < need) return this.mateFee(worth);
     this.talkClear(); message(0x91); await this.wait();
@@ -488,7 +490,7 @@ export class Buildings {
     const st = this.st, { message } = this.c, M = this.mate;
     const no = async n => { this.talkClear(); message(n); await this.wait(); return 0; };
     if (st.u8(M + 0x2e)) return no(0x31);
-    let free = false; for (let i = 0; i < 0x1e; i++) if (st.u8(0x2e1b + i) === 0xff) free = true;
+    let free = false; for (let i = 0; i < 0x1e; i++) if (st.u8(DS.PARTY_CREW + i) === 0xff) free = true;
     if (!free) return no(0x8c);
     if (strict && st.u8(M + 0x2b) <= 0x1e) return no(0x8d);
     return 1;
@@ -503,22 +505,22 @@ export class Buildings {
     this.talkClear(); message(0x90); await this.wait();
     st.set8(M + 0x2d, 0xff); st.set8(M + 0x2c, st.u8(this.hero + 0x2c)); st.set8(M + 0x2e, 6);
     st.set8(M + 0x2b, umin16(st.u8(M + 0x2b) + 10, 100));
-    for (let i = 0; i < 0x1e; i++) if (st.u8(0x2e1b + i) === 0xff) { st.set8(0x2e1b + i, this.mateNo); st.set8(0x2e39 + i, Math.trunc(fee / 10)); break; }
+    for (let i = 0; i < 0x1e; i++) if (st.u8(DS.PARTY_CREW + i) === 0xff) { st.set8(DS.PARTY_CREW + i, this.mateNo); st.set8(0x2e39 + i, Math.trunc(fee / 10)); break; }
     return 0;
   }
   // 2614f 劇本: 向對象買劇本道具 [0d8c] (1000 金)
   async questItem() {
-    const st = this.st, { message, menu } = this.c, item = st.u8(0x0d8c);
+    const st = this.st, { message, menu } = this.c, item = st.u8(WorkDS.TARGET_ITEM);
     const end = async n => { message(n); await this.wait(); };
-    for (let i = 0; i < 0x14; i++) if (((st.u8(0x2e57 + i) - item) & 0xff) === 0xf6) return end(0x36f);
-    message(0x25c, st.cstr(0x8248 + item * 0x14)); await this.wait();
+    for (let i = 0; i < 0x14; i++) if (((st.u8(DS.INVENTORY + i) - item) & 0xff) === 0xf6) return end(0x36f);
+    message(0x25c, st.cstr(DS.TBL_ITEM + item * 0x14)); await this.wait();
     this.talkClear(); message(0x25d);
     if (!(await menu.yesNo())) return;
     if (this.money < 1000) { this.talkClear(); return end(0x25f); }
     this.talkClear(); message(0x25e); await this.wait();
-    for (let i = 0; i < 0x14; i++) if (st.u8(0x2e57 + i) === 0xff) {
-      const v = (item - 10) & 0xff; st.set8(0x2e57 + i, v);
-      const Q = 0x7f8c + st.u8(0x8248 + v * 0x14 + 0x12) * 7; st.set8(Q + 6, st.u8(Q + 6) | 0x20);
+    for (let i = 0; i < 0x14; i++) if (st.u8(DS.INVENTORY + i) === 0xff) {
+      const v = (item - 10) & 0xff; st.set8(DS.INVENTORY + i, v);
+      const Q = DS.TBL_DISCOVERY + st.u8(DS.TBL_ITEM + v * 0x14 + 0x12) * 7; st.set8(Q + 6, st.u8(Q + 6) | 0x20);
       this.money = (this.money - 1000) | 0; this.p.panels();
       return;
     }
@@ -538,7 +540,7 @@ export class Buildings {
     this.talkClear(); message(0x261, s16b(5 * n)); await this.wait();
     this.talkClearTop(); message(0x266); await this.wait(); await this.closeTalk();
     this.money = (this.money + 50000 * n) | 0;
-    st.set16(0x0d8c, 0); this.p.panels();
+    st.set16(WorkDS.TARGET_ITEM, 0); this.p.panels();
     return 1;
   }
 
@@ -546,14 +548,14 @@ export class Buildings {
   async girlHello() {
     if (!(this.st.u8(this.hero + 0x31) & 0x10)) return;
     const g = this.girl;
-    this.talkGirl(Math.trunc((g - 0x2bde) / 0x13) + 0x61, g);
+    this.talkGirl(Math.trunc((g - DS.TBL_BARMAID) / 0x13) + 0x61, g);
     this.talkMessage2(this.st.u8(g + 0x10) !== 0xff && this.st.u8(g + 0x11) === 0 ? 0x133 : 0x134);
     await this.wait(); await this.closeTalk();
   }
   // ================= 酒館: 酒吧女郎 1fd9:75a7 (RE_NOTES 17.8) =================
   // 先付 10 (不足 → 9076 + 0x93); MENU #14 (主角 +31 bit4 時沒有前兩項); 子功能 DS:af62 = 26941 / 26a64 / 26ece / 272c5
   // 女郎記錄 DS:2bde + 0x13×i: +0d 年齡 +0e 所在港 +0f 好感 +10 調查委託 (低 4 位 = 國家, 高 4 位 = 種類; FF = 無) +11 剩餘天數 +12 旗標 (bit0, bit4-5 = 性格)
-  girlFace() { return Math.trunc((this.girl - 0x2bde) / 0x13) + 0x61; }
+  girlFace() { return Math.trunc((this.girl - DS.TBL_BARMAID) / 0x13) + 0x61; }
   async barGirl() {
     const st = this.st, g = this.girl, all = this.c.menuItems(14), items = [], kinds = [];
     if (!(st.u8(this.hero + 0x31) & 0x10)) { items.push(all[0], all[1]); kinds.push(0, 1); }
@@ -575,23 +577,23 @@ export class Buildings {
   async girlVoyage() {
     const st = this.st, g = this.girl, lvl = (st.u8(g + 0x12) & 0x30) >> 4, L = [];
     const MSG = [0x13a, 0x13b, 0x13c, 0x13d, 0x13e, 0x13f, 0x140, 0x13b];
-    for (let i = 0; i < 0x5a; i++) { const f = st.u8(0x7f8c + i * 7 + 6); if (!(f & 0x80) && (f & 0x20)) L.push(i); }
+    for (let i = 0; i < 0x5a; i++) { const f = st.u8(DS.TBL_DISCOVERY + i * 7 + 6); if (!(f & 0x80) && (f & 0x20)) L.push(i); }
     if (!L.length) { this.talkMessage2(0x138); await this.wait(); return; }
     this.setPersons(L);
     const r = await this.listSel().select(0x92, L.length);
     if (r === -1) return;
-    const n = this.c.persons[r] & 0xff, d = 0x7f8c + n * 7;
+    const n = this.c.persons[r] & 0xff, d = DS.TBL_DISCOVERY + n * 7;
     await this.discInfo(n);
     let v = (Math.trunc(st.u8(d + 5) / 10) + 1) & 0xff;
     this.talkMessage2(0x139);
-    if (lvl >= 2) { v = (v << 1) & 0xff; this.c.message(MSG[st.u8(d + 6) & 7]); st.set8(0x0cb0, st.u8(0x0cb0) & 0xbf); }
+    if (lvl >= 2) { v = (v << 1) & 0xff; this.c.message(MSG[st.u8(d + 6) & 7]); st.set8(DS.DAILY_FLAGS, st.u8(DS.DAILY_FLAGS) & 0xbf); }
     await this.wait();
-    if (!(st.u8(0x0cb0) & 0x40)) { st.set8(g + 0x0f, umin16(st.u8(g + 0x0f) + v, 100)); st.set8(0x0cb0, st.u8(0x0cb0) | 0x40); }
+    if (!(st.u8(DS.DAILY_FLAGS) & 0x40)) { st.set8(g + 0x0f, umin16(st.u8(g + 0x0f) + v, 100)); st.set8(DS.DAILY_FLAGS, st.u8(DS.DAILY_FLAGS) | 0x40); }
   }
   // 2e09:681c (348ac → 347a0) 發現物資料視窗: COLONY.DAT 第 n 筆 (+0 名稱, +0f 圖, +10 說明), 種類 DS:0952[+6 & 7], 重要度 MENU #0x22[+5 / 25]
   async discInfo(n) {
-    const st = this.st, { con, printf, kao, scr, win } = this.c, B = this.BG, d = 0x7f8c + n * 7;
-    st.set8(0x8246, n);                                                      // 348ac: [8246] = 發現物編號
+    const st = this.st, { con, printf, kao, scr, win } = this.c, B = this.BG, d = DS.TBL_DISCOVERY + n * 7;
+    st.set8(DS.DISCOVERY_ID, n);                                                      // 348ac: [8246] = 發現物編號
     const imp = this.c.menuItems(0x22), rec = ListSelect.colonyRec(this.c, n);
     await win.open(0x0f, 0x20, 0x1c, 0xd0, 0);                              // seg0:74f7
     kao.drawItem(scr, rec[0x0f], 0x11, 0x30);                               // seg0:7d4c
@@ -607,7 +609,7 @@ export class Buildings {
   // 26a64 送她禮物: 隨身物 (DS:2e57, 20 格) 中種類 0x0a / 0x0b 的 (0fea:32ca) → 清單 0x0d → 道具資料 → 是/否
   async girlGift() {
     const st = this.st, g = this.girl, lvl = (st.u8(g + 0x12) & 0x30) >> 4, L = [];
-    for (let i = 0; i < 0x14; i++) { const it = st.u8(0x2e57 + i); if (it === 0xff) continue; const t = st.u8(0x8248 + it * 0x14 + 0x13) & 0x0f; if (t === 0x0a || t === 0x0b) L.push(it); }
+    for (let i = 0; i < 0x14; i++) { const it = st.u8(DS.INVENTORY + i); if (it === 0xff) continue; const t = st.u8(DS.TBL_ITEM + it * 0x14 + 0x13) & 0x0f; if (t === 0x0a || t === 0x0b) L.push(it); }
     if (!L.length) {
       this.talkGirl(this.girlFace(), g);
       this.talkMessage2(st.u8(g + 0x12) & 1 ? 0x14a : 0x14b);
@@ -624,7 +626,7 @@ export class Buildings {
       if (await this.c.menu.yesNo()) break;
     }
     this.talkGirl(this.girlFace(), g);
-    const R = 0x8248 + it * 0x14, t = st.u8(R + 0x13) & 0x0f;
+    const R = DS.TBL_ITEM + it * 0x14, t = st.u8(R + 0x13) & 0x0f;
     this.talkMessage2(0x141);
     let add = umin16(st.u8(R + 0x12), 10), m = 0;
     if (lvl === 0) { if (t === 0x0a) m = 0x142; } else if (lvl === 1) { if (t === 0x0b) m = 0x143; } else if (lvl === 3) m = 0x144;
@@ -634,12 +636,12 @@ export class Buildings {
     }
     await this.wait();
     st.set8(g + 0x0f, umin16(st.u8(g + 0x0f) + add, 100));
-    for (let i = 0; i < 0x14; i++) if (st.u8(0x2e57 + i) === it) { st.set8(0x2e57 + i, 0xff); break; }
+    for (let i = 0; i < 0x14; i++) if (st.u8(DS.INVENTORY + i) === it) { st.set8(DS.INVENTORY + i, 0xff); break; }
     await this.closeTalk();
   }
   // 29340 道具資料 (隨身物 it; flag ≠ 0 且已裝備 (+13 bit4) 時加「裝備」): 名稱 (種類), 圖 (KAO 小圖 +0f + 0x55), 攻擊力 / 防禦力 (MENU #0x22), ITEM.MES 說明
   itemInfo(it, flag) {
-    const st = this.st, { con, printf, kao, scr, font } = this.c, B = this.BG, R = 0x8248 + it * 0x14, t = st.u8(R + 0x13) & 0x0f, v = st.u8(R + 0x12);
+    const st = this.st, { con, printf, kao, scr, font } = this.c, B = this.BG, R = DS.TBL_ITEM + it * 0x14, t = st.u8(R + 0x13) & 0x0f, v = st.u8(R + 0x12);
     const desc = font.encode(this.c.portAssets.itemMes[it]);
     con.setCursor(0x10, 0x90); printf(B.itemHdr, st.cstr(R), B.itemTypes[t]);
     kao.drawItem(scr, st.u8(R + 0x0f) + 0x55, 0x10, 0xc0);
@@ -689,16 +691,16 @@ export class Buildings {
     await this.wait();
     const lo = this.BG.survey[k], hi = this.BG.survey[k + 1];
     for (let i = lo; i < hi; i++) {
-      const F = 0x2e76 + ((nat * 10 + i) & 0xff) * 0x85;
-      if (!(st.u8(F + 0x29) & 1)) { message(0x22c, i - lo + 1); await this.wait(); continue; }
-      const t = st.u8(F + 0x1b), q = st.u8(F + 0x1c);
-      const port = () => this.dstr(0x5f54 + q * 0x16 + 4), who = () => this.dstr(st.personRecord(q) + 0x0d);
-      this.talkMessage2(0x21d, this.dstr(st.personRecord(st.u8(F + 0x2a)) + 0x0d));
+      const F = DS.TBL_FLEET + ((nat * 10 + i) & 0xff) * 0x85;
+      if (!(st.u8(F + OFF.FLEET.FLAGS) & 1)) { message(0x22c, i - lo + 1); await this.wait(); continue; }
+      const t = st.u8(F + OFF.FLEET.MISSION), q = st.u8(F + OFF.FLEET.TARGET);
+      const port = () => this.dstr(DS.TBL_PORT + q * 0x16 + 4), who = () => this.dstr(st.personRecord(q) + 0x0d);
+      this.talkMessage2(0x21d, this.dstr(st.personRecord(st.u8(F + OFF.FLEET.ADMIRAL)) + 0x0d));
       if (t <= 2) message(0x21e, port()); else if (t === 3) message(0x226, port()); else if (t === 4) message(0x227);
       else if (t <= 7) message(0x21f, who()); else if (t === 8) message(0x225, who()); else if (t === 9) message(0x224, port());
       await this.wait();
-      if (st.u8(F + 0x21) !== 0xff) { this.talkMessage2(0x220, this.BG.goods[st.u8(F + 0x21)]); await this.wait(); }
-      this.talkMessage2(0x229); this.latLong(st.u16(F), st.u16(F + 2)); message(0x22a);
+      if (st.u8(F + OFF.FLEET.CARGO_GOOD) !== 0xff) { this.talkMessage2(0x220, this.BG.goods[st.u8(F + OFF.FLEET.CARGO_GOOD)]); await this.wait(); }
+      this.talkMessage2(0x229); this.latLong(st.u16(F), st.u16(F + OFF.FLEET.Y)); message(0x22a);
       await this.wait();
     }
     st.set8(g + 0x10, 0xff); st.set8(g + 0x11, 0xff);
@@ -708,7 +710,7 @@ export class Buildings {
     const st = this.st, menu = this.c.menu, items = this.c.menuItems(0x0d);
     this.talkMessage2(0x18e);
     for (;;) {
-      if (!st.u8(0x0d5e) || !st.u8(0x0d5f)) menu.disabled = 1;
+      if (!st.u8(DS.COMMON_CHAP) || !st.u8(DS.COMMON_SEC)) menu.disabled = 1;
       const sel = await this.menu(items);
       if (sel === 0xff) return;
       await [() => this.girlWork(), () => this.girlLikes(), () => this.girlAge()][sel]();
@@ -729,44 +731,44 @@ export class Buildings {
   }
   // 26f2f 工作的情報 (劇本): [0d74] 目前的劇本任務, [0d8a] 目標港 / [0d8c] 目標 (道具 / 商品 / 國家)
   async girlWork() {
-    const st = this.st, g = this.girl, { message, sys } = this.c, t = st.u16(0x0d74), a = st.u8(0x0d8a), c8 = st.u16(0x0d8c);
+    const st = this.st, g = this.girl, { message, sys } = this.c, t = st.u16(WorkDS.CUR_KIND), a = st.u8(WorkDS.TARGET_PERSON), c8 = st.u16(WorkDS.TARGET_ITEM);
     const end = async m => { this.talkMessage2(m); await this.wait(); };
     if (t === 0x0c || t === 4) return this.surveyAsk();
     if (t === 9) return end(0x24a);
     if (t === 0x0a) return end(0x24b);
     if (t === 0x0b) {
       for (let i = 0; i < 0x14; i++) {
-        const it = st.u8(0x2e57 + i);
-        if (((it - c8) & 0xff) === 0xf6) { this.talkMessage2(0x3fa, this.dstr(0x8248 + it * 0x14)); return; }
+        const it = st.u8(DS.INVENTORY + i);
+        if (((it - c8) & 0xff) === 0xf6) { this.talkMessage2(0x3fa, this.dstr(DS.TBL_ITEM + it * 0x14)); return; }
         if (it === (c8 & 0xff)) {
-          this.talkMessage2(0x3fb, this.dstr(0x8248 + it * 0x14));
-          if (!(st.u8(0x0cb0) & 0x40)) { st.set8(g + 0x0f, umin16(st.u8(g + 0x0f) + 10, 100)); st.set8(0x0cb0, st.u8(0x0cb0) | 0x40); }
+          this.talkMessage2(0x3fb, this.dstr(DS.TBL_ITEM + it * 0x14));
+          if (!(st.u8(DS.DAILY_FLAGS) & 0x40)) { st.set8(g + 0x0f, umin16(st.u8(g + 0x0f) + 10, 100)); st.set8(DS.DAILY_FLAGS, st.u8(DS.DAILY_FLAGS) | 0x40); }
           return;
         }
       }
-      return end(st.u16(0x0d8a) === 0xff ? 0x24c : 0x24d);
+      return end(st.u16(WorkDS.TARGET_PERSON) === 0xff ? 0x24c : 0x24d);
     }
     if (t === 5) return end(0x24d);
-    const P = 0x5f54 + a * 0x16, E = 0x6a80 + a * 0x25;
+    const P = DS.TBL_PORT + a * 0x16, E = DS.TBL_PORT_ECONOMY + a * 0x25;
     const where = async () => { this.latLong(st.u16(P), st.u16(P + 2)); message(0x252); await this.wait(); };
     if (t === 3) { this.talkMessage2(0x24e); return where(); }
     if (t === 7 || t === 8) {
-      if (a === st.u8(0x0cae)) return end(0x249);
+      if (a === st.u8(DS.PORT)) return end(0x249);
       this.talkMessage2(s16b(c8) >= 4 ? 0x250 : 0x24f, this.BG.nations[c8]);
       message(0x251, this.dstr(P + 4)); return where();
     }
     const lucky = () => { const r = sys.rng.random(0x96); return st.u8(this.hero + 0x22) + st.u8(g + 0x0f) > r || (st.u8(this.hero + 0x31) & 0x10); };
     if (t === 1) {
-      if (a === st.u8(0x0cae)) return end(0x249);
+      if (a === st.u8(DS.PORT)) return end(0x249);
       if (!lucky()) return end(0x18f);
       this.talkMessage2(0x191, this.dstr(P + 4)); message(0x181 + st.u8(E + 0x21)); message(0x192); await this.wait(); return;
     }
     if (t === 2 || t === 6) {
       if (!lucky()) return end(0x18f);
       let found = 0xff;
-      for (let i = 0; i < 0x28; i++) { const e = 0x6a80 + i * 0x25; if (st.u8(e + 0x1a) === c8 && st.u8(e + 0x1b) * 10 <= s16b(st.u16(e))) { found = i; break; } }
-      if (found !== 0xff) { this.talkMessage2(0x190, this.BG.goods[c8], this.dstr(0x5f54 + found * 0x16 + 4)); await this.wait(); return; }
-      for (let k = 0x0c; k >= 0; k--) { const R = 0x78f4 + k * 0x80; for (let j = 0; j < 9; j++) if (st.u8(R + 0x6e + j) === c8) { found = k; break; } }
+      for (let i = 0; i < 0x28; i++) { const e = DS.TBL_PORT_ECONOMY + i * 0x25; if (st.u8(e + 0x1a) === c8 && st.u8(e + 0x1b) * 10 <= s16b(st.u16(e))) { found = i; break; } }
+      if (found !== 0xff) { this.talkMessage2(0x190, this.BG.goods[c8], this.dstr(DS.TBL_PORT + found * 0x16 + 4)); await this.wait(); return; }
+      for (let k = 0x0c; k >= 0; k--) { const R = DS.TBL_REGION_PRICE + k * 0x80; for (let j = 0; j < 9; j++) if (st.u8(R + 0x6e + j) === c8) { found = k; break; } }
       if (found === 0xff) return end(0x18f);
       this.talkMessage2(0xca, this.BG.goods[c8]); message(0x181 + found); message(0xcb); await this.wait(); return;
     }
@@ -781,17 +783,17 @@ export class Buildings {
     await this.assignCrew(n);
     for (let i = 0; i < 10; i++) {
       const S = this.fleetSlot(i), M = this.crewData(i);
-      if ((st.u8(S + 8) & 0x30) !== 0x10) continue;
-      const ship = ListSelect.shipRec(st.u8(S + 7)), old = ((st.u16(ship + 0x12) - free[i]) << 16) >> 16, now = (st.u16(S) << 16) >> 16;
+      if ((st.u8(S + OFF.DOCK_SLOT.FLAGS) & 0x30) !== 0x10) continue;
+      const ship = ListSelect.shipRec(st.u8(S + OFF.DOCK_SLOT.SHIP)), old = ((st.u16(ship + 0x12) - free[i]) << 16) >> 16, now = (st.u16(S) << 16) >> 16;
       if (old >= now) continue;
       st.set8(M + 0x1c, Math.trunc(((now - old) * 0x3c + st.u8(M + 0x1c) * old) / now));
     }
-    st.set8(0x0cb0, st.u8(0x0cb0) | 1);
+    st.set8(DS.DAILY_FLAGS, st.u8(DS.DAILY_FLAGS) | 1);
   }
   // 1fd9:59ce 水手解僱: 257d6(0), 之後水手數為 0 的船士氣歸 0
   async dismiss() {
     await this.assignCrew(0);
-    for (let i = 0; i < 10; i++) { const S = this.fleetSlot(i); if ((this.st.u8(S + 8) & 0x30) === 0x10 && !this.st.u16(S)) this.st.set8(this.crewData(i) + 0x1c, 0); }
+    for (let i = 0; i < 10; i++) { const S = this.fleetSlot(i); if ((this.st.u8(S + OFF.DOCK_SLOT.FLAGS) & 0x30) === 0x10 && !this.st.u16(S)) this.st.set8(this.crewData(i) + 0x1c, 0); }
   }
   // 25425 各船尚可補充的水手數
   roomCheck(free) {
@@ -799,8 +801,8 @@ export class Buildings {
     for (let i = 0; i < 10; i++) {
       free[i] = 0;
       const S = this.fleetSlot(i);
-      if ((this.st.u8(S + 8) & 0x30) !== 0x10) continue;
-      free[i] = (this.st.u16(ListSelect.shipRec(this.st.u8(S + 7)) + 0x12) - this.st.u16(S)) & 0xffff;
+      if ((this.st.u8(S + OFF.DOCK_SLOT.FLAGS) & 0x30) !== 0x10) continue;
+      free[i] = (this.st.u16(ListSelect.shipRec(this.st.u8(S + OFF.DOCK_SLOT.SHIP)) + 0x12) - this.st.u16(S)) & 0xffff;
       if (free[i]) r = 1;
     }
     return r;
@@ -862,7 +864,7 @@ export class Buildings {
         await this.closeTalk();
         continue;
       }
-      const slot = this.c.persons[r], S = this.fleetSlot(slot), ship = ListSelect.shipRec(st.u8(S + 7));
+      const slot = this.c.persons[r], S = this.fleetSlot(slot), ship = ListSelect.shipRec(st.u8(S + OFF.DOCK_SLOT.SHIP));
       if (n) { await this.shipInfo(slot); pool = (pool + st.u16(S)) & 0xffff; }
       else { this.crewSpeaks(); message(0x359, this.dstr(ship), st.u16(S)); pool = st.u16(S); }
       const v = await this.numpad.input(0, umin16(pool, st.u16(ship + 0x12)));
@@ -881,7 +883,7 @@ export class Buildings {
   // 256eb 船隻資料 (艦船調色盤)
   async shipInfo(slot) {
     const st = this.st, { palette, con, printf, graph } = this.c;
-    const M = this.crewData(slot), S = this.fleetSlot(slot), ship = ListSelect.shipRec(st.u8(S + 7)), type = st.u8(ship + 0x0f), T = 0x5e28 + type * 0x0c;
+    const M = this.crewData(slot), S = this.fleetSlot(slot), ship = ListSelect.shipRec(st.u8(S + OFF.DOCK_SLOT.SHIP)), type = st.u8(ship + 0x0f), T = DS.TBL_SHIP_TYPE + type * 0x0c;
     palette.setTarget(palette.table("ships"));
     await palette.fadeToTarget();
     this.table();
@@ -896,13 +898,13 @@ export class Buildings {
     printf(this.T.fmt.need, st.u8(T + 5));
   }
   // ================= 3 碼頭 1fd9:8993 =================
-  isCapital() { for (let i = 0; i < 6; i++) if (this.st.u8(0x117a + i * 0x20 + 0x0a) === this.port) return 1; return 0; }   // 0fea:b578
+  isCapital() { for (let i = 0; i < 6; i++) if (this.st.u8(DS.TBL_COUNTRY + i * 0x20 + 0x0a) === this.port) return 1; return 0; }   // 0fea:b578
   // 0fea:2f43 = 12de3: 主角沒有擔任任何船的船長時列入主角, 再列入職務 > 2 的船員 → [0538]
   crewList() {
     const st = this.st, L = [];
     let k = 0; for (; k < 10; k++) if (st.u8(this.crewData(k) + 0x1b) === st.hero) break;
     if (k === 10) L.push(st.hero);
-    for (let i = 0; i < 0x1e; i++) { const n = st.u8(0x2e1b + i); if (n !== 0xff && st.u8(st.personRecord(n) + 0x2e) > 2) L.push(n); }
+    for (let i = 0; i < 0x1e; i++) { const n = st.u8(DS.PARTY_CREW + i); if (n !== 0xff && st.u8(st.personRecord(n) + 0x2e) > 2) L.push(n); }
     this.c.persons ??= [];
     for (let i = 0; i < L.length; i++) this.c.persons[i] = L[i];
     return L.length;
@@ -924,9 +926,9 @@ export class Buildings {
     await this.crewDemands();
     const items = this.c.menuItems(9);
     let si = 1;
-    if (!st.u8(0x0d5e) && (st.u8(0x0d62) & 3) && !(st.u8(0x0d62) & 4) && !(((st.u8(0x5f54 + this.port * 0x16 + 0x15) & 7) ^ st.u8(this.hero + 0x31)) & 0x0f)) {
+    if (!st.u8(DS.COMMON_CHAP) && (st.u8(WorkDS.FLAGS) & 3) && !(st.u8(WorkDS.FLAGS) & 4) && !(((st.u8(DS.TBL_PORT + this.port * 0x16 + 0x15) & 7) ^ st.u8(this.hero + 0x31)) & 0x0f)) {
       this.greet(0x199); this.c.message(0x19a + (st.u8(this.hero + 0x31) & 15)); this.c.message(0x1a0); await this.wait();
-      st.set8(0x0d62, st.u8(0x0d62) | 2); si = 0;
+      st.set8(WorkDS.FLAGS, st.u8(WorkDS.FLAGS) | 2); si = 0;
     }
     if (si && this.noEvent()) this.greet(0x38);
     let sel;
@@ -940,12 +942,12 @@ export class Buildings {
   }
   // 28741: 夜間 (時刻 ≤ 0x12 或 ≥ 0x36) random(3)=0 且港口所屬國與主角艦隊國家敵對時, 站立行人 4..7 改成衛兵站在入口旁
   guards() {
-    const st = this.st, t = this.c.rt.time, nation = st.u8(0x5f54 + this.port * 0x16 + 0x15) & 7;
+    const st = this.st, t = this.c.rt.time, nation = st.u8(DS.TBL_PORT + this.port * 0x16 + 0x15) & 7;
     if (!(t <= 0x12 || t >= 0x36)) return;
     if (this.c.sys.rng.random(3)) return;
     if (nation >= 6) return;
     const fn = Math.trunc(st.u8(this.hero + 0x2c) / 10);
-    if (!(st.u8(0x117a + nation * 0x20 + 0x12 + fn) & 0x10)) return;
+    if (!(st.u8(DS.TBL_COUNTRY + nation * 0x20 + 0x12 + fn) & 0x10)) return;
     for (let i = 0, extra = 0; i < 4; i++) {
       if (i === 3) extra++;
       const d = (i + extra) * 2, a = 0x0cc8 + i * 3;
@@ -962,7 +964,7 @@ export class Buildings {
       if (st.u8(P + 0x2b) >= 0x1e) continue;
       if (sys.rng.random(4 - (st.u8(P + 0x2f) & 3))) continue;
       for (let si = 0; si < 0x1e; si++) {
-        if (this.c.persons[di] !== st.u8(0x2e1b + si) || st.u8(0x2e39 + si) >= 0x13) continue;
+        if (this.c.persons[di] !== st.u8(DS.PARTY_CREW + si) || st.u8(0x2e39 + si) >= 0x13) continue;
         this.talkPerson(this.c.persons[di]); message(0x31e); await this.wait(); await this.closeTalk();
         if (this.crewSpeaks() === this.c.persons[di]) message(0x320); else message(0x31f, this.dstr(P));
         if (await menu.yesNo()) {
@@ -978,7 +980,7 @@ export class Buildings {
   // 2858b 船員離開艦隊, 留在本港
   dismissMate(n) {
     const st = this.st;
-    for (let i = 0; i < 0x1e; i++) if (st.u8(0x2e1b + i) === n) { st.set8(0x2e1b + i, 0xff); st.set8(0x2e39 + i, 0); break; }
+    for (let i = 0; i < 0x1e; i++) if (st.u8(DS.PARTY_CREW + i) === n) { st.set8(DS.PARTY_CREW + i, 0xff); st.set8(0x2e39 + i, 0); break; }
     const P = st.personRecord(n); st.set8(P + 0x2e, 0); st.set8(P + 0x2c, 0xff); st.set8(P + 0x2d, this.port);
   }
   // 286ac 港 100..129 (補給港): MENU #57 出航 / 補給 / 命名
@@ -992,7 +994,7 @@ export class Buildings {
     } while (sel !== 0xff && !si);
   }
   // ---------- 船隻資料 (造船廠與船塢共用) ----------
-  typeRec(t) { return 0x5e28 + t * 0x0c; }                                 // seg0:5c8a
+  typeRec(t) { return DS.TBL_SHIP_TYPE + t * 0x0c; }                                 // seg0:5c8a
   listSel() { return (this.c.listSel ??= new ListSelect(this.c)); }
   // 2af30 船隻資料: mode 0 = 船編號 al, 1 = 中古船 (船型 al), 2 = 新造設計 (船型 al), 3 = 船位 slot 的船 (slot ≥ 0x100 時是船位位址, 例: 海戰掳獲時對方的船位)
   shipData(al, mode, slot = 0) {
@@ -1004,7 +1006,7 @@ export class Buildings {
       const d = Math.trunc(9 * st.u8(di + 1) / 10) & 0xffff;
       if (mode === 1) cur = max = (d - Math.trunc((d & 0xff) / 15)) & 0xff;
       else { max = d & 0xff; cur = 0; }
-    } else { const S = slot >= 0x100 ? slot : this.fleetSlot(slot); si = ListSelect.shipRec(st.u8(S + 7)); di = this.typeRec(st.u8(si + 0x0f)); max = st.u8(S + 3); cur = st.u8(S + 2); }
+    } else { const S = slot >= 0x100 ? slot : this.fleetSlot(slot); si = ListSelect.shipRec(st.u8(S + OFF.DOCK_SLOT.SHIP)); di = this.typeRec(st.u8(si + 0x0f)); max = st.u8(S + OFF.DOCK_SLOT.MAX_DURABILITY); cur = st.u8(S + OFF.DOCK_SLOT.DURABILITY); }
     turn = st.u8(di + 2); prop = st.u8(di + 3);
     if (mode === 2) { load = st.u16(di + 6); crew = 0; guns = 0; }
     else { load = st.u16(si + 0x14); crew = st.u16(si + 0x12); guns = st.u8(si + 0x11); }
@@ -1065,16 +1067,16 @@ export class Buildings {
   // 0fea:2eec = 12d8c: 主角 + 船員欄 → [0538]
   captainPool() {
     const st = this.st; let n = 1; this.c.persons[0] = st.hero;
-    for (let i = 0; i < 0x1e; i++) { const v = st.u8(0x2e1b + i); if (v !== 0xff) this.c.persons[n++] = v; }
+    for (let i = 0; i < 0x1e; i++) { const v = st.u8(DS.PARTY_CREW + i); if (v !== 0xff) this.c.persons[n++] = v; }
     return n;
   }
   // 0fea:83f9 艦隊 +28 = (Σ 有船船位耐久 + 4) / 5; 為 0 時 +29 bit0 清除
   fleetRecalc() {
-    const st = this.st, F = 0x2e76 + st.u8(this.hero + 0x2c) * 0x85;
+    const st = this.st, F = DS.TBL_FLEET + st.u8(this.hero + 0x2c) * 0x85;
     let sum = 0;
     for (let i = 0; i < 10; i++) if (this.slotState(i) === 0x10) sum += st.u8(this.fleetSlot(i) + 2);
-    st.set8(F + 0x28, Math.trunc((sum + 4) / 5));
-    if (!sum) st.set8(F + 0x29, st.u8(F + 0x29) & 0xfe);
+    st.set8(F + OFF.FLEET.STRENGTH, Math.trunc((sum + 4) / 5));
+    if (!sum) st.set8(F + OFF.FLEET.FLAGS, st.u8(F + OFF.FLEET.FLAGS) & 0xfe);
   }
   // 0fea:b5aa = 1b44a 本港物價指數 = Σ 經濟 +0e..+17 / 10
   priceIndex() { let v = 0; for (let i = 0; i < 10; i++) v += this.st.u8(this.eco + 0x0e + i); return Math.trunc(v / 10); }
@@ -1089,7 +1091,7 @@ export class Buildings {
     const st = this.st, M = this.crewData(slot), S = this.fleetSlot(slot), ship = this.shipOf(slot);
     st.set8(ship + 0x0f, 0xff); st.set8(ship + 0x11, 0); st.set8(ship + 0x10, 0); st.set16(ship + 0x14, 0); st.set16(ship + 0x12, 0);
     for (const k of [5, 4, 3, 2, 6]) st.set8(S + k, 0xff);
-    st.set16(S, 0); st.set8(S + 8, 0);
+    st.set16(S, 0); st.set8(S + OFF.DOCK_SLOT.FLAGS, 0);
     for (const k of [6, 4, 2, 0]) st.set16(M + k, 0);
     for (let k = 0; k < 5; k++) { st.set8(M + 0x16 + k, 0xff); st.set16(M + 0x0c + 2 * k, 0); }
     st.set16(M + 0x0a, 0);
@@ -1160,7 +1162,7 @@ export class Buildings {
       const r = await list.select(0x80, n);
       if (r === -1) return;
       const slot = this.c.persons[r], S = this.fleetSlot(slot);
-      this.shipData(st.u8(S + 7), 3, slot); this.figurehead(slot);
+      this.shipData(st.u8(S + OFF.DOCK_SLOT.SHIP), 3, slot); this.figurehead(slot);
       if (st.u16(S)) this.greet(0x119, st.u16(S)); else this.greet(0xc9);
       if (!(await menu.yesNo())) continue;
       const d = this.b06a[this.b066];
@@ -1231,12 +1233,12 @@ export class Buildings {
   async shipyard() {
     const st = this.st, { palette, menu } = this.c;
     palette.setTarget(palette.table("ships")); await palette.fadeToTarget();
-    if (st.u8(0x0cb0) & 2) { this.greet(0xf9); await this.wait(); return; }
+    if (st.u8(DS.DAILY_FLAGS) & 2) { this.greet(0xf9); await this.wait(); return; }
     this.greet(0x4d);
     let sel;
     do {
       const items = this.c.menuItems(22);
-      let n = 0; for (let i = 0; i < 5; i++) if (st.u8(0x7f74 + i) !== 0xff) n++;   // seg0:5cc4(0) 中古船表第 1 筆 (到港 1bd16 把本港移到第 1 筆; 原版各處都傳 al = 0)
+      let n = 0; for (let i = 0; i < 5; i++) if (st.u8(DS.TBL_USED_SHIP_CACHE + i) !== 0xff) n++;   // seg0:5cc4(0) 中古船表第 1 筆 (到港 1bd16 把本港移到第 1 筆; 原版各處都傳 al = 0)
       if (!n) menu.disabled |= 2;
       this.b2f4 = this.b2f5 = this.b2f6 = this.b2f7 = 0xff; this.b2f8 = 0;
       sel = await this.menu(items);
@@ -1245,7 +1247,7 @@ export class Buildings {
           () => this.remodel(), () => this.invest()][sel]();
         this.after();
       }
-    } while (sel !== 0xff && !(st.u8(0x0cb0) & 2));
+    } while (sel !== 0xff && !(st.u8(DS.DAILY_FLAGS) & 2));
     this.fleetRecalc();
     palette.selectTimePalette(this.c.rt.time, false, st.weather);           // 0fea:98ce
     await palette.fadeToTarget();
@@ -1264,7 +1266,7 @@ export class Buildings {
   // seg0:5cee 擔任職務 role 的船員 (船員欄 DS:2e1b), 沒有 = FF
   roleMember(role) {
     const st = this.st;
-    for (let i = 0; i < 0x1e; i++) { const n = st.u8(0x2e1b + i); if (n !== 0xff && st.u8(st.personRecord(n) + 0x2e) === role) return n; }
+    for (let i = 0; i < 0x1e; i++) { const n = st.u8(DS.PARTY_CREW + i); if (n !== 0xff && st.u8(st.personRecord(n) + 0x2e) === role) return n; }
     return 0xff;
   }
   noMoney() { this.crewSpeaks([4, 3, 5, 2, 6]); this.c.message(0xcf); }  // seg0:9076 + 2e09:56ee(0xcf)
@@ -1315,13 +1317,13 @@ export class Buildings {
       if (!(await this.negotiate(t, price))) return;
       this.greet(0x101); await this.wait();
       const S = this.fleetSlot(this.b2f6), ship = this.shipOf(this.b2f6), M = this.crewData(this.b2f6);
-      st.set8(S + 8, 0x20);
+      st.set8(S + OFF.DOCK_SLOT.FLAGS, 0x20);
       st.set8(ship + 0x10, (st.u8(ship + 0x10) & 0xf8) | mat);
       const d = umin16(Math.trunc((mat + 8) * st.u8(T + 1) / 10), 100);
-      st.set8(S + 3, d); st.set8(S + 2, d);
+      st.set8(S + OFF.DOCK_SLOT.MAX_DURABILITY, d); st.set8(S + OFF.DOCK_SLOT.DURABILITY, d);
       st.set8(M + 0x1b, this.port | 0x80);
       this.shipData(t, 2);
-      this.durPrint(st.u8(S + 2));
+      this.durPrint(st.u8(S + OFF.DOCK_SLOT.DURABILITY));
       await this.design(this.b2f6);
       const q = ((100 - Math.trunc(st.u16(E + 4) / 50)) & 0xffff) * st.u8(T + 1);
       st.set8(E + 0x23, Math.trunc(q / 100) & 0xff);
@@ -1378,7 +1380,7 @@ export class Buildings {
       st.set16(ship + 0x14, cargo); st.set16(ship + 0x12, crew); st.set8(ship + 0x11, guns);
       const c12 = s16b(st.u16(ship + 0x12)), s0 = s16b(st.u16(S));
       st.set16(S, c12 > s0 ? s0 : c12);
-      st.set8(S + 6, umin16(st.u8(S + 6), st.u8(ship + 0x11)));
+      st.set8(S + OFF.DOCK_SLOT.GUNS, umin16(st.u8(S + OFF.DOCK_SLOT.GUNS), st.u8(ship + 0x11)));
       return 1;
     }
   }
@@ -1403,7 +1405,7 @@ export class Buildings {
       this.greet(0xc3);
       const offer = (await this.numpad.input(0, avail > cost ? cost : avail)) | 0;
       if (offer < floor) {
-        if (!sys.rng.random(5)) { st.set8(0x0cb0, st.u8(0x0cb0) | 2); this.greet(0xc5); }
+        if (!sys.rng.random(5)) { st.set8(DS.DAILY_FLAGS, st.u8(DS.DAILY_FLAGS) | 2); this.greet(0xc5); }
         else this.greet(0xc6);
         await this.wait();
         return 0;
@@ -1438,14 +1440,14 @@ export class Buildings {
   // seg0:5db1 船位 slot 的總載重 = 已用載貨 + 砲重 + 水手 (寫到船員配置 +0a)
   loadTotal(slot) {
     const st = this.st, S = this.fleetSlot(slot);
-    const g = Math.trunc(Math.imul(s16b(this.LO.gunWeight[st.u8(S + 8) & 7] & 0xffff), st.u8(S + 6)) / 10);
+    const g = Math.trunc(Math.imul(s16b(this.LO.gunWeight[st.u8(S + OFF.DOCK_SLOT.FLAGS) & 7] & 0xffff), st.u8(S + OFF.DOCK_SLOT.GUNS)) / 10);
     return (this.cargoUsed(slot) + g + st.u16(S)) & 0xffff;
   }
   // 1c0a8 船速
   shipSpeed(slot) {
     const st = this.st, S = this.fleetSlot(slot), ship = this.shipOf(slot), t = st.u8(ship + 0x0f), T = this.typeRec(t);
     const M = this.crewData(slot), P = st.personRecord(st.u8(M + 0x1b));
-    let di = Math.trunc(s16b((this.LO.speedRate[t] * st.u8(S + 5) * 4) & 0xffff) / 150);
+    let di = Math.trunc(s16b((this.LO.speedRate[t] * st.u8(S + OFF.DOCK_SLOT.PROPULSION) * 4) & 0xffff) / 150);
     const q = Math.trunc(Math.imul(st.u8(M + 9), s16b(st.u16(S))) / (st.u8(T + 5) || 1));   // seg0:3722 有號長整數除法
     const a = umin16(100, q & 0xffff);
     const c = umin16(150, (180 - Math.trunc(s16b(Math.imul(100, s16b(st.u16(M + 0x0a))) & 0xffff) / s16b(st.u16(T + 6)))) & 0xffff);
@@ -1464,8 +1466,8 @@ export class Buildings {
     let row = 0;
     for (let i = 0; i < 10; i++) {
       const S = this.fleetSlot(i);
-      if ((st.u8(S + 8) & 0x30) !== 0x10) continue;
-      const ship = ListSelect.shipRec(st.u8(S + 7)), M = this.crewData(i);
+      if ((st.u8(S + OFF.DOCK_SLOT.FLAGS) & 0x30) !== 0x10) continue;
+      const ship = ListSelect.shipRec(st.u8(S + OFF.DOCK_SLOT.SHIP)), M = this.crewData(i);
       con.setCursor(0x11, (row + 3) * 0x18); con.puts(this.dstr(ship));
       con.setCursor(0x20, -1);
       if (st.u8(M + 0x1b) & 0x80) con.puts(F.fleetGone);
@@ -1473,7 +1475,7 @@ export class Buildings {
         const T = this.typeRec(st.u8(ship + 0x0f)), s0 = st.u16(S);
         const a = Math.floor(((st.u8(M + 9) * s0) & 0xffff) / 100), b = Math.floor(((st.u8(M + 8) * s0) & 0xffff) / 100);
         const c = (s0 - b - a) & 0xffff;
-        const ld = s16b((this.cargoUsed(i) + st.u8(S + 6) + st.u16(S)) & 0xffff);          // seg0:5d8b
+        const ld = s16b((this.cargoUsed(i) + st.u8(S + OFF.DOCK_SLOT.GUNS) + st.u16(S)) & 0xffff);          // seg0:5d8b
         const d = Math.floor((Math.imul(ld, 100) >>> 0) / (s16b(st.u16(T + 6)) >>> 0 || 1)) & 0xffff;   // seg0:38ba 無號長整數除法
         printf(F.fleetRow, a, b, s16b(c), s16b(d), (this.shipSpeed(i) + 1) >> 1);
       }
@@ -1609,7 +1611,7 @@ export class Buildings {
   }
   // 1fd9:85d9 (285d9) 補給港命名: 回傳值決定補給港選單是否結束 (取消 → 港名位址 ≠ 0; 完成 → 0fea:490b 的 AX)
   async namePort() {
-    const st = this.st, { win, sys } = this.c, R = a => 0x5f54 + a * 0x16 + 4, me = R(this.port);
+    const st = this.st, { win, sys } = this.c, R = a => DS.TBL_PORT + a * 0x16 + 4, me = R(this.port);
     const old = st.cstr(me).slice();
     const restore = () => { for (let i = 0; i < old.length; i++) st.set8(me + i, old[i]); };
     this.greet(0x39e); await this.wait();
@@ -1664,12 +1666,12 @@ export class Buildings {
     st.set8(si + 0x10, st.u8(tmpl + 0x10)); st.set16(si + 0x12, st.u16(tmpl + 0x12));
     st.set16(si + 0x14, (st.u16(T + 6) - st.u8(si + 0x11) - st.u16(si + 0x12)) & 0xffff);
     const d = Math.trunc(9 * st.u8(T + 1) / 10) & 0xffff;
-    st.set8(S + 3, (d - Math.trunc((d & 0xff) / 15)) & 0xff); st.set8(S + 2, st.u8(S + 3));
-    st.set8(S + 4, st.u8(T + 2)); st.set8(S + 5, st.u8(T + 3));
-    st.set8(S + 6, umin16(st.u8(S + 6), trade ? st.u8(si + 0x11) : 0));
+    st.set8(S + OFF.DOCK_SLOT.MAX_DURABILITY, (d - Math.trunc((d & 0xff) / 15)) & 0xff); st.set8(S + OFF.DOCK_SLOT.DURABILITY, st.u8(S + OFF.DOCK_SLOT.MAX_DURABILITY));
+    st.set8(S + OFF.DOCK_SLOT.TURN, st.u8(T + 2)); st.set8(S + OFF.DOCK_SLOT.PROPULSION, st.u8(T + 3));
+    st.set8(S + OFF.DOCK_SLOT.GUNS, umin16(st.u8(S + OFF.DOCK_SLOT.GUNS), trade ? st.u8(si + 0x11) : 0));
     st.set16(S, umin16(st.u16(S), trade ? st.u16(si + 0x12) : 0));
-    st.set8(S + 7, n);
-    if (!trade) st.set8(S + 8, 0x10);
+    st.set8(S + OFF.DOCK_SLOT.SHIP, n);
+    if (!trade) st.set8(S + OFF.DOCK_SLOT.FLAGS, 0x10);
     for (const k of [0, 2, 4, 6]) st.set16(M + k, 0);
     st.set8(M + 8, 0x19); st.set8(M + 9, 0x32); st.set8(M + 0x1b, this.b2f7);
     st.set16(M + 0x0a, 0); st.set8(M + 0x1d, 0);
@@ -1686,7 +1688,7 @@ export class Buildings {
   // 2b2f2 船員欄第一個職務 ≥ 3 的人 → b2f7
   findMate() {
     const st = this.st;
-    for (let i = 0; i < 0x1e; i++) { const n = st.u8(0x2e1b + i); if (n !== 0xff && st.u8(st.personRecord(n) + 0x2e) >= 3) { this.b2f7 = n; return 1; } }
+    for (let i = 0; i < 0x1e; i++) { const n = st.u8(DS.PARTY_CREW + i); if (n !== 0xff && st.u8(st.personRecord(n) + 0x2e) >= 3) { this.b2f7 = n; return 1; } }
     return 0;
   }
   // 2b66a 決定新船的船長與船位
@@ -1713,7 +1715,7 @@ export class Buildings {
     this.greet(0x107); this.freeSlots();
     if (!(await menu.yesNo()) || !(await this.captainAndSlot())) { this.greet(0x109); await this.wait(); return; }
     const S = this.fleetSlot(slot), M = this.crewData(slot);
-    st.set8(S + 8, (st.u8(S + 8) & 0xdf) | 0x10);
+    st.set8(S + OFF.DOCK_SLOT.FLAGS, (st.u8(S + OFF.DOCK_SLOT.FLAGS) & 0xdf) | 0x10);
     st.set8(M + 0x1b, this.b2f7);
     if (this.b2f7 !== st.hero) st.set8(st.personRecord(this.b2f7) + 0x2e, 2);
     st.set8(E + 0x23, 0xff);
@@ -1733,7 +1735,7 @@ export class Buildings {
     const st = this.st, { menu } = this.c, list = this.listSel(), P = this.c.persons;
     this.b2f8 = 0;
     if (!(await this.captainAndSlot())) return;
-    const base = 0x7f74, idx = [];                                        // seg0:5cc4(0): 2be62 / 2bf29 都是 sub al, al
+    const base = DS.TBL_USED_SHIP_CACHE, idx = [];                                        // seg0:5cc4(0): 2be62 / 2bf29 都是 sub al, al
     let n = 0;
     for (let i = 0; i < 5; i++) { const t = st.u8(base + i); if (t !== 0xff) { idx[n] = i; P[n++] = t + 0x28; } }
     for (;;) {
@@ -1827,11 +1829,11 @@ export class Buildings {
       const v = P[r] & 0xff, kind = r + 1;
       let room = st.u8(ship + 0x11);
       if (!room) { this.greet(0x3fd); await this.wait(); continue; }
-      const same = (st.u8(S + 8) & 7) === kind;
+      const same = (st.u8(S + OFF.DOCK_SLOT.FLAGS) & 7) === kind;
       if (same) {
-        room = (room - st.u8(S + 6)) & 0xffff;
+        room = (room - st.u8(S + OFF.DOCK_SLOT.GUNS)) & 0xffff;
         if (!room) { this.greet(0x3fc); await this.wait(); continue; }
-        this.greet(0x14e, BT.cannons[v], st.u8(S + 6), room);
+        this.greet(0x14e, BT.cannons[v], st.u8(S + OFF.DOCK_SLOT.GUNS), room);
       } else this.greet(0x10f);
       let q = (await this.numpad.input(0, room)) & 0xff;
       if (!q) continue;
@@ -1840,9 +1842,9 @@ export class Buildings {
       if (!(await menu.yesNo())) continue;
       if (price > this.money) { this.noMoney(); await this.wait(); await this.closeTalk(); continue; }
       this.money = (this.money - price) | 0;
-      if ((st.u8(S + 8) & 7) === kind) q = (q + st.u8(S + 6)) & 0xff;
-      st.set8(S + 6, q);
-      st.set8(S + 8, (st.u8(S + 8) & 0xf8) | (kind & 0xff));
+      if ((st.u8(S + OFF.DOCK_SLOT.FLAGS) & 7) === kind) q = (q + st.u8(S + OFF.DOCK_SLOT.GUNS)) & 0xff;
+      st.set8(S + OFF.DOCK_SLOT.GUNS, q);
+      st.set8(S + OFF.DOCK_SLOT.FLAGS, (st.u8(S + OFF.DOCK_SLOT.FLAGS) & 0xf8) | (kind & 0xff));
       this.p.panels();
       return;
     }
@@ -1885,14 +1887,14 @@ export class Buildings {
       const r = await list.select(0x80, n);
       if (r === -1) return;
       const S = this.fleetSlot(this.c.persons[r]), T = this.typeRec(st.u8(this.shipOf(this.c.persons[r]) + 0x0f));
-      let cost = s16b(st.u8(S + 3) - st.u8(S + 2) - st.u8(S + 4) - st.u8(S + 5) + st.u8(T + 2) + st.u8(T + 3));
+      let cost = s16b(st.u8(S + OFF.DOCK_SLOT.MAX_DURABILITY) - st.u8(S + OFF.DOCK_SLOT.DURABILITY) - st.u8(S + OFF.DOCK_SLOT.TURN) - st.u8(S + OFF.DOCK_SLOT.PROPULSION) + st.u8(T + 2) + st.u8(T + 3));
       if (!cost) { this.greet(0xcc); await this.wait(); continue; }
       cost = s16b(cost * 20);
       this.greet(0xcd, cost);
       if (!(await menu.yesNo())) { this.greet(0xce); await this.wait(); continue; }
       if (cost > this.money) { this.crewSpeaks([4, 3, 5, 2, 6]); message(0xcf); await this.wait(); await this.closeTalk(); continue; }
       this.money = (this.money - cost) | 0;
-      st.set8(S + 2, st.u8(S + 3)); st.set8(S + 4, st.u8(T + 2)); st.set8(S + 5, st.u8(T + 3));
+      st.set8(S + OFF.DOCK_SLOT.DURABILITY, st.u8(S + OFF.DOCK_SLOT.MAX_DURABILITY)); st.set8(S + OFF.DOCK_SLOT.TURN, st.u8(T + 2)); st.set8(S + OFF.DOCK_SLOT.PROPULSION, st.u8(T + 3));
       this.p.panels();
     }
   }
@@ -1998,7 +2000,7 @@ export class Buildings {
   }
   // 2c7ec 支持度 ≥ 75 的國家取得本港; 主角國家新取得時加聲望
   investOwner() {
-    const st = this.st, E = this.eco, P = 0x5f54 + this.port * 0x16, nat = st.u8(this.hero + 0x31) & 15, D = this.heroData;
+    const st = this.st, E = this.eco, P = DS.TBL_PORT + this.port * 0x16, nat = st.u8(this.hero + 0x31) & 15, D = this.heroData;
     const old = st.u8(P + 0x15) & 7;
     let owner = 6; for (let i = 0; i < 6; i++) if (st.u8(E + 8 + i) >= 0x4b) owner = i;
     st.set8(P + 0x15, (st.u8(P + 0x15) & 0xf8) | owner);
@@ -2039,7 +2041,7 @@ export class Buildings {
   // 27802 出航: 艦隊資料表 → 補給天數 → 是/否
   //   積載率 = 5d36 × 100 (imul cx → DX:AX 32 位元) / 船 +14 (cwd) 經 seg0:38ba 無號長整數除法 (2793a..2793e); 不是 16 位元截斷
   async depart() {
-    const st = this.st, { con, printf, message, menu, palette, scr } = this.c, anim = st.u8(0x0ca4) & 1;
+    const st = this.st, { con, printf, message, menu, palette, scr } = this.c, anim = st.u8(DS.OPTIONS) & 1;
     const n = this.fleetShips(), L = this.c.persons.slice(0, n);
     if (anim) this.wipe(); else { await palette.fadeBlack(); scr.fillCols(0x0c, 8, 0x30, 0x180, 0); }
     this.winText(0x0d, 0x20, 0x2e, ((n + 2) * 0x18) & 0xffff);
@@ -2068,14 +2070,14 @@ export class Buildings {
     // 27a0c 出港: 0fea:e3e5 記錄 (種類 1, +4 天數, +6 港口) → [2e18] = 0 (出港天數), 方位 = 8 (停船) → 4fe3 清滑鼠移動量 → [1005] &= DF
     //   → 0fea:9348 / 9401 (扣一天的糧食與水) → 851f 進入海上 → [0caf] = FF, 回傳 1 (碼頭選單結束)
     marketTradeLog(st, this.c.rt, 1, days, 0, 0, this.port);
-    st.set8(0x2e18, 0);
+    st.set8(DS.DAYS_AT_SEA, 0);
     const sea = this.p;
     st.set8(sea.fleet + 0x1a, 8);
     this.c.sys.mickeys();
-    st.set8(0x1005, st.u8(0x1005) & 0xdf);
+    st.set8(DS.SEA_FLAGS2, st.u8(DS.SEA_FLAGS2) & 0xdf);
     sea.foodDaily(); sea.waterDaily();
     await sea.enterSea();
-    st.set8(0x0caf, 0xff);
+    st.set8(DS.LAST_PORT, 0xff);
     return 1;
   }
   // 27e31 補給
@@ -2162,7 +2164,7 @@ export class Buildings {
     const items = this.c.menuItems(4);
     let sel;
     do {
-      for (let i = 0; i < 6; i++) if (st.u8(0x117a + i * 0x20 + 0x0a) === this.port) this.c.menu.disabled = 2;
+      for (let i = 0; i < 6; i++) if (st.u8(DS.TBL_COUNTRY + i * 0x20 + 0x0a) === this.port) this.c.menu.disabled = 2;
       sel = await this.menu(items);
       if (sel !== 0xff) await [() => this.innChat(), () => this.innSupport(), () => this.innSleep()][sel]();
       this.after();
@@ -2207,14 +2209,14 @@ export class Buildings {
     const n = this.portPersons();
     if (n && this.c.persons[0] !== 0xff) return n;
     if (!n) { this.crewSpeaks(); this.c.message(0x43); }
-    else { this.talkFace(this.st.u8(0x5f54 + this.port * 0x16 + 0x15) & 7, this.c.randomParts); this.c.message(0x44); }
+    else { this.talkFace(this.st.u8(DS.TBL_PORT + this.port * 0x16 + 0x15) & 7, this.c.randomParts); this.c.message(0x44); }
     await this.wait();
     await win.close();
     return 0;
   }
   // 1fd9:8ec3 海港支持度
   async innSupport() {
-    const { con, printf } = this.c, st = this.st, E = 0x6a80 + this.port * 0x25, R = 0x5f54 + this.port * 0x16;
+    const { con, printf } = this.c, st = this.st, E = DS.TBL_PORT_ECONOMY + this.port * 0x25, R = DS.TBL_PORT + this.port * 0x16;
     this.table();
     con.setCursor(0x23, 0x98); con.puts(B_SUPPORT_HDR);
     con.setCursor(0x2b, 0x98); con.puts(B_ALLY_HDR);
@@ -2226,7 +2228,7 @@ export class Buildings {
     await this.wait();
   }
   // 1fd9:8eb8 就寢
-  async innSleep() { this.st.set8(0x0cb0, this.st.u8(0x0cb0) | 0x80); await this.c.palette.fadeBlack(); }
+  async innSleep() { this.st.set8(DS.DAILY_FLAGS, this.st.u8(DS.DAILY_FLAGS) | 0x80); await this.c.palette.fadeBlack(); }
   // ================= 10 教會 1fd9:cede =================
   async church() {
     const st = this.st;
@@ -2296,7 +2298,7 @@ export class Buildings {
   }
   // 0fea:2f1b = 12dbb: 艦隊船員 [2e1b] → [0538]
   crewCount() {
-    const L = []; for (let i = 0; i < 0x1e; i++) { const v = this.st.u8(0x2e1b + i); if (v !== 0xff) L.push(v); }
+    const L = []; for (let i = 0; i < 0x1e; i++) { const v = this.st.u8(DS.PARTY_CREW + i); if (v !== 0xff) L.push(v); }
     this.setPersons(L); return L.length;
   }
   async fLife() { this.greet(Math.trunc(this.st.u8(this.hero + 0x23) / 0x19) + 0x12e); await this.wait(); }   // 1fd9:d480
@@ -2304,9 +2306,9 @@ export class Buildings {
   static expNeed(lv) { const m = Math.min(lv, 0x12); return (m * m * 30) & 0xffff; }
   async fCareer() {                                                      // 1fd9:d49f
     const st = this.st, H = this.hero, D = this.heroData;
-    this.greet(0x221, (Buildings.expNeed(st.u8(H + 0x24)) - st.u16(H + 0x26)) << 16 >> 16); await this.wait();
-    this.greet(0x222, (Buildings.expNeed(st.u8(H + 0x25)) - st.u16(H + 0x28)) << 16 >> 16); await this.wait();
-    if ((st.u8(H + 0x31) & 15) === 6) return;
+    this.greet(0x221, (Buildings.expNeed(st.u8(H + OFF.PERSON.NAV_LEVEL)) - st.u16(H + OFF.PERSON.NAV_EXP)) << 16 >> 16); await this.wait();
+    this.greet(0x222, (Buildings.expNeed(st.u8(H + OFF.PERSON.BATTLE_LEVEL)) - st.u16(H + OFF.PERSON.BATTLE_EXP)) << 16 >> 16); await this.wait();
+    if ((st.u8(H + OFF.PERSON.FACE) & 15) === 6) return;
     let fame = 0; for (let i = 0; i < 3; i++) if (st.u16(D + i * 2) > fame) fame = st.u16(D + i * 2);
     const need = this.p.P.data.titleFame[st.u8(D + 0x0d)];                // DS:b49a
     if (need > fame) this.greet(0x223, (need - fame) & 0xffff); else this.greet(0x2f2);
@@ -2315,7 +2317,7 @@ export class Buildings {
   async fLove() {                                                        // 1fd9:d559
     const st = this.st; let found = -1, rec = 0;
     for (let i = 0; i < 0x1e; i++) {
-      const m = 0x2bde + i * 0x13;
+      const m = DS.TBL_BARMAID + i * 0x13;
       if (st.u8(m + 0x0e) === this.port && (st.u8(m + 0x12) & 8) && !(st.u8(m + 0x12) & 0x40)) { found = i; rec = m; break; }
     }
     if (found < 0) this.greet(0x149);

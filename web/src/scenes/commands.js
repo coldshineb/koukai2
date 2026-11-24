@@ -10,6 +10,8 @@
 import { Buildings } from "./buildings.js";
 import { Title } from "../game/title.js";
 import { PortMove } from "./portmove.js";
+import { DS, OFF } from "../model/schema_views.ts";
+import { WorkDS } from "../model/flags.ts";
 
 const cmHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const cmStrlen = s => { let n = 0; while (n < s.length && s[n]) n++; return n; };
@@ -105,8 +107,8 @@ export class Commands {
     let di = 0;
     do {
       if (!b.fleetShips()) menu.disabled |= 0x33; else if (!cargo) menu.disabled |= 0x30;
-      if (!st.u16(0x100e)) menu.disabled |= 0x80;
-      if (st.u16(0x8a18) === 0xffff) menu.disabled |= 0x100;
+      if (!st.u16(WorkDS.EXPLORE_TOTAL)) menu.disabled |= 0x80;
+      if (st.u16(DS.TRADE_LOGS) === 0xffff) menu.disabled |= 0x100;
       if (st.port === 0xff) menu.disabled |= 0x200;
       if (!this.discList(1)) menu.disabled |= 0x40;
       const r = await this.popMenu(0x30, items);
@@ -143,7 +145,7 @@ export class Commands {
   discList(first) {
     const st = this.st, P = this.c.persons; let n = 0;
     for (let i = 0; i < 100; i++) {
-      const f = st.u8(0x7f8c + i * 7 + 6);
+      const f = st.u8(DS.TBL_DISCOVERY + i * 7 + 6);
       if (!(f & 0x80) && (f & 0x40) && (f & 0x20)) { if (first) return 1; P[n++] = i; }
     }
     return n;
@@ -161,14 +163,14 @@ export class Commands {
   //   最慢的船 (速度計算同 1c0a8 但風向表 DS:06d8) 的 +4/+5 與 總水手、總砲數、最低耐久、總戰力 (0x39a..0x39c)
   async fleetView(f) {
     const st = this.st, { scr, gfx, graph, con, message, palette } = this.c, b = this.b, T = this.T;
-    const F = 0x2e76 + f * 0x85, hero = st.u8(st.personRecord(st.hero) + 0x2c) === f;
+    const F = DS.TBL_FLEET + f * 0x85, hero = st.u8(st.personRecord(st.hero) + 0x2c) === f;
     await palette.fadeBlack();
     for (let c = 0; c < 0x28; c++) for (let r = 0; r < 0x14; r++) scr.putPlanar(c * 2, r << 4, 2, 0x10, gfx, 0x2ba0);
     let cnt = 0;
     for (let i = 0; i < 10; i++) {
-      const S = F + 0x2b + i * 9;
-      if ((st.u8(S + 8) & 0x30) !== 0x10) continue;
-      graph.draw(st.u8(0x5892 + st.u8(S + 7) * 0x16 + 0x0f) + 0x1c, T.fleetPos[cnt * 2] << 3, T.fleetPos[cnt * 2 + 1] << 4);   // seg0:8050
+      const S = F + OFF.FLEET.SHIPS + i * 9;
+      if ((st.u8(S + OFF.DOCK_SLOT.FLAGS) & 0x30) !== 0x10) continue;
+      graph.draw(st.u8(DS.TBL_SHIP + st.u8(S + OFF.DOCK_SLOT.SHIP) * 0x16 + 0x0f) + 0x1c, T.fleetPos[cnt * 2] << 3, T.fleetPos[cnt * 2 + 1] << 4);   // seg0:8050
       cnt++;
     }
     if (!cnt) {
@@ -182,29 +184,29 @@ export class Commands {
     scr.fillRectPxPlanes(3, 0x133, 0x27c, 0x18c, 0x0a, 4);
     scr.fillRectPxPlanes(4, 0x134, 0x27b, 0x18b, 0x00, 4);
     scr.fillRectPxPlanes(5, 0x135, 0xd7, 0x18a, 0x08, 4);
-    const A = st.personRecord(st.u8(F + 0x2a));
+    const A = st.personRecord(st.u8(F + OFF.FLEET.ADMIRAL));
     scr.fillCols(1, 0x138, 8, 0x50, 0);
     this.c.kao.drawPerson(scr, st.bytes(A, 0x32), 1, 0x138);             // seg0:7d39
     con.setCursor(0x0b, 0x140); message(0x397, st.cstr(A));
-    con.setCursor(0x0b, 0x160); message(0x398, st.u8(A + 0x24));
-    con.setCursor(0x0b, 0x178); message(0x399, st.u8(A + 0x25));
+    con.setCursor(0x0b, 0x160); message(0x398, st.u8(A + OFF.PERSON.NAV_LEVEL));
+    con.setCursor(0x0b, 0x178); message(0x399, st.u8(A + OFF.PERSON.BATTLE_LEVEL));
     const s16 = v => (v << 16) >> 16;
-    const wind = Math.abs(((st.u8(0x0cb1) & 0x38) >> 3) - st.u8(F + 0x1a)) & 0xff, WT = T.windSpeed, wbase = wind << 3;
-    let best = 10000, slow = F + 0x2b, sumSail = 0, sumMax = 0, sumGuns = 0, sumX = 0, minDur = 100;
+    const wind = Math.abs(((st.u8(DS.PORT_FLAGS) & 0x38) >> 3) - st.u8(F + OFF.FLEET.DIR)) & 0xff, WT = T.windSpeed, wbase = wind << 3;
+    let best = 10000, slow = F + OFF.FLEET.SHIPS, sumSail = 0, sumMax = 0, sumGuns = 0, sumX = 0, minDur = 100;
     for (let i = 0; i < 10; i++) {
-      const S = F + 0x2b + i * 9;
-      if ((st.u8(S + 8) & 0x30) !== 0x10) continue;
-      const ship = 0x5892 + st.u8(S + 7) * 0x16, t = st.u8(ship + 0x0f), TR = 0x5e28 + t * 0x0c;
+      const S = F + OFF.FLEET.SHIPS + i * 9;
+      if ((st.u8(S + OFF.DOCK_SLOT.FLAGS) & 0x30) !== 0x10) continue;
+      const ship = DS.TBL_SHIP + st.u8(S + OFF.DOCK_SLOT.SHIP) * 0x16, t = st.u8(ship + 0x0f), TR = DS.TBL_SHIP_TYPE + t * 0x0c;
       const minS = st.u8(TR + 5), sail = s16(st.u16(S));
       sumSail = (sumSail + st.u16(S)) & 0xffff; sumMax = (sumMax + st.u16(ship + 0x12)) & 0xffff;
       let r8, r9, w, cap;
-      if (hero) { const M = b.crewData(i); r8 = st.u8(M + 8); r9 = st.u8(M + 9); w = s16(st.u16(M + 0x0a)); cap = st.u8(M + 0x1b); }
-      else { r8 = 0x19; r9 = 0x32; w = Math.trunc(s16(st.u16(TR + 6)) / 2); cap = st.u8(F + 0x2a); }
-      const maxw = s16(st.u16(TR + 6)), s5 = st.u8(S + 5), CP = st.personRecord(cap), pc = st.u8(CP + 0x24), pd = st.u8(CP + 0x1d);
-      sumGuns = (sumGuns + st.u8(S + 6)) & 0xffff;
+      if (hero) { const M = b.crewData(i); r8 = st.u8(M + OFF.CREW_SLOT.NAV_RATIO); r9 = st.u8(M + OFF.CREW_SLOT.LOOK_RATIO); w = s16(st.u16(M + OFF.CREW_SLOT.LOAD_TOTAL)); cap = st.u8(M + OFF.CREW_SLOT.CAPTAIN); }
+      else { r8 = 0x19; r9 = 0x32; w = Math.trunc(s16(st.u16(TR + 6)) / 2); cap = st.u8(F + OFF.FLEET.ADMIRAL); }
+      const maxw = s16(st.u16(TR + 6)), s5 = st.u8(S + OFF.DOCK_SLOT.PROPULSION), CP = st.personRecord(cap), pc = st.u8(CP + 0x24), pd = st.u8(CP + 0x1d);
+      sumGuns = (sumGuns + st.u8(S + OFF.DOCK_SLOT.GUNS)) & 0xffff;
       const deck = cmUmin(300, Math.trunc(s16((100 - r9 - r8) * sail) / 100) & 0xffff);
-      const k = st.u8(S + 8) & 7, g = Math.trunc((cmUmin(st.u8(S + 6), deck) * ((2 * T.gunA[k] + T.gunB[k]) & 0xffff)) / 10) & 0xffff;
-      sumX = (sumX + 2 * st.u8(S + 2) + g + deck) & 0xffff;
+      const k = st.u8(S + OFF.DOCK_SLOT.FLAGS) & 7, g = Math.trunc((cmUmin(st.u8(S + OFF.DOCK_SLOT.GUNS), deck) * ((2 * T.gunA[k] + T.gunB[k]) & 0xffff)) / 10) & 0xffff;
+      sumX = (sumX + 2 * st.u8(S + OFF.DOCK_SLOT.DURABILITY) + g + deck) & 0xffff;
       const di2 = s16(WT[wbase + t] * s5);
       const q = cmUmin(100, Math.trunc((r9 * sail) / minS) & 0xffff);
       const c = cmUmin(150, (180 - cmUmin(180, Math.trunc(s16(100 * w) / maxw) & 0xffff)) & 0xffff);
@@ -213,7 +215,7 @@ export class Commands {
       const v = cmUmin(30, (Math.trunc(s16(di3 * pc) / 10) + di3) & 0xffff);
       const sp = cmUmin(40, Math.trunc(s16(v * pd) / 75) & 0xffff);
       if (sp < best) { best = sp; slow = S; }
-      if (st.u8(S + 2) < minDur) minDur = st.u8(S + 2);
+      if (st.u8(S + OFF.DOCK_SLOT.DURABILITY) < minDur) minDur = st.u8(S + OFF.DOCK_SLOT.DURABILITY);
     }
     con.setCursor(0x1d, 0x140); message(0x39a, st.u8(slow + 4), sumSail);
     con.setCursor(0x1d, 0x158); message(0x39b, st.u8(slow + 5), sumGuns);
@@ -241,15 +243,15 @@ export class Commands {
   shipInfo(slot, x) {
     const st = this.st, { scr, gfx, graph, con, printf, message, win } = this.c, b = this.b, S0 = this.S, T = this.T;
     const lab = this.c.menuItems(0x29);
-    const S = b.fleetSlot(slot), M = b.crewData(slot), cap = st.personRecord(st.u8(M + 0x1b)), ship = 0x5892 + st.u8(S + 7) * 0x16;
-    const TR = 0x5e28 + st.u8(ship + 0x0f) * 0x0c, tmpl = 0x5892 + (st.u8(ship + 0x0f) + 0x28) * 0x16, s16 = v => (v << 16) >> 16;
-    const sup = [Math.trunc(s16(st.u16(M)) / 10), Math.trunc(s16(st.u16(M + 2)) / 10), s16(st.u16(M + 4)), s16(st.u16(M + 6))];
-    const cur = [st.u8(S + 2), st.u8(S + 4), st.u8(S + 5), st.u16(S), st.u8(M + 0x1c), this.c.cargoUsed(slot), (this.c.cargoUsed(slot) + st.u8(S + 6) + st.u16(S)) & 0xffff];   // 5d36 / 5d8b
-    const max = [st.u8(S + 3), st.u8(TR + 2), st.u8(TR + 3), st.u16(ship + 0x12), 100, st.u16(ship + 0x14), st.u16(TR + 6)];
+    const S = b.fleetSlot(slot), M = b.crewData(slot), cap = st.personRecord(st.u8(M + OFF.CREW_SLOT.CAPTAIN)), ship = DS.TBL_SHIP + st.u8(S + OFF.DOCK_SLOT.SHIP) * 0x16;
+    const TR = DS.TBL_SHIP_TYPE + st.u8(ship + 0x0f) * 0x0c, tmpl = DS.TBL_SHIP + (st.u8(ship + 0x0f) + 0x28) * 0x16, s16 = v => (v << 16) >> 16;
+    const sup = [Math.trunc(s16(st.u16(M)) / 10), Math.trunc(s16(st.u16(M + OFF.CREW_SLOT.FOOD)) / 10), s16(st.u16(M + OFF.CREW_SLOT.MATERIAL)), s16(st.u16(M + OFF.CREW_SLOT.AMMO))];
+    const cur = [st.u8(S + OFF.DOCK_SLOT.DURABILITY), st.u8(S + OFF.DOCK_SLOT.TURN), st.u8(S + OFF.DOCK_SLOT.PROPULSION), st.u16(S), st.u8(M + OFF.CREW_SLOT.MORALE), this.c.cargoUsed(slot), (this.c.cargoUsed(slot) + st.u8(S + OFF.DOCK_SLOT.GUNS) + st.u16(S)) & 0xffff];   // 5d36 / 5d8b
+    const max = [st.u8(S + OFF.DOCK_SLOT.MAX_DURABILITY), st.u8(TR + 2), st.u8(TR + 3), st.u16(ship + 0x12), 100, st.u16(ship + 0x14), st.u16(TR + 6)];
     win.frame(x, 0x20, 0x29, 0x150, 0);
     graph.draw(st.u8(ship + 0x0f) + 0x1c, (x + 2) << 3, 0x30);           // seg0:8050
     con.puts(S0.siColor);
-    const fh = st.u8(M + 0x1d);
+    const fh = st.u8(M + OFF.CREW_SLOT.FIGUREHEAD);
     if (fh) scr.putPlanar(x + 0x13, 0x30, 6, 0x30, this.p.P.transit, 0x1980 + 0x480 * fh);
     for (let r = 0; r < 2; r++) for (let c = 0; c < 2; c++) {
       scr.putPlanar(c * 7 + x + 0x1a, r * 0x28 + 0x30, 2, 0x20, gfx, 0x20d0 + ((2 * r + c) << 8));
@@ -257,11 +259,11 @@ export class Commands {
     }
     scr.fillCols(x + 0x14, 0x80, 1, 0xe0, 2);
     con.left = x + 2; con.setCursor(con.left, 0x98); printf(S0.siClass, st.cstr(tmpl));
-    con.setCursor(con.left, 0xa8); message(0x374, st.cstr(ship)); message(0x375, st.cstr(cap)); message(0x377, T.cannons[st.u8(S + 8) & 7]);
+    con.setCursor(con.left, 0xa8); message(0x374, st.cstr(ship)); message(0x375, st.cstr(cap)); message(0x377, T.cannons[st.u8(S + OFF.DOCK_SLOT.FLAGS) & 7]);
     con.left++; con.setCursor(con.left, 0xea);
-    if (st.u8(S + 8) & 7) message(0x378, st.u8(S + 6), st.u8(ship + 0x11), s16(T.gunW[st.u8(S + 8) & 7] * st.u8(S + 6)));
+    if (st.u8(S + OFF.DOCK_SLOT.FLAGS) & 7) message(0x378, st.u8(S + OFF.DOCK_SLOT.GUNS), st.u8(ship + 0x11), s16(T.gunW[st.u8(S + OFF.DOCK_SLOT.FLAGS) & 7] * st.u8(S + OFF.DOCK_SLOT.GUNS)));
     con.left--; con.setCursor(con.left, 0x100); message(0x379);
-    const s0 = st.u16(S), a = Math.trunc(((st.u8(M + 9) * s0) >>> 0) / 100) & 0xffff, bb = Math.trunc(((st.u8(M + 8) * s0) >>> 0) / 100) & 0xffff;
+    const s0 = st.u16(S), a = Math.trunc(((st.u8(M + OFF.CREW_SLOT.LOOK_RATIO) * s0) >>> 0) / 100) & 0xffff, bb = Math.trunc(((st.u8(M + OFF.CREW_SLOT.NAV_RATIO) * s0) >>> 0) / 100) & 0xffff;
     con.setCursor(con.left, 0x112); message(0x37a, a, bb, (s0 - a - bb) & 0xffff);
     con.setCursor(con.left, 0x128); message(0x37b, st.u8(TR + 5));
     con.left += 2; con.setCursor(con.left, 0x13a); message(0x37c);
@@ -289,7 +291,7 @@ export class Commands {
   //   能力 7 項 (DS:08f6「%-6s%3d」與 9216 / 92f7)、0x386..0x38a、技能 5 項 (DS:08ec, +30 bit (0x10>>i) 為 ○)
   personInfo(n, x, mode) {
     const st = this.st, { scr, con, printf, message, kao, win } = this.c, b = this.b, S0 = this.S, T = this.T;
-    const P = st.personRecord(n), H = 0x125a + st.hero * 0x0e, isHero = n === st.hero;
+    const P = st.personRecord(n), H = DS.TBL_HERO_DATA + st.hero * 0x0e, isHero = n === st.hero;
     const xs = [0x0e, 0x13, 0x1c, 0x21, 0x0e], ys = [0x118, 0x118, 0x118, 0x118, 0x130];
     let si7 = 0, shipR = 0;
     if (mode) {
@@ -300,7 +302,7 @@ export class Commands {
         if (c === n) { found = 1; si7 = i; }
         if (!found && c === st.hero) si7 = i;
       }
-      if (si7 !== 0xff) shipR = 0x5892 + st.u8(b.fleetSlot(si7) + 7) * 0x16;
+      if (si7 !== 0xff) shipR = DS.TBL_SHIP + st.u8(b.fleetSlot(si7) + 7) * 0x16;
     }
     win.frame(x, 0x20, 0x28, 0x160, 0);
     kao.drawPerson(scr, st.bytes(P, 0x32), x + 2, 0x30);
@@ -321,9 +323,9 @@ export class Commands {
     if (mode) {
       if (isHero) {
         message(0x383);
-        const ti = st.u8(H + 0x0d);
+        const ti = st.u8(H + OFF.PERSON.FAMILY_NAME);
         if (ti) printf(S0.piTitle, st.hero === 5 ? b.T.ottomanTitles[ti] : b.T.titles[ti]); else message(0x384);
-      } else for (let i = 0; i < 0x1e; i++) if (st.u8(0x2e1b + i) === n) message(0x385, 10 * st.u8(0x2e39 + i));
+      } else for (let i = 0; i < 0x1e; i++) if (st.u8(DS.PARTY_CREW + i) === n) message(0x385, 10 * st.u8(0x2e39 + i));
     }
     message(0x386, st.u8(P + 0x24));
     con.left += 6; con.setCursor(con.left, -1); message(0x387, st.u16(P + 0x26));
@@ -340,8 +342,8 @@ export class Commands {
   }
   // ---- 3 主公情報 1cc11: 7358(0x0f,0x20,0x1f,0xa8) 金幣 (%10000) / 金塊 (/10000)、MENU #0x2a 三種聲望、6 國友好度 (−100 → 0x394 + 絕對值) ----
   async lordInfo() {
-    const st = this.st, { con, printf, message, win } = this.c, lab = this.c.menuItems(0x2a), H = 0x125a + st.hero * 0x0e;
-    const money = (st.u16(0x12ae) | (st.u16(0x12b0) << 16)) | 0;
+    const st = this.st, { con, printf, message, win } = this.c, lab = this.c.menuItems(0x2a), H = DS.TBL_HERO_DATA + st.hero * 0x0e;
+    const money = (st.u16(DS.MONEY) | (st.u16(0x12b0) << 16)) | 0;
     win.frame(0x0f, 0x20, 0x1f, 0xa8, 0);
     con.setCursor(0x11, 0x30); message(0x38e);
     con.setCursor(0x11, 0x48); message(0x38f, money % 10000);            // seg0:37ee 有號長整數餘數
@@ -363,15 +365,15 @@ export class Commands {
   // 1cd6c 74f7(0x0f,0x20,0x14,0x90,0): 0x374 船名, 每種商品 0x395 (名稱 DS:0728, 數量 +0c)
   async cargoInfo(slot) {
     const st = this.st, { con, message, win } = this.c, M = this.b.crewData(slot);
-    let any = 0; for (let k = 0; k < 5; k++) if (st.u8(M + 0x16 + k) !== 0xff) any = 1;
+    let any = 0; for (let k = 0; k < 5; k++) if (st.u8(M + OFF.CREW_SLOT.CARGO_GOODS + k) !== 0xff) any = 1;
     if (!any) return;
-    const ship = 0x5892 + st.u8(this.b.fleetSlot(slot) + 7) * 0x16;
+    const ship = DS.TBL_SHIP + st.u8(this.b.fleetSlot(slot) + 7) * 0x16;
     await win.open(0x0f, 0x20, 0x14, 0x90, 0);
     con.setCursor(0x11, 0x28); message(0x374, st.cstr(ship));
     let y = 0;
     for (let k = 0; k < 5; k++) {
-      const g = st.u8(M + 0x16 + k); if (g === 0xff) continue;
-      con.setCursor(0x11, y + 0x50); message(0x395, this.p.goods[g], st.u16(M + 0x0c + 2 * k)); y += 0x10;
+      const g = st.u8(M + OFF.CREW_SLOT.CARGO_GOODS + k); if (g === 0xff) continue;
+      con.setCursor(0x11, y + 0x50); message(0x395, this.p.goods[g], st.u16(M + OFF.CREW_SLOT.CARGO_AMTS + 2 * k)); y += 0x10;
     }
     await this.waitClose();
   }
@@ -385,21 +387,21 @@ export class Commands {
       if ((st.u8(b.fleetSlot(i) + 8) & 0x30) !== 0x10) continue;
       const M = b.crewData(i);
       for (let j = 0; j < 5; j++) {
-        const g = st.u8(M + 0x16 + j); if (g === 0xff) continue;
+        const g = st.u8(M + OFF.CREW_SLOT.CARGO_GOODS + j); if (g === 0xff) continue;
         if (!P[0x32 + g]) P[k++] = g;
-        P[0x32 + g] = (P[0x32 + g] + st.u16(M + 0x0c + 2 * j)) & 0xffff;
+        P[0x32 + g] = (P[0x32 + g] + st.u16(M + OFF.CREW_SLOT.CARGO_AMTS + 2 * j)) & 0xffff;
       }
     }
     if (!k) return;
     const r = await b.listSel().select(0x81, k);
     if (r === -1) return;
-    const g = P[r], R = 0x5f54 + this.bestPort(g) * 0x16, hero = st.personRecord(st.hero);
-    if (st.u8(hero + 0x30) & 2) { b.talkPerson(st.hero); message(0x350, this.p.goods[g], st.cstr(R + 4)); await this.waitClose(); return; }
+    const g = P[r], R = DS.TBL_PORT + this.bestPort(g) * 0x16, hero = st.personRecord(st.hero);
+    if (st.u8(hero + 0x30) & 2) { b.talkPerson(st.hero); message(0x350, this.p.goods[g], st.cstr(R + OFF.PORT.NAME)); await this.waitClose(); return; }
     for (let i = 0; i < 0x1e; i++) {
-      const c = st.u8(0x2e1b + i); if (c === 0xff) continue;
+      const c = st.u8(DS.PARTY_CREW + i); if (c === 0xff) continue;
       const C = st.personRecord(c); if (st.u8(C + 0x2e) !== 4) continue;
       b.talkPerson(c);
-      if (st.u8(C + 0x30) & 2) message(0x351, this.p.goods[g], st.cstr(R + 4)); else message(0x352, this.p.goods[g]);
+      if (st.u8(C + 0x30) & 2) message(0x351, this.p.goods[g], st.cstr(R + OFF.PORT.NAME)); else message(0x352, this.p.goods[g]);
       await this.waitClose();
     }
   }
@@ -408,10 +410,10 @@ export class Commands {
     const st = this.st, cats = this.T.goodsCat; let best = 0, port = 0;
     let cat = 0; while (cat < 10 && !(cats[cat] > g)) cat++; if (cat >= 10) cat = 0;     // 1fd9:468e = 2441e
     for (let p = 0; p < 100; p++) {
-      const R = 0x5f54 + p * 0x16, E = 0x6a80 + p * 0x25, pr = st.u8(E + 0x0e + cat) + 0x32, s16 = v => (v << 16) >> 16;
+      const R = DS.TBL_PORT + p * 0x16, E = DS.TBL_PORT_ECONOMY + p * 0x25, pr = st.u8(E + 0x0e + cat) + 0x32, s16 = v => (v << 16) >> 16;
       const v = st.u8(E + 0x1a) === g ? s16(Math.trunc(pr * s16(st.u16(E + 0x18)) / 200))                         // seg0:3722
-        : s16(Math.trunc(pr * s16(st.u16(0x78f4 + st.u8(E + 0x21) * 0x80 + 2 * g)) / 100));                         // seg0:5cba 地區價
-      if (v > best && (st.u8(R + 0x15) & 0x40)) { best = v; port = p; }
+        : s16(Math.trunc(pr * s16(st.u16(DS.TBL_REGION_PRICE + st.u8(E + 0x21) * 0x80 + 2 * g)) / 100));                         // seg0:5cba 地區價
+      if (v > best && (st.u8(R + OFF.PORT.REGION) & 0x40)) { best = v; port = p; }
     }
     return port;
   }
@@ -428,7 +430,7 @@ export class Commands {
   //   +0 日期 (日 = %31+1, 月 = /31%12+1, 年 = /372+1501; FFFF = 結束) +2 種類: 0 / 1 抵達 / 出航 (0x16e / 0x16f, +4 字, +6 港),
   //   2 海戰 (0x345, MENU #0x34 / #0x35), 9 (0x17d, +4 港), 0x0c (0x180), 其他不顯示。每頁 6 筆, 從最後一頁開始; 前頁 / 後頁 (13762) ----
   async logBook() {
-    const st = this.st, { win, con, printf, message, sys, menu } = this.c, S = this.S, L = 0x8a18;
+    const st = this.st, { win, con, printf, message, sys, menu } = this.c, S = this.S, L = DS.TRADE_LOGS;
     win.shadowedSaved(0x0f, 0x20, 0x2a, 0x140, 0);
     con.left = 0x1c; con.right--;
     let n = 0; while (n < 0x30 && st.u16(L + n * 16) !== 0xffff) n++;
@@ -443,12 +445,12 @@ export class Commands {
         const d = Math.trunc(w / 31), m = Math.trunc(d / 12);
         printf(S.logDate, m + 0x5dd, d % 12 + 1, w % 31 + 1);
         const t = st.u16(e + 2), a = e + 4;
-        if (t === 0 || t === 1) message(t ? 0x16f : 0x16e, st.u16(a), st.cstr(0x5f54 + st.u8(a + 2) * 0x16 + 4));
+        if (t === 0 || t === 1) message(t ? 0x16f : 0x16e, st.u16(a), st.cstr(DS.TBL_PORT + st.u8(a + 2) * 0x16 + 4));
         else if (t === 2) {
           const m34 = this.c.menuItems(0x34), m35 = this.c.menuItems(0x35), v = st.u16(a);
           const k = v >= 0x3c ? 0 : v % 10 === 0 ? 0 : v % 10 < 5 ? 1 : 2;
           message(0x345, this.p.nations[Math.trunc(v / 10)], m34[k], m35[st.u16(a + 2)]);
-        } else if (t === 9) message(0x17d, st.cstr(0x5f54 + st.u8(a) * 0x16 + 4));
+        } else if (t === 9) message(0x17d, st.cstr(DS.TBL_PORT + st.u8(a) * 0x16 + 4));
         // 0x180 的 %ld 由堆疊上相鄰的兩個字組成: 低字 = +8, 高字 = +6 (原版依 +10, +6, +8 的順序推入, 照搬)
         else if (t === 0x0c) message(0x180, this.p.goods[st.u16(a)], (st.u16(a + 4) | (st.u16(a + 2) << 16)) | 0, st.u16(a + 6));
       }
@@ -609,17 +611,17 @@ export class Commands {
   // 1e921 船位 slot 的船長改為 p: p 的職務是 1 或 2 且已是另一艘船的船長 → 兩船互換船長 (職務不變);
   //   否則原船長職務 (不是 1 時) 改 6, p 的職務 (不是 1 時) 改 2
   setCaptain(slot, p) {
-    const st = this.st, b = this.b, M = b.crewData(slot), oldP = st.personRecord(st.u8(M + 0x1b)), P = st.personRecord(p);
+    const st = this.st, b = this.b, M = b.crewData(slot), oldP = st.personRecord(st.u8(M + OFF.CREW_SLOT.CAPTAIN)), P = st.personRecord(p);
     let other = 0;
     if (st.u8(P + 0x2e) === 1 || st.u8(P + 0x2e) === 2) {
       for (let i = 0; i < 10; i++) if ((st.u8(b.fleetSlot(i) + 8) & 0x30) === 0x10 && st.u8(b.crewData(i) + 0x1b) === p) { other = b.crewData(i); break; }
     }
-    if (other) st.set8(other + 0x1b, st.u8(M + 0x1b));
+    if (other) st.set8(other + 0x1b, st.u8(M + OFF.CREW_SLOT.CAPTAIN));
     else {
       if (st.u8(oldP + 0x2e) !== 1) st.set8(oldP + 0x2e, 6);
       if (st.u8(P + 0x2e) !== 1) st.set8(P + 0x2e, 2);
     }
-    st.set8(M + 0x1b, p);
+    st.set8(M + OFF.CREW_SLOT.CAPTAIN, p);
   }
   // 1ed2d 人事變更: 視窗 1ea99 (助手/會計/水手長), 1e79f 由船員職務 3/4/5 取得現任 (DS:a87e/a87f/a880, 最後一個為準);
   //   沒有船員 → 0xe5; 否則 1eae1 → 14524(3, 1, 1) → 1ec2b
@@ -629,7 +631,7 @@ export class Commands {
     con.puts(S.pAssist); con.setCursor(con.left, 0x88); con.puts(S.pAccount); con.setCursor(con.left, 0xa0); con.puts(S.pBosun);
     this.posts = [0xff, 0xff, 0xff];
     for (let i = 0; i < 0x1e; i++) {
-      const n = st.u8(0x2e1b + i); if (n === 0xff) continue;
+      const n = st.u8(DS.PARTY_CREW + i); if (n === 0xff) continue;
       const r = st.u8(st.personRecord(n) + 0x2e); if (r >= 3 && r <= 5) this.posts[r - 3] = n;
     }
     // 沒有船員: 0xe5 後只關閉訊息視窗就返回, 人事變更視窗留在畫面與視窗堆疊上 (照搬; 選單已停用此項, 實際走不到)
@@ -695,16 +697,16 @@ export class Commands {
   // 1edf9 一艘船的水手數 (0..min(現有 + 剩餘, 最多水手)); 士氣依人數加權平均 (seg0:38ba 長整數除法)
   async assignSailors(slot) {
     const st = this.st, { win, message } = this.c, b = this.b;
-    const M = b.crewData(slot), S = b.fleetSlot(slot), ship = 0x5892 + st.u8(S + 7) * 0x16;
-    const di = st.u16(S), mor = st.u8(M + 0x1c), pool = this.pool, pm = this.poolMorale;
+    const M = b.crewData(slot), S = b.fleetSlot(slot), ship = DS.TBL_SHIP + st.u8(S + OFF.DOCK_SLOT.SHIP) * 0x16;
+    const di = st.u16(S), mor = st.u8(M + OFF.CREW_SLOT.MORALE), pool = this.pool, pm = this.poolMorale;
     const max = cmUmin(di + pool, st.u16(ship + 0x12));
     this.winBot(); message(0xe6, st.cstr(ship), max);
     const si = (await b.numpad.input(0, max)) & 0xffff;
     await win.close();
     st.set16(S, si);
     this.pool = (pool - si + di) & 0xffff;
-    st.set8(M + 0x1c, 0);
-    if (si) st.set8(M + 0x1c, di < si ? Math.trunc((mor * di + (si - di) * pm) / si) : mor);
+    st.set8(M + OFF.CREW_SLOT.MORALE, 0);
+    if (si) st.set8(M + OFF.CREW_SLOT.MORALE, di < si ? Math.trunc((mor * di + (si - di) * pm) / si) : mor);
     this.poolMorale = 0;
     if (this.pool) this.poolMorale = (di < si ? pm : Math.trunc((pm * pool + (di - si) * mor) / this.pool)) & 0xff;
   }
@@ -742,10 +744,10 @@ export class Commands {
       this.ratioValues(slot);
       const r = await menu.customMenu(menu.count, 2, 3);
       if (r === 0xff) break;
-      const a = st.u8(M + 8), b9 = st.u8(M + 9), rest = (100 - a - b9) & 0xff;
-      if (r <= 1) { const t = [b9, a, rest]; this.ratioStep(r, t); st.set8(M + 8, t[1]); st.set8(M + 9, t[0]); }
-      else if (r <= 3) { const t = [a, rest, b9]; this.ratioStep(r, t); st.set8(M + 8, t[0]); st.set8(M + 9, t[2]); }
-      else if (r <= 5) { const t = [rest, b9, a]; this.ratioStep(r, t); st.set8(M + 8, t[2]); st.set8(M + 9, t[1]); }
+      const a = st.u8(M + OFF.CREW_SLOT.NAV_RATIO), b9 = st.u8(M + OFF.CREW_SLOT.LOOK_RATIO), rest = (100 - a - b9) & 0xff;
+      if (r <= 1) { const t = [b9, a, rest]; this.ratioStep(r, t); st.set8(M + OFF.CREW_SLOT.NAV_RATIO, t[1]); st.set8(M + OFF.CREW_SLOT.LOOK_RATIO, t[0]); }
+      else if (r <= 3) { const t = [a, rest, b9]; this.ratioStep(r, t); st.set8(M + OFF.CREW_SLOT.NAV_RATIO, t[0]); st.set8(M + OFF.CREW_SLOT.LOOK_RATIO, t[2]); }
+      else if (r <= 5) { const t = [rest, b9, a]; this.ratioStep(r, t); st.set8(M + OFF.CREW_SLOT.NAV_RATIO, t[2]); st.set8(M + OFF.CREW_SLOT.LOOK_RATIO, t[1]); }
     }
     await win.close();
   }
@@ -757,7 +759,7 @@ export class Commands {
   // 1f036 「%4d人:%3d%%」(人數 = 比例 × 水手 / 100, seg0:3722) 與百分比條
   ratioValues(slot) {
     const st = this.st, { con, printf } = this.c, S = this.S, M = this.b.crewData(slot), s0 = (st.u16(this.b.fleetSlot(slot)) << 16) >> 16;
-    const v9 = st.u8(M + 9), v8 = st.u8(M + 8);
+    const v9 = st.u8(M + OFF.CREW_SLOT.LOOK_RATIO), v8 = st.u8(M + OFF.CREW_SLOT.NAV_RATIO);
     con.setCursor(con.left + 6, 0x100); const a = Math.trunc(v9 * s0 / 100); printf(S.rNum, a, v9); this.bar(con.left + 7, 0xf4, v9);
     con.setCursor(con.left + 6, 0x120); const c = Math.trunc(v8 * s0 / 100); printf(S.rNum, c, v8); this.bar(con.left + 7, 0x114, v8);
     con.setCursor(con.left + 6, 0x140); const v = 100 - v8 - v9; printf(S.rNum, s0 - c - a, v); this.bar(con.left + 7, 0x134, v);
@@ -775,7 +777,7 @@ export class Commands {
     }
     for (let i = 0; i < 10; i++) {
       const S = b.fleetSlot(i);
-      if ((st.u8(S + 8) & 0x30) === 0x10 && st.u8(b.crewData(i) + 0x1b) === 0xff) st.set8(S + 8, 0);
+      if ((st.u8(S + OFF.DOCK_SLOT.FLAGS) & 0x30) === 0x10 && st.u8(b.crewData(i) + 0x1b) === 0xff) st.set8(S + OFF.DOCK_SLOT.FLAGS, 0);
     }
   }
   // 1f38a 尚未銷毀 (+1b bit7 = 0) 的船: 點擊區位置仍依艦隊表的列, [0538] 重新排緊
@@ -793,9 +795,9 @@ export class Commands {
   }
   // 1f43a 主角的船 → 0xe9; 否則 0xea (%s 船名) 是/否 → 1f41d: seg0:5deb 移除後 +8 = 0x10 (表上顯示「銷毀完畢」直到離開)
   async scrapShip(slot) {
-    const st = this.st, { message, menu } = this.c, b = this.b, M = b.crewData(slot), ship = 0x5892 + st.u8(b.fleetSlot(slot) + 7) * 0x16;
+    const st = this.st, { message, menu } = this.c, b = this.b, M = b.crewData(slot), ship = DS.TBL_SHIP + st.u8(b.fleetSlot(slot) + 7) * 0x16;
     this.c.win.shadowedSaved(0x10, 0xa0, 0x24, 0x80, 1);
-    if (st.u8(M + 0x1b) === st.hero) { message(0xe9); await menu.waitPrompt(); }
+    if (st.u8(M + OFF.CREW_SLOT.CAPTAIN) === st.hero) { message(0xe9); await menu.waitPrompt(); }
     else {
       message(0xea, st.cstr(ship));
       if (await menu.yesNo()) { b.removeShip(slot); st.set8(b.fleetSlot(slot) + 8, 0x10); }
@@ -874,7 +876,7 @@ export class Commands {
     con.puts(S.fmColor);
     for (let si = 0; si < n; si++) {
       con.setCursor(con.left + 4, (si + 10) << 4);
-      if (nw[si] !== 0xff) printf(S.fmShip, st.cstr(0x5892 + st.u8(b.fleetSlot(nw[si]) + 7) * 0x16)); else con.puts(S.fmBlank);
+      if (nw[si] !== 0xff) printf(S.fmShip, st.cstr(DS.TBL_SHIP + st.u8(b.fleetSlot(nw[si]) + 7) * 0x16)); else con.puts(S.fmBlank);
     }
   }
   // 20363 [0538] = 原順序中還沒被指定的船位
@@ -954,7 +956,7 @@ export class Commands {
   async wage(p) {
     const st = this.st, { message, printf } = this.c, b = this.b, S = this.S;
     let idx = 0;
-    for (let i = 0; i < 0x1e; i++) if (st.u8(0x2e1b + i) === p) { idx = i; break; }
+    for (let i = 0; i < 0x1e; i++) if (st.u8(DS.PARTY_CREW + i) === p) { idx = i; break; }
     const P = st.personRecord(p);
     if (st.u8(P + 0x2b) >= 0x50) { b.talkPerson(p); message(0xdc); await this.waitClose(); return; }
     const di = 10 * st.u8(0x2e39 + idx);
@@ -978,13 +980,13 @@ export class Commands {
   // 停用: [1005] & 0x18 → 0..2; 在港 → 0..3; 沒有隨身物 → 4。選隨身物以外的項目 (或取消) 後結束; 功能回傳值決定是否結束
   async nav() {
     const st = this.st, { menu, palette } = this.c;
-    const items = this.c.menuItems(st.u8(0x1005) & 0x20 ? 0x2e : 0x1d).slice(0, 6);
+    const items = this.c.menuItems(st.u8(DS.SEA_FLAGS2) & 0x20 ? 0x2e : 0x1d).slice(0, 6);
     const pm = PortMove.enabled(this.c);                               // 擴充功能 (非原版): 第 7 項「港內移動」, 選單上移一行 (RE_NOTES 33.1)
     if (pm) items.push(PortMove.label(this.c));
     let si = 0;
     while (!palette.ending) {                                          // 20fd9: [03ea] == 0
       if (si) break;
-      if (st.u8(0x1005) & 0x18) menu.disabled |= 7;
+      if (st.u8(DS.SEA_FLAGS2) & 0x18) menu.disabled |= 7;
       if (st.port !== 0xff) menu.disabled |= 0x0f;
       if (!this.itemList()) menu.disabled |= 0x10;
       if (pm && st.port === 0xff) menu.disabled |= 0x40;
@@ -1005,7 +1007,7 @@ export class Commands {
   // 0fea:32a6 = 13146 隨身物 (DS:2e57, 20 格, FF = 空) → [0538], 回傳個數
   itemList() {
     const st = this.st, P = this.c.persons; let n = 0;
-    for (let i = 0; i < 0x14; i++) { const v = st.u8(0x2e57 + i); if (v !== 0xff) P[n++] = v; }
+    for (let i = 0; i < 0x14; i++) { const v = st.u8(DS.INVENTORY + i); if (v !== 0xff) P[n++] = v; }
     return n;
   }
   // 29a4c 隨身物: 清單 0x8d → 道具資料 (29497: 74f7(0x0c,0x80,0x30,0xb0,1) + 29340) → MENU #0x21 (佩戴/使用) 於 y=0x108
@@ -1028,23 +1030,23 @@ export class Commands {
   // 294d5 佩戴: 種類 (+13 & 0f) ≥ 7 不能裝備; 已裝備 → 除去; 否則裝上:
   //   先除去所有已裝備的隨身物, 依種類記住各類最後一件 (0..3 武器 / 4,5 甲 / 6 盾), 本件取代它那一類, 再把 3 類各自裝回
   async equip(it) {
-    const st = this.st, { con } = this.c, S = this.S, R = 0x8248 + it * 0x14, t = st.u8(R + 0x13) & 0x0f;
+    const st = this.st, { con } = this.c, S = this.S, R = DS.TBL_ITEM + it * 0x14, t = st.u8(R + 0x13) & 0x0f;
     if (t >= 7) { this.smallWin(); con.puts(S.noEquip); await this.waitClose(); return; }
     if (st.u8(R + 0x13) & 0x10) { this.smallWin(); con.puts(S.unequip); await this.waitClose(); st.set8(R + 0x13, st.u8(R + 0x13) & 0xef); return; }
     this.smallWin(); con.puts(S.equipped); await this.waitClose();
     const cat = k => (k <= 3 ? 0 : k <= 5 ? 1 : k === 6 ? 2 : -1), slot = [0xff, 0xff, 0xff];
     for (let i = 0; i < 0x14; i++) {
-      const x = st.u8(0x2e57 + i); if (x === 0xff) continue;
-      const Q = 0x8248 + x * 0x14; if (!(st.u8(Q + 0x13) & 0x10)) continue;
+      const x = st.u8(DS.INVENTORY + i); if (x === 0xff) continue;
+      const Q = DS.TBL_ITEM + x * 0x14; if (!(st.u8(Q + 0x13) & 0x10)) continue;
       st.set8(Q + 0x13, st.u8(Q + 0x13) & 0xef);
       const k = cat(st.u8(Q + 0x13) & 0x0f); if (k >= 0) slot[k] = x;
     }
     { const k = cat(t); if (k >= 0) slot[k] = it; }
-    for (const x of slot) if (x !== 0xff) { const Q = 0x8248 + x * 0x14; st.set8(Q + 0x13, st.u8(Q + 0x13) | 0x10); }
+    for (const x of slot) if (x !== 0xff) { const Q = DS.TBL_ITEM + x * 0x14; st.set8(Q + 0x13, st.u8(Q + 0x13) | 0x10); }
   }
   // 299f5 使用: 種類 7 → 298a5 (位置), 8 → 29710 (道具), 9 → 29808 (藥品, 用後消失), 0x0c → 0fea:ded6 (地圖), 其他 → 2962f
   async use(it) {
-    const st = this.st, R = 0x8248 + it * 0x14, t = st.u8(R + 0x13) & 0x0f;
+    const st = this.st, R = DS.TBL_ITEM + it * 0x14, t = st.u8(R + 0x13) & 0x0f;
     switch (t) {
       case 7: return this.useNavi(R);
       case 8: return this.useTool(it);
@@ -1075,18 +1077,18 @@ export class Commands {
     if (st.port !== 0xff) { this.smallWin(); message(0x2f4); await this.waitClose(); return; }
     let err = 0;
     const H = this.b.hero;
-    if (!(st.u8(H + 0x30) & 0x10)) {
+    if (!(st.u8(H + OFF.PERSON.SKILLS) & 0x10)) {
       this.smallWin(); message(0x2f5); await this.waitClose();
       if (!(await this.pickSurveyor())) {
-        this.b.talkPerson(st.u8(0x12b5));                               // seg0:7f06
-        if (st.u8(H + 0x31) & 0x10) { message(0x2f6); message(0x2f8); } else { message(0x2f7); message(0x2f9); }
+        this.b.talkPerson(st.u8(DS.HERO));                               // seg0:7f06
+        if (st.u8(H + OFF.PERSON.FACE) & 0x10) { message(0x2f6); message(0x2f8); } else { message(0x2f7); message(0x2f9); }
         await this.waitClose();
         err = (sys.rng.random(100) + 1) & 0xffff;
       }
     }
     const F = this.p.fleet, s16 = v => (v << 16) >> 16, prec = st.u8(R + 0x12);
     let si = s16(st.u16(F) + 0x7bd) % 0x870, di = 0x80;
-    const lat = s16(0x280 - st.u16(F + 2));
+    const lat = s16(0x280 - st.u16(F + OFF.FLEET.Y));
     if (si > 0x438) { di = 0x81; si = 0x870 - si; }
     const lon = Math.imul(Math.trunc(si / s16(prec * 6)), prec);
     const latv = Math.imul(Math.trunc(s16(Math.abs(lat) << 3) / s16(prec * 0x39)), prec);
@@ -1124,24 +1126,24 @@ export class Commands {
     const st = this.st, { con } = this.c, S = this.S;
     if (it === 0x29) {
       this.smallWin();
-      if ((st.u8(0x0cb3) & 0x10) === 0x10) { st.set8(0x0cb3, st.u8(0x0cb3) & 0xef); con.puts(S.ratGone); } else con.puts(S.noTrouble);
+      if ((st.u8(DS.WEATHER) & 0x10) === 0x10) { st.set8(DS.WEATHER, st.u8(DS.WEATHER) & 0xef); con.puts(S.ratGone); } else con.puts(S.noTrouble);
       await this.waitClose();
     } else if (it === 0x2a) {
       this.smallWin();
-      if ((st.u8(0x0cb3) & 0x0f) === 1) {
-        st.set8(0x0cb3, st.u8(0x0cb3) & 0xf0);
+      if ((st.u8(DS.WEATHER) & 0x0f) === 1) {
+        st.set8(DS.WEATHER, st.u8(DS.WEATHER) & 0xf0);
         this.c.palette.selectTimePalette(this.rt.time, st.port === 0xff, st.weather);     // 0fea:98ce = 1976e
         con.puts(this.rt.time >= 0x0c && this.rt.time < 0x3c ? S.stormDay : S.stormNight);
         this.c.sfx?.off();                                             // 297b4: 9888
       } else con.puts(S.noTrouble2);
-      st.set8(0x10a6, this.c.sys.rng.random(6) + 0x0a);
+      st.set8(DS.COOLDOWN_10A6, this.c.sys.rng.random(6) + 0x0a);
       await this.waitClose();
     } else if (it === 0x2b) {
       this.smallWin();
-      if ((st.u8(0x0cb3) & 0x20) === 0x20) { st.set8(0x0cb3, st.u8(0x0cb3) & 0xdf); con.puts(S.scurvyCured); } else con.puts(S.good);
+      if ((st.u8(DS.WEATHER) & 0x20) === 0x20) { st.set8(DS.WEATHER, st.u8(DS.WEATHER) & 0xdf); con.puts(S.scurvyCured); } else con.puts(S.good);
       await this.waitClose();
-    } else await this.cantUse(st.u8(0x8248 + it * 0x14 + 0x13) & 0x0f);
-    for (let i = 0; i < 0x14; i++) if (st.u8(0x2e57 + i) === it) { st.set8(0x2e57 + i, 0xff); break; }
+    } else await this.cantUse(st.u8(DS.TBL_ITEM + it * 0x14 + 0x13) & 0x0f);
+    for (let i = 0; i < 0x14; i++) if (st.u8(DS.INVENTORY + i) === it) { st.set8(DS.INVENTORY + i, 0xff); break; }
   }
   // 215bd 功能: MENU #0x14 (環境設定/儲存檔案/取出存檔/結束遊戲) 於 y=0xf8, 無停用項;
   //   讀檔成功 → [0533..0535] = F0 (時間迴圈中止) 並回傳 1 (結束航海術選單); 其他回到此選單, 取消回傳 0
@@ -1157,7 +1159,7 @@ export class Commands {
           if ((st.options ^ o) & 0x80) { this.release(3); await this.reenter(); this.press(3); }   // 環境設定不會改 bit7 (死碼, 照搬)
           break; }
         case 1:
-          if (st.port !== 0xff) st.set8(0x0caf, 0x82);                   // 讀檔後重新讀入入口表但保留位置
+          if (st.port !== 0xff) st.set8(DS.LAST_PORT, 0x82);                   // 讀檔後重新讀入入口表但保留位置
           await this.saveLoad(0); break;
         case 2:
           if (await this.saveLoad(1)) { this.rt.time = this.rt.day = this.rt.month = 0xf0; return 1; }
@@ -1205,7 +1207,7 @@ export class Commands {
     const st = this.st, { con } = this.c, S = this.S;
     for (let si = 0; si < 2; si++) { con.setCursor(0x26, 0x30 + (si << 5)); con.puts(st.options & (si ? 4 : 1) ? S.on : S.off); }
     for (let si = 0; si < 3; si++) {
-      const v = si < 2 ? Math.trunc(100 * st.u8(0x0ca8 + si) / (si ? 10 : 4)) : 10 * st.u8(0x0ca6);
+      const v = si < 2 ? Math.trunc(100 * st.u8(DS.MOUSE_SENS + si) / (si ? 10 : 4)) : 10 * st.u8(DS.SEA_SPEED);
       this.bar(0x28, 0x74 + (si << 5), v);
     }
   }
@@ -1218,14 +1220,14 @@ export class Commands {
     const bgm = this.c.bgm, song = bgm.song ?? 0xff;
     if (song === 0xff || this.c.noSoundDriver) return;
     st.options = st.options ^ 4;
-    if (st.options & 4) { if ((st.u8(0x0cb3) & 15) === 1) { this.c.sfx?.voice(0x0c5a); this.c.sfx?.note(0x30); } bgm.playSong(song); }
+    if (st.options & 4) { if ((st.u8(DS.WEATHER) & 15) === 1) { this.c.sfx?.voice(0x0c5a); this.c.sfx?.note(0x30); } bgm.playSong(song); }
     else { this.c.sfx?.off(); bgm.fadeOut(); await bgm.stopped?.(); }
   }
   // 21432: si = 項目 − 4; 奇數 +1 (不超過上限), 偶數 −1 (不低於 0); 之後 seg0:5022 以 ([0ca8]+2)×2 設定滑鼠速度
   settingsStep(si) {
-    const st = this.st, max = si >= 2 ? 10 : 4, a = si < 4 ? 0x0ca8 + (si >> 1) : 0x0ca6, v = st.u8(a);
+    const st = this.st, max = si >= 2 ? 10 : 4, a = si < 4 ? DS.MOUSE_SENS + (si >> 1) : DS.SEA_SPEED, v = st.u8(a);
     if (si & 1) st.set8(a, v + cmUmin(max - v, 1)); else st.set8(a, v - cmUmin(v, 1));
-    const m = (st.u8(0x0ca8) + 2) * 2; this.c.sys.mickeyRatio = [m, m];
+    const m = (st.u8(DS.MOUSE_SENS) + 2) * 2; this.c.sys.mickeyRatio = [m, m];
   }
   // seg0:9216 數值框 (欄 x, y); wide = seg0:90c0 (13 欄, 右端 +0x6a / +0x6f)
   barFrame(x, y, wide = 0) {
@@ -1281,7 +1283,7 @@ export class Commands {
       cat(this.p.months[rt.month]); cat(this.S.saveYear);
       h[9] = (0x30 + Math.trunc((rt.year + 1) / 10)) & 0xff; h[10] = 0x30 + (rt.year + 1) % 10;
       h[12] = st.port; h[13] = flag;
-      st.set8(0x0caa, rt.year); st.set8(0x0cab, rt.month); st.set8(0x0cac, rt.day); st.set8(0x0cad, rt.time);
+      st.set8(DS.YEAR, rt.year); st.set8(DS.MONTH, rt.month); st.set8(DS.DAY, rt.day); st.set8(DS.TIME, rt.time);
       f.writeSlot(sel, h, st.b);
       await win.close(); await win.close();
       return 1;
