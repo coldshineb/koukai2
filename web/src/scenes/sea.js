@@ -119,6 +119,7 @@ export class SeaScene extends PortScene {
     this.region = 0xffff;
     this.seaView();                                                    // 6b30
     palette.selectTimePalette(this.time, true, st.u8(DS.WEATHER));         // 0fea:98ce = 1976e
+    this.c.scr.setAtmosphere?.({ active: true, atSea: true, weather: st.u8(DS.WEATHER) & 15 });
     this.seaPanel();                                                   // 8067
     this.needle = 0xff;
     if ((st.u8(DS.WEATHER) & 15) === 1) this.stormSound();                // 9768(DS:0c5a) + 9804(0x30)
@@ -1510,6 +1511,7 @@ export class SeaScene extends PortScene {
   //   主角位置 ((x + 720) mod 2160 − 12) / 4、(y − 12) / 4 起 6 條 XOR 色 0xb 的橫線 → 99ce(DS:a700) 航海圖調色盤
   async worldView() {
     const st = this.st, { palette, graph, scr } = this.c, F = this.fleet;
+    scr.setAtmosphere?.({ active: false });
     await palette.fadeBlack();                                         // 99f2
     graph.draw(0x19, 0, 0);
     for (let r = 0; r < 0x2d; r++) {

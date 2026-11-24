@@ -116,6 +116,7 @@ export class PortScene {
     this.redraw();                                                    // 0fea:b303 = 1b1a3
     this.panels();                                                    // 8894
     palette.selectTimePalette(this.time, false, st.weather);          // 0fea:98ce = 1976e
+    this.c.scr.setAtmosphere?.({ active: true, atSea: false });
     this.needle = 0xff;
     this.portBgm();                                                   // 0fea:b516 = 1b3b6
     sys.mouseShow();
@@ -262,7 +263,8 @@ export class PortScene {
   }
   // 8ebc 進入建築: 淡出, 底圖, 建築圖 (GRAPH.DAT #k+6), 淡入
   async interior(k) {
-    const { palette, sys, graph } = this.c;
+    const { palette, sys, graph, scr } = this.c;
+    scr.setAtmosphere?.({ active: false });
     await palette.fadeBlack();
     sys.mouseHide();
     this.wallpaper(1);

@@ -32,6 +32,7 @@ export class Screen {
     this.fbCtx = null;
     this.fbImg = null;
     this.fbOut = null;
+    this.atmosphere = { active: false, mode: "day", weather: 0, atSea: false };
     if (canvas) {
       this.canvas = canvas;
       canvas.width = SCREEN_W * HD_SCALE;
@@ -434,10 +435,85 @@ export class Screen {
     }
     this.dirty = true;
   }
+  setAtmosphere(patch) {
+    Object.assign(this.atmosphere, patch);
+    this.dirty = true;
+  }
+  drawAtmosphere(ctx) {
+    const a = this.atmosphere;
+    if (!a.active) return;
+    const S = HD_SCALE;
+    const vx = 96 * S, vy = (Y_OFFSET + 8) * S, vw = 384 * S, vh = 384 * S;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(vx, vy, vw, vh);
+    ctx.clip();
+
+    const t = typeof performance !== "undefined" ? performance.now() * 0.001 : 0;
+    const isStorm = a.atSea && (a.weather & 15) === 1;
+    const isFog = a.atSea && (a.weather & 15) === 3;
+
+    if (isStorm) {
+      ctx.fillStyle = "rgba(8, 18, 40, 0.46)";
+      ctx.fillRect(vx, vy, vw, vh);
+      // 60fps 斜向雨絲粒子
+      ctx.strokeStyle = "rgba(195, 220, 255, 0.42)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let i = 0; i < 64; i++) {
+        const px = vx + ((i * 97 + t * 240) % vw);
+        const py = vy + ((i * 53 + t * 680) % vh);
+        ctx.moveTo(px, py);
+        ctx.lineTo(px - 10, py + 24);
+      }
+      ctx.stroke();
+      // 偶發遠處閃電微光
+      const flash = Math.sin(t * 2.3) * Math.sin(t * 7.1);
+      if (flash > 0.96) {
+        ctx.fillStyle = `rgba(220, 238, 255, ${((flash - 0.96) * 8).toFixed(3)})`;
+        ctx.fillRect(vx, vy, vw, vh);
+      }
+    } else if (isFog || a.mode === "overcast") {
+      ctx.fillStyle = "rgba(165, 182, 202, 0.24)";
+      ctx.fillRect(vx, vy, vw, vh);
+    } else if (a.mode === "night") {
+      ctx.fillStyle = "rgba(10, 20, 56, 0.42)";
+      ctx.fillRect(vx, vy, vw, vh);
+      // 夜間中心暖色提燈微光
+      const glowR = (150 + Math.sin(t * 3.2) * 6) * S;
+      const g = ctx.createRadialGradient(vx + vw / 2, vy + vh / 2, 16 * S, vx + vw / 2, vy + vh / 2, glowR);
+      g.addColorStop(0, "rgba(255, 204, 120, 0.14)");
+      g.addColorStop(1, "rgba(255, 204, 120, 0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(vx, vy, vw, vh);
+    } else if (a.mode === "dusk") {
+      const g = ctx.createLinearGradient(vx, vy, vx, vy + vh);
+      g.addColorStop(0, "rgba(226, 112, 42, 0.24)");
+      g.addColorStop(1, "rgba(110, 48, 24, 0.16)");
+      ctx.fillStyle = g;
+      ctx.fillRect(vx, vy, vw, vh);
+    } else if (a.mode === "dawn") {
+      const g = ctx.createLinearGradient(vx, vy, vx, vy + vh);
+      g.addColorStop(0, "rgba(255, 178, 122, 0.16)");
+      g.addColorStop(1, "rgba(116, 148, 210, 0.10)");
+      ctx.fillStyle = g;
+      ctx.fillRect(vx, vy, vw, vh);
+    }
+
+    // 精緻視口內陰影暗角
+    const vig = ctx.createRadialGradient(vx + vw / 2, vy + vh / 2, vw * 0.36, vx + vw / 2, vy + vh / 2, vw * 0.72);
+    vig.addColorStop(0, "rgba(0,0,0,0)");
+    vig.addColorStop(1, "rgba(6,10,18,0.22)");
+    ctx.fillStyle = vig;
+    ctx.fillRect(vx, vy, vw, vh);
+
+    ctx.restore();
+  }
   present() {
     if (!this.ctx) return;
     const cur = this.cursor, key = cur && cur.visible ? `${cur.x},${cur.y},${cur.shape}` : "";
-    if (!this.dirty && key === this.lastCursor) return;
+    const liveFx = this.atmosphere.active && ((this.atmosphere.atSea && (this.atmosphere.weather & 15) === 1) || this.atmosphere.mode === "night");
+    if (!this.dirty && !liveFx && key === this.lastCursor) return;
     this.lastCursor = key;
     const fb = this.fb, hm = this.hdMask, out = this.out, lut = this.lut, base = Y_OFFSET * SCREEN_W;
     if (this.full) {
@@ -455,6 +531,8 @@ export class Screen {
     this.ctx.fillRect(0, 0, SCREEN_W * HD_SCALE, CANVAS_H * HD_SCALE);
     this.ctx.imageSmoothingEnabled = false;
     this.ctx.drawImage(this.hdCanvas, 0, Y_OFFSET * HD_SCALE);
+    // 2. 疊加即時晝夜光影 / 暴風雨 60fps 粒子 (僅限地圖視口內)
+    this.drawAtmosphere(this.ctx);
     // 若調色盤正處於淡出/全黑過場，對 HD 美術層套用一致的亮度衰減
     let maxPal = 0;
     for (let i = 0; i < 48; i++) if (this.raw[i] > maxPal) maxPal = this.raw[i];
@@ -462,7 +540,7 @@ export class Screen {
       this.ctx.fillStyle = `rgba(0,0,0,${(1 - maxPal / 15).toFixed(3)})`;
       this.ctx.fillRect(0, Y_OFFSET * HD_SCALE, SCREEN_W * HD_SCALE, SCREEN_H * HD_SCALE);
     }
-    // 2. 將索引層 (hdMask===0 的像素，例如文字、視窗框與未切換的像素元素) 疊加於 HD 層之上
+    // 3. 將索引層 (hdMask===0 的像素) 疊加於 HD 層之上
     out.fill(0, 0, base);
     out.fill(0, base + fb.length);
     for (let i = 0; i < fb.length; i++) out[base + i] = hm[i] ? 0 : lut[fb[i] & 15];

@@ -106,6 +106,7 @@ export class Palette {
       else name = TIME_PALETTES[Palette.timeSlot(time)];
     }
     this.setTarget(this.T[name]);
+    this.scr.setAtmosphere?.({ mode: name, weather: weather & 15, atSea: !!atSea });
     return name;
   }
   // 197b4 到了特定時刻就換目標調色盤並回傳 1
@@ -113,7 +114,9 @@ export class Palette {
     if (this.invert) return 0;
     const name = { 12: "dawn", 24: "day", 48: "dusk", 60: "night" }[time & 0xff];
     if (!name) return 0;
-    this.setTarget(this.T[name]); return 1;
+    this.setTarget(this.T[name]);
+    this.scr.setAtmosphere?.({ mode: name });
+    return 1;
   }
   // 1b1d2 開頭的漸變狀態機 (每次時間推進呼叫一次); weather: [0cb3]
   async tickFade(time, weather) {
