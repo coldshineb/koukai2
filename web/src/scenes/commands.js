@@ -154,6 +154,8 @@ export class Commands {
     const st = this.st, { scr, gfx, graph, con, message, palette } = this.c, b = this.b, T = this.T;
     const F = DS.TBL_FLEET + f * 0x85, hero = st.u8(st.personRecord(st.hero) + 0x2c) === f;
     await palette.fadeBlack();
+    scr.setAtmosphere?.({ active: false });
+    palette.setTarget(palette.table("ships"));
     for (let c = 0; c < 0x28; c++) for (let r = 0; r < 0x14; r++) scr.putPlanar(c * 2, r << 4, 2, 0x10, gfx, 0x2ba0);
     let cnt = 0;
     for (let i = 0; i < 10; i++) {

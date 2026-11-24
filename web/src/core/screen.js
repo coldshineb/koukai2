@@ -23,6 +23,7 @@ export class Screen {
     this.hdMask = new Uint8Array(SCREEN_W * SCREEN_H); // 1 = 此像素由 hdCanvas 真彩圖層顯示, 0 = 由 fb 索引層顯示
     this.raw = new Uint8Array(48);
     this.lut = new Uint32Array(16);
+    this.refLut = new Uint32Array(16); // 全亮度目標調色盤 LUT，供 fadeBlack 期間繪製 HD 視窗與文字使用
     this.dirty = true;
     this.full = null;                  // 片頭 (OPEN.EXE) 用: 640x480 索引畫面 (整個 VRAM 可見範圍), 設定時取代 fb + 上下黑邊
     this.border = 0;                   // 片頭: VGA 外框色 (overscan) 索引 — 在畫布 (可見區) 之外, 僅記錄
@@ -83,7 +84,7 @@ export class Screen {
     const bw = x1 - x0, bh = y1 - y0;
     const img = this.hdCtx.getImageData(x0 * HD_SCALE, y0 * HD_SCALE, bw * HD_SCALE, bh * HD_SCALE);
     const d32 = new Uint32Array(img.data.buffer);
-    const fb = this.fb, lut = this.lut, mask = this.hdMask;
+    const fb = this.fb, lut = this.refLut, mask = this.hdMask;
     for (let r = 0; r < bh; r++) {
       const sy = (y0 + r) * SCREEN_W + x0;
       for (let c = 0; c < bw; c++) {
@@ -110,11 +111,21 @@ export class Screen {
     this.hdCtx.imageSmoothingEnabled = prevSmooth;
     this.dirty = true;
   }
-  // 依目前調色盤將索引色 (0..15) 轉為 CSS rgb()
+  // 依全亮度目標調色盤將索引色 (0..15) 轉為 CSS rgb()，避免 fadeBlack() 期間畫出的 HD 文字/視窗變成全黑
   colorCss(idx) {
-    const c = this.lut[idx & 15] >>> 0;
+    const c = this.refLut[idx & 15] >>> 0;
     const r = c & 0xff, g = (c >>> 8) & 0xff, b = (c >>> 16) & 0xff;
     return `rgb(${r},${g},${b})`;
+  }
+  setTargetPaletteRaw(raw) {
+    if (!raw || raw.length < 48) return;
+    let maxV = 0;
+    for (let i = 0; i < 48; i++) if (raw[i] > maxV) maxV = raw[i];
+    if (maxV < 4) return;
+    for (let i = 0; i < 16; i++) {
+      const b = dac8(raw[i * 3]), r = dac8(raw[i * 3 + 1]), g = dac8(raw[i * 3 + 2]);
+      this.refLut[i] = 0xff000000 | (b << 16) | (g << 8) | r;
+    }
   }
   // Phase 6: HD 2D Canvas 矢量文字繪製 (座標與欄寬沿用原版 640x400 格線，100% 原版文本零杜撰)
   drawTextHd(col, y, wCols, hPx, ch, fgIdx, bgIdx, mode) {
@@ -249,9 +260,13 @@ export class Screen {
   // raw: 48 bytes, 每色 (B,R,G) 0..15 — 與 MAIN.EXE seg0:159b set_palette 相同
   setPaletteRaw(raw, start = 0, count = 16) {
     for (let i = 0; i < count * 3; i++) this.raw[start * 3 + i] = raw[i];
+    let maxV = 0;
+    for (let i = 0; i < 48; i++) if (this.raw[i] > maxV) maxV = this.raw[i];
     for (let i = 0; i < 16; i++) {
       const b = dac8(this.raw[i * 3]), r = dac8(this.raw[i * 3 + 1]), g = dac8(this.raw[i * 3 + 2]);
-      this.lut[i] = 0xff000000 | (b << 16) | (g << 8) | r;
+      const col = 0xff000000 | (b << 16) | (g << 8) | r;
+      this.lut[i] = col;
+      if (maxV >= 8) this.refLut[i] = col;
     }
     this.dirty = true;
   }

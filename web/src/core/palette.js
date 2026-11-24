@@ -32,13 +32,17 @@ export class Palette {
     this.scr = scr; this.sys = sys; this.T = tables;
     this.cur = new Uint8Array(48);
     this.target = Uint8Array.from(tables.default);
+    this.scr.setTargetPaletteRaw?.(this.target);
     this.ending = 0;      // [03ea]
     this.invert = 0;      // [c2d6]
     this.fadeState = 0;   // DS:a4aa
     this.onStep = null;   // 測試用
   }
   table(name) { return this.T[name]; }
-  setTarget(raw) { this.target.set(raw.subarray ? raw.subarray(0, 48) : raw.slice(0, 48)); }   // 98fe
+  setTarget(raw) {
+    this.target.set(raw.subarray ? raw.subarray(0, 48) : raw.slice(0, 48));
+    this.scr.setTargetPaletteRaw?.(this.target);
+  }   // 98fe
   // 160a 寫一色到 DAC (以 Screen 的 4bit 原始格式保存)
   writeDAC() {
     if (!this.invert) { this.scr.setPaletteRaw(this.cur); return; }
