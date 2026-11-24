@@ -1757,5 +1757,147 @@
       "w": 640,
       "h": 400
     }
+  },
+  "sheets": {
+    "portchip_0": {
+      "path": "sheets/portchip_0.png",
+      "w": 256,
+      "h": 240,
+      "tileW": 16,
+      "tileH": 16,
+      "cols": 16,
+      "rows": 15,
+      "count": 240
+    },
+    "portchip_1": {
+      "path": "sheets/portchip_1.png",
+      "w": 256,
+      "h": 240,
+      "tileW": 16,
+      "tileH": 16,
+      "cols": 16,
+      "rows": 15,
+      "count": 240
+    },
+    "portchip_2": {
+      "path": "sheets/portchip_2.png",
+      "w": 256,
+      "h": 240,
+      "tileW": 16,
+      "tileH": 16,
+      "cols": 16,
+      "rows": 15,
+      "count": 240
+    },
+    "portchip_3": {
+      "path": "sheets/portchip_3.png",
+      "w": 256,
+      "h": 240,
+      "tileW": 16,
+      "tileH": 16,
+      "cols": 16,
+      "rows": 15,
+      "count": 240
+    },
+    "portchip_4": {
+      "path": "sheets/portchip_4.png",
+      "w": 256,
+      "h": 240,
+      "tileW": 16,
+      "tileH": 16,
+      "cols": 16,
+      "rows": 15,
+      "count": 240
+    },
+    "portchip_5": {
+      "path": "sheets/portchip_5.png",
+      "w": 256,
+      "h": 240,
+      "tileW": 16,
+      "tileH": 16,
+      "cols": 16,
+      "rows": 15,
+      "count": 240
+    },
+    "portchip_6": {
+      "path": "sheets/portchip_6.png",
+      "w": 256,
+      "h": 240,
+      "tileW": 16,
+      "tileH": 16,
+      "cols": 16,
+      "rows": 15,
+      "count": 240
+    },
+    "chars": {
+      "path": "sheets/chars.png",
+      "w": 256,
+      "h": 288,
+      "tileW": 32,
+      "tileH": 32,
+      "cols": 8,
+      "rows": 9,
+      "count": 72
+    },
+    "seachip": {
+      "path": "sheets/seachip.png",
+      "w": 256,
+      "h": 128,
+      "tileW": 16,
+      "tileH": 16,
+      "cols": 16,
+      "rows": 8,
+      "count": 128
+    },
+    "compass": {
+      "path": "sheets/compass.png",
+      "w": 160,
+      "h": 48,
+      "tileW": 40,
+      "tileH": 24,
+      "cols": 4,
+      "rows": 2,
+      "count": 8
+    },
+    "seacompass": {
+      "path": "sheets/seacompass.png",
+      "w": 288,
+      "h": 64,
+      "tileW": 32,
+      "tileH": 32,
+      "cols": 9,
+      "rows": 2,
+      "count": 18
+    },
+    "naval_battle": {
+      "path": "sheets/naval_battle.png",
+      "w": 256,
+      "h": 256,
+      "tileW": 32,
+      "tileH": 32,
+      "cols": 8,
+      "rows": 8,
+      "count": 61
+    },
+    "gamble_cards": {
+      "path": "sheets/gamble_cards.png",
+      "w": 160,
+      "h": 48,
+      "tileW": 32,
+      "tileH": 48,
+      "cols": 5,
+      "rows": 1,
+      "count": 5
+    },
+    "gamble_dice": {
+      "path": "sheets/gamble_dice.png",
+      "w": 144,
+      "h": 24,
+      "tileW": 24,
+      "tileH": 24,
+      "cols": 6,
+      "rows": 1,
+      "count": 6
+    }
   }
 }

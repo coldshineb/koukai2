@@ -209,6 +209,161 @@ process.stdout.write(Buffer.concat(chunks));
     print(f"[transit.bin] {count} figureheads extracted")
 
 
+def extract_planar_sheet(dat_rel, start_off, count, tile_cols, tile_h, grid_cols, pal_rgba, out_rel):
+    """將連續 4 平面圖塊 (每塊 tile_cols*8 x tile_h, 大小 tile_cols*tile_h*4 bytes) 拼合為標準 PNG 圖集"""
+    tile_w = tile_cols * 8
+    tile_bytes = tile_cols * tile_h * 4
+    grid_rows = (count + grid_cols - 1) // grid_cols
+    sheet_w = grid_cols * tile_w
+    sheet_h = grid_rows * tile_h
+    js = f"""
+const fs = require('fs');
+require('./tools/work/ui_bundle.js');
+const U = globalThis.UI;
+const dat = new Uint8Array(fs.readFileSync('{dat_rel}'));
+const sheet = new Uint8Array({sheet_w} * {sheet_h});
+for (let i = 0; i < {count}; i++) {{
+  const off = {start_off} + i * {tile_bytes};
+  if (off + {tile_bytes} > dat.length) break;
+  const scr = new U.Screen(null);
+  scr.putPlanar(0, 0, {tile_cols}, {tile_h}, dat, off);
+  const gx = (i % {grid_cols}) * {tile_w}, gy = Math.floor(i / {grid_cols}) * {tile_h};
+  for (let y = 0; y < {tile_h}; y++) {{
+    sheet.set(scr.fb.subarray(y * 640, y * 640 + {tile_w}), (gy + y) * {sheet_w} + gx);
+  }}
+}}
+process.stdout.write(Buffer.from(sheet));
+"""
+    raw = run_node_dump(js)
+    save_indexed_png(os.path.join(ART, out_rel), sheet_w, sheet_h, raw, pal_rgba)
+    return {
+        "path": out_rel,
+        "w": sheet_w,
+        "h": sheet_h,
+        "tileW": tile_w,
+        "tileH": tile_h,
+        "cols": grid_cols,
+        "rows": grid_rows,
+        "count": count,
+    }
+
+
+def save_rgba_png(path, w, h, rgba_bytes):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    im = Image.frombytes("RGBA", (w, h), bytes(rgba_bytes))
+    im.save(path, optimize=True)
+
+
+def extract_seq_tile_sheet(dat_rel, start_off, count, grid_cols, pal_rgba, out_rel):
+    """4 平面依序排列的 16×16 圖塊 (每塊 128 bytes: 平面 0..3 各 32 bytes, 同 port.js tile())"""
+    dat = open(os.path.join(ROOT, dat_rel), "rb").read()
+    grid_rows = (count + grid_cols - 1) // grid_cols
+    sw, sh = grid_cols * 16, grid_rows * 16
+    out = bytearray(sw * sh)
+    for t in range(count):
+        o = start_off + t * 128
+        if o + 128 > len(dat):
+            break
+        gx, gy = (t % grid_cols) * 16, (t // grid_cols) * 16
+        for p in range(4):
+            bit = 1 << p
+            for r in range(16):
+                row_off = (gy + r) * sw + gx
+                for b in range(2):
+                    v = dat[o + p * 32 + r * 2 + b]
+                    for i in range(8):
+                        if (v >> (7 - i)) & 1:
+                            out[row_off + b * 8 + i] |= bit
+    save_indexed_png(os.path.join(ART, out_rel), sw, sh, out, pal_rgba)
+    return {
+        "path": out_rel, "w": sw, "h": sh,
+        "tileW": 16, "tileH": 16, "cols": grid_cols, "rows": grid_rows, "count": count,
+    }
+
+
+def extract_char_figures(dat_rel, pal_rgba, out_rel):
+    """char.bin: 每幀 32×32 = 4 個 16×16 遮罩格 (每格 0xa0 bytes: 4 平面 128B + 遮罩 32B), 匯出含真實透明通道"""
+    dat = open(os.path.join(ROOT, dat_rel), "rb").read()
+    count = len(dat) // 0x280
+    grid_cols = 8
+    grid_rows = (count + grid_cols - 1) // grid_cols
+    sw, sh = grid_cols * 32, grid_rows * 32
+    rgba = bytearray(sw * sh * 4)
+    quad_pos = [(0, 0, 0x000), (16, 0, 0x0a0), (0, 16, 0x140), (16, 16, 0x1e0)]
+    for idx in range(count):
+        base = idx * 0x280
+        fx, fy = (idx % grid_cols) * 32, (idx // grid_cols) * 32
+        for qx, qy, qoff in quad_pos:
+            o = base + qoff
+            for r in range(16):
+                for b in range(2):
+                    m = dat[o + 0x80 + r * 2 + b]
+                    p0 = dat[o + r * 2 + b]
+                    p1 = dat[o + 32 + r * 2 + b]
+                    p2 = dat[o + 64 + r * 2 + b]
+                    p3 = dat[o + 96 + r * 2 + b]
+                    for i in range(8):
+                        shb = 7 - i
+                        if (m >> shb) & 1:
+                            continue  # 透明像素
+                        c = ((p0 >> shb) & 1) | (((p1 >> shb) & 1) << 1) | (((p2 >> shb) & 1) << 2) | (((p3 >> shb) & 1) << 3)
+                        pr, pg, pb, pa = pal_rgba[c]
+                        dst = ((fy + qy + r) * sw + (fx + qx + b * 8 + i)) * 4
+                        rgba[dst] = pr; rgba[dst + 1] = pg; rgba[dst + 2] = pb; rgba[dst + 3] = pa
+    save_rgba_png(os.path.join(ART, out_rel), sw, sh, rgba)
+    return {
+        "path": out_rel, "w": sw, "h": sh,
+        "tileW": 32, "tileH": 32, "cols": grid_cols, "rows": grid_rows, "count": count,
+    }
+
+
+def extract_sheets(pals, manifest):
+    """批次 B: 港口圖塊 / 主角與行人 (透明) / 海上圖塊 / 羅盤 / 海戰 / 賭博牌與骰子"""
+    # 1) 7 sets of port tiles (240 tiles of 16x16 each, sequential 4-plane)
+    for s in range(7):
+        off = s * (0x7800 + 4)
+        manifest["sheets"][f"portchip_{s}"] = extract_seq_tile_sheet(
+            "web/assets/gfx/portchip.bin", off, 240, 16, pals["day"], f"sheets/portchip_{s}.png"
+        )
+    print("[portchip.bin] 7 port tileset sheets extracted")
+
+    # 2) Hero & NPC sprites (72 sprites of 32x32 with alpha transparency)
+    manifest["sheets"]["chars"] = extract_char_figures(
+        "web/assets/gfx/char.bin", pals["day"], "sheets/chars.png"
+    )
+    print("[char.bin] 72 alpha-masked character sprites extracted")
+
+    # 3) Sea tiles (128 tiles of 16x16, sequential 4-plane)
+    manifest["sheets"]["seachip"] = extract_seq_tile_sheet(
+        "web/assets/gfx/seachip.bin", 0, 128, 16, pals["day"], "sheets/seachip.png"
+    )
+    print("[seachip.bin] 128 sea terrain tiles extracted")
+
+    # 4) Compasses
+    manifest["sheets"]["compass"] = extract_planar_sheet(
+        "web/assets/gfx/compass.bin", 0, 8, 5, 24, 4, pals["day"], "sheets/compass.png"
+    )
+    manifest["sheets"]["seacompass"] = extract_planar_sheet(
+        "web/assets/gfx/seacompass.bin", 0, 18, 4, 32, 9, pals["day"], "sheets/seacompass.png"
+    )
+    print("[compass/seacompass] compass sheets extracted")
+
+    # 5) Naval battle sprites (61 tiles of 32x32)
+    manifest["sheets"]["naval_battle"] = extract_planar_sheet(
+        "web/assets/gfx/hdat.bin", 0, 61, 4, 32, 8, pals["battle"], "sheets/naval_battle.png"
+    )
+    print("[hdat.bin] 61 naval battle sprites extracted")
+
+    # 6) Gamble cards (5 x 32x48) & dice (6 x 24x24)
+    manifest["sheets"]["gamble_cards"] = extract_planar_sheet(
+        "web/assets/gfx/gamble.bin", 0, 5, 4, 48, 5, pals["day"], "sheets/gamble_cards.png"
+    )
+    manifest["sheets"]["gamble_dice"] = extract_planar_sheet(
+        "web/assets/gfx/gamble.bin", 0x0f00, 6, 3, 24, 6, pals["day"], "sheets/gamble_dice.png"
+    )
+    print("[gamble.bin] cards & dice sheets extracted")
+
+
 def main():
     pals = load_palettes()
     manifest = {
@@ -220,11 +375,13 @@ def main():
         "figureheads": {},
         "events": {},
         "backgrounds": {},
+        "sheets": {},
     }
     extract_kao(pals, manifest)
     extract_graph_art(pals, manifest)
     extract_events(pals, manifest)
     extract_figureheads(pals, manifest)
+    extract_sheets(pals, manifest)
     os.makedirs(ART, exist_ok=True)
     mpath = os.path.join(ART, "manifest.json")
     with open(mpath, "w", encoding="utf-8") as f:

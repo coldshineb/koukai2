@@ -8,6 +8,14 @@ export interface ArtEntry {
   h: number;
 }
 
+export interface ArtSheetEntry extends ArtEntry {
+  tileW: number;
+  tileH: number;
+  cols: number;
+  rows: number;
+  count: number;
+}
+
 export interface ArtManifest {
   format: "uw2-art-v1";
   portraits: Record<string, ArtEntry>;
@@ -17,6 +25,7 @@ export interface ArtManifest {
   figureheads: Record<string, ArtEntry>;
   events: Record<string, ArtEntry[]>;
   backgrounds: Record<string, ArtEntry>;
+  sheets?: Record<string, ArtSheetEntry>;
 }
 
 export class ArtRegistry {
@@ -67,5 +76,13 @@ export class ArtRegistry {
 
   backgroundUrl(name: string): string | null {
     return this.resolve(this.manifest?.backgrounds[name]);
+  }
+
+  sheet(name: string): ArtSheetEntry | null {
+    return this.manifest?.sheets?.[name] ?? null;
+  }
+
+  sheetUrl(name: string): string | null {
+    return this.resolve(this.sheet(name));
   }
 }
