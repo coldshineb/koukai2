@@ -39,6 +39,7 @@ export class Screen {
     this.fbOut = null;
     this.atmosphere = { active: false, mode: "day", weather: 0, atSea: false };
     this.wideRenderer = null;          // 16:9 (1280x720) 寬螢幕全屏渲染器 (港口/海面)
+    this.wideOverlays = [];            // 16:9 原生現代 Canvas 浮層 (選單/對話/確認框)
     this.winStackRef = null;           // 連結 WindowSystem.stack，在寬螢幕地圖上僅疊加開啟中的視窗
     if (canvas) {
       this.canvas = canvas;
@@ -576,7 +577,6 @@ export class Screen {
           if (sw <= 0 || sh <= 0) continue;
           const dx = LEGACY_OFF_X + sx * LEGACY_SCALE, dy = sy * LEGACY_SCALE;
           const dw = sw * LEGACY_SCALE, dh = sh * LEGACY_SCALE;
-          // 以現代柔和投影包覆視窗本體，不再從底層裁切舊像素陰影區
           this.ctx.save();
           this.ctx.shadowColor = "rgba(0, 0, 0, 0.55)";
           this.ctx.shadowBlur = 18;
@@ -591,6 +591,8 @@ export class Screen {
           this.ctx.drawImage(this.fbCanvas, sx, sy + Y_OFFSET, sw, sh, dx, dy, dw, dh);
         }
       }
+      // 16:9 原生現代 Canvas 浮層 (選單 / 確認框)
+      for (const fn of this.wideOverlays) fn(this.ctx, this);
       if (maxPal < 15) {
         this.ctx.fillStyle = `rgba(0,0,0,${(1 - maxPal / 15).toFixed(3)})`;
         this.ctx.fillRect(0, 0, VIEW_W, VIEW_H);

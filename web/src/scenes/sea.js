@@ -340,8 +340,13 @@ export class SeaScene extends PortScene {
       if (cmd >= 0) {
         sys.mouseHide();
         const cm = this.commandsObj();
-        await [() => cm.info(), () => cm.manage(), () => cm.order(), () => cm.nav()][cmd]();
-        sys.mouseShow();
+        this.c.menu.wideAnchorCmd = cmd;
+        try {
+          await [() => cm.info(), () => cm.manage(), () => cm.order(), () => cm.nav()][cmd]();
+        } finally {
+          this.c.menu.wideAnchorCmd = -1;
+          sys.mouseShow();
+        }
         if (this.timeAbort()) return;
         con.left = 0; con.right = 0x50;
         if (!this.c.palette.ending) this.seaPanel();

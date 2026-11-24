@@ -35,17 +35,22 @@ export class Commands {
 
   // ================= 1b8c8 後半: 指令按鈕 n (0..3) =================
   async button(n) {
-    const { sys } = this.c;
+    const { sys, menu } = this.c;
     sys.mouseHide();
     this.press(n);                                                     // seg0:9396
-    switch (n) {
-      case 0: await this.info(); break;
-      case 1: await this.manage(); break;
-      case 2: await this.order(); break;
-      case 3: await this.nav(); break;
+    menu.wideAnchorCmd = n;
+    try {
+      switch (n) {
+        case 0: await this.info(); break;
+        case 1: await this.manage(); break;
+        case 2: await this.order(); break;
+        case 3: await this.nav(); break;
+      }
+    } finally {
+      menu.wideAnchorCmd = -1;
+      this.release(n);                                                   // seg0:937e
+      sys.mouseShow();
     }
-    this.release(n);                                                   // seg0:937e
-    sys.mouseShow();
   }
   // seg0:9396 按鈕凹下: 先以 2929 保存 (0x4d 欄, y = 0x48 + 0x50n) 3 欄 × 0x50 行 4 平面;
   //   動畫效果開: TRANSIT.DAT 0x4b00 + 0x2d0n 的 0x2d0 bytes 以 seg0:055e (044d 模式 0: 每欄 3 bytes = 平面 0..2, 平面 3 不動) 貼上

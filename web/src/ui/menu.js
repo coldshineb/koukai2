@@ -5,6 +5,8 @@
 //   levels[1]=a164.., levels[2]=a170.. {x,y,xmax,ymax}     rects=bdcc (每項 {x0,x1,y0,y1})
 //   lastMouse=bd9a/bd9c
 // 遊戲內按鍵碼: 0D 確定, 1B / 30('0') 取消, 1C → 1D ← 1E ↑ 1F ↓, 32/34/36/38 = 數字鍵 2/4/6/8
+import { createWideMenuState, drawWideMenu, hitWideMenuItem, hitWideMenuBox } from "../canvas_ui/wide_menu.ts";
+
 const HL_SOLID = 0x0000;      // 外框圖形 [0c86] 偏移 0: 640 bytes 全 FF, 用作高亮反白位圖
 const GREY_PATTERN = 0x0280;  // AA 55 交錯點陣, 用於不可選項目
 const WAIT_ICON = 0x20b0;     // 等待按鍵的閃爍游標 (2 欄 x 16 行)
@@ -16,8 +18,9 @@ const umin = (a, b) => ((a & 0xffff) > (b & 0xffff) ? b : a);       // seg0:4d7c
 const tdiv8 = v => (v < 0 ? -((-v) >> 3) : v >> 3);                  // cwd/xor/sar 3: 向零取整
 
 export class MenuSystem {
-  constructor({ sys, scr, con, win, gfx, graph }) {
-    Object.assign(this, { sys, scr, con, win, gfx, graph });
+  constructor({ sys, scr, con, win, gfx, graph, codec = null }) {
+    Object.assign(this, { sys, scr, con, win, gfx, graph, codec });
+    this.wideAnchorCmd = -1;
     this.disabled = 0; this.mouseFlag = 0; this.hit = 0; this.cancelable = 0; this.a154 = 0; this.level = 0;
     this.count = 0; this.prev = 0; this.lineH = 0; this.cur = 0; this.bracket = 0; this.table = [];
     this.levels = [null, { x: 0x208, y: 0xd8, xmax: 0x210, ymax: 0x190 }, { x: 0x1e0, y: 0x150, xmax: 0x1f0, ymax: 0x158 }];
@@ -277,8 +280,11 @@ export class MenuSystem {
   }
   async selectLoop(C) { let r; do r = await this.select(C); while (!this.cancelable && r === 0xff); return r; }
   // ---------------- 各種選單入口 ----------------
-  // 14364 帶陰影視窗的直式選單 (關閉時還原背景)
+  // 14364 帶陰影視窗的直式選單 (寬螢幕模式下直接繪製原生 16:9 現代 Canvas 浮動選單，絕不使用原版視窗)
   async listMenu(x, y, table, cancelable) {
+    if (this.scr.wideRenderer && this.codec) {
+      return this.wideListMenu(table, cancelable);
+    }
     this.hdHl = null;
     await this.waitRelease();
     this.count = table.length; this.lineH = 0x10; this.cur = 0; this.level = 0; this.cancelable = cancelable;
@@ -291,6 +297,62 @@ export class MenuSystem {
     await this.win.close();
     this.disabled = 0; this.lineH = 0x10; this.con.bg = 0x0f;
     return r;
+  }
+  async wideListMenu(table, cancelable) {
+    await this.waitRelease();
+    const labels = table.map(bytes => {
+      let end = bytes.indexOf(0);
+      if (end < 0) end = bytes.length;
+      return this.codec.decode(bytes.subarray(0, end)).replace(/\{[0-9A-F]{2}\}/g, "").trim();
+    });
+    const state = createWideMenuState(labels, this.disabled, this.wideAnchorCmd);
+    const drawFn = ctx => drawWideMenu(ctx, state);
+    this.scr.wideOverlays.push(drawFn);
+    this.scr.dirty = true;
+    const findNext = (from, step) => {
+      for (let k = 1; k <= labels.length; k++) {
+        const i = (from + step * k + labels.length) % labels.length;
+        if (!(state.disabledMask & (1 << i))) return i;
+      }
+      return from;
+    };
+    let result = 0xff;
+    try {
+      for (;;) {
+        const vx = this.sys.mouse?.vx ?? -1;
+        const vy = this.sys.mouse?.vy ?? -1;
+        const hov = hitWideMenuItem(state, vx, vy);
+        if (hov >= 0 && !(state.disabledMask & (1 << hov)) && hov !== state.selected) {
+          state.selected = hov;
+          this.scr.dirty = true;
+        }
+        const ev = this.readEvent();
+        if (ev === 0x1e || ev === 0x38) { state.selected = findNext(state.selected, -1); this.scr.dirty = true; }
+        else if (ev === 0x1f || ev === 0x32) { state.selected = findNext(state.selected, 1); this.scr.dirty = true; }
+        else if (ev === 0x1b || ev === 0x30) { if (cancelable) { result = 0xff; break; } }
+        else if (ev === 0x0d) {
+          if (this.mouseFlag) {
+            if (hov >= 0) {
+              if (!(state.disabledMask & (1 << hov))) { result = hov; break; }
+            } else if (!hitWideMenuBox(state, vx, vy) && cancelable) {
+              result = 0xff; break;
+            }
+          } else if (!(state.disabledMask & (1 << state.selected))) {
+            result = state.selected; break;
+          }
+        }
+        await this.sys.poll();
+      }
+    } finally {
+      const idx = this.scr.wideOverlays.indexOf(drawFn);
+      if (idx >= 0) this.scr.wideOverlays.splice(idx, 1);
+      this.scr.dirty = true;
+      await this.waitRelease();
+      this.disabled = 0;
+      this.lineH = 0x10;
+      this.con.bg = 0x0f;
+    }
+    return result;
   }
   // 14411 同上但不保存背景、不關閉
   async listMenuKeep(x, y, table, cancelable) {

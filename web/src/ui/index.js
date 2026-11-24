@@ -17,7 +17,7 @@ export async function createUI(ctx) {
   ctx.scr.winStackRef = win.stack;
   const graph = await new Graph(ctx.scr, ctx.art).load(ctx.ASSETS);
   const kao = new Kao(ctx.art);
-  const menu = new MenuSystem({ sys, scr: ctx.scr, con, win, gfx, graph });
+  const menu = new MenuSystem({ sys, scr: ctx.scr, con, win, gfx, graph, codec: ctx.codec });
   // 2e09:56ee 輸出 message.json 第 n 條 (printf 格式)，取代原版二進位 MESSAGE.DAT
   const msgCache = new Map();
   const encodeMessage = n => {
