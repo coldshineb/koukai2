@@ -10,6 +10,7 @@
     "test:prep": "python tools/emu/prep_local.py && python tools/emu/make_runf.py",
     "test:data": "node tools/emu/run_local.js data_tests.js",
     "test:domain": "node tools/emu/domain_tests.js",
+    "test:save": "node tools/emu/save_tests.js",
     "test:fast": "npm run test:prep && node tools/emu/run_regress.js --fast",
     "test:all": "npm run test:prep && node tools/emu/run_regress.js --all"
   },

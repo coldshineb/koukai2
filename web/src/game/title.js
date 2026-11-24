@@ -38,7 +38,7 @@ export class Title {
     else { this.c.palette.invert = 0; this.c.barColors = [2, 1]; }   // 162fd: [c2d6] = 0, seg0:9376(2, 1) 百分比條顏色 DS:bafa / bafc
     // 171f5: 期間 [03d8] = GRAPH2.DAT (是/否框也取自它; 與 GRAPH.DAT 第 0 張相同)
     this.c.graph.useFile("GRAPH2.DAT");
-    this.c.saveFile ??= await SaveFile.open(this.c.ASSETS, this.c.initState);   // 170dc
+    this.c.saveFile ??= await SaveFile.open(this.c.ASSETS, this.c.initState, this.c.schema, this.c.codec);   // 170dc
     const r = await this.titleMenu();     // 1706a
     this.c.graph.useFile("GRAPH.DAT");    // 160bc
     return r;

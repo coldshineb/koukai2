@@ -14,6 +14,7 @@ import { Palette, paletteTables } from "./core/palette.js";
 import { createUI } from "./ui/index.js";
 import { GameState } from "./game/state.js";
 import { TextCodec, encodeState } from "./game/data.js";
+import { SaveFile } from "./game/savefile.js";
 import { Title } from "./game/title.js";
 import { GameClock } from "./game/clock.js";
 import { Opening, loadOpeningData } from "./game/opening.js";
@@ -87,6 +88,43 @@ Object.assign(ctx, await createUI(ctx));
 ctx.sfx.state = state;                 // 9804 依 [0ca4] bit3 (效果音開關)
 addEventListener("pointerdown", () => { ctx.bgm.resume(); ctx.sfx.resume(); });
 addEventListener("keydown", () => { ctx.bgm.resume(); ctx.sfx.resume(); });
+
+// 階段 3 現代 JSON 存檔匯入/匯出瀏覽器橋接 (供開發者與階段 5 現代存檔管理介面呼叫)
+async function ensureSaveFile() {
+  return (ctx.saveFile ??= await SaveFile.open(ASSETS, initState, schema, codec));
+}
+globalThis.UW2Save = {
+  async list() { const f = await ensureSaveFile(); return f.store?.bundle.slots.map(s => s?.summary ?? null) ?? []; },
+  async exportJson(slotIndex, stripCompat = false) {
+    const f = await ensureSaveFile();
+    return f.exportJson({ pretty: true, stripCompat, ...(typeof slotIndex === "number" ? { slotIndex } : {}) });
+  },
+  async downloadJson(slotIndex, stripCompat = false) {
+    const text = await this.exportJson(slotIndex, stripCompat);
+    const blob = new Blob([text], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = typeof slotIndex === "number" ? `uw2-slot-${slotIndex + 1}.json` : "uw2-saves-v2.json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  },
+  async importFile(targetSlot) {
+    const f = await ensureSaveFile();
+    return new Promise((resolve, reject) => {
+      const inp = document.createElement("input");
+      inp.type = "file"; inp.accept = ".json,.dat,.DAT";
+      inp.onchange = async () => {
+        try {
+          const file = inp.files?.[0];
+          if (!file) { resolve(null); return; }
+          const buf = await file.arrayBuffer();
+          resolve(f.importBuffer(buf, targetSlot));
+        } catch (e) { reject(e); }
+      };
+      inp.click();
+    });
+  },
+};
 CPU.musicProbe = () => !!(ctx.bgm.el && ctx.bgm.cur && !ctx.bgm.el.paused);   // FMDRV 播放中的 IRQ0 佔用 (32.3)
 
 // 執行速度 (RE_NOTES 32.9 A): 程式超前虛擬時鐘而睡的期間, 剛畫好的畫面要等到虛擬時間到了才顯示 (快照), 之前維持舊畫面
