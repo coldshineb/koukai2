@@ -24,7 +24,7 @@ const pS16 = v => (v << 16) >> 16;
 
 export async function loadPortAssets(ctx) {
   const A = ctx.ASSETS;
-  const [za, map, data, wind, portchipMeta, colony, itemMes, commands, worldmap, sea, hdat, battle, fleet, duel, monster] = await Promise.all([
+  const [za, map, data, wind, portchipMeta, colony, itemMes, commands, worldmap, sea, battle, fleet, duel, monster] = await Promise.all([
     loadBinary(A + "/data/za_dat.bin"),
     loadBinary(A + "/data/portmap.bin"),
     loadJSON(A + "/data/port.json"),
@@ -35,7 +35,6 @@ export async function loadPortAssets(ctx) {
     loadJSON(A + "/data/commands.json"),
     loadBinary(A + "/data/worldmap.bin"),
     loadJSON(A + "/data/sea.json"),
-    loadBinary(A + "/gfx/hdat.bin"),
     loadJSON(A + "/data/battle.json"),
     loadJSON(A + "/data/fleet.json"),
     loadDuelAssets(A, loadBinary, loadJSON),
@@ -47,7 +46,8 @@ export async function loadPortAssets(ctx) {
     const sheets = [
       "portchip_0", "portchip_1", "portchip_2", "portchip_3", "portchip_4", "portchip_5", "portchip_6",
       "chars", "seachip", "sea_ships", "compass", "seacompass",
-      "naval_battle", "battle_ships", "gamble_cards", "gamble_dice", "hud_buttons",
+      "naval_battle", "battle_ships", "battle_fx_lg", "battle_fx_sm", "battle_ball",
+      "dials", "supply_icons", "gamble_cards", "gamble_dice", "hud_buttons",
     ];
     await ctx.art.preloadUrls(sheets.map(s => ctx.art.sheetUrl(s)));
   }
@@ -55,7 +55,7 @@ export async function loadPortAssets(ctx) {
     za, map, data, wind,
     chipNo: portchipMeta.chipNo,
     tilesets: portchipMeta.tilesets,
-    colony, itemMes, commands, worldmap, sea, fleet, hdat, battle, duel, monster,
+    colony, itemMes, commands, worldmap, sea, fleet, battle, duel, monster,
   };
 }
 

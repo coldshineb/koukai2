@@ -242,9 +242,9 @@ export class SeaScene extends PortScene {
   }
   // 8f4f(y, 方向, 強度): 強度 ≠ 0 且方向 < 8 → gfx + 0x490 + 方向 × 0x320, 否則 0x1d90 (5 欄 × 0x28 行); 強度 >= 0 (有號) 時於 (0x43, y+0x18) 印出
   dial(y, dir, str) {
-    const { scr, con, printf, gfx } = this.c;
-    const off = str !== 0 && dir < 8 ? 0x490 + dir * 0x320 : 0x1d90;
-    scr.putPlanar(0x47, y, 5, 0x28, gfx, off);
+    const { scr, con, printf, art } = this.c;
+    const idx = str !== 0 && dir < 8 ? dir : 8;
+    art?.drawSheetTile(scr, "dials", idx, 0x47 * 8, y);
     if (seaS16(str) >= 0) { con.setCursor(0x43, y + 0x18); printf(this.SS.dialNum, str); }
   }
   // 3135c (x, y) 的 2×2 地圖格中有 >= 0x34 的圖塊 (陸地)

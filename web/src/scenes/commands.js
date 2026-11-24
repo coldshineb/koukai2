@@ -243,7 +243,7 @@ export class Commands {
     const fh = st.u8(M + OFF.CREW_SLOT.FIGUREHEAD);
     if (fh) this.c.art?.drawEntry(scr, this.c.art.figureheadEntry(fh), (x + 0x13) * 8, 0x30);
     for (let r = 0; r < 2; r++) for (let c = 0; c < 2; c++) {
-      scr.putPlanar(c * 7 + x + 0x1a, r * 0x28 + 0x30, 2, 0x20, gfx, 0x20d0 + ((2 * r + c) << 8));
+      this.c.art?.drawSheetTile(scr, "supply_icons", 2 * r + c, (c * 7 + x + 0x1a) * 8, r * 0x28 + 0x30);
       con.setCursor((c + 4) * 7 + x, r * 0x28 + 0x40); printf(S0.n4, sup[2 * r + c]);
     }
     scr.fillCols(x + 0x14, 0x80, 1, 0xe0, 2);

@@ -11,5 +11,13 @@ export default defineConfig({
     target: "es2022",
     outDir: "../dist",
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("/src/game/opening.js") || id.includes("/src/game/ending")) return "cinematics";
+          if (id.includes("/src/scenes/")) return "scenes";
+        },
+      },
+    },
   },
 });

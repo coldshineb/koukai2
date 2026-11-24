@@ -518,6 +518,36 @@ def extract_battle_ships(dat_rel, pal_rgba, out_rel):
     }
 
 
+def extract_masked_planar_sheet(dat_rel, start_off, count, cols_w, h, stride, mask_bytes, grid_cols, pal_rgba, out_rel):
+    """通用遮罩 + 4 平面交錯精靈表匯出 (與 battle.js spr() 0x20f + mode 3 相同)"""
+    dat = open(os.path.join(ROOT, dat_rel), "rb").read()
+    tile_w = cols_w * 8
+    grid_rows = (count + grid_cols - 1) // grid_cols
+    sw, sh = grid_cols * tile_w, grid_rows * h
+    rgba = bytearray(sw * sh * 4)
+    for idx in range(count):
+        base = start_off + idx * stride
+        fx, fy = (idx % grid_cols) * tile_w, (idx // grid_cols) * h
+        for r in range(h):
+            for c in range(cols_w):
+                m = dat[base + r * cols_w + c]
+                po = base + mask_bytes + (r * cols_w + c) * 4
+                b0, b1, b2, b3 = dat[po], dat[po + 1], dat[po + 2], dat[po + 3]
+                for i in range(8):
+                    shb = 7 - i
+                    if (m >> shb) & 1:
+                        continue
+                    col_idx = ((b0 >> shb) & 1) | (((b1 >> shb) & 1) << 1) | (((b2 >> shb) & 1) << 2) | (((b3 >> shb) & 1) << 3)
+                    pr, pg, pb, pa = pal_rgba[col_idx]
+                    dst = ((fy + r) * sw + (fx + c * 8 + i)) * 4
+                    rgba[dst] = pr; rgba[dst + 1] = pg; rgba[dst + 2] = pb; rgba[dst + 3] = pa
+    save_rgba_png(os.path.join(ART, out_rel), sw, sh, rgba)
+    return {
+        "path": out_rel, "w": sw, "h": sh,
+        "tileW": tile_w, "tileH": h, "cols": grid_cols, "rows": grid_rows, "count": count,
+    }
+
+
 def extract_sheets(pals, manifest):
     """批次 B: 港口圖塊 / 主角與行人 (透明) / 海上圖塊 / 羅盤 / 海戰 / 賭博牌與骰子"""
     # 1) 7 sets of port tiles (240 tiles of 16x16 each, sequential 4-plane)
@@ -552,14 +582,32 @@ def extract_sheets(pals, manifest):
     )
     print("[compass/seacompass] compass sheets extracted")
 
-    # 5) Naval battle tiles (13 x 32x32) + 24 alpha-masked battle ships
+    # 5) Naval battle tiles (13 x 32x32) + 24 battle ships + FX sprites
     manifest["sheets"]["naval_battle"] = extract_planar_sheet(
         "web/assets/gfx/hdat.bin", 0, 13, 4, 32, 8, pals["battle"], "sheets/naval_battle.png"
     )
     manifest["sheets"]["battle_ships"] = extract_battle_ships(
         "web/assets/gfx/hdat.bin", pals["battle"], "sheets/battle_ships.png"
     )
-    print("[hdat.bin] 13 battle terrain hexes + 24 alpha-masked battle ships extracted")
+    manifest["sheets"]["battle_fx_lg"] = extract_masked_planar_sheet(
+        "web/assets/gfx/hdat.bin", 0x6E40, 4, 4, 32, 0x280, 0x80, 4, pals["battle"], "sheets/battle_fx_lg.png"
+    )
+    manifest["sheets"]["battle_fx_sm"] = extract_masked_planar_sheet(
+        "web/assets/gfx/hdat.bin", 0x7840, 4, 2, 20, 0xC8, 0x28, 4, pals["battle"], "sheets/battle_fx_sm.png"
+    )
+    manifest["sheets"]["battle_ball"] = extract_masked_planar_sheet(
+        "web/assets/gfx/hdat.bin", 0x7B60, 1, 1, 8, 0x28, 0x08, 1, pals["battle"], "sheets/battle_ball.png"
+    )
+    print("[hdat.bin] 13 battle terrain hexes + 24 battle ships + 9 FX sprites extracted")
+
+    # 6) Wind/Current/Heading dials (9 x 40x40) & Supply icons (4 x 16x32) from ui_frame.bin
+    manifest["sheets"]["dials"] = extract_planar_sheet(
+        "web/assets/gfx/ui_frame.bin", 0x0490, 9, 5, 40, 9, pals["day"], "sheets/dials.png"
+    )
+    manifest["sheets"]["supply_icons"] = extract_planar_sheet(
+        "web/assets/gfx/ui_frame.bin", 0x20D0, 4, 2, 32, 4, pals["day"], "sheets/supply_icons.png"
+    )
+    print("[ui_frame.bin] 9 dial arrows + 4 supply icons extracted")
 
     # 6) Gamble cards (5 x 32x48) & dice (6 x 24x24)
     manifest["sheets"]["gamble_cards"] = extract_planar_sheet(

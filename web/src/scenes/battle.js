@@ -388,7 +388,8 @@ export class NavalBattle {
     this.status();                                                      // c327
     scr.fillCols(0x35, 8, 0x1a, 0xc0, 5);
     const w = this.u8(0x9bf8), si = (btIdiv(0x0f * w - Math.floor(w / 3), 10) * 0x320) & 0xffff;
-    scr.putPlanar(0x37, 0xe6, 5, 0x28, gfx, (si + 0x490) & 0xffff);    // 3d2 ([0c86] 段)
+    const dialIdx = Math.min(8, Math.max(0, Math.trunc(si / 0x320)));
+    this.c.art?.drawSheetTile(scr, "dials", dialIdx, 0x37 * 8, 0xe6);
     this.msgArea();                                                     // c2ee
   }
   // c2ee 訊息區: 0906(0x35, 0x148, 0x18, 0x38, 0), 左右邊界 0x36 / 0x4b, 游標 (0x36, 0x150), 字串 9cb8
@@ -1330,14 +1331,21 @@ export class NavalBattle {
       this.reachRec(B, q, nd, (pts - cost) & 0xff, d === 6 ? m : 0);
     }
   }
-  // bd3f 標記圖 (063e 模式 0x400 | 色, 4 × 0x20, 奇數欄下移 16)
+  // bd3f 標記圖 (HD Canvas 六角框 / 方向標記，取代 hdat.bin 點陣)
   mark(x, y, t) {
-    const { scr, gfx } = this.c;
-    const X = ((x - this.u8(0x9bef)) << 2), Y = ((y - this.u8(0x9bf0)) << 5) + (btImod(x, 2) === 0 ? 0 : 0x10);
-    let di = 4, si = 0x68c0;
-    if (t === 1) { di = 2; si = 0x3820; } else if (t === 2) si = 0x3820; else if (t === 3) { di = 6; si = 0x38a0; } else if (t === 4) { di = 3; si = 0x3920; }
-    else if (t >= 0x80 && t <= 0x85) si = (0x68c0 + ((t & 0x0f) << 7) + 0x280) & 0xffff;
-    scr.glyphMode(X, Y, 4, 0x20, (t && !(t & 0x80) ? gfx : this.hd).subarray(si), 0x400 | di);
+    const { scr } = this.c;
+    const dx = (x - this.u8(0x9bef)) * 32, dy = (y - this.u8(0x9bf0)) * 32 + (btImod(x, 2) === 0 ? 0 : 16);
+    const di = t === 1 ? 2 : t === 3 ? 6 : t === 4 ? 3 : 4;
+    if (scr.hdCtx) {
+      const S = 2, ctx = scr.hdCtx;
+      scr.bakeFbToHd(dx, dy, 32, 32);
+      ctx.save();
+      ctx.strokeStyle = scr.colorCss(di);
+      ctx.lineWidth = 2 * S;
+      ctx.strokeRect((dx + 3) * S, (dy + 3) * S, 26 * S, 26 * S);
+      ctx.restore();
+      scr.dirty = true;
+    }
   }
   // a6f2 標出可到達的格、已走的路徑、可攻擊的船; 回傳有沒有第一步可到達 (bit7) 的格
   showReach() {
@@ -1650,8 +1658,8 @@ export class NavalBattle {
       const o = this.rnd(2) ? 0 : 2;
       for (let i = 0; i < 4; i++) {
         win.save(col, y, 4, 0x20);                                      // 50c4
-        this.spr(col, y, 4, 0x20, 0x6e40 + 0x280 * i, 0x6ec0 + 0x280 * i);
-        this.spr(col + o, y + 0x0c, 2, 0x14, 0x7840 + 0xc8 * i, 0x7868 + 0xc8 * i);
+        this.c.art?.drawSheetTile(this.c.scr, "battle_fx_lg", i, col * 8, y, { transparent: true });
+        this.c.art?.drawSheetTile(this.c.scr, "battle_fx_sm", i, (col + o) * 8, y + 0x0c, { transparent: true });
         await sys.waitTicks(8);
         this.restoreUnder();                                            // c744
       }
@@ -1662,14 +1670,14 @@ export class NavalBattle {
       const o = this.rnd(2) ? 0 : 2;
       for (let i = 0; i < 4; i++) {
         win.save(col, y, 4, 0x20);
-        this.spr(col + o, y + 0x0c, 2, 0x14, 0x7840 + 0xc8 * i, 0x7868 + 0xc8 * i);
+        this.c.art?.drawSheetTile(this.c.scr, "battle_fx_sm", i, (col + o) * 8, y + 0x0c, { transparent: true });
         await sys.waitTicks(8);
         this.restoreUnder();
       }
     } else {
       for (let i = 0; i < 4; i++) {
         win.save(col, y, 4, 0x20);
-        this.spr(col, y, 4, 0x20, 0x6e40 + 0x280 * i, 0x6ec0 + 0x280 * i);
+        this.c.art?.drawSheetTile(this.c.scr, "battle_fx_lg", i, col * 8, y, { transparent: true });
         await sys.waitTicks(8);
         this.restoreUnder();
       }
@@ -1693,7 +1701,7 @@ export class NavalBattle {
       const col = (c - (this.u8(0x9bef) << 2) + 1) & 0xffff, yy = (y - (this.u8(0x9bf0) << 5) + 8) & 0xffff;
       win.save(col, yy, 1, 8); drawn = 1;                               // 50c4
       const inSrc = !(x + 8 < X0) && !(x + 8 >= X0 + 0x20) && !(y + 8 < Y0) && Y0 + 0x20 > y + 8;
-      if (!inSrc) this.spr(col, yy, 1, 8, 0x7b60, 0x7b68);
+      if (!inSrc) this.c.art?.drawSheetTile(this.c.scr, "battle_ball", 0, col * 8, yy, { transparent: true });
       pc = c; pr = r;
     };
     if (DY <= DX) {
