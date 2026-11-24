@@ -231,7 +231,7 @@ export class PortScene {
     sys.mouseShow();
   }
   // 8894 = 869f × 2
-  panels() { const s = this.c.sys; s.mouseHide(); this.panel(); this.panel(); s.mouseShow(); }
+  panels() { const s = this.c.sys; s.mouseHide(); this.panel(); this.panel(); s.mouseShow(); this.c.hud?.updatePort(this); }
   // 869f 日期 / 時刻 / 聲望 / 現金 / 港口情報
   panel() {
     const { con, printf, message } = this.c, m = this.m, g = m.globals, F = this.F, rt = this.c.rt, P = this.port;

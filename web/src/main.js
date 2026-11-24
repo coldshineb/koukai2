@@ -15,10 +15,13 @@ import { Title } from "./game/title.js";
 import { GameClock } from "./game/clock.js";
 import { Opening, loadOpeningData } from "./game/opening.js";
 import { Ending, loadEndingData } from "./game/ending.js";
-import { MainExit } from "./game/endgame.js";
+import { MainExit, mainEnding } from "./game/endgame.js";
+import { duelFromScenario } from "./scenes/duel.js";
 import { GameRuntime } from "./modern/runtime.ts";
 import { ModernShell } from "./modern/shell.ts";
 import { ModernGameUI } from "./modern/presenter.ts";
+import { ModernHud } from "./modern/hud.ts";
+import { ModernScenarioHost } from "./modern/scenario_host.ts";
 
 const ASSETS = "./assets";
 const canvas = document.getElementById("screen");
@@ -74,6 +77,11 @@ const shell = new ModernShell({
 ctx.runtime = runtime;
 ctx.shell = shell;
 ctx.modernUI = new ModernGameUI(shell.overlay, ctx);
+ctx.hud = new ModernHud(ctx);
+ctx.scenarioHost = new ModernScenarioHost(ctx, shell.overlay, () => ctx.events?.scene, {
+  runDuel: (sc, person) => duelFromScenario(sc, person),
+  triggerEnding: (scene, code) => mainEnding(scene, code),
+});
 
 globalThis.UW2Save = {
   async list() { const f = await ensureSaveFile(); return f.store?.bundle.slots.map(s => s?.summary ?? null) ?? []; },

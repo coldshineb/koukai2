@@ -299,6 +299,7 @@ export class SeaScene extends PortScene {
     const sT = st.u8(this.shipRec(st.u8(slowSlot + 7)) + 0x0f);
     const sLoad = seaS16(st.u16(this.crewOf(slowIdx) + 0x0a)), sCap = seaS16(st.u16(this.typeOf(sT) + 6));
     const loadPct = Math.trunc((sLoad * 100) / sCap);                  // 3722 有號長整數除法
+    this.c.hud?.updateSea({ crewSum, maxCrewSum, minDur, water: sums[0], food: sums[1], lumber: sums[2], ammo: sums[3], daysAtSea: st.u8(DS.DAYS_AT_SEA), loadPct });
     this.sight = (Math.imul(this.bda8 & 0x80 ? 2 : 1, seaUmin(12, Math.floor(maxLook / 100))) & 0xffff);   // [bdca]
     sys.mouseHide();
     const B = (y, v) => this.commandsObj().bar(2, y, seaS16(v));            // seg0:92f7

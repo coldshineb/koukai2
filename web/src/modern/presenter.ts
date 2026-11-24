@@ -212,18 +212,110 @@ export class ModernGameUI implements IGameUI {
         window.removeEventListener("keydown", onKey);
         box.remove();
         delete document.body.dataset.uw2Modal;
-        resolve(v);
+        resolve(v < 0 ? 0 : v);
       };
+      const cancelVal = min > 0 ? min : 0;
       const onKey = (e: KeyboardEvent) => {
         if (e.key === "Enter") { e.preventDefault(); finish(Math.max(min, Math.min(max, Math.trunc(Number(num.value)) || 0))); }
-        else if (e.key === "Escape") { e.preventDefault(); finish(0); }
+        else if (e.key === "Escape") { e.preventDefault(); finish(cancelVal); }
       };
-      cancelBtn.addEventListener("click", () => finish(0));
+      cancelBtn.addEventListener("click", () => finish(cancelVal));
       okBtn.addEventListener("click", () => finish(Math.max(min, Math.min(max, Math.trunc(Number(num.value)) || 0))));
       window.addEventListener("keydown", onKey);
       this.root.appendChild(box);
       num.focus();
       num.select();
+    });
+  }
+
+  inputName(opts: { title: string; defaultValue?: string; maxBytes: number; encode: (s: string) => Uint8Array }): Promise<{ status: 1 | 2 | 3; bytes?: Uint8Array }> {
+    return new Promise(resolve => {
+      document.body.dataset.uw2Modal = "open";
+      const box = document.createElement("div");
+      box.className = "uw2-card uw2-numpad";
+
+      const title = document.createElement("div");
+      title.style.fontWeight = "700";
+      title.style.fontSize = "15px";
+      title.textContent = opts.title;
+
+      const inp = document.createElement("input");
+      inp.type = "text";
+      inp.value = opts.defaultValue ?? "";
+      inp.placeholder = "支持直接输入中文或英文";
+      inp.style.width = "100%";
+      inp.style.padding = "8px 12px";
+      inp.style.fontSize = "16px";
+      inp.style.border = "1px solid var(--uw2-gold)";
+      inp.style.borderRadius = "6px";
+      inp.style.background = "#fffdf6";
+      inp.style.color = "var(--uw2-ink)";
+
+      const statusEl = document.createElement("div");
+      statusEl.style.fontSize = "12px";
+      statusEl.style.color = "var(--uw2-ink-muted)";
+
+      const tryEncode = (val: string): { ok: boolean; bytes?: Uint8Array; err?: string } => {
+        const trimmed = val.trim();
+        if (!trimmed) return { ok: true, bytes: new Uint8Array(0) };
+        try {
+          const b = opts.encode(trimmed);
+          if (b.length > opts.maxBytes) return { ok: false, err: `超过长度上限 (${b.length}/${opts.maxBytes} 字节)` };
+          return { ok: true, bytes: b };
+        } catch (e: any) {
+          return { ok: false, err: `包含字库不支持的字符 (${e?.message ?? ""})` };
+        }
+      };
+
+      const updateStatus = () => {
+        const r = tryEncode(inp.value);
+        if (r.ok) {
+          statusEl.style.color = "var(--uw2-ink-muted)";
+          statusEl.textContent = `${r.bytes?.length ?? 0} / ${opts.maxBytes} 字节`;
+        } else {
+          statusEl.style.color = "var(--uw2-danger)";
+          statusEl.textContent = r.err ?? "输入无效";
+        }
+      };
+      inp.addEventListener("input", updateStatus);
+
+      const actions = document.createElement("div");
+      actions.className = "uw2-dialog-actions";
+      const cancelBtn = document.createElement("button");
+      cancelBtn.className = "uw2-btn";
+      cancelBtn.style.color = "var(--uw2-ink)";
+      cancelBtn.textContent = "取消 (Esc)";
+      const okBtn = document.createElement("button");
+      okBtn.className = "uw2-btn uw2-btn-primary";
+      okBtn.textContent = "确认 (Enter)";
+      actions.append(cancelBtn, okBtn);
+
+      box.append(title, inp, statusEl, actions);
+
+      const finish = (res: { status: 1 | 2 | 3; bytes?: Uint8Array }) => {
+        window.removeEventListener("keydown", onKey);
+        box.remove();
+        delete document.body.dataset.uw2Modal;
+        resolve(res);
+      };
+      const submit = () => {
+        const r = tryEncode(inp.value);
+        if (!r.ok) { updateStatus(); return; }
+        if (!r.bytes || r.bytes.length === 0) finish({ status: 3 });
+        else finish({ status: 1, bytes: r.bytes });
+      };
+      const onKey = (e: KeyboardEvent) => {
+        if (e.isComposing) return;
+        if (e.key === "Enter") { e.preventDefault(); submit(); }
+        else if (e.key === "Escape") { e.preventDefault(); finish({ status: 2 }); }
+      };
+      cancelBtn.addEventListener("click", () => finish({ status: 2 }));
+      okBtn.addEventListener("click", submit);
+      window.addEventListener("keydown", onKey);
+      this.root.appendChild(box);
+      updateStatus();
+      inp.focus();
+      inp.select();
     });
   }
 

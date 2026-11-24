@@ -1264,10 +1264,30 @@ export class Commands {
   //   [0caa..0cad] = 目前日期時刻, 寫入 DS:0CA4..8A18 + 緩衝 [0c8e] 0x300 bytes
   async save(mode) {
     const st = this.st, { win, con, menu, message } = this.c, f = this.c.saveFile, T = new Title(this.c);
-    const hdr = f.headers();
-    await T.slotList(hdr, 4);
     let flag = mode;
     if (!(st.options & 0x40)) flag = 2; else if (!(st.options & 2)) flag = 3;
+    const makeHeader = () => {
+      const h = new Uint8Array(15), rt = this.rt, d = rt.day;
+      h[0] = d > 8 ? 0x30 + Math.trunc((d + 1) / 10) : 0x20;
+      h[1] = 0x30 + (d + 1) % 10; h[2] = 0x2f;
+      let k = 3;
+      const cat = s => { for (let i = 0; s[i]; i++) h[k++] = s[i]; };
+      cat(this.p.months[rt.month]); cat(this.S.saveYear);
+      h[9] = (0x30 + Math.trunc((rt.year + 1) / 10)) & 0xff; h[10] = 0x30 + (rt.year + 1) % 10;
+      h[12] = st.port; h[13] = flag;
+      return h;
+    };
+    if (this.c.shell?.saveModal) {
+      const sel = await this.c.shell.saveModal.open("save");
+      if (sel === null || typeof sel !== "number") return 0;
+      const h = makeHeader();
+      st.set8(DS.YEAR, this.rt.year); st.set8(DS.MONTH, this.rt.month); st.set8(DS.DAY, this.rt.day); st.set8(DS.TIME, this.rt.time);
+      f.writeSlot(sel, h, st.b);
+      this.c.shell.showToast(`已保存到槽位 ${sel + 1}`);
+      return 1;
+    }
+    const hdr = f.headers();
+    await T.slotList(hdr, 4);
     for (;;) {
       T.slotRects();
       const sel = await menu.customMenu(10, 1, 1);
@@ -1275,15 +1295,8 @@ export class Commands {
       await win.open(0x18, 0x100, 0x20, 0x30, 1);
       con.setCursor(0x1a, 0x110); message(0x3ba);
       if (!await menu.yesNo()) { await win.close(); continue; }
-      const h = new Uint8Array(15), rt = this.rt, d = rt.day;
-      h[0] = d > 8 ? 0x30 + Math.trunc((d + 1) / 10) : 0x20;
-      h[1] = 0x30 + (d + 1) % 10; h[2] = 0x2f;
-      let k = 3;
-      const cat = s => { for (let i = 0; s[i]; i++) h[k++] = s[i]; };   // strcat (4d31)
-      cat(this.p.months[rt.month]); cat(this.S.saveYear);
-      h[9] = (0x30 + Math.trunc((rt.year + 1) / 10)) & 0xff; h[10] = 0x30 + (rt.year + 1) % 10;
-      h[12] = st.port; h[13] = flag;
-      st.set8(DS.YEAR, rt.year); st.set8(DS.MONTH, rt.month); st.set8(DS.DAY, rt.day); st.set8(DS.TIME, rt.time);
+      const h = makeHeader();
+      st.set8(DS.YEAR, this.rt.year); st.set8(DS.MONTH, this.rt.month); st.set8(DS.DAY, this.rt.day); st.set8(DS.TIME, this.rt.time);
       f.writeSlot(sel, h, st.b);
       await win.close(); await win.close();
       return 1;

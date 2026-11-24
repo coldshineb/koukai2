@@ -116,9 +116,18 @@ export class Title {
     for (let i = 0; i < SLOTS; i++) R[i] = { x0: 0xd0, x1: 0x1b0, y0: (i + 6) << 4, y1: ((i + 6) << 4) + 0x10 };
     R[SLOTS] = { x0: 0xd0, x1: 0x1b0, y0: 0x30, y1: 0x150 };
   }
-  // 16b3f: 讀檔
+  // 16b3f: 讀檔 (階段 5 優先使用現代存檔彈窗，支援自動存檔與即時匯入 KOUKAI2.DAT)
   async loadMenu() {
     const { win, con, menu, sys } = this.c, f = this.c.saveFile;
+    if (this.c.shell?.saveModal) {
+      const pick = await this.c.shell.saveModal.open("load");
+      if (pick === null) return 0;
+      const bytes = pick === "auto" ? f.store?.loadAutoBytes() : f.slot(pick);
+      if (!bytes) return 0;
+      this.applyLoad(bytes);
+      await this.afterLoad();
+      return 1;
+    }
     const hdr = f.headers();
     await this.slotList(hdr, 0);
     for (;;) {

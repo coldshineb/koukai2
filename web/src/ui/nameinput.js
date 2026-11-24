@@ -31,6 +31,7 @@ export class NameInput {
   }
   // 30a30 提示視窗: kind 0..3 = 名字？/姓氏？/船名？/暱稱？, n 字
   prompt(kind, n) {
+    this._lastKind = kind;
     const { win, con } = this.c;
     this.y0 = 0x130;
     this.col0 = 0x1d - n * 2;
@@ -201,6 +202,21 @@ export class NameInput {
   }
   // 30735 鍵盤主迴圈: 輸入結果寫回 dest (GameState 位址); 回傳 1 = 已輸入, 2 = 結束 (取消), 3 = 未輸入任何字
   async run(dest, max) {
+    if (this.c.modernUI) {
+      const titles = ["请输入名字", "请输入姓氏", "请输入船名", "请输入名称"];
+      const existing = this.c.codec ? this.c.codec.decode(this.c.state.cstr(dest)).replace(/\{[0-9A-F]{2}\}/g, "").trim() : "";
+      const res = await this.c.modernUI.inputName({
+        title: titles[this._lastKind ?? 3] ?? "请输入名称",
+        defaultValue: existing,
+        maxBytes: max * 2,
+        encode: s => this.c.font.encode(s),
+      });
+      if (res.status === 1 && res.bytes) {
+        for (let i = 0; i < res.bytes.length; i++) this.c.state.set8(dest + i, res.bytes[i]);
+        this.c.state.set8(dest + res.bytes.length, 0);
+      }
+      return res.status;
+    }
     const { win, menu, sys, state } = this.c;
     menu.count = 0x75;
     this.setRects();

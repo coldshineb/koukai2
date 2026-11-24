@@ -154,8 +154,9 @@ export class NumPad {
     } while (k !== 0x0d);
     return acc2 !== 0 ? acc2 : cur;
   }
-  // 592a 輸入 min..max 之間的數 (負數回傳 0)
+  // 592a 輸入 min..max 之間的數 (負數回傳 0); 階段 5 優先走現代數字輸入滑桿
   async input(min, max) {
+    if (this.c.modernUI) return this.c.modernUI.inputNumber(min, max);
     const { con, sys, win } = this.c;
     this.saveCon();
     con.left = 0; con.right = 0x4e;
