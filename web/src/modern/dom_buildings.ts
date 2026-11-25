@@ -1284,14 +1284,16 @@ export async function runDomTavernWorkbench(b: any, drinkNameBytes: Uint8Array, 
           const nShips = b.fleetShips();
           for (let i = 0; i < nShips; i++) {
             const slot = c.persons[i] & 0xff;
-            const shipId = st.u8(b.fleetSlot(slot) + 7);
+            const S = b.fleetSlot(slot);
+            const shipId = st.u8(S + 7);
+            const curCrew = st.u16(S);
             const ship = st.model.ship(shipId);
             const cs = st.model.crewSlot(slot);
             const row = document.createElement("div");
             row.className = "uw2-slot-card";
             row.innerHTML =
               `<span style="font-weight:700;min-width:110px;">${decodeCleanCstr(codec, ship.nameBytes)}</span>` +
-              `<span style="font-size:13px;color:var(--uw2-ink-muted);">水手 ${cs.crew} / ${ship.maxCrew} · 士气 ${cs.morale}</span>`;
+              `<span style="font-size:13px;color:var(--uw2-ink-muted);">水手 ${curCrew} / ${ship.maxCrew} · 士气 ${cs.morale}</span>`;
             list.appendChild(row);
           }
           left.appendChild(list);
