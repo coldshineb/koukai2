@@ -1213,3 +1213,256 @@ export function runDomFortuneWorkbench(b: any): Promise<void> {
     render();
   });
 }
+
+// ============================================================================
+// 7. 酒館一體化工作台 (Tavern — 與交易所 / 碼頭 / 道具店 / 王宮 1:1 統一結構)
+// ============================================================================
+export async function runDomTavernWorkbench(b: any, drinkNameBytes: Uint8Array, onGamble: () => Promise<void>): Promise<void> {
+  const c = b.c, st = b.st, codec = c.codec, art = c.art;
+  const portName = decodeCleanCstr(codec, st.model.port(b.port).nameBytes);
+  const tabLabels = c.menuItems(15).map((raw: Uint8Array) => decodeCleanCstr(codec, raw).replace(/\s+/g, ""));
+  const drinkName = decodeCleanCstr(codec, drinkNameBytes);
+  const k = st.u8(b.eco + 0x24);
+  const drinkPrice = b.T.liquorPrice[k];
+  const initGreet = b.noEvent() ? capMsg(c, 0x12, drinkNameBytes) : "";
+
+  for (;;) {
+    let pending: null | { kind: "hire" | "dismiss" | "drink" | "chat" | "girl" | "gamble"; arg?: number } = null;
+
+    await new Promise<void>(resolve => {
+      let settled = false;
+      let tab = 2; // 預設停在「飲酒敘話」或第一個可用分頁
+      if (b.fleetShips() && !(st.u8(DS.DAILY_FLAGS) & 1)) tab = 0;
+      let rounds = 1;
+      let notice = initGreet;
+
+      const done = () => {
+        if (settled) return;
+        settled = true;
+        shell.h.close();
+        resolve();
+      };
+
+      const shell = createWorkbenchShell(`${portName} · 酒馆`, b.money, done);
+
+      const render = () => preserveScroll(shell.h.body, () => {
+        shell.moneyPill.textContent = fmtMoneyPill(b.money);
+        shell.toastEl.textContent = notice;
+
+        const hasFleet = b.fleetShips() > 0;
+        const hiredToday = !!(st.u8(DS.DAILY_FLAGS) & 1);
+        const hasGirl = !!b.girl;
+
+        shell.toolbar.innerHTML = "";
+        tabLabels.forEach((lbl: string, idx: number) => {
+          const btn = document.createElement("button");
+          btn.className = `uw2-btn uw2-tab-btn ${tab === idx ? "active" : ""}`;
+          btn.disabled =
+            (idx === 0 && (hiredToday || !hasFleet)) ||
+            (idx === 1 && !hasFleet) ||
+            (idx === 4 && !hasGirl);
+          btn.textContent = lbl;
+          btn.addEventListener("click", () => { tab = idx; render(); });
+          shell.toolbar.appendChild(btn);
+        });
+
+        shell.h.body.innerHTML = "";
+
+        if (tab === 0 || tab === 1) {
+          const split = document.createElement("div");
+          split.className = "uw2-split";
+
+          const left = document.createElement("div");
+          left.className = "uw2-pane";
+          const lt = document.createElement("div");
+          lt.className = "uw2-pane-title";
+          lt.textContent = "舰队水手概况";
+          left.appendChild(lt);
+
+          const list = document.createElement("div");
+          list.className = "uw2-list-col";
+          const nShips = b.fleetShips();
+          for (let i = 0; i < nShips; i++) {
+            const slot = c.persons[i] & 0xff;
+            const shipId = st.u8(b.fleetSlot(slot) + 7);
+            const ship = st.model.ship(shipId);
+            const cs = st.model.crewSlot(slot);
+            const row = document.createElement("div");
+            row.className = "uw2-slot-card";
+            row.innerHTML =
+              `<span style="font-weight:700;min-width:110px;">${decodeCleanCstr(codec, ship.nameBytes)}</span>` +
+              `<span style="font-size:13px;color:var(--uw2-ink-muted);">水手 ${cs.crew} / ${ship.maxCrew} · 士气 ${cs.morale}</span>`;
+            list.appendChild(row);
+          }
+          left.appendChild(list);
+
+          const right = document.createElement("div");
+          right.className = "uw2-pane";
+          const rt = document.createElement("div");
+          rt.className = "uw2-pane-title";
+          rt.textContent = tab === 0 ? "招募水手" : "解雇水手";
+          right.appendChild(rt);
+
+          const box = document.createElement("div");
+          box.className = "uw2-action-box";
+          const p = document.createElement("div");
+          p.style.cssText = "font-size:14px;color:var(--uw2-ink);";
+          p.textContent = tab === 0
+            ? (hiredToday ? "今日已在本港招募过水手。" : "前往酒馆柜台招募各舰水手。")
+            : "选择要解雇水手的舰船与人数。";
+          const btn = document.createElement("button");
+          btn.className = "uw2-btn uw2-btn-primary";
+          btn.style.alignSelf = "flex-start";
+          btn.disabled = (tab === 0 && (hiredToday || !hasFleet)) || (tab === 1 && !hasFleet);
+          btn.textContent = tabLabels[tab] || (tab === 0 ? "雇用水手" : "解雇水手");
+          btn.addEventListener("click", () => { pending = { kind: tab === 0 ? "hire" : "dismiss" }; done(); });
+          box.append(p, btn);
+          right.appendChild(box);
+
+          split.append(left, right);
+          shell.h.body.appendChild(split);
+        } else if (tab === 2) {
+          const box = document.createElement("div");
+          box.className = "uw2-action-box";
+          let si = (b.money % 10000) & 0xffff;
+          if (b.money >= 10000) si = (si + 10000) & 0xffff;
+          const maxRounds = Math.min(50, Math.trunc(domS16(si) / drinkPrice));
+          if (rounds > maxRounds) rounds = Math.max(0, maxRounds);
+
+          const p = document.createElement("div");
+          p.style.cssText = "font-size:14px;color:var(--uw2-ink);";
+          p.textContent = capMsg(c, 0x13, b.T.liquors[k], drinkPrice);
+
+          const row = document.createElement("div");
+          row.style.cssText = "display:flex;align-items:center;gap:12px;";
+          const slider = document.createElement("input");
+          slider.type = "range";
+          slider.className = "uw2-slider";
+          slider.style.flex = "1";
+          slider.min = "0";
+          slider.max = String(maxRounds);
+          slider.value = String(rounds);
+          const badge = document.createElement("span");
+          badge.style.cssText = "font-size:14px;font-weight:700;min-width:110px;text-align:right;";
+          const syncR = () => { badge.textContent = `${rounds} 杯（${rounds * drinkPrice} 金币）`; };
+          slider.addEventListener("input", () => { rounds = Number(slider.value); syncR(); });
+          syncR();
+          row.append(slider, badge);
+
+          const btn = document.createElement("button");
+          btn.className = "uw2-btn uw2-btn-primary";
+          btn.style.alignSelf = "flex-start";
+          btn.disabled = maxRounds <= 0;
+          btn.textContent = `请大家喝${drinkName}并打听传闻`;
+          btn.addEventListener("click", () => {
+            if (rounds <= 0) return;
+            pending = { kind: "drink", arg: rounds };
+            done();
+          });
+
+          box.append(p, row, btn);
+          shell.h.body.appendChild(box);
+        } else if (tab === 3) {
+          const pane = document.createElement("div");
+          pane.className = "uw2-pane";
+          const pt = document.createElement("div");
+          pt.className = "uw2-pane-title";
+          pt.textContent = "酒馆内的航海者";
+          pane.appendChild(pt);
+
+          const n = b.portPersons();
+          const hasPeople = n > 0 && c.persons[0] !== 0xff;
+          if (!hasPeople) {
+            const box = document.createElement("div");
+            box.className = "uw2-action-box";
+            box.textContent = "现在酒馆里没有可交谈的航海者。";
+            pane.appendChild(box);
+          } else {
+            const grid = document.createElement("div");
+            grid.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;";
+            for (let i = 0; i < n; i++) {
+              const pid = c.persons[i] & 0xff;
+              const rec = st.bytes(st.personRecord(pid), 0x32);
+              const nm = `${decodeCleanCstr(codec, st.cstr(st.personRecord(pid)))} ${decodeCleanCstr(codec, st.cstr(st.personRecord(pid) + 13))}`.trim();
+              const card = document.createElement("button");
+              card.className = "uw2-row-card";
+              card.style.cssText = "display:flex;align-items:center;gap:10px;text-align:left;";
+              const img = document.createElement("img");
+              img.className = "uw2-portrait-img";
+              img.style.cssText = "width:44px;height:55px;flex-shrink:0;";
+              void getPersonPortraitSrc(art, rec).then(src => { if (src) img.src = src; });
+              const sp = document.createElement("span");
+              sp.style.fontWeight = "700";
+              sp.textContent = nm;
+              card.append(img, sp);
+              card.addEventListener("click", () => { pending = { kind: "chat" }; done(); });
+              grid.appendChild(card);
+            }
+            pane.appendChild(grid);
+          }
+          shell.h.body.appendChild(pane);
+        } else if (tab === 4) {
+          const box = document.createElement("div");
+          box.className = "uw2-action-box";
+          if (b.girl) {
+            const face = st.u8(b.girl + 0x10);
+            const gName = decodeCleanCstr(codec, b.dstr(b.girl));
+            const head = document.createElement("div");
+            head.style.cssText = "display:flex;align-items:center;gap:14px;";
+            const url = art?.portraitUrl?.(face);
+            if (url) {
+              const img = document.createElement("img");
+              img.className = "uw2-portrait-img";
+              img.src = url;
+              head.appendChild(img);
+            }
+            const nm = document.createElement("div");
+            nm.style.cssText = "font-size:18px;font-weight:700;color:var(--uw2-ink);";
+            nm.textContent = gName;
+            head.appendChild(nm);
+            box.appendChild(head);
+
+            const btn = document.createElement("button");
+            btn.className = "uw2-btn uw2-btn-primary";
+            btn.style.alignSelf = "flex-start";
+            btn.textContent = `与${gName}交谈 / 送礼`;
+            btn.addEventListener("click", () => { pending = { kind: "girl" }; done(); });
+            box.appendChild(btn);
+          }
+          shell.h.body.appendChild(box);
+        } else {
+          const box = document.createElement("div");
+          box.className = "uw2-action-box";
+          const p = document.createElement("div");
+          p.style.cssText = "font-size:14px;color:var(--uw2-ink);";
+          p.textContent = "在酒馆赌桌参与 21 点或骰子赌局。";
+          const btn = document.createElement("button");
+          btn.className = "uw2-btn uw2-btn-primary";
+          btn.style.alignSelf = "flex-start";
+          btn.textContent = tabLabels[5] || "赌博";
+          btn.addEventListener("click", () => { pending = { kind: "gamble" }; done(); });
+          box.append(p, btn);
+          shell.h.body.appendChild(box);
+        }
+      });
+
+      render();
+    });
+
+    if (!pending) break;
+    const act: { kind: string; arg?: number } = pending;
+    if (act.kind === "hire") await b.hire();
+    else if (act.kind === "dismiss") await b.dismiss();
+    else if (act.kind === "drink") {
+      const v = act.arg ?? 1;
+      const heat = Math.trunc(((v * 200) & 0xffff) / st.u16(b.eco));
+      const d = Math.trunc(domS16(heat * st.u8(b.hero + 0x22)) / 10) + b.tvA;
+      b.tvA = Math.min(100, d);
+      b.payMoney(domS16(drinkPrice * v));
+      await b.rumor(heat);
+    } else if (act.kind === "chat") await b.chat();
+    else if (act.kind === "girl") await b.barGirl();
+    else if (act.kind === "gamble") await onGamble();
+    b.after();
+  }
+}

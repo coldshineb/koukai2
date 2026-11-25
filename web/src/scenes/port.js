@@ -580,6 +580,15 @@ export class PortScene {
       }
     }
     const { x, y } = this.c.sys.mousePos(), B = this.P.data.buttons;
+    // 先比對明確的 F1–F4 指令鍵，避免游標停留在舊版方向熱區時吞掉快捷鍵
+    if (key && key !== 0xff) {
+      for (let i = 8; i < 12; i++) {
+        if (B[i][4] === key) {
+          await (this.commands ??= new Commands(this)).button(i - 8);
+          return 0xff;
+        }
+      }
+    }
     for (let i = 0; i < 12; i++) {
       const [x0, y0, x1, y1, k] = B[i];
       if (k !== key && !(x >= x0 && x1 >= x && y0 <= y && y1 >= y)) continue;
@@ -601,6 +610,12 @@ export class PortScene {
       sys.mousePos();
       if (Math.abs(mk.h) > 8 || Math.abs(mk.v) > 8) {
         if (Math.abs(mk.v) < Math.abs(mk.h)) di = mk.h >= 0 ? 2 : 4; else di = mk.v >= 0 ? 3 : 1;
+      }
+      if (this.pendingCmd !== undefined) {
+        const cmd = this.pendingCmd; this.pendingCmd = undefined;
+        await (this.commands ??= new Commands(this)).button(cmd);
+        if (this.port === 0xff || this.timeAbort()) return 0;
+        continue;
       }
       if (this.pmTarget !== undefined) {                              // 擴充功能 (非原版): 港內移動 — 瞬移到門口後照原版進門 (RE_NOTES 33.5)
         const k = this.pmTarget; this.pmTarget = undefined;
@@ -632,6 +647,7 @@ export class PortScene {
       }
       await sys.poll();
       while (sys.timer.get()) {
+        if (this.pendingCmd !== undefined || this.pmTarget !== undefined) break;
         if (!key && this.c.menu.source()) break;
         await sys.poll();
       }

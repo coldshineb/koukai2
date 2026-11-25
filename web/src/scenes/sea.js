@@ -315,9 +315,31 @@ export class SeaScene extends PortScene {
   }
   commandsObj() { return (this.commands ??= new Commands(this)); }
 
+  async runSeaCmd(cmd) {
+    const { sys, con } = this.c;
+    sys.mouseHide();
+    const cm = this.commandsObj();
+    this.c.menu.wideAnchorCmd = cmd;
+    try {
+      await [() => cm.info(), () => cm.manage(), () => cm.order(), () => cm.nav()][cmd]();
+    } finally {
+      this.c.menu.wideAnchorCmd = -1;
+      sys.mouseShow();
+    }
+    if (this.timeAbort()) return;
+    con.left = 0; con.right = 0x50;
+    if (!this.c.palette.ending) this.seaPanel();
+    if (this.a9c8 & 1) await this.c.menu.waitRelease();
+    this.a9c8 &= 0xfc;
+  }
   // ================= 海上時刻 1fd9:13c1 = 21151 (輸入) =================
   async seaInput() {
     const { sys, menu, scr } = this.c;
+    if (this.pendingCmd !== undefined) {
+      const cmd = this.pendingCmd; this.pendingCmd = undefined;
+      await this.runSeaCmd(cmd);
+      return;
+    }
     const steerFromViewPos = (vx, vy) => {
       // 以主角船隻實際畫面座標為中心計算 8 方向（靠近地圖邊緣時也能精準轉向）
       let cx = 640, cy = 360;
@@ -365,6 +387,13 @@ export class SeaScene extends PortScene {
     if (key === 0x30 || key === 0x1b) this.a9c8 |= 1;
     if (this.a9c8 & 1) { key = 0; this.cursor = 0x2570; sys.setCursorShape(0x2570); await menu.waitRelease(); }
     for (;;) {
+      if (this.pendingCmd !== undefined) {
+        const cmd = this.pendingCmd; this.pendingCmd = undefined;
+        await this.runSeaCmd(cmd);
+        if (this.timeAbort()) return;
+        if (!(this.a9c8 & 1)) return;
+        continue;
+      }
       if (this.a9c8 & 1) key = translateSeaKey(this.readInput());
       if (key || (this.a9c8 & 2)) { await this.seaButton(key); if (this.timeAbort()) return; }
       if (!(this.a9c8 & 1)) return;
@@ -396,11 +425,19 @@ export class SeaScene extends PortScene {
       }
     }
     const p = sys.mousePos(); this.btnX = p.x; this.btnY = p.y;
-    let di = 0;
-    for (; di < 13; di++) {
-      const o = di * 9, i16 = k => seaS16(B[o + k] | (B[o + k + 1] << 8)), x0 = i16(0), y0 = i16(2), w = i16(4), h = i16(6);
-      if (key === B[o + 8]) break;
-      if ((this.a9c8 & 3) && x0 <= this.btnX && x0 + w >= this.btnX && y0 <= this.btnY && y0 + h >= this.btnY) break;
+    let di = 13;
+    if (key && key !== 0xff) {
+      for (let i = 9; i < 13; i++) {
+        if (key === B[i * 9 + 8]) { di = i; break; }
+      }
+    }
+    if (di === 13) {
+      di = 0;
+      for (; di < 13; di++) {
+        const o = di * 9, i16 = k => seaS16(B[o + k] | (B[o + k + 1] << 8)), x0 = i16(0), y0 = i16(2), w = i16(4), h = i16(6);
+        if (key === B[o + 8]) break;
+        if ((this.a9c8 & 3) && x0 <= this.btnX && x0 + w >= this.btnX && y0 <= this.btnY && y0 + h >= this.btnY) break;
+      }
     }
     if (di < 13 && !((st.u8(DS.SEA_FLAGS2) & 0x18) && di < 9)) {
       if (di < 8) this.steer(di);                                       // 20fec

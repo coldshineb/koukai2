@@ -6,6 +6,8 @@ import { WorkDS } from "../model/flags.ts";
 import { domS16, domUmin16 } from "../domain/economy.ts";
 import { captureConsoleText, decodeCleanCstr } from "../canvas_ui/text_util.ts";
 import { runWideInfoLinesModal } from "../canvas_ui/wide_panels.ts";
+import { hasDom } from "../modern/dom_ui.ts";
+import { runDomTavernWorkbench } from "../modern/dom_buildings.ts";
 
 class TavernMixin {
   // 27592 / 275d2 本港的酒吧女郎 (DS:2bde, 每筆 0x13)
@@ -30,6 +32,18 @@ class TavernMixin {
     const girlA = this.tavernGirlA();                                        // [aeec]
     this.girl = this.tavernGirl();                                           // [aeee]
     const drink = this.T.liquors[st.u8(this.eco + 0x24)];
+    if (hasDom() && this.c.codec) {
+      if (this.noEvent()) {
+        if (girlA) {
+          this.talkGirl(0x61, DS.TBL_BARMAID);
+          this.talkMessage2(0x11, this.dstr(this.hero), drink);
+          await this.wait(); await this.closeTalk();
+        }
+        if (this.girl) await this.girlHello();
+      }
+      await runDomTavernWorkbench(this, drink, () => (this.gambleG ??= new Gamble(this)).run());
+      return;
+    }
     if (this.noEvent()) {
       if (girlA) {
         this.talkGirl(0x61, DS.TBL_BARMAID);

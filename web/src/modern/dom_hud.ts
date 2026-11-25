@@ -63,7 +63,7 @@ function ensureHudRoot(): HTMLElement | null {
 
   brEl = document.createElement("div");
   brEl.className = "uw2-hud-cmdbar";
-  for (const [label, scan] of CMD_DEFS) {
+  CMD_DEFS.forEach(([label], idx) => {
     const btn = document.createElement("button");
     btn.className = "uw2-btn uw2-hud-cmdbtn";
     btn.textContent = label;
@@ -71,9 +71,22 @@ function ensureHudRoot(): HTMLElement | null {
     btn.addEventListener("click", e => {
       e.stopPropagation();
       if (document.body.dataset.uw2Modal === "open") return;
-      currentSys?.pushKey?.(scan, 0);
+      if (currentScene) currentScene.pendingCmd = idx;
     });
-    brEl.appendChild(btn);
+    brEl!.appendChild(btn);
+  });
+
+  if (!(window as any).__uw2CmdKeyHooked) {
+    (window as any).__uw2CmdKeyHooked = true;
+    window.addEventListener("keydown", e => {
+      if (document.body.dataset.uw2Modal === "open") return;
+      if (!hudRoot || hudRoot.style.display === "none") return;
+      const idx = e.key === "F1" ? 0 : e.key === "F2" ? 1 : e.key === "F3" ? 2 : e.key === "F4" ? 3 : -1;
+      if (idx < 0) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if (currentScene) currentScene.pendingCmd = idx;
+    }, true);
   }
 
   hudRoot.append(tlEl, trWrapEl, blEl, brEl);
