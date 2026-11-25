@@ -3,16 +3,27 @@
 import { DS } from "../model/schema_views.ts";
 import { decodeCleanCstr, toSimp } from "../canvas_ui/text_util.ts";
 import { createDomModal, hasDom, getPersonPortraitSrc } from "./dom_ui.ts";
+import { PortMove } from "../scenes/portmove.js";
 
 let hudRoot: HTMLElement | null = null;
 let tlEl: HTMLElement | null = null;
+let trWrapEl: HTMLElement | null = null;
 let trEl: HTMLElement | null = null;
+let pmEl: HTMLElement | null = null;
 let blEl: HTMLElement | null = null;
 let brEl: HTMLElement | null = null;
 let lastTlKey = "";
 let lastTrKey = "";
+let lastPmKey = "";
 let lastBlKey = "";
 let currentSys: any = null;
+let currentScene: any = null;
+
+const BLD_NAMES = [
+  "交易所", "酒馆", "造船厂", "码头",
+  "旅馆", "王宫", "事务所", "住宅",
+  "银行", "道具店", "教会", "占卜师",
+];
 
 // 4 枚主指令按鈕對應的 PC BIOS F1-F4 掃描碼 (keymap.js: 0x3b / 0x3c / 0x3d / 0x3e)
 const CMD_DEFS: [string, number][] = [
@@ -36,8 +47,16 @@ function ensureHudRoot(): HTMLElement | null {
   tlEl = document.createElement("div");
   tlEl.className = "uw2-card uw2-hud-card uw2-hud-tl";
 
+  trWrapEl = document.createElement("div");
+  trWrapEl.className = "uw2-hud-tr-wrap";
+
   trEl = document.createElement("div");
-  trEl.className = "uw2-card uw2-hud-card uw2-hud-tr";
+  trEl.className = "uw2-card uw2-hud-card";
+
+  pmEl = document.createElement("div");
+  pmEl.className = "uw2-card uw2-hud-pm";
+
+  trWrapEl.append(trEl, pmEl);
 
   blEl = document.createElement("div");
   blEl.className = "uw2-card uw2-hud-compass";
@@ -57,7 +76,7 @@ function ensureHudRoot(): HTMLElement | null {
     brEl.appendChild(btn);
   }
 
-  hudRoot.append(tlEl, trEl, blEl, brEl);
+  hudRoot.append(tlEl, trWrapEl, blEl, brEl);
   host.appendChild(hudRoot);
   return hudRoot;
 }
@@ -68,11 +87,12 @@ export function hideDomWorldHud() {
 
 export function syncDomWorldHud(scene: any, atSea: boolean) {
   const root = ensureHudRoot();
-  if (!root || !tlEl || !trEl || !blEl) return;
+  if (!root || !tlEl || !trEl || !pmEl || !blEl) return;
   root.style.display = "block";
 
   const c = scene.c, st = c.state, m = st.model, rt = c.rt, art = c.art, codec = c.codec;
   currentSys = c.sys;
+  currentScene = scene;
 
   // 1. 左上：頭像 + 日期時刻 + 聲望/金塊/金幣
   const heroId = m.globals.hero;
@@ -111,7 +131,7 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
     tlEl.append(img, info);
   }
 
-  // 2. 右上：港情 或 海上氣象
+  // 2. 右上：港情（含商業/工業投資額）+ 港內建築一鍵直達  或  海上氣象
   if (!atSea) {
     const P = scene.port;
     const portName = decodeCleanCstr(codec, m.port(P).nameBytes);
@@ -120,30 +140,67 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
     let avgPrice = 100;
     const com = E ? (E.commerce << 16) >> 16 : 0;
     const ind = E ? (E.industry << 16) >> 16 : 0;
+    const comInv = E ? E.commerceInvest : 0;
+    const indInv = E ? E.industryInvest : 0;
     if (E) {
       let sum = 0;
       for (let i = 0; i < 10; i++) sum += E.getPrices(i);
       avgPrice = Math.trunc(sum / 10) + 50;
     }
-    const trKey = `P|${P}|${portName}|${regionName}|${com}|${ind}|${avgPrice}`;
+    const trKey = `P|${P}|${portName}|${regionName}|${com}|${ind}|${comInv}|${indInv}|${avgPrice}`;
     if (trKey !== lastTrKey) {
       lastTrKey = trKey;
       trEl.innerHTML = `
-        <div style="display:flex;flex-direction:column;gap:5px;min-width:240px;">
+        <div style="display:flex;flex-direction:column;gap:4px;min-width:268px;">
           <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;">
             <span style="font-size:17px;font-weight:700;color:var(--uw2-ink);">${portName}</span>
             <span style="font-size:12px;font-weight:600;color:#7a4e10;">${regionName}</span>
           </div>
           ${E ? `
-          <div style="display:flex;gap:14px;font-size:13px;color:var(--uw2-ink);">
-            <span>商业 <b>${com}</b></span>
-            <span>工业 <b>${ind}</b></span>
+          <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--uw2-ink);">
+            <span>商业 <b>${com}</b> <small style="color:#7a4e10;">(投资 ${comInv})</small></span>
             <span>物价 <b style="color:#8a5d17;">${avgPrice}%</b></span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--uw2-ink);">
+            <span>工业 <b>${ind}</b> <small style="color:#7a4e10;">(投资 ${indInv})</small></span>
           </div>` : ""}
         </div>
       `;
     }
+
+    // 港內建築一鍵直達（只在允許港內移動時顯示）
+    if (PortMove.enabled(c) && scene.door) {
+      const items: { k: number; open: boolean; ok: boolean }[] = [];
+      for (let k = 0; k < 12; k++) {
+        if (!PortMove.present(scene, k)) continue;
+        items.push({ k, open: !!scene.isOpen?.(k), ok: PortMove.reachable(scene, k) });
+      }
+      const pmKey = `${P}|${rt.time}|${scene.hx},${scene.hy},${scene.vx},${scene.vy}|` + items.map(x => `${x.k}:${x.open ? 1 : 0}${x.ok ? 1 : 0}`).join(",");
+      pmEl.style.display = items.length ? "grid" : "none";
+      if (pmKey !== lastPmKey) {
+        lastPmKey = pmKey;
+        pmEl.innerHTML = "";
+        for (const it of items) {
+          const btn = document.createElement("button");
+          btn.className = `uw2-pm-btn ${it.open ? "open" : "closed"}`;
+          btn.disabled = !it.ok;
+          btn.innerHTML = `<span class="uw2-pm-dot"></span><span>${BLD_NAMES[it.k] || ""}</span>`;
+          btn.addEventListener("pointerdown", e => e.stopPropagation());
+          btn.addEventListener("click", e => {
+            e.stopPropagation();
+            if (document.body.dataset.uw2Modal === "open") return;
+            if (!currentScene) return;
+            currentScene.pmTarget = it.k;
+            currentSys?.pushKey?.(0, 0);
+          });
+          pmEl.appendChild(btn);
+        }
+      }
+    } else {
+      pmEl.style.display = "none";
+    }
   } else {
+    pmEl.style.display = "none";
     const a = st.u8(DS.PORT_FLAGS);
     const b = st.u8(DS.WIND_CUR);
     const windDir = (a & 0x38) >> 3, windStr = a & 7;

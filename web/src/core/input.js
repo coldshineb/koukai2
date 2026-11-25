@@ -40,6 +40,6 @@ export function bindInput(canvas, sys) {
   });
   canvas.addEventListener("mousedown", e => { pos(e); sys.mouse.buttons |= e.button === 2 ? 2 : e.button === 0 ? 1 : 0; e.preventDefault(); });
   addEventListener("mouseup", e => { sys.mouse.buttons &= ~(e.button === 2 ? 2 : e.button === 0 ? 1 : 0); });
-  canvas.addEventListener("contextmenu", e => e.preventDefault());
+  window.addEventListener("contextmenu", e => e.preventDefault());
   canvas.style.cursor = "default";        // 階段 4: 使用瀏覽器原生高精度指標
 }

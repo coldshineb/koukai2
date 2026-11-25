@@ -1562,7 +1562,7 @@ export class Commands {
   async nav() {
     const st = this.st, { menu, palette } = this.c;
     const items = this.c.menuItems(st.u8(DS.SEA_FLAGS2) & 0x20 ? 0x2e : 0x1d).slice(0, 6);
-    const pm = PortMove.enabled(this.c);                               // 擴充功能 (非原版): 第 7 項「港內移動」, 選單上移一行 (RE_NOTES 33.1)
+    const pm = !hasDom() && PortMove.enabled(this.c);                  // 現代 DOM 下已由右上港內直達面板承接，不再塞入航海術選單
     if (pm) items.push(PortMove.label(this.c));
     let si = 0;
     while (!palette.ending) {                                          // 20fd9: [03ea] == 0
