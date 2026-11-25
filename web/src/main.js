@@ -136,15 +136,31 @@ function frame() {
   await opening.run();
   if (ctx.halted) return;
   if (!(hasDom() && ctx.codec)) await ctx.bgm.stopped();
-  const r = await new Title(ctx).run();
-  if (ctx.halted || r !== 1) return;
-  try {
-    await new GameClock(ctx).run();
-  } catch (e) {
-    if (!(e instanceof MainExit)) throw e;
-    ctx.bgm.optionOff = null;
-    const end = await loadEndingData(ASSETS, loadBinary, loadJSON, ctx.art);
-    await new Ending({ scr, sys, bgm: ctx.bgm, font: ctx.font }, end).run(e.params);
-    ctx.halted = true;
+  while (!ctx.halted) {
+    const r = await new Title(ctx).run();
+    if (ctx.halted || r !== 1) break;
+    try {
+      await new GameClock(ctx).run();
+      break;
+    } catch (e) {
+      if (!(e instanceof MainExit)) throw e;
+      ctx.bgm.optionOff = null;
+      const end = await loadEndingData(ASSETS, loadBinary, loadJSON, ctx.art);
+      await new Ending({ scr, sys, bgm: ctx.bgm, font: ctx.font }, end).run(e.params);
+      // 结局播完后回到主菜单：重置状态、调色盘、时钟倍速与临时镜像，避免卡黑屏
+      ctx.bgm?.fadeOut?.();
+      ctx.sfx?.off?.();
+      ctx.palette.setTarget(ctx.palette.table("default"));
+      ctx.palette.ending = 0;
+      ctx.palette.invert = 0;
+      ctx.palette.fadeState = 0;
+      ctx.state.resetFromSnapshot(ctx.initState);
+      ctx.nodesRT = null;
+      ctx.battleDS = null;
+      ctx.duelDSInit = 0;
+      ctx.buf0c8e = null;
+      ctx.sys.mouse.visible = 0;
+      ctx.sys.timeScale = 1;
+    }
   }
 })();
