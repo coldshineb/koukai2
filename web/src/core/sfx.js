@@ -342,7 +342,7 @@ export class SfxPort {
   // 9768 (DS:bx): AH=05 AL=0
   voice(addr) { if (this.present) this.send({ ah: 5, al: 0, addr }); }
   // 9804 (AL): [0ca4] bit3 时 AH=06 AL=0 DL=音高
-  note(n) { if (this.present && this.state && (this.state.options & 8)) this.send({ ah: 6, al: 0, dl: n }); }
+  note(n) { if (this.present && this.state && (this.state.model.globals.options & 8)) this.send({ ah: 6, al: 0, dl: n }); }
   // 9888: AH=05 AL=0 DS:DX = 0 (重设声部 4), AH=07 AL=0, AH=07 AL=1
   off() { if (this.present) { this.send({ ah: 5, al: 0, addr: 0 }); this.send({ ah: 7, al: 0 }); this.send({ ah: 7, al: 1 }); } }
 }

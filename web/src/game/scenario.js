@@ -6,8 +6,7 @@
 import { loadJSON } from "../core/assets.js";
 import { duelFromScenario } from "../scenes/duel.js";
 import { mainEnding } from "./endgame.js";
-import { DS } from "../model/schema_views.ts";
-import { FleetFlag, GameConst, OptionFlag, ShipSlotFlag, WorkDS } from "../model/flags.ts";
+import { FleetFlag, GameConst, OptionFlag, ShipSlotFlag } from "../model/flags.ts";
 import {
   fleetShipSlot,
   heroFleet,
@@ -16,14 +15,13 @@ import {
   writeShipName,
 } from "../model/world_helpers.ts";
 import { LegacyScenarioHost } from "../ui/dos/legacy_presenter.ts";
-import { ScenarioMemoryAdapter, SC_STRLEN } from "./scenario_adapter.ts";
+import { ENV_COMMON, ENV_HERO, ScenarioMemoryAdapter, SC_STRLEN } from "./scenario_adapter.ts";
 import { calcCargoUsed, calcShipFreeCargo } from "../domain/fleet.ts";
 
+export { ENV_COMMON, ENV_HERO };
 const scS16 = v => (v << 16) >> 16;
 const scUmin = (a, b) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);   // seg0:4d7c
 const scHex = h => Uint8Array.from((h.match(/../g) || []).map(x => parseInt(x, 16)));
-export const ENV_COMMON = { name: "SNR0", ch: DS.COMMON_CHAP, flags: 0x0d60, vars: WorkDS.KINDS, event: 0x0de6, portMax: 0x82, addTime: false };
-export const ENV_HERO = { name: "SNRn", ch: DS.HERO_CHAP, flags: 0x0cd6, vars: 0x0cde, event: 0x0d5c, portMax: 0x64, addTime: true };
 const scWarned = new Set();
 const scTodo = n => { if (!scWarned.has(n)) { scWarned.add(n); console.warn("尚未移植: " + n); } };
 
@@ -83,14 +81,13 @@ export class Scenario {
   // 2e09:5481 (共用) / 55c2 (主角): 返回 1 = 有事件 (PC 已设好)
   async check(env, port, building) {
     await this.init();
-    const st = this.st;
-    st.set16(env.event, 0);
+    this.mem.clearEvent(env);
     this.b876 = building;
     if (env === ENV_HERO && (this.m.globals.heroChap === GameConst.EMPTY_SLOT || !(this.m.globals.options & OptionFlag.SCENARIO))) return 0;
     this.env = env;
     this.fileNo = env === ENV_COMMON ? 0 : this.m.globals.hero + 1;
     this.F = await this.file(this.fileNo);
-    this.chap = st.u8(env.ch); this.sec = st.u8(env.ch + 1);
+    ({ chap: this.chap, sec: this.sec } = this.mem.getChapter(env));
     this.loadSection();
     if (!this.section) return 0;
     for (const [b1, b2, w] of this.section.index) {
@@ -112,13 +109,13 @@ export class Scenario {
   }
   // 2e09:53f0 / 5546
   async run(env) {
-    const st = this.st, hero = this.m.heroPerson(), r = this.c.rt, old = st.u8(env.ch);
+    const hero = this.m.heroPerson(), r = this.c.rt, old = this.mem.getChapter(env).chap;
     let v = Math.imul(Math.imul(scS16(hero.navExp) + hero.navLevel, r.month), r.year) + r.day;
     if (env.addTime) v += r.time;
     this.seed = (v << 8) >>> 0;
     const ret = await this.exec();
-    st.set8(env.ch, this.chap); st.set8(env.ch + 1, this.sec);
-    if (env === ENV_COMMON && this.chap !== old) { st.set8(env.ch, 0); st.set8(env.ch + 1, 0); }
+    if (env === ENV_COMMON && this.chap !== old) this.mem.setChapter(env, 0, 0);
+    else this.mem.setChapter(env, this.chap, this.sec);
     return ret;
   }
   // 333db 主循环

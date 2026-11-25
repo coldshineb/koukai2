@@ -226,10 +226,10 @@ export class PortScene {
   // 94fa
   compass(dir) {
     if (this.needle === dir) return;
-    const { sys, state } = this.c;
+    const { sys } = this.c;
     sys.mouseHide();
     this.needleDraw(0);
-    if (state.options & 1) { this.needle = dir; this.needleDraw(4); } else this.needle = 0xff;
+    if (this.m.globals.options & 1) { this.needle = dir; this.needleDraw(4); } else this.needle = 0xff;
     sys.mouseShow();
   }
   // 8894 = 869f × 2
@@ -644,7 +644,7 @@ export class PortScene {
       if (this.timeAbort()) return 0;                                 // 1b39a (读档后)
       const shape = P_CURSORS[modern ? 0 : di];
       if (shape !== this.cursor) { this.cursor = shape; sys.setCursorShape(shape); }
-      sys.timer.set(this.c.state.options & 1 ? 8 : 4);
+      sys.timer.set(this.m.globals.options & 1 ? 8 : 4);
       if (key && di) {
         face = di - 1;
         await this.move(di - 1);

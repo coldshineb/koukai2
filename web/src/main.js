@@ -44,7 +44,7 @@ const ctx = {
   font: await new Font().load(ASSETS),
   bgm: await new BGM(ASSETS).init(),
   sfx: new SfxPort("./src/core/sfx_worklet.js", { gain: +(new URLSearchParams(location.search).get("sfxvol") ?? 2) }),
-  options: { get animate() { return !!(state.options & 1); } },
+  options: { get animate() { return !!(state.model.globals.options & 1); } },
   portMove: new URLSearchParams(location.search).get("portmove") !== "0",
 };
 ctx.palettes = (await loadJSON(ASSETS + "/data/palettes.json")).palettes;

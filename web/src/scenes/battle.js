@@ -57,18 +57,17 @@ export class NavalBattle {
     }
     this.W = this.c.battleDS;
   }
-  get st() { return this.c.state; }
   get m() { return this.c.state.model; }
-  // ---- DS 访问: 存盘区走 GameState (供 battle_hud 兼容层), 其他走 W ----
-  u8(a) { a &= 0xffff; return a >= 0x0ca4 && a < 0x8d18 ? this.st.u8(a) : this.W[a]; }
+  // ---- DS 工作区访问 (全部位于 W, 不再桥接 GameState 存盘字节) ----
+  u8(a) { return this.W[a & 0xffff]; }
   u16(a) { return this.u8(a) | (this.u8(a + 1) << 8); }
   s16(a) { return btS16(this.u16(a)); }
-  set8(a, v) { a &= 0xffff; if (a >= 0x0ca4 && a < 0x8d18) this.st.set8(a, v); else this.W[a] = v & 0xff; }
+  set8(a, v) { this.W[a & 0xffff] = v & 0xff; }
   set16(a, v) { this.set8(a, v & 0xff); this.set8(a + 1, (v >> 8) & 0xff); }
   or8(a, v) { this.set8(a, this.u8(a) | v); }
   and8(a, v) { this.set8(a, this.u8(a) & v); }
   ds(a) { const W = this.W; let e = a; while (W[e]) e++; return W.subarray(a, e + 1); }   // DS 上的 C 字符串 (含结尾 0)
-  cstr(a) { return a >= 0x0ca4 && a < 0x8d18 ? this.st.cstr(a) : this.ds(a); }
+  cstr(a) { return this.ds(a); }
   rnd(n) { n &= 0xffff; return n ? this.c.sys.rng.random(n) & 0xffff : 0; }                // seg0:4dc4 (n = 0 时不取随机数)
   get heroFleet() { return this.sea.fleet; }                                                // [c2d4]
   pos(B) { const p = this.s16(B + 4); return [btImod(p, 0x34), btIdiv(p, 0x34)]; }       // 位置 → (栏, 列)

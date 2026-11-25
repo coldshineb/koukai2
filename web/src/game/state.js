@@ -16,7 +16,18 @@ export class GameState {
   }
   /** 强类型具名状态访问层 (零拷贝代理到底层 Uint8Array) */
   get model() { return (this._model ??= new WorldModel(this)); }
-  // 表记录地址 (= MAIN.EXE 访问函数的结果)
+  /** 导出当前可存档快照（供 SaveFile.writeSlot 使用，隔离底层 .b） */
+  exportSaveBytes() { return this.b; }
+  /** 从档槽字节恢复游戏状态，返回附加工作缓冲 [0c8e] */
+  loadSaveBytes(slot) {
+    this.b.set(slot.subarray(0, STATE_LOAD_SIZE));
+    const tail = slot.slice(STATE_LOAD_SIZE);
+    this.b.set(tail, STATE_LOAD_SIZE);
+    return tail;
+  }
+  /** 重置为初始游戏状态快照 */
+  resetFromSnapshot(initState) { this.b.set(initState.subarray(0, this.b.length)); }
+  // ---- 以下保留供 scenario_adapter / schema_views / emulator 回归脚本兼容 ----
   rec(table, i) { const t = this.T[table]; if (!t || i < 0 || i >= t.count) throw new Error(`${table}[${i}]`); return t.ds + i * t.stride; }
   // 以字段名读写数值字段 (u8 / u16, 数组字段用 k)
   field(table, i, name, k = 0) {

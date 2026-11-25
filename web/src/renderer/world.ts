@@ -245,7 +245,7 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
   // 绘制主角
   const hDir = portScene._lastDir ?? 2;
   const hPhase = portScene.phase ? 1 : 0;
-  const heroSpriteIdx = portScene.st.hero * 8 + hDir * 2 + hPhase;
+  const heroSpriteIdx = portScene.m.globals.hero * 8 + hDir * 2 + hPhase;
   const hxPx = (heroWX - camX) * TILE;
   const hyPx = (heroWY - camY) * TILE;
   drawSheetTileDirect(ctx, art, "chars", heroSpriteIdx, hxPx, hyPx, TILE * 2, TILE * 2, scr, false);

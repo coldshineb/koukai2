@@ -141,7 +141,7 @@ export class LegacyScenarioHost implements IScenarioHost {
   }
   async showPicture(x: number, y: number, pic: number): Promise<void> {
     const { graph, state } = this.c;
-    const name = this.c.eventFile ?? `EVENT${state.hero + 1}.DAT`;
+    const name = this.c.eventFile ?? `EVENT${state.model.globals.hero + 1}.DAT`;
     const g = await graph.ensure(this.c.ASSETS, name, "event/" + name);
     g.draw(this.c.scr.fb, pic, x, y);
     this.c.scr.dirty = true;

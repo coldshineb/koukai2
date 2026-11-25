@@ -1,6 +1,6 @@
 // title.js — 开机流程与标题菜单 (MAIN.EXE main 0FEA:6304, 160f1, 17546, 171a2, 170dc, 1706a, 16f68, 16b3f, 16a03, 17004, 175ca)
 // 与原版的差异: 依需求移除说明书密码确认 (main 中的 2e09:7cec)。
-import { GameState, STATE_LOAD_SIZE } from "./state.js";
+import { GameState } from "./state.js";
 import { SaveFile, SLOTS, HEADER_SIZE } from "../save/savefile.js";
 import { NewGame } from "./newgame.js";
 import { Commands, openDomSettings } from "../scenes/commands.js";
@@ -22,8 +22,8 @@ export class Title {
 
   // 160f1 + 17546 前半: 初始化 (此时画面全黑, 淡入淡出不可见但仍占用时间)
   async init() {
-    const { scr, palette, state } = this.c;
-    state.options = 0xff;                 // [0ca4] = FF: 环境设置全开
+    const { scr, palette, state } = this.c, g = state.model.globals;
+    g.options = 0xff;                     // [0ca4] = FF: 环境设置全开
     scr.clear(0);                         // 07f7
     if (hasDom() && this.c.codec) {
       palette.cur.set(palette.target);
@@ -37,7 +37,7 @@ export class Title {
     //   之后是/否框在鼠标位于 (27F,18F) 时改跟随文字光标 (0FEA:146d4), 所以这一步会影响确认框的位置
     this.c.sys.setMousePos(0x27f, 0x18f);
     this.c.con.f29 = 1;                   // [8a29] = 1
-    this.c.bgm.optionOff = () => !(this.c.state.options & OptionFlag.BGM);   // 9670 依 [0ca4] bit2 决定播不播 (core/audio.js)
+    this.c.bgm.optionOff = () => !(this.c.state.model.globals.options & OptionFlag.BGM);   // 9670 依 [0ca4] bit2 决定播不播 (core/audio.js)
   }
   // 171a2(1); restart = 171a2(0) (1757d: 功能「结束游戏」后回到标题: 不做 1752c, 以 DATA1 #15 重新加载初始状态代替 162fd)
   async run(restart = false) {
@@ -53,7 +53,7 @@ export class Title {
       await this.c.palette.fadeToTarget();
     }
     this.c.bgm.playSong(SONG_TITLE);
-    if (restart) this.c.state.b.set(this.c.initState.subarray(0, this.c.state.b.length));
+    if (restart) this.c.state.resetFromSnapshot(this.c.initState);
     else { this.c.palette.invert = 0; this.c.barColors = [2, 1]; }   // 162fd: [c2d6] = 0, seg0:9376(2, 1) 百分比条颜色 DS:bafa / bafc
     // 171f5: 期间 [03d8] = GRAPH2.DAT (是/否框也取自它; 与 GRAPH.DAT 第 0 张相同)
     this.c.graph.useFile("GRAPH2.DAT");
@@ -169,7 +169,7 @@ export class Title {
       if (h[0]) {
         con.puts(h);
         if (h[13] === 2 || h[13] === 3) con.puts(STR_STAR); else con.putc(0x20);
-        if (h[12] === 0xff) con.print("海上"); else con.puts(state.portName(h[12]));      // DS:a382 / 港名
+        if (h[12] === 0xff) con.print("海上"); else con.puts(state.model.port(h[12]).nameBytes);      // DS:a382 / 港名
       } else this.c.printf("        KOEI Game %02d", i + 1);                           // DS:a387
     }
     con.setCursor(0x1c, 0x110); this.c.message(0x3b7);
@@ -214,9 +214,7 @@ export class Title {
   // 16c02..16c96
   applyLoad(slot) {
     const st = this.c.state, g = st.model.globals;
-    st.b.set(slot.subarray(0, STATE_LOAD_SIZE));
-    this.c.buf0c8e = slot.slice(STATE_LOAD_SIZE);                 // 读入缓冲 [0c8e] 的 0x300 bytes
-    st.b.set(this.c.buf0c8e, STATE_LOAD_SIZE);                    // (本移植版把它保存在状态镜像的同一位置)
+    this.c.buf0c8e = st.loadSaveBytes(slot);                      // 读入缓冲 [0c8e] 的 0x300 bytes
     let o = g.options;
     if (!(o & (OptionFlag.SCENARIO | OptionFlag.ENDING_READY))) { g.heroChap = GameConst.EMPTY_SLOT; g.heroSec = 0; }
     else if (!(o & OptionFlag.ENDING_READY)) { o = (o | OptionFlag.SCENARIO) & ~OptionFlag.ENDING_READY; g.commonChap = 0; g.commonSec = 0; }

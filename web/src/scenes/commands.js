@@ -1909,7 +1909,7 @@ export class Commands {
       if (sel === null || typeof sel !== "number") return 0;
       const h = makeHeader();
       flushClock();
-      f.writeSlot(sel, h, m.st.b);
+      f.writeSlot(sel, h, m.st.exportSaveBytes());
       this.c.shell.showToast(`已保存到槽位 ${sel + 1}`);
       return 1;
     }
@@ -1924,7 +1924,7 @@ export class Commands {
       if (!await menu.yesNo()) { await win.close(); continue; }
       const h = makeHeader();
       flushClock();
-      f.writeSlot(sel, h, m.st.b);
+      f.writeSlot(sel, h, m.st.exportSaveBytes());
       await win.close(); await win.close();
       return 1;
     }

@@ -452,3 +452,13 @@ export function readDsLowOrStateByte(m: WorldModel, dsLow: Uint8Array, addr: num
   if (a >= DS.OPTIONS && a < DS.TRADE_LOGS) return m.st.u8(a);
   return dsLow[a] ?? 0;
 }
+
+/** 读写指定地址的 0 结尾字符串（供 NameInput 等通用编辑框使用） */
+export function readCstrAtAddr(m: WorldModel, addr: number): Uint8Array {
+  return m.st.cstr(addr);
+}
+
+export function writeCstrAtAddr(m: WorldModel, addr: number, bytes: Uint8Array, len = bytes.length): void {
+  for (let i = 0; i < len; i++) m.st.set8(addr + i, bytes[i] ?? 0);
+  m.st.set8(addr + len, 0);
+}

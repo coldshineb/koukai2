@@ -236,7 +236,7 @@ export function runDomBattleYesNo(promptText: string, yesLabel = "是", noLabel 
 /** 现代羊皮纸海战舰队情报弹窗（取代老 Canvas 蓝底舰队一览） */
 export async function runDomBattleFleetModal(battle: any, personId: number): Promise<void> {
   if (!hasDom()) return;
-  const m = battle.st.model, art = battle.c.art, codec = battle.c.codec;
+  const m = battle.m, art = battle.c.art, codec = battle.c.codec;
   const dec = (bts: Uint8Array) => toSimp(decodeCleanCstr(codec, bts));
   const p = m.person(personId);
   const fl = m.fleet(p.fleet);
@@ -333,7 +333,7 @@ export async function runDomBattlePersonModal(battle: any, personId: number): Pr
 /** 现代羊皮纸左右分栏人物情报弹窗（左侧人名清单、右侧实时显示头像与能力，无需二次弹窗） */
 export async function runDomBattleCrewModal(battle: any, personIds: number[], title = "舰队人物"): Promise<void> {
   if (!hasDom() || !personIds.length) return;
-  const m = battle.st.model, art = battle.c.art, codec = battle.c.codec;
+  const m = battle.m, art = battle.c.art, codec = battle.c.codec;
   const dec = (bts: Uint8Array) => toSimp(decodeCleanCstr(codec, bts));
   let selIdx = 0;
 
@@ -423,7 +423,7 @@ export async function runDomBattleCrewModal(battle: any, personIds: number[], ti
 /** 现代羊皮纸作战一览弹窗（取代原版 Canvas 列表） */
 export function runDomBattleOrdersModal(battle: any): Promise<void> {
   if (!hasDom()) return Promise.resolve();
-  const m = battle.st.model, codec = battle.c.codec;
+  const m = battle.m, codec = battle.c.codec;
   const dec = (bts: Uint8Array) => toSimp(decodeCleanCstr(codec, bts));
   const flag = battle.u16(battle.u16(0x9bc0));
 
@@ -538,7 +538,7 @@ export function runDomBattleSignal(battle: any, cur: number): Promise<void> {
 export async function runDomBattleShipOrders(battle: any, B: number): Promise<void> {
   const root = ensureBattleRoot();
   if (!root || !actionCard || !msgCard) return;
-  const m = battle.st.model, codec = battle.c.codec;
+  const m = battle.m, codec = battle.c.codec;
   const dec = (bts: Uint8Array) => toSimp(decodeCleanCstr(codec, bts));
   const ship = m.ship(shipSlotByAddr(m, battle.u16(B + 2)).ship);
   const shipLabel = `${(battle.u8(B + 0x0d) & 0x0f) + 1}号 ${dec(ship.nameBytes)}`;
@@ -628,7 +628,7 @@ export async function runDomBattleShipOrders(battle: any, B: number): Promise<vo
 /** 现代羊皮纸单船情报弹窗（海战我方/敌方舰船） */
 export async function runDomBattleShipModal(battle: any, slotAddr: number, titleOverride = ""): Promise<void> {
   if (!hasDom()) return;
-  const m = battle.st.model, art = battle.c.art, codec = battle.c.codec;
+  const m = battle.m, art = battle.c.art, codec = battle.c.codec;
   const dec = (bts: Uint8Array) => toSimp(decodeCleanCstr(codec, bts));
   const slot = shipSlotByAddr(m, slotAddr);
   const ship = m.ship(slot.ship);
@@ -681,7 +681,7 @@ export function syncDomBattleHud(battle: any) {
   root.style.display = "flex";
   document.body.dataset.uw2Battle = "1";
 
-  const m = battle.st.model;
+  const m = battle.m;
   const codec = battle.c.codec;
   const dec = (bts: Uint8Array) => toSimp(decodeCleanCstr(codec, bts));
 
@@ -703,7 +703,7 @@ export function syncDomBattleHud(battle: any) {
     }
     for (let s = battle.u16(E); s; s = battle.u16(s + 8)) {
       const slot = battle.u16(s + 2);
-      if (slot && battle.u8(slot + 2) && !(battle.u8(s + 0x0c) & 0x40)) {
+      if (slot && shipSlotByAddr(m, slot).durability && !(battle.u8(s + 0x0c) & 0x40)) {
         if ((k & 1) === heroSideParity) allyShips++;
         else enemyShips++;
       }
@@ -768,7 +768,7 @@ export function syncDomBattleHud(battle: any) {
     for (let k = 0; k < 4; k++) {
       for (let s = battle.u16(0x97e0 + 8 * k); s; s = battle.u16(s + 8)) {
         const slot = battle.u16(s + 2);
-        if (!slot || !battle.u8(slot + 2) || (battle.u8(s + 0x0c) & 0x40)) continue;
+        if (!slot || !shipSlotByAddr(m, slot).durability || (battle.u8(s + 0x0c) & 0x40)) continue;
         const [sx, sy] = battle.pos(s);
         const fl = battle.u8(s + 0x0d);
         const isFlag = battle.u16(0x97e0 + ((fl & 0x30) >> 1)) === s;

@@ -9,6 +9,8 @@
 const kbHex = s => Uint8Array.from(s.match(/../g).map(h => parseInt(h, 16)));
 const kbCstr = s => { const b = kbHex(s), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 
+import { readCstrAtAddr, writeCstrAtAddr } from "../../model/world_helpers.ts";
+
 // 2fdbc: 字码 → 字序; 无效码返回 0x2228 (这里只判断有效与否, 规则与 seg0:4554 略有不同: 0x91 首码视为有效)
 function tvalid(T) { return (T >= 0x30 && T <= 0x39) || (T >= 0x41 && T <= 0x5a) || (T >= 0x61 && T <= 0x7a) || (T >= 0x80 && T <= 0xfd); }
 export function kbValid(code) {
@@ -205,7 +207,7 @@ export class NameInput {
   async run(dest, max) {
     if (this.c.modernUI) {
       const titles = ["请输入名字", "请输入姓氏", "请输入船名", "请输入名称"];
-      const existing = this.c.codec ? this.c.codec.decode(this.c.state.cstr(dest)).replace(/\{[0-9A-F]{2}\}/g, "").trim() : "";
+      const existing = this.c.codec ? this.c.codec.decode(readCstrAtAddr(this.c.state.model, dest)).replace(/\{[0-9A-F]{2}\}/g, "").trim() : "";
       const res = await this.c.modernUI.inputName({
         title: titles[this._lastKind ?? 3] ?? "请输入名称",
         defaultValue: existing,
@@ -213,12 +215,11 @@ export class NameInput {
         encode: s => this.c.font.encode(s),
       });
       if (res.status === 1 && res.bytes) {
-        for (let i = 0; i < res.bytes.length; i++) this.c.state.set8(dest + i, res.bytes[i]);
-        this.c.state.set8(dest + res.bytes.length, 0);
+        writeCstrAtAddr(this.c.state.model, dest, res.bytes);
       }
       return res.status;
     }
-    const { win, menu, sys, state } = this.c;
+    const { win, menu, sys } = this.c;
     menu.count = 0x75;
     this.setRects();
     win.shadowedSaved(0, 0, 0x20, 0xf8, 1);
@@ -245,7 +246,7 @@ export class NameInput {
           if (this.len) {
             this.buf[this.len * 2] = 0;
             const n = this.buf.indexOf(0);
-            for (let i = 0; i <= n; i++) state.set8(dest + i, this.buf[i]);
+            writeCstrAtAddr(this.c.state.model, dest, this.buf, n);
             sys.mouseHide(); await win.close(); return 1;
           }
           sys.mouseHide(); await win.close(); return 3;
