@@ -104,27 +104,61 @@ function popModalLock() {
   if (modalDepth === 0) delete document.body.dataset.uw2Modal;
 }
 
-/** 统一等待玩家推进对话（舞台或对话卡内任意左/右键，或 Enter / Space / Esc） */
+/** 统一等待玩家推进对话（舞台或对话卡内任意左/右键，或 Enter / Space / Esc；在点击完成时推进，避免尾随事件穿透到后续弹窗） */
 export function waitDomContinue(opts?: { stage?: HTMLElement | null }): Promise<void> {
   if (!hasDom()) return Promise.resolve();
   return new Promise(resolve => {
     pushModalLock();
     const scope: HTMLElement | Window = opts?.stage ?? document.getElementById("uw2-stage") ?? window;
     let settled = false;
+    let leftDown = false;
+    let rightDown = false;
     const isBlocked = () => !!document.querySelector(".uw2-modal-backdrop");
     const finish = () => {
       if (settled) return;
       settled = true;
       scope.removeEventListener("mousedown", onMouseDown as EventListener, true);
+      scope.removeEventListener("click", onClick as EventListener, true);
+      window.removeEventListener("mouseup", onMouseUp, true);
+      window.removeEventListener("contextmenu", onContextMenu, true);
       window.removeEventListener("keydown", onKey, true);
       popModalLock();
       resolve();
     };
     const onMouseDown = (e: MouseEvent) => {
       if (isBlocked()) return;
-      if (e.button !== 0 && e.button !== 2) return;
+      if (e.button === 0) {
+        leftDown = true;
+        rightDown = false;
+        e.preventDefault();
+        e.stopPropagation();
+      } else if (e.button === 2) {
+        rightDown = true;
+        leftDown = false;
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    const onMouseUp = (e: MouseEvent) => {
+      if (e.button === 0 && leftDown) {
+        setTimeout(() => { leftDown = false; }, 0);
+      }
+    };
+    const onClick = (e: MouseEvent) => {
+      if (isBlocked() || !leftDown) return;
+      leftDown = false;
       e.preventDefault();
       e.stopPropagation();
+      e.stopImmediatePropagation();
+      finish();
+    };
+    const onContextMenu = (e: MouseEvent) => {
+      if (isBlocked()) return;
+      if (!rightDown && scope instanceof HTMLElement && e.target instanceof Node && !scope.contains(e.target)) return;
+      rightDown = false;
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
       finish();
     };
     const onKey = (e: KeyboardEvent) => {
@@ -136,6 +170,9 @@ export function waitDomContinue(opts?: { stage?: HTMLElement | null }): Promise<
       }
     };
     scope.addEventListener("mousedown", onMouseDown as EventListener, true);
+    scope.addEventListener("click", onClick as EventListener, true);
+    window.addEventListener("mouseup", onMouseUp, true);
+    window.addEventListener("contextmenu", onContextMenu, true);
     window.addEventListener("keydown", onKey, true);
   });
 }
@@ -237,9 +274,17 @@ export function createDomModal(opts: {
   }
 
   // 原版大航海时代 II 右键返回/关闭手感：在最顶层弹窗内任意处右键即等同 Esc 返回
+  const openedAt = performance.now();
+  let sawRightDown = false;
+  backdrop.addEventListener("mousedown", e => {
+    if (e.button === 2) sawRightDown = true;
+  }, true);
   backdrop.addEventListener("contextmenu", e => {
     e.preventDefault();
     e.stopPropagation();
+    // 忽略前序对话右键尾随过来的 contextmenu，避免刚打开的弹窗闪退
+    if (!sawRightDown && performance.now() - openedAt < 180) return;
+    sawRightDown = false;
     if (cancelable && modalStack[modalStack.length - 1] === backdrop) {
       doClose();
       opts.onCancel?.();
