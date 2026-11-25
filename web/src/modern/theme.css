@@ -421,6 +421,13 @@ html, body {
   font-size: 13px;
   font-weight: 700;
 }
+.uw2-modal-body .uw2-btn:not(.uw2-btn-step):not(.uw2-tab-btn),
+.uw2-modal-footer .uw2-btn:not(.uw2-btn-step):not(.uw2-tab-btn) {
+  padding: 8px 20px !important;
+  min-height: 36px;
+  border-radius: 6px;
+  line-height: 1.25;
+}
 .uw2-modal > :not(.uw2-modal-header) .uw2-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
