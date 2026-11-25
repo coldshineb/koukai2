@@ -406,14 +406,20 @@ html, body {
   letter-spacing: 1px;
 }
 
-.uw2-modal > :not(.uw2-modal-header) .uw2-btn:not(.uw2-btn-primary):not(.active) {
+.uw2-modal > :not(.uw2-modal-header) .uw2-btn:not(.uw2-btn-primary):not(.active):not(.uw2-tab-btn) {
   color: var(--uw2-ink);
   background: rgba(255, 252, 244, 0.92);
   border-color: rgba(154, 119, 56, 0.55);
+  font-size: 13px;
+  font-weight: 600;
 }
-.uw2-modal > :not(.uw2-modal-header) .uw2-btn:not(.uw2-btn-primary):not(.active):hover:not(:disabled) {
+.uw2-modal > :not(.uw2-modal-header) .uw2-btn:not(.uw2-btn-primary):not(.active):not(.uw2-tab-btn):hover:not(:disabled) {
   background: rgba(200, 162, 88, 0.28);
   border-color: var(--uw2-gold);
+}
+.uw2-modal > :not(.uw2-modal-header) .uw2-btn-primary {
+  font-size: 13px;
+  font-weight: 700;
 }
 .uw2-modal > :not(.uw2-modal-header) .uw2-btn:disabled {
   opacity: 0.45;
