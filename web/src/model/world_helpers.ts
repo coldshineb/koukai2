@@ -120,6 +120,10 @@ export function getWorkState(m: WorldModel) {
     get royalChap(): number { return st.u8(WorkDS.ROYAL_CHAP); },
     get commonEvent(): number { return st.u16(0x0de6); },
     get heroEvent(): number { return st.u16(0x0d5c); },
+    get commonBattleTarget(): number { return st.u16(0x0de0); },
+    set commonBattleTarget(v: number) { st.set16(0x0de0, v); },
+    get heroBattleTarget(): number { return st.u16(0x0d56); },
+    set heroBattleTarget(v: number) { st.set16(0x0d56, v); },
     get exploreTotal(): number { return st.u16(WorkDS.EXPLORE_TOTAL); },
     get exploreUnrep(): number { return st.u16(WorkDS.EXPLORE_UNREP); },
     set exploreUnrep(v: number) { st.set16(WorkDS.EXPLORE_UNREP, v); },
@@ -272,6 +276,20 @@ export function setPartySalaryUnit(m: WorldModel, slot: number, v: number): void
   m.st.set8(0x2e39 + slot, v);
 }
 
+/** 海上补给配给比例 (DS:0x2e19 水 %, DS:0x2e1a 食物 %) */
+export function getWaterRationPct(m: WorldModel): number {
+  return m.st.u8(0x2e19);
+}
+export function setWaterRationPct(m: WorldModel, v: number): void {
+  m.st.set8(0x2e19, v);
+}
+export function getFoodRationPct(m: WorldModel): number {
+  return m.st.u8(0x2e1a);
+}
+export function setFoodRationPct(m: WorldModel, v: number): void {
+  m.st.set8(0x2e1a, v);
+}
+
 /** 舰队补充视图 (舰员特长槽 +0x1d..+0x20 等) */
 export function getFleetOfficer(fleet: FleetView, i: number): number {
   return fleet.st.u8(fleet.addr + 0x1d + i);
@@ -353,4 +371,9 @@ export function swapShipAndCrewSlots(m: WorldModel, a: number, b: number): void 
     ca.st.set8(ca.addr + k, cb.st.u8(cb.addr + k));
     cb.st.set8(cb.addr + k, t);
   }
+}
+
+/** 反转精灵动画相位标志 (DS:0x8b1e) */
+export function toggleSpritePhase(m: WorldModel): void {
+  m.st.set8(0x8b1e, m.st.u8(0x8b1e) ^ 1);
 }
