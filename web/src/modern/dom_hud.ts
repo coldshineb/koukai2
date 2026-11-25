@@ -115,7 +115,8 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
   const hh = ((Math.floor(t / 3) + 11) % 12) + 1;
   const mm = String((t % 3) * 20).padStart(2, "0");
   const ap = t >= 0x24 ? "PM" : "AM";
-  const dateText = `A.D.${rt.year + 1501} ${monthStr} ${rt.day + 1}  ${hh}:${mm}${ap}`;
+  const dateOnlyText = `A.D.${rt.year + 1501} ${monthStr} ${rt.day + 1}`;
+  const dateText = atSea ? dateOnlyText : `${dateOnlyText}  ${hh}:${mm}${ap}`;
   const hd = m.heroInfo();
   const fame = Math.max(hd.tradeFame, hd.pirateFame, hd.adventureFame);
   const money = m.globals.money;
@@ -123,8 +124,28 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
   const gold = money % 10000;
 
   const ss = atSea ? scene._seaStats : null;
+  let seaWater = ss?.water ?? 0;
+  let seaFood = ss?.food ?? 0;
+  let seaLumber = ss?.lumber ?? 0;
+  let seaAmmo = ss?.ammo ?? 0;
+  if (atSea && typeof scene.slotOf === "function" && typeof scene.crewOf === "function") {
+    let w = 0, f = 0, l = 0, a = 0;
+    for (let i = 0; i < 10; i++) {
+      const S = scene.slotOf(i);
+      if ((st.u8(S + 8) & 0x30) !== 0x10) continue;
+      const M = scene.crewOf(i);
+      w = (w + st.u16(M)) & 0xffff;
+      f = (f + st.u16(M + 2)) & 0xffff;
+      l = (l + st.u16(M + 4)) & 0xffff;
+      a = (a + st.u16(M + 6)) & 0xffff;
+    }
+    seaWater = Math.floor(w / 10);
+    seaFood = Math.floor(f / 10);
+    seaLumber = (l << 16) >> 16;
+    seaAmmo = (a << 16) >> 16;
+  }
   const tlKey = atSea && ss
-    ? `S|${heroId}|${dateText}|${fame}|${ss.daysAtSea}|${ss.water}|${ss.food}|${ss.lumber}|${ss.ammo}`
+    ? `S|${heroId}|${dateText}|${seaWater}|${seaFood}|${seaLumber}|${seaAmmo}`
     : `P|${heroId}|${dateText}|${fame}|${bars}|${gold}`;
   if (tlKey !== lastTlKey) {
     lastTlKey = tlKey;
@@ -140,12 +161,12 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
       info.innerHTML = `
         <div style="font-size:13px;font-weight:700;color:#7a4e10;">${dateText}</div>
         <div style="display:flex;gap:14px;font-size:12.5px;font-weight:600;color:var(--uw2-ink);">
-          <span>水 <b style="color:${ss.water <= 10 ? "#b83d3d" : "#2a6bb8"};">${ss.water}</b></span>
-          <span>粮食 <b style="color:${ss.food <= 10 ? "#b83d3d" : "#247544"};">${ss.food}</b></span>
+          <span>水 <b style="color:${seaWater <= 10 ? "#b83d3d" : "#2a6bb8"};">${seaWater}</b></span>
+          <span>粮食 <b style="color:${seaFood <= 10 ? "#b83d3d" : "#247544"};">${seaFood}</b></span>
         </div>
         <div style="display:flex;gap:14px;font-size:12.5px;font-weight:600;color:var(--uw2-ink);">
-          <span>物资 <b>${ss.lumber}</b></span>
-          <span>炮弹 <b>${ss.ammo}</b></span>
+          <span>物资 <b>${seaLumber}</b></span>
+          <span>炮弹 <b>${seaAmmo}</b></span>
         </div>
       `;
     } else {
