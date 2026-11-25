@@ -327,8 +327,13 @@ export function runDomNumPad(min: number, max: number, promptText = ""): Promise
   });
 }
 
-// ---------------- 5. 現代資訊卡片彈窗 (積載/發現物/隨身物/皇宮港口表) ----------------
-export function runDomInfoLines(title: string, lines: string[], actionLabels?: string[]): Promise<number> {
+// ---------------- 5. 現代資訊卡片彈窗 (積載/發現物/隨身物/皇宮港口表，支援可選插圖) ----------------
+export function runDomInfoLines(
+  title: string,
+  lines: string[],
+  actionLabels?: string[],
+  imageUrl?: string | null,
+): Promise<number> {
   return new Promise(resolve => {
     let settled = false;
     const done = (v: number) => { if (settled) return; settled = true; h.close(); resolve(v); };
@@ -342,11 +347,29 @@ export function runDomInfoLines(title: string, lines: string[], actionLabels?: s
 
     const box = document.createElement("div");
     box.className = "uw2-action-box";
-    for (const line of lines) {
-      const div = document.createElement("div");
-      div.style.cssText = "font-size:15px;line-height:1.55;color:var(--uw2-ink);";
-      div.textContent = line || "\u00a0";
-      box.appendChild(div);
+    if (imageUrl) {
+      const wrap = document.createElement("div");
+      wrap.style.cssText = "display:flex;gap:14px;align-items:flex-start;";
+      const img = document.createElement("img");
+      img.src = imageUrl;
+      img.style.cssText = "width:96px;height:96px;object-fit:contain;border-radius:8px;border:1px solid var(--uw2-gold);background:#141c2b;image-rendering:pixelated;flex-shrink:0;";
+      const col = document.createElement("div");
+      col.style.cssText = "flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;";
+      for (const line of lines) {
+        const div = document.createElement("div");
+        div.style.cssText = "font-size:15px;line-height:1.55;color:var(--uw2-ink);";
+        div.textContent = line || "\u00a0";
+        col.appendChild(div);
+      }
+      wrap.append(img, col);
+      box.appendChild(wrap);
+    } else {
+      for (const line of lines) {
+        const div = document.createElement("div");
+        div.style.cssText = "font-size:15px;line-height:1.55;color:var(--uw2-ink);";
+        div.textContent = line || "\u00a0";
+        box.appendChild(div);
+      }
     }
     h.body.appendChild(box);
 

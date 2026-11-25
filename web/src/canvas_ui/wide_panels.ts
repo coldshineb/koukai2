@@ -172,8 +172,9 @@ export async function runWideInfoLinesModal(
   title: string,
   lines: string[],
   actionLabels?: string[],
+  imageUrl?: string | null,
 ): Promise<number> {
-  if (hasDom()) return runDomInfoLines(title, lines, actionLabels);
+  if (hasDom()) return runDomInfoLines(title, lines, actionLabels, imageUrl);
   const { scr, sys, menu } = ctx;
   const w = 560;
   const bodyH = Math.max(120, lines.length * 32 + 24);

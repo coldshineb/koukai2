@@ -20,6 +20,7 @@ import { runWideFleetHub } from "../canvas_ui/wide_fleet_hub.ts";
 import { captureConsoleText, decodeCleanCstr, UI_FONT } from "../canvas_ui/text_util.ts";
 import { hasDom } from "../modern/dom_ui.ts";
 import { runDomPersonInfo, runDomShipInfo } from "../modern/dom_workbenches.ts";
+import { runDomInfoHub, runDomBelongings } from "../modern/dom_info_hub.ts";
 
 const cmHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const cmStrlen = s => { let n = 0; while (n < s.length && s[n]) n++; return n; };
@@ -142,6 +143,10 @@ export class Commands {
   // ================= 情報 1fd9:0e33 (20bc3) =================
   async info() {
     const st = this.st, { menu, palette, scr } = this.c, items = this.c.menuItems(0x1a).slice(0, 10), b = this.b, p = this.p;
+    if (scr.wideRenderer && hasDom() && this.c.codec) {
+      await runDomInfoHub(this);
+      return;
+    }
     const cargo = this.anyCargo();
     let di = 0;
     do {
@@ -1572,6 +1577,10 @@ export class Commands {
   // 29a4c 隨身物
   async belongings() {
     const { win, scr } = this.c, ls = this.b.listSel();
+    if (scr.wideRenderer && hasDom() && this.c.codec) {
+      await runDomBelongings(this);
+      return;
+    }
     for (;;) {
       const n = this.itemList();
       const items = this.c.menuItems(0x21).slice(0, 2);

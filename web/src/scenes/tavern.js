@@ -399,7 +399,8 @@ class TavernMixin {
       const desc = decodeCleanCstr(codec, rec.subarray(0x10));
       const descLines = [];
       for (let i = 0; i < desc.length; i += 24) descLines.push(desc.slice(i, i + 24));
-      await runWideInfoLinesModal(this.c, title, [catLine, impLine, "", ...descLines]);
+      const imgUrl = this.c.art?.discoveryUrl?.(rec[0x0f]) ?? null;
+      await runWideInfoLinesModal(this.c, title, [catLine, impLine, "", ...descLines], undefined, imgUrl);
       return;
     }
     await win.open(0x0f, 0x20, 0x1c, 0xd0, 0);                              // seg0:74f7
@@ -427,10 +428,18 @@ class TavernMixin {
     for (;;) {
       const r = await this.listSel().select(0x8d, L.length);
       if (r === -1) return;
-      this.table();                                                        // 0fea:b6bc
       it = this.c.persons[r] & 0xff;
-      this.itemInfo(it, 0);
-      if (await this.c.menu.yesNo()) break;
+      if (this.c.scr.wideRenderer && this.c.codec) {
+        const R = DS.TBL_ITEM + it * 0x14;
+        const lines = captureConsoleText(this.c, () => this.itemInfo(it, 0)).split("\n").filter(Boolean);
+        const title = decodeCleanCstr(this.c.codec, st.cstr(R));
+        const imgUrl = this.c.art?.discoveryUrl?.(st.u8(R + 0x0f) + 0x55) ?? null;
+        if ((await runWideInfoLinesModal(this.c, title, lines, ["是", "否"], imgUrl)) === 0) break;
+      } else {
+        this.table();                                                        // 0fea:b6bc
+        this.itemInfo(it, 0);
+        if (await this.c.menu.yesNo()) break;
+      }
     }
     this.talkGirl(this.girlFace(), g);
     const R = DS.TBL_ITEM + it * 0x14, t = st.u8(R + 0x13) & 0x0f;
