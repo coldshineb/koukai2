@@ -1,4 +1,4 @@
-// assets.js — 載入提取後的資源 (索引 PNG / JSON)
+// assets.js — 加载提取后的资源 (索引 PNG / JSON)
 const cache = new Map();
 
 export async function loadBinary(url) {
@@ -20,7 +20,7 @@ async function loadImageData(url) {
   return g.getImageData(0, 0, img.width, img.height);
 }
 
-// 索引圖: PNG 灰階值 = 索引*17
+// 索引图: PNG 灰阶值 = 索引*17
 export async function loadIndexed(url) {
   if (cache.has(url)) return cache.get(url);
   const p = loadImageData(url).then(id => {
@@ -31,7 +31,7 @@ export async function loadIndexed(url) {
   cache.set(url, p); return p;
 }
 
-// 1bit 點陣圖 (字型): 白=1
+// 1bit 位图 (字体): 白=1
 export async function loadBitmap(url) {
   if (cache.has(url)) return cache.get(url);
   const p = loadImageData(url).then(id => {

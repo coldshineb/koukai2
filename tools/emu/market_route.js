@@ -1,13 +1,13 @@
-// market_route.js — 交易所 差分測試設定 (先執行本檔, 再執行 port_tests.js)
-// 進港時兩邊同時寫入: 現金 S.MARKET_MONEY (預設 3000)、艦隊第 0 格 = 船 0 (水手 10, 船型 0, 載重 100, 船長 = 主角), 船上補給與貨物清空
+// market_route.js — 交易所 差分测试设置 (先运行本档, 再运行 port_tests.js)
+// 进港时两边同时写入: 现金 S.MARKET_MONEY (默认 3000)、舰队第 0 格 = 船 0 (水手 10, 船型 0, 载重 100, 船长 = 主角), 船上补给与货物清空
 // S.MARKET_MODE:
-//   "lis"  里斯本 (首都, 有許可時免稅): 買進 第 1 項 5 個 → 再買第 1 項: 否 → 殺價 1 (被回絕) → 殺價 最大值 (成交) 3 個
-//          → 賣出 2 個 → Esc → 投資 (首都: 不允許) → 物價 分類 0 / 1 → 離開
-//   "bar"  巴塞隆納 (非首都, 西班牙): 投資 1000 → 買進 (課稅) 第 2 項 4 個 → 物價 分類 3 → 離開
-//   "full" 里斯本, 船已裝滿 (載重 = 已用) → 買進被拒 (0x1b)
-//   "big"  里斯本, 現金 60000: 物價 (食品) → 買進第 1 項 最大值 100 個 → 物價 (食品) → 賣出 最大值 → 物價 (食品)
-//          (交易額夠大, 供給 (= 物價水準) 才會變動: 該分類 + 金額 / (商業值 + 500), 全分類 + 金額 / 1000)
-// S.MARKET_KEYS 直接指定交易所內的按鍵; S.MARKET_POKE 額外寫入
+//   "lis"  里斯本 (首都, 有许可时免税): 买进 第 1 项 5 个 → 再买第 1 项: 否 → 杀价 1 (被回绝) → 杀价 最大值 (成交) 3 个
+//          → 卖出 2 个 → Esc → 投资 (首都: 不允许) → 物价 分类 0 / 1 → 离开
+//   "bar"  巴塞隆纳 (非首都, 西班牙): 投资 1000 → 买进 (课税) 第 2 项 4 个 → 物价 分类 3 → 离开
+//   "full" 里斯本, 船已装满 (载重 = 已用) → 买进被拒 (0x1b)
+//   "big"  里斯本, 现金 60000: 物价 (食品) → 买进第 1 项 最大值 100 个 → 物价 (食品) → 卖出 最大值 → 物价 (食品)
+//          (交易额够大, 供给 (= 物价水准) 才会变动: 该分类 + 金额 / (商业值 + 500), 全分类 + 金额 / 1000)
+// S.MARKET_KEYS 直接指定交易所内的按键; S.MARKET_POKE 额外写入
 "use strict";
 (function () {
 const S = session;
@@ -21,37 +21,37 @@ poke.push([0x5892 + 0x0f, 0]); w16(0x5892 + 0x14, mode === "full" ? 1 : 100);
 const M = 0x52d4; poke.push([M + 0x1b, 0], [M + 8, 30], [M + 9, 20], [M + 0x1c, 50]);
 for (let i = 0; i < 0x0c; i++) poke.push([M + i, 0]);
 for (let j = 0; j < 5; j++) { poke.push([M + 0x16 + j, 0xff]); w16(M + 0x0c + j * 2, 0); }
-if (mode === "full") w16(M + 4, 1);                                       // 資材 1 → 已用 = 載重
+if (mode === "full") w16(M + 4, 1);                                       // 资材 1 → 已用 = 载重
 for (const [a, v] of S.MARKET_POKE || []) poke.push([a, v]);
 S.PORT_SETUP = mode === "bar" ? { port: 3, vx: 44, vy: 38, hx: 12, hy: 12, poke } : { port: 0, vx: 30, vy: 48, hx: 11, hy: 12, poke };
 const D = n => Array(n).fill(K.down);
 const LIS = [
-  K.enter, K.enter,                                   // 買進 → 0x2fa/0x2fb ▽
-  K.enter, K.enter, K.enter,                          // 清單第 1 項 → 船員評價 ▽ → 0x96 是
-  K.enter, K.d5, K.enter,                             // 選船 → 5 個
-  K.enter, K.enter, K.esc,                            // 再選第 1 項 → ▽ → 0x96 否 → 殺價
-  K.d1, K.enter, K.enter,                             // 出價 1 → 0x0c ▽
-  K.max, K.enter, K.enter,                            // 出價 最大值 → 0x0a ▽
-  K.enter, K.d3, K.enter,                             // 選船 → 3 個
-  K.esc,                                              // 清單 Esc
-  K.down, K.enter, K.enter, K.enter, K.d2, K.enter,   // 賣出 → 選船 → 第 1 項 → 2 個
-  K.esc, K.esc,                                       // 貨物清單 Esc → 船清單 Esc
-  ...D(2), K.enter, K.enter,                          // 投資 → 0x02 ▽
-  ...D(3), K.enter, K.enter, K.down, K.enter, K.esc,  // 物價 → 分類 0 → 分類 1 → Esc
+  K.enter, K.enter,                                   // 买进 → 0x2fa/0x2fb ▽
+  K.enter, K.enter, K.enter,                          // 清单第 1 项 → 船员评价 ▽ → 0x96 是
+  K.enter, K.d5, K.enter,                             // 选船 → 5 个
+  K.enter, K.enter, K.esc,                            // 再选第 1 项 → ▽ → 0x96 否 → 杀价
+  K.d1, K.enter, K.enter,                             // 出价 1 → 0x0c ▽
+  K.max, K.enter, K.enter,                            // 出价 最大值 → 0x0a ▽
+  K.enter, K.d3, K.enter,                             // 选船 → 3 个
+  K.esc,                                              // 清单 Esc
+  K.down, K.enter, K.enter, K.enter, K.d2, K.enter,   // 卖出 → 选船 → 第 1 项 → 2 个
+  K.esc, K.esc,                                       // 货物清单 Esc → 船清单 Esc
+  ...D(2), K.enter, K.enter,                          // 投资 → 0x02 ▽
+  ...D(3), K.enter, K.enter, K.down, K.enter, K.esc,  // 物价 → 分类 0 → 分类 1 → Esc
   K.esc, K.down];
 const BAR = [
-  ...D(2), K.enter, K.d1, K.d0, K.d0, K.d0, K.enter, K.enter,   // 投資 1000 → 0x0f ▽
-  K.enter, K.enter,                                   // 買進 → 0x2fb ▽
-  K.down, K.enter, K.enter, K.enter,                  // 第 2 項 → ▽ → 是
-  K.enter, K.d4, K.enter, K.esc,                      // 選船 → 4 個 → 清單 Esc
-  ...D(3), K.enter, ...D(3), K.enter, K.esc,          // 物價 分類 3
+  ...D(2), K.enter, K.d1, K.d0, K.d0, K.d0, K.enter, K.enter,   // 投资 1000 → 0x0f ▽
+  K.enter, K.enter,                                   // 买进 → 0x2fb ▽
+  K.down, K.enter, K.enter, K.enter,                  // 第 2 项 → ▽ → 是
+  K.enter, K.d4, K.enter, K.esc,                      // 选船 → 4 个 → 清单 Esc
+  ...D(3), K.enter, ...D(3), K.enter, K.esc,          // 物价 分类 3
   K.esc, K.down];
 const FULL = [K.enter, K.enter, K.esc, K.down];
-const PRICE = [...D(3), K.enter, K.down, K.down, K.enter, K.esc];          // 物價 → 分類 2 (食品) → Esc
+const PRICE = [...D(3), K.enter, K.down, K.down, K.enter, K.esc];          // 物价 → 分类 2 (食品) → Esc
 const BIG = [...PRICE,
-  K.enter, K.enter, K.enter, K.enter, K.enter, K.enter, K.max, K.enter, K.esc,   // 買進 第 1 項 → 是 → 選船 → 最大值
+  K.enter, K.enter, K.enter, K.enter, K.enter, K.enter, K.max, K.enter, K.esc,   // 买进 第 1 项 → 是 → 选船 → 最大值
   ...PRICE,
-  K.down, K.enter, K.enter, K.enter, K.max, K.enter, K.esc, K.esc,             // 賣出 → 選船 → 第 1 項 → 最大值
+  K.down, K.enter, K.enter, K.enter, K.max, K.enter, K.esc, K.esc,             // 卖出 → 选船 → 第 1 项 → 最大值
   ...PRICE, K.esc, K.down];
 S.PORT_KEYS = [K.up, ...(S.MARKET_KEYS || (mode === "bar" ? BAR : mode === "full" ? FULL : mode === "big" ? BIG : LIS))];
 S.NO_EVENTS = 1;

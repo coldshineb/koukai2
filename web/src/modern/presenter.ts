@@ -1,5 +1,5 @@
-// modern/presenter.ts — ModernPresenter (階段 4 現代高清 DOM/CSS 互動組件庫，實作 IGameUI)
-// 供階段 5 逐場景從 640×400 幀緩衝切換至現代高清介面使用。
+// modern/presenter.ts — ModernPresenter (阶段 4 现代高清 DOM/CSS 交互组件库，实现 IGameUI)
+// 供阶段 5 逐场景从 640×400 帧缓冲切换至现代高清界面使用。
 import type { IGameUI } from "../ui/protocol.ts";
 import { stripEscBytes, toSimp } from "../canvas_ui/text_util.ts";
 
@@ -19,7 +19,7 @@ export class ModernGameUI implements IGameUI {
   }
 
   showMessage(msgId: number, ...args: unknown[]): void {
-    // 過渡期保留底層 msgId 紀錄；階段 5 各場景會直接傳語意文字
+    // 过渡期保留底层 msgId 纪录；阶段 5 各场景会直接传语意文字
     this.currentText = args.length ? `[#${msgId}] ${args.map(String).join(" ")}` : `[#${msgId}]`;
   }
 
@@ -321,5 +321,5 @@ export class ModernGameUI implements IGameUI {
   async fadeBlack(): Promise<void> { await this.c?.palette?.fadeBlack?.(); }
   async fadeToTarget(): Promise<void> { await this.c?.palette?.fadeToTarget?.(); }
   playMusic(song: number): void { this.c?.bgm?.playSong?.(song); }
-  refreshPanels(): void { /* 由階段 5 現代 HUD 響應式更新 */ }
+  refreshPanels(): void { /* 由阶段 5 现代 HUD 响应式更新 */ }
 }

@@ -6,7 +6,7 @@ import os, zipfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 OUT = os.path.join(ROOT, "tools", "work", "_sandbox_cmd.zip")
-KEEP_WORK = ("sea2", "rom8x8.bin", "newgame.bin", "emu_boot.js", "ui_bundle.js")   # emu_boot.js 由 make_sandbox_boot.py 產生, ui_bundle.js 由 make_test_bundle.py 產生
+KEEP_WORK = ("sea2", "rom8x8.bin", "newgame.bin", "emu_boot.js", "ui_bundle.js")   # emu_boot.js 由 make_sandbox_boot.py 产生, ui_bundle.js 由 make_test_bundle.py 产生
 
 
 def want(rel):

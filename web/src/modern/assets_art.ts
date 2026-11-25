@@ -1,5 +1,5 @@
-// modern/assets_art.ts — 現代標準 PNG 美術資源註冊表 (對應 web/assets/art/manifest.json)
-// 任何單張 PNG (頭像/建築/船型/船首像/發現物/劇情插圖/背景) 皆可直接替換為高清重繪版本，無需重新打包二進位檔。
+// modern/assets_art.ts — 现代标准 PNG 美术资源注册表 (对应 web/assets/art/manifest.json)
+// 任何单张 PNG (头像/建筑/船型/船首像/发现物/剧情插图/背景) 皆可直接替换为高清重绘版本，无需重新打包二进位档。
 import { loadJSON } from "../core/assets.js";
 
 export interface ArtEntry {
@@ -46,7 +46,7 @@ export class ArtRegistry {
     try {
       this.manifest = await loadJSON(this.baseUrl + "/manifest.json");
     } catch (e) {
-      console.warn("載入 art/manifest.json 失敗:", e);
+      console.warn("加载 art/manifest.json 失败:", e);
     }
     return this;
   }
@@ -92,7 +92,7 @@ export class ArtRegistry {
     await Promise.all(urls.filter((u): u is string => !!u).map(u => this.loadImage(u)));
   }
 
-  // 直接將單張 PNG (支援任意倍數高清重繪版本) 繪製到 Screen 的 HD 2D 畫布
+  // 直接将单张 PNG (支持任意倍数高清重绘版本) 绘制到 Screen 的 HD 2D 画布
   drawEntry(
     scr: any,
     entry: ArtEntry | null | undefined,
@@ -123,7 +123,7 @@ export class ArtRegistry {
     return true;
   }
 
-  // 直接將圖集切片繪製到 Screen 的 HD 2D 畫布 (自動適配高清重繪圖集的實際解析度)
+  // 直接将图集切片绘制到 Screen 的 HD 2D 画布 (自动适配高清重绘图集的实际分辨率)
   drawSheetTile(
     scr: any,
     sheetName: string,
@@ -178,7 +178,7 @@ export class ArtRegistry {
     const key = fileName.toUpperCase();
     const list = this.manifest?.graph?.[key];
     if (list?.[index]) return list[index];
-    // 相容 EVENT0.DAT..EVENT6.DAT
+    // 兼容 EVENT0.DAT..EVENT6.DAT
     const m = /^EVENT(\d)\.DAT$/i.exec(fileName);
     if (m) return this.manifest?.events[`event${m[1]}`]?.[index] ?? null;
     return null;

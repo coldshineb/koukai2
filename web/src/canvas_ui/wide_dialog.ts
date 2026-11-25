@@ -1,11 +1,11 @@
-// canvas_ui/wide_dialog.ts — 原生 16:9 (1280×720) 現代精簡底部對話條 (零 DOM、100% 原版文本)
+// canvas_ui/wide_dialog.ts — 原生 16:9 (1280×720) 现代精简底部对话条 (零 DOM、100% 原版文本)
 import { VIEW_W, VIEW_H } from "../core/screen.js";
 import { UI_FONT } from "./text_util.ts";
 
 export interface WideDialogState {
   text: string;
-  portraitId: number | null; // 0..127 具名頭像，null 為無頭像
-  portraitComposed?: { type: number; parts: number } | null; // 5 層拼合頭像 (無名人物 / 隨機航海士)
+  portraitId: number | null; // 0..127 具名头像，null 为无头像
+  portraitComposed?: { type: number; parts: number } | null; // 5 层拼合头像 (无名人物 / 随机航海士)
   waiting: boolean;
 }
 

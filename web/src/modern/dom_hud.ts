@@ -1,5 +1,5 @@
-// modern/dom_hud.ts — 16:9 港口/海面主介面羊皮紙現代 HTML/CSS HUD + 新建遊戲選角介面
-// 與「讀取進度 (save_modal.ts)」1:1 同套暖羊皮紙 + 古銅金邊視覺，徹底取代老 Canvas 黑藍框 HUD 與黑底選角頁。
+// modern/dom_hud.ts — 16:9 港口/海面主界面羊皮纸现代 HTML/CSS HUD + 新建游戏选角界面
+// 与「读取进度 (save_modal.ts)」1:1 同套暖羊皮纸 + 古铜金边视觉，彻底取代老 Canvas 黑蓝框 HUD 与黑底选角页。
 import { DS } from "../model/schema_views.ts";
 import { decodeCleanCstr, toSimp } from "../canvas_ui/text_util.ts";
 import { createDomModal, hasDom, getPersonPortraitSrc } from "./dom_ui.ts";
@@ -26,7 +26,7 @@ const BLD_NAMES = [
   "银行", "道具店", "教会", "占卜师",
 ];
 
-// 4 枚主指令按鈕對應的 PC BIOS F1-F4 掃描碼 (keymap.js: 0x3b / 0x3c / 0x3d / 0x3e)
+// 4 枚主指令按钮对应的 PC BIOS F1-F4 扫描码 (keymap.js: 0x3b / 0x3c / 0x3d / 0x3e)
 const CMD_DEFS: [string, number][] = [
   ["情报", 0x3b],
   ["经营", 0x3c],
@@ -109,7 +109,7 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
   currentSys = c.sys;
   currentScene = scene;
 
-  // 1. 左上：頭像 + 日期時刻 + 聲望/金塊/金幣
+  // 1. 左上：头像 + 日期时刻 + 声望/金块/金币
   const heroId = m.globals.hero;
   const months = scene.months ?? [];
   const monthStr = months[rt.month] ? decodeCleanCstr(codec, months[rt.month]) : `${rt.month + 1}`;
@@ -182,7 +182,7 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
     tlEl.append(img, info);
   }
 
-  // 2. 右上：港情（含商業/工業投資額）+ 港內建築一鍵直達  或  海上氣象
+  // 2. 右上：港情（含商业/工业投资额）+ 港内置筑一键直达  或  海上气象
   if (!atSea) {
     const P = scene.port;
     if (P >= 130) return;
@@ -220,7 +220,7 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
       `;
     }
 
-    // 港內建築一鍵直達（只在允許港內移動時顯示）
+    // 港内置筑一键直达（只在允许港内移动时显示）
     if (PortMove.enabled(c) && scene.door) {
       const items: { k: number; open: boolean; ok: boolean }[] = [];
       for (let k = 0; k < 12; k++) {
@@ -296,7 +296,7 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
       `;
     }
 
-    // 海上右側艦隊完整狀態欄（還原原版 7 項屬性：轉向力 / 推進力 / 耐久度 / 吃水量 / 瞭望範圍 / 水手 / 船艦狀態）
+    // 海上右侧舰队完整状态栏（还原原版 7 项属性：转向力 / 推进力 / 耐久度 / 吃水量 / 瞭望范围 / 水手 / 船舰状态）
     if (ss) {
       let turn = ss.turn;
       let prop = ss.prop;
@@ -341,7 +341,7 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
     }
   }
 
-  // 3. 左下：羅盤
+  // 3. 左下：罗盘
   const rawNeedle = scene.needle === 0xff ? 0 : scene.needle;
   const deg = atSea ? rawNeedle * 45 : rawNeedle * 90;
   const blKey = `${deg}`;
@@ -364,7 +364,7 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
   }
 }
 
-/** 現代羊皮紙「新建遊戲 — 選擇主角 + 可選改名」一體化介面 */
+/** 现代羊皮纸「新建游戏 — 选择主角 + 可选改名」一体化界面 */
 export function runDomNewGameSelect(
   heroes: { id: number; name: string; given: string; family: string; age: number; stats: number[]; skill: string; intro: string; portraitUrl: string | null }[],
   statLabels: string[],
@@ -480,7 +480,7 @@ export function runDomNewGameSelect(
   });
 }
 
-/** 現代 16:9 標題開始介面（深海航海羅盤全屏底圖 + 古銅金標題 + 暖羊皮紙主選單，徹底取代模糊 KOEI Canvas） */
+/** 现代 16:9 标题开始界面（深海航海罗盘全屏底图 + 古铜金标题 + 暖羊皮纸主菜单，彻底取代模糊 KOEI Canvas） */
 export function runDomTitleMenu(labels: string[]): Promise<number> {
   if (!hasDom()) return Promise.resolve(0);
   hideDomWorldHud();
@@ -557,7 +557,7 @@ export interface DomSettingsSlider {
   set: (v: number) => void;
 }
 
-/** 獨立現代環境設定介面（開關分段鈕 + 可拖曳古銅金滑桿，標題畫面與遊戲內共用） */
+/** 独立现代环境设置界面（开关分段钮 + 可拖拽古铜金滑杆，标题画面与游戏内共用） */
 export function runDomSettingsModal(opts: {
   title: string;
   toggles: DomSettingsToggle[];

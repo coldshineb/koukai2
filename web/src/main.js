@@ -1,4 +1,4 @@
-// main.js — 現代混合引擎入口 (階段 4: 移除 DOS cpucost / 軟體游標，接入現代倍速、獨立音量與高清 DOM/CSS 殼層)
+// main.js — 现代混合引擎入口 (阶段 4: 移除 DOS cpucost / 软件光标，接入现代倍速、独立音量与高清 DOM/CSS 壳层)
 import { Screen } from "./core/screen.js";
 import { Font } from "./core/font.js";
 import { Sys } from "./core/sys.js";
@@ -12,7 +12,6 @@ import { GameState } from "./game/state.js";
 import { TextCodec, encodeState } from "./game/data.js";
 import { SaveFile } from "./game/savefile.js";
 import { Title } from "./game/title.js";
-import { renderWideTitle } from "./canvas_ui/wide_title.ts";
 import { hasDom } from "./modern/dom_ui.ts";
 import { GameClock } from "./game/clock.js";
 import { Opening, loadOpeningData } from "./game/opening.js";
@@ -22,7 +21,6 @@ import { duelFromScenario } from "./scenes/duel.js";
 import { GameRuntime } from "./modern/runtime.ts";
 import { ModernShell } from "./modern/shell.ts";
 import { ModernGameUI } from "./modern/presenter.ts";
-import { ModernHud } from "./modern/hud.ts";
 import { ModernScenarioHost } from "./modern/scenario_host.ts";
 import { ArtRegistry } from "./modern/assets_art.ts";
 
@@ -33,7 +31,7 @@ const scr = new Screen(canvas);
 const sys = new Sys();
 bindInput(canvas, sys);
 
-// 載入結構化遊戲資料 (world.json -> GameState)
+// 加载结构化游戏数据 (world.json -> GameState)
 const [schema, charmap, world] = await Promise.all(["schema", "../font/charmap", "world"].map(n => loadJSON(`${ASSETS}/data/${n}.json`)));
 const codec = new TextCodec(charmap);
 const initState = encodeState(world, schema, codec);
@@ -60,7 +58,7 @@ ctx.sfx.state = state;
 addEventListener("pointerdown", () => { ctx.bgm.resume(); ctx.sfx.resume(); });
 addEventListener("keydown", () => { ctx.bgm.resume(); ctx.sfx.resume(); });
 
-// 現代存檔存取橋接 (uw2-save-v2 JSON + 只讀匯入原版 KOUKAI2.DAT)
+// 现代存盘访问桥接 (uw2-save-v2 JSON + 只读导入原版 KOUKAI2.DAT)
 async function ensureSaveFile() {
   return (ctx.saveFile ??= await SaveFile.open(ASSETS, initState, schema, codec));
 }
@@ -84,7 +82,6 @@ const shell = new ModernShell({
 ctx.runtime = runtime;
 ctx.shell = shell;
 ctx.modernUI = new ModernGameUI(shell.overlay, ctx);
-ctx.hud = new ModernHud(ctx);
 ctx.scenarioHost = new ModernScenarioHost(ctx, shell.overlay, () => ctx.events?.scene, {
   runDuel: (sc, person) => duelFromScenario(sc, person),
   triggerEnding: (scene, code) => mainEnding(scene, code),
@@ -123,7 +120,7 @@ globalThis.UW2Save = {
   },
 };
 
-// 原生 60fps 呈現迴圈 (無 DOS 虛擬時鐘節流與軟體游標)
+// 原生 60fps 呈现循环 (无 DOS 虚拟时钟节流与软件光标)
 scr.cursor = null;
 function frame() {
   scr.present();

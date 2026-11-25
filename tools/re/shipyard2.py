@@ -32,7 +32,7 @@ with contextlib.redirect_stdout(buf):
         for i in ins:
             t = _fmt(i)
             print(t)
-            # 追 1fd9 段內 (0x1fd90..0x2e090) 與 seg0 小函式中尚未看過的呼叫
+            # 追 1fd9 段内 (0x1fd90..0x2e090) 与 seg0 小函数中尚未看过的调用
             if i.mn == "call" and i.target is not None and 0x1fd90 <= i.target < 0x2e090 and i.target not in seen and i.target not in (0x2af30, 0x2b119, 0x203e9):
                 queue.append((f"呼叫自 {a:05x}", i.target))
             m = re.search(r"mov ax, 0?([0-9a-f]{4})h", t)

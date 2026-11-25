@@ -47,7 +47,7 @@ def main(tag):
                 n += 1
         z.write(ub, "uw2_remake/tools/work/ui_bundle.js")
         z.write(eb, "uw2_remake/tools/work/emu_boot.js")
-        rf = os.path.join(WORK, f"runf_{tag}.js")                  # tools/emu/*.js 登記成 session.RUNF[檔名]() (make_runf.py)
+        rf = os.path.join(WORK, f"runf_{tag}.js")                  # tools/emu/*.js 登记成 session.RUNF[文件名]() (make_runf.py)
         gr = {"__name__": "make_runf", "__file__": os.path.join(HERE, "make_runf.py")}
         exec(open(os.path.join(HERE, "make_runf.py"), encoding="utf-8").read(), gr)
         gr["build"](rf); z.write(rf, "uw2_remake/tools/work/runf.js"); os.remove(rf)

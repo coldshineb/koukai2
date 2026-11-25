@@ -503,8 +503,8 @@ def extract_battle_ships(dat_rel, pal_rgba, out_rel):
                 b0, b1, b2, b3 = dat[po], dat[po + 1], dat[po + 2], dat[po + 3]
                 for i in range(8):
                     shb = 7 - i
-                    # 0x20f AND 遮罩: bit=0 代表透明保留背景, bit=1 代表先清再 OR 圖像? 檢查: 063e mode 2: if (!on) fb &= ~color
-                    # 也就是 bit=1 的地方保持背景 (透明), bit=0 的地方清成 0 再 OR 圖像!
+                    # 0x20f AND 遮罩: bit=0 代表透明保留背景, bit=1 代表先清再 OR 图像? 检查: 063e mode 2: if (!on) fb &= ~color
+                    # 也就是 bit=1 的地方保持背景 (透明), bit=0 的地方清成 0 再 OR 图像!
                     if (m >> shb) & 1:
                         continue
                     col_idx = ((b0 >> shb) & 1) | (((b1 >> shb) & 1) << 1) | (((b2 >> shb) & 1) << 2) | (((b3 >> shb) & 1) << 3)

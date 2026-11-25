@@ -1,8 +1,8 @@
-// boot_open.js — 開發用: 以模擬器執行原版 OPEN.EXE (片頭), 逐 tick 記錄畫面 (VGA 4 平面 0..0x95ff = 640x480) 與 DAC
-// 需先載入 x86emu.js, dosenv.js (session.X86 / session.DOSEnv)。不屬於移植版遊戲本體。
-// 時間模型與其他差分測試相同: INT 66h F1 00 每讀一次倒數減一 (倒數不為 0 時才減), 每減一次 = 經過 1 tick;
-//   在「減一之前」記錄一幀, 所以第 k 幀 = 第 k 個 tick 期間顯示的畫面。
-// 用法: session.W = WORKSPACE_DIR; 執行本檔; 再 session.runOpen({ keys: [{ tick, scan, ascii }], keep: [tick...] })
+// boot_open.js — 开发用: 以模拟器运行原版 OPEN.EXE (片头), 逐 tick 记录画面 (VGA 4 平面 0..0x95ff = 640x480) 与 DAC
+// 需先加载 x86emu.js, dosenv.js (session.X86 / session.DOSEnv)。不属于移植版游戏本体。
+// 时间模型与其他差分测试相同: INT 66h F1 00 每读一次倒数减一 (倒数不为 0 时才减), 每减一次 = 经过 1 tick;
+//   在「减一之前」记录一帧, 所以第 k 帧 = 第 k 个 tick 期间显示的画面。
+// 用法: session.W = WORKSPACE_DIR; 运行本档; 再 session.runOpen({ keys: [{ tick, scan, ascii }], keep: [tick...] })
 "use strict";
 (function () {
 const S = session, fs = require("fs");
@@ -37,7 +37,7 @@ S.runOpen = function (opts = {}) {
     out.tick++;
     while (keys.length && keys[0].tick <= out.tick) { const k = keys.shift(); if (k.mouse !== undefined) env.mouse.b = k.mouse; else env.bioskeys.push((k.scan << 8) | k.ascii); }
   };
-  // INT 10h AX=1001h (設定外框色) — dosenv.js 未處理, 這裡記錄到屬性暫存器 0x11
+  // INT 10h AX=1001h (设置外框色) — dosenv.js 未处理, 这里记录到属性寄存器 0x11
   const h10 = c.hooks[0x10];
   c.hooks[0x10] = cpu => { if (cpu.r[0] === 0x1001) { env.ret(cpu); vga.attr[0x11] = cpu.r[3] >> 8; return; } h10(cpu); };
   c.hooks[0x66] = cpu => {
@@ -45,7 +45,7 @@ S.runOpen = function (opts = {}) {
     if (hi === 0xf1) { if (lo === 1) count = cpu.r[3]; else { if (count) { record(); count--; } cpu.r[3] = count; } return; }
     if (hi === 0xf0) { out.log.push("F0 " + lo); return; }
     out.music.push({ tick: out.tick, ah: hi, al: lo, ds: cpu.s[3], dx: cpu.r[2] });
-    cpu.r[0] = 0;                                  // 載入成功 / 狀態 = 未播放
+    cpu.r[0] = 0;                                  // 加载成功 / 状态 = 未播放
   };
   c.run(opts.maxIns || 3e9);
   out.halted = c.halted; out.exitCode = c.exitCode; out.icount = c.icount;

@@ -1,5 +1,5 @@
-// canvas_ui/wide_fleet.ts — 原生 16:9 (1280×720) 現代 Canvas 2D 自艦隊情報畫面
-// 零 DOM、100% 沿用原版 message.json (0x397..0x39d) 與船隻/提督資料。
+// canvas_ui/wide_fleet.ts — 原生 16:9 (1280×720) 现代 Canvas 2D 自舰队情报画面
+// 零 DOM、100% 沿用原版 message.json (0x397..0x39d) 与船只/提督数据。
 import { DS, OFF } from "../model/schema_views.ts";
 import { VIEW_W, VIEW_H } from "../core/screen.js";
 
@@ -35,7 +35,7 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 
 export function drawWideFleetView(ctx: CanvasRenderingContext2D, art: any, data: WideFleetViewData) {
   ctx.save();
-  // 深海航海背景漸層
+  // 深海航海背景渐层
   const bg = ctx.createLinearGradient(0, 0, 0, VIEW_H);
   bg.addColorStop(0, "#0b1a30");
   bg.addColorStop(0.65, "#102744");
@@ -43,7 +43,7 @@ export function drawWideFleetView(ctx: CanvasRenderingContext2D, art: any, data:
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 
-  // 上方船隊卡片畫廊 (最多 10 艘，2 列 × 5 欄)
+  // 上方船队卡片画廊 (最多 10 艘，2 列 × 5 栏)
   const cols = 5;
   const cardW = 228, cardH = 196, gapX = 18, gapY = 18;
   const totalW = cols * cardW + (cols - 1) * gapX;
@@ -66,7 +66,7 @@ export function drawWideFleetView(ctx: CanvasRenderingContext2D, art: any, data:
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    // 船型圖
+    // 船型图
     const shipUrl = art?.shipUrl?.(s.typeId);
     const shipImg = art?.getImage?.(shipUrl);
     if (shipImg) {
@@ -81,7 +81,7 @@ export function drawWideFleetView(ctx: CanvasRenderingContext2D, art: any, data:
     ctx.textBaseline = "middle";
     ctx.fillText(s.name, x + cardW / 2, y + 148, cardW - 18);
 
-    // 耐久條
+    // 耐久条
     const barX = x + 18, barY = y + 166, barW = cardW - 36, barH = 8;
     const ratio = Math.max(0, Math.min(1, s.maxDur ? s.dur / s.maxDur : 1));
     roundRect(ctx, barX, barY, barW, barH, 4);
@@ -94,7 +94,7 @@ export function drawWideFleetView(ctx: CanvasRenderingContext2D, art: any, data:
     }
   });
 
-  // 下方提督與艦隊總覽面板
+  // 下方提督与舰队总览面板
   const botX = startX, botY = VIEW_H - 188, botW = totalW, botH = 156;
   roundRect(ctx, botX, botY, botW, botH, 12);
   const bg2 = ctx.createLinearGradient(botX, botY, botX, botY + botH);
@@ -106,7 +106,7 @@ export function drawWideFleetView(ctx: CanvasRenderingContext2D, art: any, data:
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // 提督頭像
+  // 提督头像
   const pUrl = art?.portraitUrl?.(data.admiralFace & 0xff);
   const pImg = art?.getImage?.(pUrl);
   ctx.fillStyle = "#0a1524";
@@ -119,7 +119,7 @@ export function drawWideFleetView(ctx: CanvasRenderingContext2D, art: any, data:
   ctx.lineWidth = 2;
   ctx.strokeRect(botX + 24, botY + 18, 96, 120);
 
-  // 左側提督資訊 (100% 原版 message 0x397..0x399)
+  // 左侧提督信息 (100% 原版 message 0x397..0x399)
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   ctx.font = '700 20px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
@@ -131,7 +131,7 @@ export function drawWideFleetView(ctx: CanvasRenderingContext2D, art: any, data:
   ctx.fillText(data.lineNav, botX + 144, botY + 84);
   ctx.fillText(data.lineBat, botX + 144, botY + 118);
 
-  // 分隔線
+  // 分隔线
   ctx.strokeStyle = "rgba(208, 169, 94, 0.35)";
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -139,7 +139,7 @@ export function drawWideFleetView(ctx: CanvasRenderingContext2D, art: any, data:
   ctx.lineTo(botX + 430, botY + botH - 24);
   ctx.stroke();
 
-  // 右側艦隊總計 (100% 原版 message 0x39a..0x39c)
+  // 右侧舰队总计 (100% 原版 message 0x39a..0x39c)
   ctx.font = '600 17px "Noto Serif TC", "Consolas", "Microsoft JhengHei", serif';
   ctx.fillStyle = "#fff4d6";
   ctx.fillText(data.lineTurnCrew, botX + 464, botY + 44);

@@ -1,4 +1,4 @@
-// modern/dom_duel.ts — 16:9 現代羊皮紙單挑 (一騎打) HUD + 縮放動畫舞台 + 底部招式欄
+// modern/dom_duel.ts — 16:9 现代羊皮纸单挑 (一骑打) HUD + 缩放动画舞台 + 底部招式栏
 import { hasDom, getPersonPortraitSrc } from "./dom_ui.ts";
 import { hideDomWorldHud } from "./dom_hud.ts";
 import { hideDomBattleHud } from "./dom_battle.ts";
@@ -161,7 +161,7 @@ export function renderWideDuel(ctx: CanvasRenderingContext2D, scr: any, duel: an
   ctx.fillStyle = "#081222";
   ctx.fillRect(0, 0, 1280, 720);
 
-  // 原版單挑動畫舞台位於 (x: 120..520, y: 176..296)，寬 400 × 高 120，以 2.4× 清晰居中放大呈現
+  // 原版单挑动画舞台位于 (x: 120..520, y: 176..296)，宽 400 × 高 120，以 2.4× 清晰居中放大呈现
   const dx = 160, dy = 190, dw = 960, dh = 288;
   if (scr.fbCanvas) {
     ctx.imageSmoothingEnabled = false;

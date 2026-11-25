@@ -1,4 +1,4 @@
-// ui/protocol.ts — 語意化 UI 與劇本宿主互動介面 (解耦業務邏輯與 640×400 / 現代高清渲染)
+// ui/protocol.ts — 语意化 UI 与剧本宿主交互界面 (解耦业务逻辑与 640×400 / 现代高清渲染)
 
 export interface ScenarioWindowDef {
   readonly x: number;
@@ -14,9 +14,9 @@ export interface ScenarioWindowDef {
 }
 
 /**
- * 通用語意化遊戲 UI 介面:
- * - 階段 2–3 由 LegacyGameUI 實作 (對接原版 640×400 幀緩衝, 通過全部原版差分回歸)
- * - 階段 4–5 由 ModernGameUI 實作 (對接現代高清 DOM/CSS + Canvas)
+ * 通用语意化游戏 UI 界面:
+ * - 阶段 2–3 由 LegacyGameUI 实现 (对接原版 640×400 帧缓冲, 通过全部原版差分回归)
+ * - 阶段 4–5 由 ModernGameUI 实现 (对接现代高清 DOM/CSS + Canvas)
  */
 export interface IGameUI {
   showMessage(msgId: number, ...args: unknown[]): void;
@@ -32,8 +32,8 @@ export interface IGameUI {
 }
 
 /**
- * 劇本 VM (game/scenario.js) 與宿主引擎之間的橋接介面:
- * 使 snr0..6.json 劇本直譯器完全不直接依賴像素幀緩衝或特定場景實作。
+ * 剧本 VM (game/scenario.js) 与宿主引擎之间的桥接界面:
+ * 使 snr0..6.json 剧本解释器完全不直接依赖像素帧缓冲或特定场景实现。
  */
 export interface IScenarioHost {
   openWindow(id: number, def: ScenarioWindowDef): void;

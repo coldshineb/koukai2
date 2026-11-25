@@ -1,4 +1,4 @@
-// title_tests.js — 開機/標題/讀檔畫面差分測試 (先執行 title 參考截圖: session.titleEnv / titleState, 以及 ui_bundle.js)
+// title_tests.js — 开机/标题/读档画面差分测试 (先运行 title 参考截屏: session.titleEnv / titleState, 以及 ui_bundle.js)
 (async function () {
 const fs = require("fs"), S = session, U = S.UI;
 const f = S.files;
@@ -8,8 +8,8 @@ font.u2c = new Map(); for (const [code, , , u] of cm.table) font.u2c.set(u, code
 const menuText = JSON.parse(fs.readFileSync(S.W + "/uw2_remake/web/assets/text/menu.json", "utf8"));
 const palJson = JSON.parse(fs.readFileSync(S.W + "/uw2_remake/web/assets/data/palettes.json", "utf8"));
 const msg = f["MESSAGE.DAT"];
-const initState = new Uint8Array(fs.readFileSync(S.W + "/uw2_remake/tools/work/newgame.bin"));   // = world.json 編碼結果 (見 data_tests)
-// 建立與 web/src/main.js + ui/index.js 相同的 ctx (計時器為測試模式)
+const initState = new Uint8Array(fs.readFileSync(S.W + "/uw2_remake/tools/work/newgame.bin"));   // = world.json 编码结果 (见 data_tests)
+// 创建与 web/src/main.js + ui/index.js 相同的 ctx (计时器为测试模式)
 function makeCtx(script, frames) {
   const scr = new U.Screen();
   let polls = 0;
@@ -34,7 +34,7 @@ function makeCtx(script, frames) {
 const load = n => { const a = new Uint8Array(fs.readFileSync(S.W + "/uw2_remake/tools/work/" + n + ".idx")); return a.length === 640 * 480 ? a.subarray(640 * 40, 640 * 440) : a; };
 const rep = [];
 const report = (name, a, b, extra = "") => { const d = S.cmp(a, b); if (d.n) fs.writeFileSync(S.W + "/uw2_remake/tools/work/js_" + name.replace(/[^a-z]+/gi, "_") + ".idx", Buffer.from(b)); rep.push(`${d.n === 0 ? "OK  " : "FAIL"} ${name.padEnd(26)} diff=${d.n}${d.first ? " @" + d.first : ""} ${extra}`); };
-// 1) 標題畫面: 跑到選單等待輸入時截圖
+// 1) 标题画面: 跑到菜单等待输入时截屏
 {
   const shot = {}; const ctx = makeCtx(null);
   const t = new U.Title(ctx);
@@ -44,7 +44,7 @@ const report = (name, a, b, extra = "") => { const d = S.cmp(a, b); if (d.n) fs.
   try { await t.run(); } catch (e) { if (e.message !== "STOP") throw e; }
   report("title screen", load("title"), shot.fb, "dac " + (shot.dac.join() === Array.from(palJson.palettes.find(p => p.name === "default").raw).join() ? "= default" : "differs"));
 }
-// 2) 讀檔畫面: 標題選 繼續航海進度 (Enter), 停在存檔一覽等待輸入
+// 2) 读档画面: 标题选 继续航海进度 (Enter), 停在存盘一览等待输入
 {
   const ctx = makeCtx(null); const t = new U.Title(ctx); let stage = 0, shotFb = null, stage1Calls = 0;
   ctx.sys.onIO = s => {
@@ -55,7 +55,7 @@ const report = (name, a, b, extra = "") => { const d = S.cmp(a, b); if (d.n) fs.
   report("load: slot list", load("emu_slots"), shotFb);
 }
 
-// ---- 以按鍵腳本驅動 JS 版, 在指定時機截圖 ----
+// ---- 以按键脚本驱动 JS 版, 在指定时机截屏 ----
 async function flow(keys, probes) {
   const ctx = makeCtx(null); const t = new U.Title(ctx); const out = {};
   const sc = S.makeScript(keys);
@@ -71,18 +71,18 @@ async function flow(keys, probes) {
 const idle = (ctx, sc, s) => !sc.keys.length && !s.keybuf.length && sc.calls > 60;
 const K = { down: [0x50, 0], enter: [0x1c, 0x0d], esc: [0x01, 0x1b] };
 const fbGrab = ctx => ctx.scr.fb.slice();
-{ // C) 繼續 → Esc → 回到標題
+{ // C) 继续 → Esc → 回到标题
   const o = await flow([K.enter, K.esc], [{ name: "cancel", when: (c, sc, s) => idle(c, sc, s) && c.menu.count === 4, grab: fbGrab, stop: true }]);
   report("load: cancel → title", load("emu_cancel"), o.cancel);
 }
-{ // B) 結束遊戲 → 確認框 → 是 → KOEI 畫面
+{ // B) 结束游戏 → 确认框 → 是 → KOEI 画面
   const o = await flow([K.down, K.down, K.down, K.enter], [{ name: "qc", when: (c, sc, s) => idle(c, sc, s) && c.menu.level === 2, grab: fbGrab, stop: true }]);
   report("quit: confirm", load("emu_quitConfirm"), o.qc);
   const o2 = await flow([K.down, K.down, K.down, K.enter, K.enter], [{ name: "logo", atPress: true, grab: c => ({ fb: c.scr.fb.slice(), dac: Array.from(c.palette.cur) }) }]);
   const edac = JSON.parse(fs.readFileSync(S.W + "/uw2_remake/tools/work/emu_logo_dac.json", "utf8"));
   report("quit: KOEI logo", load("emu_logo"), o2.logo.fb, "dac " + (edac.join() === o2.logo.dac.join() ? "same" : "DIFF"));
 }
-{ // A) 繼續 → ↓↓ → Enter → 確認框 → 是 → 讀檔
+{ // A) 继续 → ↓↓ → Enter → 确认框 → 是 → 读档
   const o = await flow([K.enter, K.down, K.down, K.enter], [{ name: "cf", when: (c, sc, s) => idle(c, sc, s) && c.menu.level === 2, grab: fbGrab, stop: true }]);
   report("load: confirm", load("emu_confirm"), o.cf);
   const o2 = await flow([K.enter, K.down, K.down, K.enter, K.enter], [{ name: "ld", atLoad: true, grab: (c) => ({ fb: c.scr.fb.slice(), st: c.state.b.slice(0, 0x7d74), buf: c.state.b.slice(0x7d74, 0x8074), rt: c.rt }) }]);

@@ -1,6 +1,6 @@
-// trace_emu.js — 只跑原版 (同 port_tests.js 的 runEmu 與 PORT_SETUP / PORT_KEYS / NO_EVENTS 設定), 記錄每個畫面之間被呼叫的函式 (call 目標線性位址)
-// 用法: 先執行路線腳本, 再執行本檔; 結果 session.trace = [{ shot, calls: {線性位址: 次數} }, ...], 並印出 S.TRACE_FROM 之後各畫面的呼叫摘要
-// S.TRACE_FROM: 從第幾個畫面開始記錄 (預設 0); S.TRACE_PATCH(mem, L): 額外修補原版 (例: 關閉他艦隊移動)
+// trace_emu.js — 只跑原版 (同 port_tests.js 的 runEmu 与 PORT_SETUP / PORT_KEYS / NO_EVENTS 设置), 记录每个画面之间被调用的函数 (call 目标线性地址)
+// 用法: 先运行路线脚本, 再运行本档; 结果 session.trace = [{ shot, calls: {线性地址: 次数} }, ...], 并印出 S.TRACE_FROM 之后各画面的调用摘要
+// S.TRACE_FROM: 从第几个画面开始记录 (默认 0); S.TRACE_PATCH(mem, L): 额外修补原版 (例: 关闭他舰队移动)
 (function () {
 const S = session, L = 0x110 * 16;
 const K = { down: [0x50, 0], up: [0x48, 0], left: [0x4b, 0], right: [0x4d, 0], enter: [0x1c, 0x0d], esc: [0x01, 0x1b] };

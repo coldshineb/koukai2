@@ -1,4 +1,4 @@
-// modern/save_modal.ts — 現代無限槽位存檔工作台（IndexedDB 本地儲存 + 匯出 JSON + 匯入 JSON/原版 KOUKAI2.DAT 自由選槽）
+// modern/save_modal.ts — 现代无限槽位存盘工作台（IndexedDB 本地保存 + 导出 JSON + 导入 JSON/原版 KOUKAI2.DAT 自由选槽）
 import type { SaveSlotV2 } from "../save/format.ts";
 import type { InspectedImport } from "../save/store.ts";
 import { createDomModal, preserveScroll } from "./dom_ui.ts";
@@ -161,7 +161,7 @@ export class ModernSaveModal {
         countPill.textContent = `存档 ${usedCount}`;
         toastEl.textContent = notice;
 
-        // 頂部工具列（統一使用 uw2-tab-btn / uw2-btn-primary）
+        // 顶部工具列（统一使用 uw2-tab-btn / uw2-btn-primary）
         toolbar.innerHTML = "";
         if (mode === "save" && !pendingImport) {
           const newSaveBtn = document.createElement("button");
@@ -197,7 +197,7 @@ export class ModernSaveModal {
 
         h.body.innerHTML = "";
 
-        // ---- 匯入槽位挑選模式 ----
+        // ---- 导入槽位挑选模式 ----
         if (pendingImport) {
           const imp = pendingImport;
           const kindLabel = imp.inspected.kind === "legacy-dat"
@@ -346,7 +346,7 @@ export class ModernSaveModal {
           return;
         }
 
-        // ---- 常規瀏覽 / 讀取 / 保存模式 ----
+        // ---- 常规浏览 / 读取 / 保存模式 ----
         const split = document.createElement("div");
         split.className = "uw2-split";
 

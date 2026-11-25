@@ -1,4 +1,4 @@
-// save/store.ts — 現代無限槽位 JSON 存檔儲存管理 (IndexedDB 主儲存 + localStorage 備援 + 匯入槽位選擇 + 匯出 JSON)
+// save/store.ts — 现代无限槽位 JSON 存盘保存管理 (IndexedDB 主保存 + localStorage 备援 + 导入槽位选择 + 导出 JSON)
 import { createEmptyBundleV2, createSaveSlotV2, isSaveBundleV2, parseSaveJsonV2, slotV2ToLegacyHeader, v2ToStateBytes, SAVE_SLOTS_COUNT } from "./format.ts";
 import type { SaveBundleV2, SaveSlotV2 } from "./format.ts";
 import { importLegacySave, isLegacyKoukaiDat } from "./legacy_import.ts";
@@ -90,11 +90,11 @@ export class SaveStore {
   }
 
   /**
-   * 啟動開啟存檔庫:
-   * 1. 優先讀取 IndexedDB (支援無限槽位、無 5MB 限制)
-   * 2. 其次讀取 localStorage["uw2.saves.v2"] 並同步遷移至 IndexedDB
-   * 3. 其次自動只讀遷移舊版 localStorage["uw2.KOUKAI2.DAT"] 或 assets/save/KOUKAI2.DAT
-   * 4. 皆無則建立空白 uw2-save-v2 存檔庫
+   * 启动打开存盘库:
+   * 1. 优先读取 IndexedDB (支持无限槽位、无 5MB 限制)
+   * 2. 其次读取 localStorage["uw2.saves.v2"] 并同步迁移至 IndexedDB
+   * 3. 其次自动只读迁移旧版 localStorage["uw2.KOUKAI2.DAT"] 或 assets/save/KOUKAI2.DAT
+   * 4. 皆无则创建空白 uw2-save-v2 存盘库
    */
   static async open(ASSETS: string, initState: Uint8Array, schema: any, codec: any): Promise<SaveStore> {
     const idbBundle = await readIdbBundle();
@@ -114,7 +114,7 @@ export class SaveStore {
             return store;
           }
         } catch (e) {
-          console.warn("讀取 uw2.saves.v2 失敗，嘗試回退:", e);
+          console.warn("读取 uw2.saves.v2 失败，尝试回退:", e);
         }
       }
       const rawLegacy = ls.getItem(LEGACY_STORAGE_KEY);
@@ -128,7 +128,7 @@ export class SaveStore {
             return store;
           }
         } catch (e) {
-          console.warn("遷移舊版 localStorage KOUKAI2.DAT 失敗:", e);
+          console.warn("迁移旧版 localStorage KOUKAI2.DAT 失败:", e);
         }
       }
     }
@@ -146,7 +146,7 @@ export class SaveStore {
           }
         }
       } catch {
-        /* 無預設檔 */
+        /* 无默认档 */
       }
     }
 
@@ -164,7 +164,7 @@ export class SaveStore {
     try {
       ls.setItem(SAVE_STORAGE_KEY_V2, JSON.stringify(this.bundle));
     } catch {
-      /* 超過 localStorage 5MB 配額時已由 IndexedDB 完整儲存 */
+      /* 超过 localStorage 5MB 配额时已由 IndexedDB 完整保存 */
     }
   }
 
@@ -213,7 +213,7 @@ export class SaveStore {
     return v2ToStateBytes(this.bundle.autoSave.state, this.schema, this.codec, this.baseState);
   }
 
-  /** 產生原版 150-byte 標頭表 (供階段 3 原版讀檔/存檔畫面顯示) */
+  /** 产生原版 150-byte 头部表 (供阶段 3 原版读档/存盘画面显示) */
   buildLegacyHeaders(): Uint8Array {
     const out = new Uint8Array(SAVE_SLOTS_COUNT * 15);
     for (let i = 0; i < SAVE_SLOTS_COUNT; i++) {
@@ -222,7 +222,7 @@ export class SaveStore {
     return out;
   }
 
-  /** 匯出純 JSON 字串 (可選擇省略 _compat 以取得最精簡人類可讀存檔) */
+  /** 导出纯 JSON 字符串 (可选择省略 _compat 以取得最精简人类可读存盘) */
   exportJson(opts: { pretty?: boolean; stripCompat?: boolean; slotIndex?: number } = {}): string {
     const strip = (slot: SaveSlotV2 | null): SaveSlotV2 | null => {
       if (!slot) return null;
@@ -243,7 +243,7 @@ export class SaveStore {
     return JSON.stringify(bundle, null, opts.pretty ? 2 : 0);
   }
 
-  /** 解析外部檔案但不立即寫入，供現代存檔介面讓玩家自由挑選目標槽位 */
+  /** 解析外部文档但不立即写入，供现代存盘界面让玩家自由挑选目标槽位 */
   inspectImportBuffer(data: Uint8Array | ArrayBuffer): InspectedImport {
     const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
     if (isLegacyKoukaiDat(bytes)) {
@@ -269,7 +269,7 @@ export class SaveStore {
     return { kind: "json-slot", entries: [{ sourceIndex: srcIdx, slot: parsed }] };
   }
 
-  /** 將使用者選定的存檔項寫入指定目標槽位 (不限 1–10 號，可自動擴充至任意後方槽位) */
+  /** 将用户选定的存盘项写入指定目标槽位 (不限 1–10 号，可自动扩充至任意后方槽位) */
   importSlots(items: Array<{ slot: SaveSlotV2; targetIndex: number }>, heroId?: number): number {
     let count = 0;
     for (const { slot, targetIndex } of items) {
@@ -283,7 +283,7 @@ export class SaveStore {
     return count;
   }
 
-  /** 相容舊版直接匯入介面 (支援可選 targetSlot 作為單槽或起始槽位偏移) */
+  /** 兼容旧版直接导入界面 (支持可选 targetSlot 作为单槽或起始槽位偏移) */
   importBuffer(data: Uint8Array | ArrayBuffer, targetSlot?: number): { kind: "json-bundle" | "json-slot" | "legacy-dat"; importedSlots: number } {
     const inspected = this.inspectImportBuffer(data);
     if (inspected.kind === "json-slot") {

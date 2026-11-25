@@ -49,7 +49,7 @@ def gen(a):
             dst, src = A
             if dst.startswith("word [") or dst.startswith("["):
                 mm = int(re.search(r"([0-9a-f]+)h", dst).group(1), 16)
-                if mm == 0x25a: continue                                   # [025a] = 檔案 handle (由 open 處理)
+                if mm == 0x25a: continue                                   # [025a] = 文件 handle (由 open 处理)
                 out.append(f"e.sw({hex(mm)}, {js(val(src))});")
             else: reg[dst] = val(src)
         elif op == "sub" and A[0] == A[1]: reg[A[0]] = ("imm", 0)

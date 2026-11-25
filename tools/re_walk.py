@@ -1,8 +1,8 @@
-# re_walk.py — 自動追蹤子呼叫的反組譯 (由 tools/re/*.py 在 exec re_env.py / re_tools.py 之後載入)
-#   walk(a, depth, why)   反組譯 a 的函式本體, 再遞迴展開它呼叫的函式 (深度 depth); 已展開過的只列一次
-#   KNOWN[線性位址] = 名稱   已知 / 已移植, 不展開
-#   SEG0_SKIP = {"4dc4", ...}  seg0 的工具函式 (不展開)
-#   位址: 線性 = seg×16 + off (1fd9:8f84 = 28d14)。早期筆記有些「1fd9:xxxx」其實是線性 2xxxx 的誤記 (例: 補給港命名 1fd9:85d9 實為線性 285d9 = 1fd9:8849), 以線性位址為準
+# re_walk.py — 自动追踪子调用的反汇编 (由 tools/re/*.py 在 exec re_env.py / re_tools.py 之后加载)
+#   walk(a, depth, why)   反汇编 a 的函数本体, 再递归展开它调用的函数 (深度 depth); 已展开过的只列一次
+#   KNOWN[线性地址] = 名称   已知 / 已移植, 不展开
+#   SEG0_SKIP = {"4dc4", ...}  seg0 的工具函数 (不展开)
+#   地址: 线性 = seg×16 + off (1fd9:8f84 = 28d14)。早期笔记有些「1fd9:xxxx」其实是线性 2xxxx 的误记 (例: 补给港命名 1fd9:85d9 实为线性 285d9 = 1fd9:8849), 以线性地址为准
 import re as _re
 KNOWN = {0x15a70: "personSelect 0fea:5bd0", 0x1b46e: "bMenu", 0x1b580: "bAfter", 0x1b55c: "bTable",
          0x14364: "listMenu", 0x14524: "customMenu", 0x1469c: "yesNo", 0x147ab: "wait 0fea:490b",
@@ -17,12 +17,12 @@ _done = set()
 
 
 def _lin(seg, off):
-    return seg * 16 + off                     # 1fd9:off = 0x1fd90 + off (舊版誤用 0x20000 + off, 差 0x270)
+    return seg * 16 + off                     # 1fd9:off = 0x1fd90 + off (旧版误用 0x20000 + off, 差 0x270)
 
 
 def _near(i):
     bs = next(s for s in SEGS if s * 16 <= i.addr) * 16
-    return bs + ((i.target - bs) & 0xffff)    # 段內近跳躍/呼叫以 64K 回繞 (1fd9 段 = 0x1fd90..0x2fd8f)
+    return bs + ((i.target - bs) & 0xffff)    # 段内近跳跃/调用以 64K 回绕 (1fd9 段 = 0x1fd90..0x2fd8f)
 
 
 def body(a, n=0x2000):

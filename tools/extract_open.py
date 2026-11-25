@@ -10,7 +10,7 @@ ROOT = os.path.dirname(HERE)
 exec(open(os.path.join(HERE, "uw2lib.py"), encoding="utf-8").read())
 
 DS = 0xa0b0                    # DGROUP 0a0b
-DS_LO, DS_HI = 0x00f6, 0x0b9a  # 常數區: 0f6 起為 13 組調色盤 (每組 48 bytes), 0366/0468 等是變數 (程式不讀這裡的值), 0469..0898 文字, 0898.. 表格; 0b9a 起是場景函式表
+DS_LO, DS_HI = 0x00f6, 0x0b9a  # 常数区: 0f6 起为 13 组调色盘 (每组 48 bytes), 0366/0468 等是变量 (程序不读这里的值), 0469..0898 文字, 0898.. 表格; 0b9a 起是场景函数表
 
 
 def main(sea2=None, assets=None):
@@ -26,7 +26,7 @@ def main(sea2=None, assets=None):
         p = os.path.join(G, f"{i:02d}.dat")
         if os.path.exists(p) and open(p, "rb").read() == bytes(pt): same += 1
         open(p, "wb").write(bytes(pt))
-    # 最後一項的結尾 = 未壓縮檔尾的起點
+    # 最后一项的结尾 = 未压缩档尾的起点
     end, p = 0, 0x110
     while True:
         cl, ul, of = struct.unpack(">III", lz[p:p + 12])
@@ -34,7 +34,7 @@ def main(sea2=None, assets=None):
         end = max(end, of + cl); p += 12
     open(os.path.join(G, "tail.dat"), "wb").write(lz[end:])
     ds = code[DS + DS_LO:DS + DS_HI]
-    # 可讀文字 (DS:0898 / DS:08ae 兩個 11 項指標表)
+    # 可读文字 (DS:0898 / DS:08ae 两个 11 项指针表)
     cm = json.load(open(os.path.join(assets, "font", "charmap.json"), encoding="utf-8"))
     c2u = {r[0]: r[3] for r in cm["table"]}
     def dec(o):

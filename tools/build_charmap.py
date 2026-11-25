@@ -70,7 +70,7 @@ def run(SEA2, UNIFONT, OUT, uw2):
             path[i] = k - R; k = BP[i, k]
         return path
     def assign(Gm, Um, path):
-        # 以 Viterbi 路徑為先驗, 在 ±W 範圍內做全域貪婪一對一匹配 (可處理相鄰字對調)
+        # 以 Viterbi 路径为先验, 在 ±W 范围内做全域贪婪一对一匹配 (可处理相邻字对调)
         n, m = len(Gm), len(Um); W = 3
         pairs = []
         for i, d in enumerate(path):
@@ -98,30 +98,30 @@ def run(SEA2, UNIFONT, OUT, uw2):
     US = U(SYM); ps = viterbi(G[1][:684], US, R=4, pen=2.0)
     for n in range(1, 685):
         glyph_uni[(1, n)] = SYM[(n - 1) + ps[n - 1]] if 0 <= (n - 1) + ps[n - 1] < len(SYM) else chr(0xE000 + n)
-    # 目視校正 (見 RE_NOTES.md)
+    # 目视校正 (见 RE_NOTES.md)
     glyph_uni[(1, 4398)] = "銬"; glyph_uni[(1, 4399)] = "銀"
     glyph_uni[(1, 6086)] = "碁"
-    glyph_uni[(2, 6646)] = "\uF100"; glyph_uni[(2, 7592)] = "\uF101"   # 罕用字, 未確定
-    # 第二輪目視校正 (2026-11): 相鄰兩字形對調, 以「字形 vs Unifont 交叉相似度」篩出後逐一目視確認
+    glyph_uni[(2, 6646)] = "\uF100"; glyph_uni[(2, 7592)] = "\uF101"   # 罕用字, 未确定
+    # 第二轮目视校正 (2026-11): 相邻两字形对调, 以「字形 vs Unifont 交叉相似度」筛出后逐一目视确认
     SWAP_CODES = [(0x9389, 0xAEFB), (0xA6DB, 0xA6DD), (0xA4AD, 0xA4AE), (0x9A72, 0x9A73), (0xA58D, 0xA58E), (0xCA72, 0xCA73), (0xA390, 0xA391), (0xBDA7, 0xBDA8), (0xBFFB, 0xBFFC), (0xD133, 0xD134), (0xCB6F, 0xCB70), (0xD831, 0xD832), (0xD3B2, 0xD3B4), (0xD072, 0xD073), (0xD283, 0xD284), (0xCC89, 0xCC8A), (0xD09E, 0xD0A0), (0xB0EC, 0xB0ED), (0xD34D, 0xD350), (0xD7EB, 0xD7ED)]
     for a, b in SWAP_CODES:
         ga, gb = uw2.code_to_glyph(a), uw2.code_to_glyph(b)
         glyph_uni[ga], glyph_uni[gb] = glyph_uni[gb], glyph_uni[ga]
 
-    # 字碼表
+    # 字码表
     entries = {}
     for L in range(0x81, 0xd9):
         for T in range(0x30, 0xff):
             cd = (L << 8) | T; g = uw2.code_to_glyph(cd)
             if g and g in glyph_uni: entries[cd] = g
-    # 每個字形選一個標準碼 (優先 0x81,0x82,>=0x92,>=0xb0 的碼)
+    # 每个字形选一个标准码 (优先 0x81,0x82,>=0x92,>=0xb0 的码)
     def pri(c): L = c >> 8; return (0 if (L <= 0x82 or L >= 0x92) else 1, c)
     canon = {}
     for cd in sorted(entries, key=pri): canon.setdefault(entries[cd], cd)
     u2c = {}; table = []
     for g, cd in sorted(canon.items(), key=lambda kv: kv[1]):
         u = glyph_uni[g]
-        if u in u2c or u == "\u0000":   # 重複字形 -> 以私用區碼表示, 保證可逆
+        if u in u2c or u == "\u0000":   # 重复字形 -> 以私用区码表示, 保证可逆
             u = chr(0xE000 + g[1]) if g[0] == 1 else chr(0xF0000 + g[1])
         u2c[u] = cd; table.append([cd, g[0], g[1], u])
     alias = {cd: canon[g] for cd, g in entries.items() if canon[g] != cd}

@@ -7,7 +7,7 @@ exec(open(os.path.join(HERE, "..", "re_env.py"), encoding="utf-8").read())
 exec(open(os.path.join(HERE, "..", "re_tools.py"), encoding="utf-8").read())
 
 DEPTH = 3
-# 已知 / 已移植, 不展開 (線性位址)
+# 已知 / 已移植, 不展开 (线性地址)
 KNOWN = {0x15a70: "personSelect 0fea:5bd0", 0x1b46e: "bMenu", 0x1b580: "bAfter", 0x1b55c: "bTable",
          0x14364: "listMenu", 0x30a30: "nameprompt 2e09:29a0", 0x30735: "keyboard 2e09:26a5", 0x356ee + 0: "message"}
 SEG0_SKIP = {"4dc4", "5c9a", "5caa", "5bf8", "5bde", "8f03", "7f06", "796d", "909b", "7e35", "443c", "4b9c", "4bad",

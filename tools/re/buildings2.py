@@ -6,7 +6,7 @@ WORKSPACE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(HERE))).replace(
 exec(open(os.path.join(HERE, "..", "re_env.py"), encoding="utf-8").read())
 exec(open(os.path.join(HERE, "..", "re_tools.py"), encoding="utf-8").read())
 exec(open(os.path.join(HERE, "..", "re_walk.py"), encoding="utf-8").read())
-def _lin(seg, off):          # 修正: 1fd9 段的遠呼叫 = 0x1fd90 + off (re_walk.py 的版本用 0x20000)
+def _lin(seg, off):          # 修正: 1fd9 段的远调用 = 0x1fd90 + off (re_walk.py 的版本用 0x20000)
     return seg * 16 + off
 KNOWN.update({0x28d14: "inn", 0x2cc6e: "church", 0x2d3d7: "fortune"})
 try: DEPTH

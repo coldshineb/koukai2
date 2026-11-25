@@ -36,7 +36,7 @@ SHIP_SLOT_FIELDS = [
     F("flags", 0x08, evidence="狀態與砲種 (bit4-5: 10=有船/20=建造或保管; 低3位=砲種)"),
 ]
 
-# 名稱代號 (MAIN.EXE DGROUP 常數表, 見 NAME_TABLES): 欄位以 "ref" 註明對應的名稱表
+# 名称代号 (MAIN.EXE DGROUP 常数表, 见 NAME_TABLES): 字段以 "ref" 注明对应的名称表
 TABLES = [
     {"name": "countries", "ds": 0x117A, "stride": 0x20, "count": 7, "accessor": "seg0:5bde",
      "note": "6 國 + 海盜 (與名稱表 countries 同序)",
@@ -259,10 +259,10 @@ GLOBALS = [
     {"name": "discoveryId", "ds": 0x8246, "type": "u8", "evidence": "當前選中/發現物編號 (FF=無)"},
 ]
 
-# 讀檔時 DS:8A18..8D18 (0x300 bytes) 讀入緩衝 [0c8e] 而非 DS (0FEA:16c45): 48 筆 × 16 bytes 航海日誌/交易記錄
+# 读档时 DS:8A18..8D18 (0x300 bytes) 读入缓冲 [0c8e] 而非 DS (0FEA:16c45): 48 笔 × 16 bytes 航海日志/交易记录
 TAIL = {"name": "buffer0c8e", "ds": 0x8A18, "size": 0x300, "note": "航海日誌 / 交易記錄緩衝 [0c8e] (48 筆 × 16 bytes)"}
 
-# MAIN.EXE DGROUP 內的常數名稱表 (不在存檔中): (名稱, 指標表 DS, 筆數, 引用處)
+# MAIN.EXE DGROUP 内的常数名称表 (不在存盘中): (名称, 指针表 DS, 笔数, 引用处)
 NAME_TABLES = [
     ("goods", 0x0728, 46, "0FEA:149b6"), ("goodsCategories", 0x078E, 10, "0FEA:14c54"), ("liquors", 0x07A2, 14, "0FEA:25f48"),
     ("cannons", 0x07CC, 8, "0FEA:14cd9"), ("crewRoles", 0x081E, 6, "0FEA:1eca1"), ("countries", 0x08DE, 7, "seg0:65e7"),

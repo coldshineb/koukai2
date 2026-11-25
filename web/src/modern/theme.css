@@ -1,4 +1,4 @@
-/* modern/theme.css — 階段 4 現代高清 UI 殼與大航海時代羊皮紙/深海藍/古銅金視覺主題 */
+/* modern/theme.css — 阶段 4 现代高清 UI 壳与大航海时代羊皮纸/深海蓝/古铜金视觉主题 */
 :root {
   --uw2-navy-deep: #091322;
   --uw2-navy-mid: #102138;
@@ -65,7 +65,7 @@ html, body {
   height: 100%;
 }
 
-/* 頂部精簡控制欄 */
+/* 顶部精简控制栏 */
 #uw2-topbar {
   height: 40px;
   flex: 0 0 40px;
@@ -153,7 +153,7 @@ html, body {
   cursor: pointer;
 }
 
-/* 中央像素畫舞台 + 現代覆蓋層 + 現代側邊 HUD */
+/* 中央像素画舞台 + 现代覆盖层 + 现代侧边 HUD */
 #uw2-stage-wrap {
   flex: 1 1 auto;
   min-height: 0;
@@ -171,81 +171,6 @@ html, body {
   overflow: hidden;
   background: #070f1c;
   flex: 1 1 auto;
-}
-
-#uw2-sidepanel {
-  display: none !important;
-}
-
-#uw2-sidepanel[hidden] {
-  display: none;
-}
-
-@media (max-width: 980px) {
-  #uw2-sidepanel {
-    display: none;
-  }
-}
-
-.uw2-hud-section {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid rgba(200, 162, 88, 0.2);
-}
-
-.uw2-hud-section:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.uw2-hud-heading {
-  font-family: var(--uw2-font-serif);
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--uw2-gold-bright);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.uw2-hud-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px 8px;
-  font-size: 12px;
-}
-
-.uw2-hud-kv {
-  display: flex;
-  justify-content: space-between;
-  gap: 4px;
-  color: var(--uw2-parchment-2);
-}
-
-.uw2-hud-kv strong {
-  color: #fff;
-  font-weight: 600;
-}
-
-.uw2-hud-btn-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 5px;
-}
-
-.uw2-hud-btn-grid .uw2-btn {
-  padding: 5px 6px;
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.uw2-hud-btn-grid .uw2-btn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
 }
 
 .uw2-scenario-card {
@@ -306,7 +231,7 @@ html, body {
   pointer-events: none;
 }
 
-/* 暫停角標 */
+/* 暂停角标 */
 .uw2-pause-badge {
   position: absolute;
   top: 12px;
@@ -322,7 +247,7 @@ html, body {
   pointer-events: none;
 }
 
-/* 現代羊皮紙對話框 / 選單 / 數字輸入 (ModernPresenter) */
+/* 现代羊皮纸对话框 / 菜单 / 数字输入 (ModernPresenter) */
 .uw2-card {
   background: linear-gradient(180deg, var(--uw2-parchment) 0%, var(--uw2-parchment-2) 100%);
   color: var(--uw2-ink);
@@ -398,7 +323,7 @@ html, body {
   color: var(--uw2-ink);
 }
 
-/* 現代存檔管理彈窗 */
+/* 现代存盘管理弹窗 */
 .uw2-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -545,7 +470,7 @@ html, body {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
-/* 統一現代羊皮紙工作台 / 選單 / 列表 / 對話框 (與讀取進度 1:1 同套視覺) */
+/* 统一现代羊皮纸工作台 / 菜单 / 列表 / 对话框 (与读取进度 1:1 同套视觉) */
 .uw2-modal.uw2-modal-wide {
   width: min(95vw, 1020px);
   max-height: 88vh;
@@ -825,7 +750,7 @@ html, body {
   border-color: var(--uw2-gold);
 }
 
-/* ==================== 16:9 懸浮羊皮紙主介面 HUD ==================== */
+/* ==================== 16:9 悬浮羊皮纸主界面 HUD ==================== */
 .uw2-world-hud {
   position: fixed;
   inset: 42px 0 0 0;
@@ -943,7 +868,7 @@ html, body {
   transform: translateY(-1px);
 }
 
-/* 16:9 海戰現代羊皮紙右側 HUD */
+/* 16:9 海战现代羊皮纸右侧 HUD */
 .uw2-battle-hud {
   position: absolute;
   top: 10px;
@@ -1056,7 +981,7 @@ html, body {
   white-space: pre-wrap;
 }
 
-/* 海戰模式：對話框靠左對齊戰場，絕不與右側 HUD 重疊；指令與確認停靠右側底部 */
+/* 海战模式：对话框靠左对齐战场，绝不与右侧 HUD 重叠；指令与确认停靠右侧底部 */
 body[data-uw2-battle="1"] .uw2-dialog-floating {
   position: fixed;
   left: 24px;
@@ -1108,12 +1033,12 @@ body[data-uw2-battle="1"] .uw2-dialog-floating {
   cursor: not-allowed;
 }
 
-/* 防止任何彈窗內部出現多餘的橫向捲軸 */
+/* 防止任何弹窗内部出现多余的横向滚动条 */
 .uw2-modal-body {
   overflow-x: hidden !important;
 }
 
-/* 16:9 單挑羊皮紙 HUD 與招式欄 */
+/* 16:9 单挑羊皮纸 HUD 与招式栏 */
 .uw2-duel-hud {
   position: absolute;
   inset: 16px 24px;
@@ -1188,7 +1113,7 @@ body[data-uw2-battle="1"] .uw2-dialog-floating {
   gap: 12px;
 }
 
-/* 酒館賭博牌面與骰子 */
+/* 酒馆赌博牌面与骰子 */
 .uw2-card-row {
   display: flex;
   gap: 10px;
@@ -1237,7 +1162,7 @@ body[data-uw2-battle="1"] .uw2-dialog-floating {
   line-height: 1;
 }
 
-/* 現代 16:9 標題開始畫面 */
+/* 现代 16:9 标题开始画面 */
 .uw2-title-screen {
   position: fixed;
   inset: 40px 0 0 0;
@@ -1326,7 +1251,7 @@ body[data-uw2-battle="1"] .uw2-dialog-floating {
   transform: translateY(-1px);
 }
 
-/* 獨立環境設定介面 */
+/* 独立环境设置界面 */
 .uw2-settings-wrap {
   display: flex;
   flex-direction: column;
@@ -1414,7 +1339,7 @@ body[data-uw2-battle="1"] .uw2-dialog-floating {
   font-variant-numeric: tabular-nums;
 }
 
-/* 彈窗開啟時隱藏底部浮動對話框，避免背景重疊顯示重複對話 */
+/* 弹窗打开时隐藏底部浮动对话框，避免背景重叠显示重复对话 */
 body[data-uw2-modal="open"] .uw2-dialog-floating {
   display: none !important;
 }
@@ -1429,7 +1354,7 @@ body[data-uw2-modal="open"] .uw2-dialog-floating {
   flex-shrink: 0;
 }
 
-/* 全建築工作台統一排版與表單規格 */
+/* 全建筑工作台统一排版与表单规格 */
 .uw2-kv-row {
   display: flex;
   justify-content: space-between;

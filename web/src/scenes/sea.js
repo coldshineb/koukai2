@@ -1,13 +1,13 @@
-// scenes/sea.js — 海上場景 (MAIN.EXE: 出海 seg0:851f、海上畫面 6b30 / 6cfc / 8067、時間主循環的海上部分 1fd9:13c1 / 1afe8 / 2e09:38ec / 2e09:2f3d、
+// scenes/sea.js — 海上场景 (MAIN.EXE: 出海 seg0:851f、海上画面 6b30 / 6cfc / 8067、时间主循环的海上部分 1fd9:13c1 / 1afe8 / 2e09:38ec / 2e09:2f3d、
 //   每日 195b6、天候 19a99 / 19f48)
-// 與港口共用同一個場景物件 (SeaScene 繼承 PortScene): 原版的地圖視窗 (1fac)、圖塊快取 cs:1b2c、地圖緩衝 [03f6]、羅盤指針 [8c1d] 都是同一份
-// 原版變數 (DS, 不在存檔內): [06c8] 區域編號 region   [06ca] WORLDMAP 項 item   [bda6]/[bdaa] 區域左上 (地圖格)   [bdba] 視窗偏移 bdba
-//   [bdac] 本時刻船速 speed   [bdca] 瞭望範圍 sight   [a9c8] 輸入旗標 (bit0 暫停, bit1 滑鼠按著)   [bda8] 隨身物旗標 (0x80 望遠鏡 0x18, 0x40 0x19)
-// 存檔內: 主角艦隊 [c2d4] = 2e76 + 0x85 × (主角 +2c): +0 x  +2 y (地圖格, 0..2159 / 0..1079)  +4/+6 目的地  +8/+a 中途點  +18/+19 格內位置 (0..0x3b)
-//   +1a 方位 (0..7, 8 = 停船)  [1006]/[1008] 地圖視窗左上 (地圖格)  [1005] 航行旗標 (0x80/0x40 委任, 0x20 停船, 0x18 ?)  [2e18] 出港天數  [2e19]/[2e1a] 水/糧食配給 %
-// 階段 5 後半 (docs/RE_NOTES.md 第 28 節): 委任 / 指定目的地 / 自動航行 (1fd9 段的地點路線, 艦隊 AI 共用)、偵察、航海圖、隨身物 地圖
-// 他艦隊 (6aae / 1afe8 = 艦隊 AI) → game/fleetai.js (第 29 節)
-// 上陸探索 (34d54 / 34ccc) → scenes/land.js、海上特殊地點 (30e9f / 31047) → 本檔 seaEvent / monsterRead (第 36 節)
+// 与港口共用同一个场景对象 (SeaScene 继承 PortScene): 原版的地图窗口 (1fac)、图块缓存 cs:1b2c、地图缓冲 [03f6]、罗盘指针 [8c1d] 都是同一份
+// 原版变量 (DS, 不在存盘内): [06c8] 区域编号 region   [06ca] WORLDMAP 项 item   [bda6]/[bdaa] 区域左上 (地图格)   [bdba] 窗口偏移 bdba
+//   [bdac] 本时刻船速 speed   [bdca] 瞭望范围 sight   [a9c8] 输入标志 (bit0 暂停, bit1 鼠标按着)   [bda8] 随身物标志 (0x80 望远镜 0x18, 0x40 0x19)
+// 存盘内: 主角舰队 [c2d4] = 2e76 + 0x85 × (主角 +2c): +0 x  +2 y (地图格, 0..2159 / 0..1079)  +4/+6 目的地  +8/+a 中途点  +18/+19 格内位置 (0..0x3b)
+//   +1a 方位 (0..7, 8 = 停船)  [1006]/[1008] 地图窗口左上 (地图格)  [1005] 航行标志 (0x80/0x40 委任, 0x20 停船, 0x18 ?)  [2e18] 出港天数  [2e19]/[2e1a] 水/粮食配给 %
+// 阶段 5 后半 (docs/RE_NOTES.md 第 28 节): 委任 / 指定目的地 / 自动航行 (1fd9 段的地点路线, 舰队 AI 共用)、侦察、航海图、随身物 地图
+// 他舰队 (6aae / 1afe8 = 舰队 AI) → game/fleetai.js (第 29 节)
+// 上陆探索 (34d54 / 34ccc) → scenes/land.js、海上特殊地点 (30e9f / 31047) → 本档 seaEvent / monsterRead (第 36 节)
 import { PortScene } from "./port.js";
 import { Buildings } from "./buildings.js";
 import { Commands } from "./commands.js";
@@ -38,7 +38,7 @@ export class SeaScene extends PortScene {
     super(ctx, P);
     const S = P.sea;                                                     // assets/data/sea.json (tools/extract_sea.py)
     this.SJ = S; this.SS = Object.fromEntries(Object.entries(S.str).map(([k, v]) => [k, seaHex(v)]));
-    this.seaMonths = S.months.map(seaHex);                              // DS:8af0 月份字串
+    this.seaMonths = S.months.map(seaHex);                              // DS:8af0 月份字符串
     this.wm = new WorldMap(P.worldmap, S);
     this.seaBuf = new Uint8Array(0x2400);                                // [03f4]:[03f6]
     this.region = 0xffff; this.item = 0xff; this.bda6 = 0; this.bdaa = 0;   // DS 初值: [06c8] = FFFF、[06ca] = FF、[bda6] = [bdaa] = 0
@@ -46,8 +46,8 @@ export class SeaScene extends PortScene {
   }
   get fleet() { return DS.TBL_FLEET + ((0x85 * this.st.u8(this.st.personRecord(this.st.hero) + 0x2c)) & 0xffff); }   // [c2d4] (162e3)
   get b() { return (this.buildings ??= new Buildings(this)); }
-  get ai() { return (this.fleetAI ??= new FleetAI(this)); }             // 艦隊 AI (game/fleetai.js)
-  get mapBuf() { return this.map || this.seaBuf; }                      // [03f6]: 在港時是港口地圖 (艦隊 AI 的陸地判斷照樣讀它, 原版如此)
+  get ai() { return (this.fleetAI ??= new FleetAI(this)); }             // 舰队 AI (game/fleetai.js)
+  get mapBuf() { return this.map || this.seaBuf; }                      // [03f6]: 在港时是港口地图 (舰队 AI 的陆地判断照样读它, 原版如此)
   slotOf(i) { return i < 10 ? (this.fleet + 0x2b + 9 * i) & 0xffff : 0x572a + 9 * i; }   // seg0:5c58
   crewOf(i) { return DS.TBL_CREW_SLOT + ((0x1e * i) & 0xffff); }                                    // seg0:5c38
   shipRec(n) { return DS.TBL_SHIP + ((0x16 * n) & 0xffff); }                                   // seg0:5c7a
@@ -58,10 +58,10 @@ export class SeaScene extends PortScene {
   get vx1006() { return seaS16(this.st.u16(DS.SEA_VIEW_X)); } set vx1006(v) { this.st.set16(DS.SEA_VIEW_X, v); }
   get vy1008() { return seaS16(this.st.u16(DS.SEA_VIEW_Y)); } set vy1008(v) { this.st.set16(DS.SEA_VIEW_Y, v); }
 
-  // ================= 出港 (碼頭 27a07 之後) =================
-  // 0fea:9348 = 191e8 糧食 / 0fea:9401 = 192a1 水: 每艘船從自己 (沒有時從第一艘還有的船) 扣一天的量
-  //   量 = (配給% × 水手) 的低 16 位元 / ([1005]&0x18 ? 200 : 100) + 1; 士氣扣在「供應的那艘船」上 (原版如此), 降到 20 以下時「本船」的水手逃走 (19016)
-  //   全艦隊都沒有時本船士氣 −min(16, 士氣) (191ba)
+  // ================= 出港 (码头 27a07 之后) =================
+  // 0fea:9348 = 191e8 粮食 / 0fea:9401 = 192a1 水: 每艘船从自己 (没有时从第一艘还有的船) 扣一天的量
+  //   量 = (配给% × 水手) 的低 16 比特 / ([1005]&0x18 ? 200 : 100) + 1; 士气扣在「供应的那艘船」上 (原版如此), 降到 20 以下时「本船」的水手逃走 (19016)
+  //   全舰队都没有时本船士气 −min(16, 士气) (191ba)
   dailySupply(off, rate) {
     const st = this.st;
     for (let i = 0; i < 10; i++) {
@@ -89,31 +89,31 @@ export class SeaScene extends PortScene {
   }
   // 191ba
   starve(i) { const st = this.st, M = this.crewOf(i); st.set8(M + OFF.CREW_SLOT.MORALE, st.u8(M + OFF.CREW_SLOT.MORALE) - seaUmin(16, st.u8(M + OFF.CREW_SLOT.MORALE))); if (st.u8(M + OFF.CREW_SLOT.MORALE) < 0x14) this.desert(i); }
-  // 19016 士氣 < 20: 水手 −min(⌊(20 − 士氣) × 水手 / 100⌋ + 1, 水手)
+  // 19016 士气 < 20: 水手 −min(⌊(20 − 士气) × 水手 / 100⌋ + 1, 水手)
   desert(i) {
     const st = this.st, M = this.crewOf(i), S = this.slotOf(i), n = seaS16(st.u16(S));
     const loss = (Math.trunc(Math.imul(20 - st.u8(M + OFF.CREW_SLOT.MORALE), n) / 100) + 1) & 0xffff;
     st.set16(S, st.u16(S) - seaUmin(loss, st.u16(S)));
   }
 
-  // ================= 進入海上 seg0:851f =================
+  // ================= 进入海上 seg0:851f =================
   async enterSea() {
     const { palette, sys, graph, state: st, con } = this.c;
     if (palette.ending) { await palette.fadeBlack(); return; }
-    // 地點表 [0c96] (DATA1 #4, [bd7e] = DATA1 #5 筆): DS:1046 位元表中已探索的地點 +1 |= 0x80 (執行期緩衝, 不在存檔內)
+    // 地点表 [0c96] (DATA1 #4, [bd7e] = DATA1 #5 笔): DS:1046 比特表中已探索的地点 +1 |= 0x80 (运行期缓冲, 不在存盘内)
     const N = this.nodes;
     for (let i = 0; i < this.SJ.nodeCount; i++) if ((st.u8(DS.EXPLORE_LOC + (i >> 3)) & (0x80 >> (i & 7))) && N.length > i * 16 + 1) N[i * 16 + 1] |= 0x80;
     this.bda8 = 0;
     for (let i = 0; i < 0x14; i++) { const v = st.u8(DS.INVENTORY + i); if (v === 0x18) this.bda8 |= 0x80; else if (v === 0x19) this.bda8 |= 0x40; }
     st.set8(DS.PORT, 0xff);
     this.item = Math.trunc(this.vx1006 / 0x2d0) & 0xff;               // [06ca]
-    // 849a: WORLDMAP 第 [06ca] 項 → [06ce]; 84de: DATA1 #11 → [03ee] (海上圖塊與船隻精靈); DATA1 #7 → [0c86]+0x3ea0 (羅盤指針)
-    await palette.fadeBlack();                                         // 99f2 (先淡黑再切換海圖緩衝，避免切換瞬間閃出錯位圖塊)
+    // 849a: WORLDMAP 第 [06ca] 项 → [06ce]; 84de: DATA1 #11 → [03ee] (海上图块与船只精灵); DATA1 #7 → [0c86]+0x3ea0 (罗盘指针)
+    await palette.fadeBlack();                                         // 99f2 (先淡黑再切换海图缓冲，避免切换瞬间闪出错位图块)
     if (this.map && this.map !== this.seaBuf) this.seaBuf.set(this.map.subarray(0, 0x2400));   // [03f6] 原本是出港港口的 PORTMAP
     this.map = this.seaBuf; this.chipSetName = "seachip"; this.tileCache.clear();
     this.c.bgm.playSong(st.u8(DS.HERO) + 4);                            // 9670 主角的海上曲目
     sys.mouseHide();
-    // 9630: [03d5] 恆為 1, 不動作
+    // 9630: [03d5] 恒为 1, 不动作
     con.right = 0x50;                                                  // [8a22]
     this.c.scr.clear(0);
     this.seaDate();                                                    // 71ad / 71c6 / 71f0
@@ -130,18 +130,18 @@ export class SeaScene extends PortScene {
     sys.mouseShow();
     await palette.fadeToTarget();
   }
-  // 9768(DS:0c5a) + 9804(0x30) FM 效果音 (暴風雨, 持續到 9888; core/sfx.js)
+  // 9768(DS:0c5a) + 9804(0x30) FM 效果音 (暴风雨, 持续到 9888; core/sfx.js)
   stormSound() { this.c.sfx?.voice(0x0c5a); this.c.sfx?.note(0x30); }
 
-  // ================= 畫面 =================
+  // ================= 画面 =================
   // 7180: (col, 0x10) 印 %2d (v+1); 只在海上
   seaNum(col, v) { if (this.c.scr.wideRenderer) return; const { con, printf } = this.c; con.right = 0x4f; con.setCursor(col, 0x10); printf(this.SS.day2, v + 1); }
-  // 71ad 年 / 71c6 月 / 71f0 日 (只在海上; 主迴圈 1623a 在每年 / 每月 / 每天開始時也各呼叫一次)
+  // 71ad 年 / 71c6 月 / 71f0 日 (只在海上; 主循环 1623a 在每年 / 每月 / 每天开始时也各调用一次)
   seaYear() { if (this.port === 0xff && !this.c.scr.wideRenderer) this.seaNum(0x43, this.c.rt.year + 0x5dc); }
   seaMonth() { if (this.port === 0xff && !this.c.scr.wideRenderer) { const { con, printf, rt } = this.c; con.setCursor(0x48, 0x10); printf(this.SS.month, this.seaMonths[rt.month]); } }
   seaDay() { if (this.port === 0xff && !this.c.scr.wideRenderer) this.seaNum(0x4c, this.c.rt.day); }
   seaDate() { if (this.c.scr.wideRenderer) return; this.seaYear(); this.seaMonth(); this.seaDay(); }
-  // 6b30 / 6cfc / 3197c 共用: 主角所在的 3×3 海域格區域 → bda6 / bdaa (地圖格) 與區域編號
+  // 6b30 / 6cfc / 3197c 共用: 主角所在的 3×3 海域格区域 → bda6 / bdaa (地图格) 与区域编号
   regionOf() {
     const F = this.fleet;
     let cx = (Math.trunc(this.wx(F) / 24) % 30) - 1, cy = (Math.trunc(this.wy(F) / 24) % 45) - 1;
@@ -149,9 +149,9 @@ export class SeaScene extends PortScene {
     this.bda6 = 24 * cx; this.bdaa = 24 * cy;
     return 30 * cy + cx;
   }
-  // 1fd9:2fd2 = 22d62 解碼區域
+  // 1fd9:2fd2 = 22d62 解码区域
   decodeRegion(si) { this.wm.decode(this.st, this.item, si & 0xffff, this.seaBuf); }
-  // 6bce..6caa / 6d9b..6e5a: 主角周圍 3×3 海域格記入探索表 DS:0de8 (45 列 × 12 bytes), 新探索的格 [100e]++ [1010]++
+  // 6bce..6caa / 6d9b..6e5a: 主角周围 3×3 海域格记入探索表 DS:0de8 (45 列 × 12 bytes), 新探索的格 [100e]++ [1010]++
   explore() {
     const st = this.st, F = this.fleet;
     const cx0 = (Math.trunc(this.wx(F) / 24) + 0x59) % 0x5a;
@@ -165,12 +165,12 @@ export class SeaScene extends PortScene {
       }
     }
   }
-  // 6aae 區域改變時處理區域內的他艦隊 (game/fleetai.js regionChange)
+  // 6aae 区域改变时处理区域内的他舰队 (game/fleetai.js regionChange)
   fleetsRegion() { if (!this.c.noFleets) this.ai.regionChange(); }
   viewOffset() {
     this.bdba = ((this.vy1008 - this.bdaa) * 0x60 + (this.vx1006 % 0x2d0) - this.bda6) & 0xffff;
   }
-  // 6b30 重新取得區域並畫地圖 (不畫船)
+  // 6b30 重新取得区域并画地图 (不画船)
   seaView() {
     const si = this.regionOf();
     if (this.region !== si) { this.region = si; this.decodeRegion(si); this.fleetsRegion(); this.explore(); }
@@ -179,18 +179,18 @@ export class SeaScene extends PortScene {
     this.drawMap();                                                    // 1fac
     this.seaPanel();                                                   // 8067
   }
-  // 24bc 32×32 海上船隻精靈 (sea_ships.png 透明圖集)
+  // 24bc 32×32 海上船只精灵 (sea_ships.png 透明图集)
   sprite(col, y, off) {
     if (col < 0 || col + 4 > 80 || y < 0 || y + 32 > 400) { seaTodo("精靈超出畫面"); return; }
     const idx = (off - 0x4000) >> 9;
     this.c.art?.drawSheetTile(this.c.scr, "sea_ships", idx, col * 8, y, { transparent: true });
   }
-  // 艦隊 k 的精靈 (6f07..6f88 主角單獨 / 7080..7137 全部艦隊)
+  // 舰队 k 的精灵 (6f07..6f88 主角单独 / 7080..7137 全部舰队)
   drawFleet(F, k, heroOnly) {
     const st = this.st, dx = this.wx(F) - this.vx1006, dy = this.wy(F) - this.vy1008, T = this.SJ.tab.shipDir;
     let si;
     if (F === this.fleet) {
-      let i = 0; while (i < 10 && st.u8(this.crewOf(i) + 0x1b) !== st.u8(DS.HERO)) i++;   // 旗艦 = 船長是主角的船位
+      let i = 0; while (i < 10 && st.u8(this.crewOf(i) + 0x1b) !== st.u8(DS.HERO)) i++;   // 旗舰 = 船长是主角的船位
       si = (st.u8(this.shipRec(st.u8(this.slotOf(i) + 7)) + 0x10) & 0x10) << 8;
     } else si = (((st.u8(this.shipRec(st.u8(F + 0x32)) + 0x10) & 0x10) << 8) + 0x2000) & 0xffff;
     const d = T[st.u8(F + OFF.FLEET.DIR) & 7] + 0x10;
@@ -198,12 +198,12 @@ export class SeaScene extends PortScene {
     this.sprite((dx + 6) * 2, dy * 16 + 8, si);
     this.invalidate(24 * dy + dx);                                     // 2119
   }
-  // 6cfc 每個時刻的海上畫面: 區域、探索、延遲 ([0ca6] 海上速度)、地圖、艦隊、日期、風向/海流/航向、船速、游標
+  // 6cfc 每个时刻的海上画面: 区域、探索、延迟 ([0ca6] 海上速度)、地图、舰队、日期、风向/海流/航向、船速、光标
   async seaTick() {
     const { sys, menu, con, printf } = this.c, st = this.st;
     const si = this.regionOf();
     if (this.region !== si) { this.region = si; this.decodeRegion(si); this.fleetsRegion(); this.explore(); }
-    // 507c: 空函式
+    // 507c: 空函数
     this.toggle ^= 1;
     this.viewOffset();
     if (st.u8(DS.SEA_SPEED)) {
@@ -227,16 +227,16 @@ export class SeaScene extends PortScene {
     if (!this.c.scr.wideRenderer) { con.setCursor(0x45, 0xd0); printf(this.SS.speed, (this.speed + 1) >> 1); }
     this.seaCursor();
     sys.mouseShow();
-    // 507d: 空函式
+    // 507d: 空函数
   }
-  // 6fbe..716b 游標: 地圖視窗內依滑鼠所在的 3×3 區塊顯示方向游標 (DS gfx 0x2960 + (列內欄 − 3×列) × 0x90), 否則 0x2b10
+  // 6fbe..716b 光标: 地图窗口内依鼠标所在的 3×3 区块显示方向光标 (DS gfx 0x2960 + (列内栏 − 3×列) × 0x90), 否则 0x2b10
   seaCursor() {
     const { sys } = this.c, p = sys.mousePos(), x = p.x - 0x60, y = p.y - 8;
     let si = 0x2b10;
     if (x >= 0 && x < 0x180 && y >= 0 && y < 0x180) si = (0x2960 + ((x >> 7) - 3 * (y >> 7)) * 0x90) & 0xffff;
     if (this.cursor !== si) { this.cursor = si; sys.setCursorShape(si); }
   }
-  // 8fbf 風向 (y 0x40)、海流 (0x70)、航向 (0xa0, 不印數字) 的轉盤
+  // 8fbf 风向 (y 0x40)、海流 (0x70)、航向 (0xa0, 不印数字) 的转盘
   dials() {
     if (this.port !== 0xff) return;
     const st = this.st, a = st.u8(DS.PORT_FLAGS), b = st.u8(DS.WIND_CUR);
@@ -244,7 +244,7 @@ export class SeaScene extends PortScene {
     this.dial(0x70, (b & 0x38) >> 3, b & 7);
     this.dial(0xa0, st.u8(this.fleet + 0x1a), 0xffff);
   }
-  // 8f4f(y, 方向, 強度): 強度 ≠ 0 且方向 < 8 → gfx + 0x490 + 方向 × 0x320, 否則 0x1d90 (5 欄 × 0x28 行); 強度 >= 0 (有號) 時於 (0x43, y+0x18) 印出
+  // 8f4f(y, 方向, 强度): 强度 ≠ 0 且方向 < 8 → gfx + 0x490 + 方向 × 0x320, 否则 0x1d90 (5 栏 × 0x28 行); 强度 >= 0 (有号) 时于 (0x43, y+0x18) 印出
   dial(y, dir, str) {
     if (this.c.scr.wideRenderer) return;
     const { scr, con, printf, art } = this.c;
@@ -252,14 +252,14 @@ export class SeaScene extends PortScene {
     art?.drawSheetTile(scr, "dials", idx, 0x47 * 8, y);
     if (seaS16(str) >= 0) { con.setCursor(0x43, y + 0x18); printf(this.SS.dialNum, str); }
   }
-  // 3135c (x, y) 的 2×2 地圖格中有 >= 0x34 的圖塊 (陸地)
+  // 3135c (x, y) 的 2×2 地图格中有 >= 0x34 的图块 (陆地)
   landAt(x, y) {
     const o = ((seaS16(y) - this.bdaa) * 0x60 + (seaS16(x) % 0x2d0) - this.bda6) & 0xffff, B = this.mapBuf, g = i => B[i & 0xffff] ?? 0;
     return g(o) >= 0x34 || g(o + 1) >= 0x34 || g(o + 0x60) >= 0x34 || g(o + 0x61) >= 0x34 ? 1 : 0;
   }
 
-  // 8067 左側面板: 狀態條 (轉向力/推進力/耐久度/吃水量/瞭望範圍/水手/船艦狀態)、貨物 (水/糧食/資材/砲彈)、出港天數; 同時算出瞭望範圍 [bdca]
-  //   (各船的 +0a 總載重在這裡重算寫回); 只在海上畫, 畫兩次
+  // 8067 左侧面板: 状态条 (转向力/推进力/耐久度/吃水量/瞭望范围/水手/船舰状态)、货物 (水/粮食/资材/砲弹)、出港天数; 同时算出瞭望范围 [bdca]
+  //   (各船的 +0a 总载重在这里重算写回); 只在海上画, 画两次
   seaPanel() {
     const st = this.st, { con, printf, sys } = this.c;
     if (this.port !== 0xff) return;
@@ -294,7 +294,7 @@ export class SeaScene extends PortScene {
     }
     const sT = st.u8(this.shipRec(st.u8(slowSlot + 7)) + 0x0f);
     const sLoad = seaS16(st.u16(this.crewOf(slowIdx) + 0x0a)), sCap = seaS16(st.u16(this.typeOf(sT) + 6));
-    const loadPct = Math.trunc((sLoad * 100) / sCap);                  // 3722 有號長整數除法
+    const loadPct = Math.trunc((sLoad * 100) / sCap);                  // 3722 有号长整数除法
     const avgMorale = crewSum ? Math.trunc(morale / crewSum) : 0;
     this.sight = (Math.imul(this.bda8 & 0x80 ? 2 : 1, seaUmin(12, Math.floor(maxLook / 100))) & 0xffff);   // [bdca]
     this._seaStats = {
@@ -349,7 +349,7 @@ export class SeaScene extends PortScene {
     if (this.a9c8 & 1) await this.c.menu.waitRelease();
     this.a9c8 &= 0xfc;
   }
-  // ================= 海上時刻 1fd9:13c1 = 21151 (輸入) =================
+  // ================= 海上时刻 1fd9:13c1 = 21151 (输入) =================
   async seaInput() {
     const { sys, menu, scr } = this.c;
     if (this.pendingCmd !== undefined) {
@@ -358,7 +358,7 @@ export class SeaScene extends PortScene {
       return;
     }
     const steerFromViewPos = (vx, vy) => {
-      // 以主角船隻實際畫面座標為中心計算 8 方向（靠近地圖邊緣時也能精準轉向）
+      // 以主角船只实际画面座标为中心计算 8 方向（靠近地图边缘时也能精准转向）
       let cx = 640, cy = 360;
       const cam = scr._wideSeaCam;
       if (cam) {
@@ -372,7 +372,7 @@ export class SeaScene extends PortScene {
       const dx = vx - cx, dy = vy - cy;
       if (Math.hypot(dx, dy) < 36) {
         this.a9c8 &= 0xfd;
-        return 0x35;                    // 點擊主角船隻自身 = 按 '5' 指定目的地
+        return 0x35;                    // 点击主角船只自身 = 按 '5' 指定目的地
       }
       const deg = ((Math.atan2(dy, dx) * 180) / Math.PI + 90 + 360) % 360;
       const oct = Math.floor(((deg + 22.5) % 360) / 45);
@@ -383,7 +383,7 @@ export class SeaScene extends PortScene {
       if (k === 0x1e) return 0x38;      // ↑ -> 北 (8)
       if (k === 0x1f) return 0x32;      // ↓ -> 南 (2)
       if (k === 0x1d) return 0x34;      // ← -> 西 (4)
-      if (k === 0x1c) return 0x36;      // → -> 東 (6)
+      if (k === 0x1c) return 0x36;      // → -> 东 (6)
       if (k === 0xff && scr.wideRenderer && sys.mouse?.vx !== undefined) {
         sys.mouse.lastClick = null;
         return steerFromViewPos(sys.mouse.vx, sys.mouse.vy);
@@ -420,7 +420,7 @@ export class SeaScene extends PortScene {
       await sys.poll();
     }
   }
-  // 21008 海上畫面按鈕 (DS:a9d8, 13 個 × 9 bytes: x, y, w, h, 鍵): 0..7 舵輪方向, 8 中央 (指定目的地), 9..12 情報/經營/命令/航海術
+  // 21008 海上画面按钮 (DS:a9d8, 13 个 × 9 bytes: x, y, w, h, 键): 0..7 舵轮方向, 8 中央 (指定目的地), 9..12 情报/经营/命令/航海术
   async seaButton(key) {
     const { sys, con } = this.c, st = this.st, B = this.SJ.tab.buttons;
     const m = sys.mouse;
@@ -466,7 +466,7 @@ export class SeaScene extends PortScene {
         sys.mouseHide();
         const cm = this.commandsObj();
         cm.press(di - 9);                                               // seg0:9396
-        await [() => cm.info(), () => cm.manage(), () => cm.order(), () => cm.nav()][di - 9]();   // DS:aa4e 遠程函式表
+        await [() => cm.info(), () => cm.manage(), () => cm.order(), () => cm.nav()][di - 9]();   // DS:aa4e 远程函数表
         cm.release(di - 9);                                             // seg0:937e
         sys.mouseShow();
         if (this.timeAbort()) return;
@@ -477,9 +477,9 @@ export class SeaScene extends PortScene {
     if (this.a9c8 & 1) await this.c.menu.waitRelease();
     this.a9c8 &= 0xfc;
   }
-  // 20fec 轉舵: [1005] &= 0x5f, 方位 = d, 95f2(d)
+  // 20fec 转舵: [1005] &= 0x5f, 方位 = d, 95f2(d)
   steer(d) { const st = this.st; st.set8(DS.SEA_FLAGS2, st.u8(DS.SEA_FLAGS2) & 0x5f); st.set8(this.fleet + 0x1a, d); this.helm(d); }
-  // 95f2 舵輪指針 [8c1d]
+  // 95f2 舵轮指针 [8c1d]
   helm(d) {
     if (this.needle === d) return;
     const { sys, state: st } = this.c;
@@ -488,17 +488,17 @@ export class SeaScene extends PortScene {
     if (st.options & 1) { this.needle = d; this.helmDraw(9); } else this.needle = 0xff;
     sys.mouseShow();
   }
-  // 9537(base): seacompass.png 第 (指針 + base) 張
+  // 9537(base): seacompass.png 第 (指针 + base) 张
   helmDraw(base) {
     const n = this.needle; if (n === 0xff) return;
     const col = n > 4 ? 0x3e : n === 0 || n === 4 ? 0x43 : 0x48, y = n < 2 || n === 7 ? 0x110 : n === 2 || n === 6 ? 0x138 : 0x160;
     this.c.art?.drawSheetTile(this.c.scr, "seacompass", n + base, col * 8, y);
   }
   cellSel() { return (this.c.cellSel ??= new CellSelect(this.c)); }
-  // 2e09:310b = 3119b 指定目的地 (舵輪中央 '5' / 委任到達後未進港): [1005] |= 20 (停船), 游標 = 十字 0x2840 ([06d6]);
-  //   還沒委任時以 seg0:7925 標籤框 (0x1b, 0xc8, 0x12, 0x20) 印「請指定目的地」([8a24] = FFFF 期間印出; 沒有其他地方讀它);
-  //   0fea:5f74 地圖視窗 24 × 24 格 (2 × 2 游標, 起點 = 主角) 選格 → 取消回傳 0; 選定 → +4/+6 = 該格,
-  //   該格是港口 (1bb4a) → 23e19 換成附近可到達的海面; +0c = 0x6000, [1005] = (&DF) | 0x80, 回傳 1
+  // 2e09:310b = 3119b 指定目的地 (舵轮中央 '5' / 委任到达后未进港): [1005] |= 20 (停船), 光标 = 十字 0x2840 ([06d6]);
+  //   还没委任时以 seg0:7925 标签框 (0x1b, 0xc8, 0x12, 0x20) 印「请指定目的地」([8a24] = FFFF 期间印出; 没有其他地方读它);
+  //   0fea:5f74 地图窗口 24 × 24 格 (2 × 2 光标, 起点 = 主角) 选格 → 取消返回 0; 选定 → +4/+6 = 该格,
+  //   该格是港口 (1bb4a) → 23e19 换成附近可到达的海面; +0c = 0x6000, [1005] = (&DF) | 0x80, 返回 1
   async chooseDest() {
     const st = this.st, { sys, win, con, printf } = this.c, F = this.fleet;
     st.set8(DS.SEA_FLAGS2, st.u8(DS.SEA_FLAGS2) | 0x20);
@@ -534,14 +534,14 @@ export class SeaScene extends PortScene {
     return 1;
   }
 
-  // ================= 1afe8 他艦隊的海上移動 (艦隊 AI, game/fleetai.js seaTick) =================
-  // 每支艦隊先查一次滑鼠右鍵 (按下 → [a9c8] |= 1 暫停); 主角與未出航 (+29 bit0 = 0) 的略過
+  // ================= 1afe8 他舰队的海上移动 (舰队 AI, game/fleetai.js seaTick) =================
+  // 每支舰队先查一次鼠标右键 (按下 → [a9c8] |= 1 暂停); 主角与未出航 (+29 bit0 = 0) 的略过
   async fleetsMove() { await this.ai.seaTick(); }
 
-  // ================= 2e09:38ec = 3197c 主角艦隊移動 =================
-  // 316b3 本時刻航向: 委任 ([1005]&0xc0) → 自動航行; 停船 (0x20) → 8; 否則 +1a
-  //   委任中到達目的地 (+0/+2 = +4/+6, 1fd9:33d4) → 0fea:c0d9 靠港 (隱藏游標), [1005] &= 7F; 進了港 → 回傳 0;
-  //   沒進港 → 3119b 再指定目的地 (此時 [1005] bit7 已清, 會顯示「請指定目的地」); 之後 313b1 求方向 (−1 或 > 7 → [1005] &= 7F, 停船)
+  // ================= 2e09:38ec = 3197c 主角舰队移动 =================
+  // 316b3 本时刻航向: 委任 ([1005]&0xc0) → 自动航行; 停船 (0x20) → 8; 否则 +1a
+  //   委任中到达目的地 (+0/+2 = +4/+6, 1fd9:33d4) → 0fea:c0d9 靠港 (隐藏光标), [1005] &= 7F; 进了港 → 返回 0;
+  //   没进港 → 3119b 再指定目的地 (此时 [1005] bit7 已清, 会显示「请指定目的地」); 之后 313b1 求方向 (−1 或 > 7 → [1005] &= 7F, 停船)
   async heading() {
     const st = this.st, F = this.fleet, f = st.u8(DS.SEA_FLAGS2), { sys } = this.c;
     if (!(f & 0xc0)) return f & 0x20 ? 8 : st.u8(F + OFF.FLEET.DIR);
@@ -557,18 +557,18 @@ export class SeaScene extends PortScene {
     return st.u8(F + OFF.FLEET.DIR);
   }
 
-  // ================= 委任航行的路線 (1fd9 段 231c7..241c2, 艦隊 AI 共用) =================
-  // 艦隊記錄: +4/+6 目的地  +8/+a 中途點  +0c: 低 3 位元 = 目前的路線格 (0..3), bit4..7 (DS:ae30 = 80/40/20/10) = 路線格 0..3 已填;
-  //   +0d 旗標: 80 中途點有效, 40 需重新搜尋路線, 20 直接駛向目的地, 08 路線已到目的地的地點, 02 重設誤差 +0e
-  //   +0e 直線步進的誤差累計  +10..+17 路線格 0..3 的地點編號  +1b 種類 (委任時 0)
-  // 地點表 [0c96] (DATA1 #4, 每筆 16 bytes: +0 x (bit15 = 已探索, enterSea 設定), +2 y, +4..+0b 4 個鄰點 (FFFF = 無), +0c..+0f 4 個距離)
+  // ================= 委任航行的路线 (1fd9 段 231c7..241c2, 舰队 AI 共用) =================
+  // 舰队记录: +4/+6 目的地  +8/+a 中途点  +0c: 低 3 比特 = 目前的路线格 (0..3), bit4..7 (DS:ae30 = 80/40/20/10) = 路线格 0..3 已填;
+  //   +0d 标志: 80 中途点有效, 40 需重新搜索路线, 20 直接驶向目的地, 08 路线已到目的地的地点, 02 重设误差 +0e
+  //   +0e 直线步进的误差累计  +10..+17 路线格 0..3 的地点编号  +1b 种类 (委任时 0)
+  // 地点表 [0c96] (DATA1 #4, 每笔 16 bytes: +0 x (bit15 = 已探索, enterSea 设置), +2 y, +4..+0b 4 个邻点 (FFFF = 无), +0c..+0f 4 个距离)
   pt(a) { const st = this.st; return { get x() { return st.u16(a); }, set x(v) { st.set16(a, v); }, get y() { return st.u16(a + 2); }, set y(v) { st.set16(a + 2, v); } }; }
   ptLocal(x, y) { const o = { _x: x & 0xffff, _y: y & 0xffff, get x() { return this._x; }, set x(v) { this._x = v & 0xffff; }, get y() { return this._y; }, set y(v) { this._y = v & 0xffff; } }; return o; }
-  // 地點表 [0c96]: 開始新遊戲 / 讀檔 (1667a) 時由 DATA1 #4 載入, 港內的艦隊 AI 也會用到 (出海前就要有)
+  // 地点表 [0c96]: 开始新游戏 / 读档 (1667a) 时由 DATA1 #4 加载, 港内的舰队 AI 也会用到 (出海前就要有)
   get nodes() { return (this.c.nodesRT ??= Uint8Array.from(this.c.mapNodes ?? new Uint8Array(0))); }
   nodeW(n, off) { const N = this.nodes, o = ((n << 4) + off) & 0xffff; return ((N[o] ?? 0) | ((N[o + 1] ?? 0) << 8)) & 0xffff; }
-  // 313b1 自動航行的方向: 到達目的地 → 8; 241c2 失敗 → −1 (0xffff); 目標 = 中途點 (+0d&80) / 目的地 (&20) / 目前路線格的地點;
-  //   以 Bresenham 式誤差 (+0e) 在長軸上每步前進、短軸依誤差前進 → DS:b7da[3 dy + dx + 4] (與 ae38 相同的表)
+  // 313b1 自动航行的方向: 到达目的地 → 8; 241c2 失败 → −1 (0xffff); 目标 = 中途点 (+0d&80) / 目的地 (&20) / 目前路线格的地点;
+  //   以 Bresenham 式误差 (+0e) 在长轴上每步前进、短轴依误差前进 → DS:b7da[3 dy + dx + 4] (与 ae38 相同的表)
   autoSteer(F) {
     const st = this.st;
     if (st.u16(F) === st.u16(F + OFF.FLEET.DEST_X) && st.u16(F + OFF.FLEET.Y) === st.u16(F + OFF.FLEET.DEST_Y)) return 8;
@@ -593,7 +593,7 @@ export class SeaScene extends PortScene {
     }
     return this.SJ.tab.dir3[3 * ey + ex + 4];
   }
-  // 1fd9:4432 = 241c2: 已到達目前路線格的地點 → 下一格 (24206); 艦隊在區域內 → 240a7; 否則 (只有艦隊 AI 會走到) 清中途點, 需搜尋時 232a6
+  // 1fd9:4432 = 241c2: 已到达目前路线格的地点 → 下一格 (24206); 舰队在区域内 → 240a7; 否则 (只有舰队 AI 会走到) 清中途点, 需搜索时 232a6
   route(F) {
     const st = this.st, di = st.u8(F + OFF.FLEET.ROUTE_FLAGS) & 7, n = st.u16(F + OFF.FLEET.ROUTE_PTS + 2 * di);
     if ((this.nodeW(n, 0) & 0x7fff) === st.u16(F) && this.nodeW(n, 2) === st.u16(F + OFF.FLEET.Y)) this.nextNode(F, di);
@@ -603,7 +603,7 @@ export class SeaScene extends PortScene {
     if (st.u8(F + 0x0d) & 8) { st.set8(F + 0x0d, st.u8(F + 0x0d) | 0x20); return 1; }
     return this.routeSearch(F);
   }
-  // 24206 / 24112: 清掉路線格 di 的遮罩, 目前格 = (di + 1) & 3, +0d |= 2; 路線格都空了 (+0c & F0 = 0) 時 +0d |= 40 (重新搜尋)
+  // 24206 / 24112: 清掉路线格 di 的遮罩, 目前格 = (di + 1) & 3, +0d |= 2; 路线格都空了 (+0c & F0 = 0) 时 +0d |= 40 (重新搜索)
   nextNode(F, di) {
     const st = this.st, AE = [0x80, 0x40, 0x20, 0x10];
     let c = st.u16(F + OFF.FLEET.ROUTE_FLAGS) & ~AE[di] & 0xffff;
@@ -611,14 +611,14 @@ export class SeaScene extends PortScene {
     st.set16(F + OFF.FLEET.ROUTE_FLAGS, c);
     if (!(c & 0xf0)) st.set8(F + 0x0d, st.u8(F + 0x0d) | 0x40);
   }
-  // 2317c 點在目前區域 (72 × 72) 內
+  // 2317c 点在目前区域 (72 × 72) 内
   inRegion(x, y) {
     const left = (this.item * 0x2d0 + this.bda6) & 0xffff;
     return ((x - left) & 0xffff) < 0x48 && ((y - this.bdaa) & 0xffff) < 0x48 ? 1 : 0;
   }
-  // 240a7 區域內的路線: 中途點無效 → 設 +0d |= 82; 已到達中途點 → (到了路線格的地點就換下一格) 重求; 否則沿用 (回傳 1)
-  //   需搜尋 (+0d&40): 已到目的地的地點 (&8) → 直接駛向目的地 (|= 20), 否則 232a6; 之後 23e53 取目標 → 區域內就以 23a97(模式 1) 求中途點;
-  //   失敗時 24008 (項的左右 / 南北邊界), 再失敗 23ef7 把目標投影到區域邊上後 23a97
+  // 240a7 区域内的路线: 中途点无效 → 设 +0d |= 82; 已到达中途点 → (到了路线格的地点就换下一格) 重求; 否则沿用 (返回 1)
+  //   需搜索 (+0d&40): 已到目的地的地点 (&8) → 直接驶向目的地 (|= 20), 否则 232a6; 之后 23e53 取目标 → 区域内就以 23a97(模式 1) 求中途点;
+  //   失败时 24008 (项的左右 / 南北边界), 再失败 23ef7 把目标投影到区域边上后 23a97
   regionRoute(F) {
     const st = this.st, W = this.pt(F + OFF.FLEET.MID_X);
     if (!(st.u8(F + 0x0d) & 0x80)) st.set8(F + 0x0d, st.u8(F + 0x0d) | 0x82);
@@ -633,8 +633,8 @@ export class SeaScene extends PortScene {
     if (this.clipTarget(F, W)) return this.pathStep(F, W, 1);
     return 0;
   }
-  // 23e53 目標: 直接駛向目的地 (+0d&20) 時 = +4/+6 (+1b 為 0..3 或 9、目的地在區域內且是陸地 → 23e19 換成附近可到達的海面並寫回 +4/+6);
-  //   否則 = 目前路線格的地點。回傳 目標在區域內
+  // 23e53 目标: 直接驶向目的地 (+0d&20) 时 = +4/+6 (+1b 为 0..3 或 9、目的地在区域内且是陆地 → 23e19 换成附近可到达的海面并写回 +4/+6);
+  //   否则 = 目前路线格的地点。返回 目标在区域内
   wayTarget(F, W) {
     const st = this.st;
     if (st.u8(F + 0x0d) & 0x20) {
@@ -646,12 +646,12 @@ export class SeaScene extends PortScene {
     } else { const n = st.u16(F + OFF.FLEET.ROUTE_PTS + 2 * (st.u8(F + OFF.FLEET.ROUTE_FLAGS) & 7)); W.x = this.nodeW(n, 0) & 0x7fff; W.y = this.nodeW(n, 2); }
     return this.inRegion(W.x, W.y);
   }
-  // 艦隊在第 0 項而目標在第 2 項 (或相反) 時把目標 x 換到相鄰的一圈 (±0x870)
+  // 舰队在第 0 项而目标在第 2 项 (或相反) 时把目标 x 换到相邻的一圈 (±0x870)
   wrapX(fx, si) {
     if (fx < 0x2d0) { if (si >= 0x5a0) si -= 0x870; } else if (fx >= 0x5a0) { if (si < 0x2d0) si += 0x870; }
     return si;
   }
-  // 24008 艦隊在項的左右邊緣 (x mod 720 = 0 / 0x2ce) 或南北邊緣 (y = 0 / 0x436) 而目標在外側 → 目標 = 艦隊位置外 2 格, 回傳 1
+  // 24008 舰队在项的左右边缘 (x mod 720 = 0 / 0x2ce) 或南北边缘 (y = 0 / 0x436) 而目标在外侧 → 目标 = 舰队位置外 2 格, 返回 1
   edgeTarget(F, W) {
     const st = this.st, fx = seaS16(st.u16(F)), fy = seaS16(st.u16(F + OFF.FLEET.Y)), fm = fx % 0x2d0;
     const si = this.wrapX(fx, seaS16(W.x));
@@ -661,7 +661,7 @@ export class SeaScene extends PortScene {
     if (fy === 0x436 && seaS16(W.y) > fy) { W.y = fy + 2; return 1; }
     return 0;
   }
-  // 23ef7 目標在區域外: 沿艦隊 → 目標的直線投影到區域的左 / 右 (left / left + 0x46)、上 / 下 (top / top + 0x46) 邊; 乘積只取低 16 位元 (imul 後 cwd)
+  // 23ef7 目标在区域外: 沿舰队 → 目标的直线投影到区域的左 / 右 (left / left + 0x46)、上 / 下 (top / top + 0x46) 边; 乘积只取低 16 比特 (imul 后 cwd)
   clipTarget(F, W) {
     const st = this.st, left = seaS16(this.item * 0x2d0 + this.bda6), top = seaS16(this.bdaa);
     const fx = seaS16(st.u16(F)), fy = seaS16(st.u16(F + OFF.FLEET.Y));
@@ -674,7 +674,7 @@ export class SeaScene extends PortScene {
     W.x = si; W.y = di;
     return this.inRegion(W.x, W.y);
   }
-  // 1fd9:4089 = 23e19: 目的地 (+4/+6) 周圍 12 個位置 (23d7b 堆疊上的表) 中第一個 在區域內、不是陸地、且 23872 可到達 的 → W (都不行時 W = 最後一個)
+  // 1fd9:4089 = 23e19: 目的地 (+4/+6) 周围 12 个位置 (23d7b 堆栈上的表) 中第一个 在区域内、不是陆地、且 23872 可到达 的 → W (都不行时 W = 最后一个)
   nearSea(F, W) {
     const st = this.st, D = [0, -2, 0, 2, 2, 0, -2, 0, -1, -2, 1, -2, 2, -1, 2, 1, -1, 2, 1, 2, -2, -1, -2, 1];
     for (let i = 0; i < 12; i++) {
@@ -684,7 +684,7 @@ export class SeaScene extends PortScene {
     }
     return 0;
   }
-  // 231c7 最近的地點 (由最後一筆往前, 距離平方, x 差依世界一圈 0x870 取近的一邊; 找到距離 0 即停): 回傳編號 | (距離 0 ? 0x8000 : 0)
+  // 231c7 最近的地点 (由最后一笔往前, 距离平方, x 差依世界一圈 0x870 取近的一边; 找到距离 0 即停): 返回编号 | (距离 0 ? 0x8000 : 0)
   nearestNode(px, py) {
     const N = this.SJ.nodeCount;
     let best = 0xffffffff, bi = 0xffff;
@@ -692,14 +692,14 @@ export class SeaScene extends PortScene {
       const dx = seaS16((this.nodeW(i, 0) & 0x7fff) - px), dy = seaS16(this.nodeW(i, 2) - py);
       let si = dx;
       if (dx > 0x438) si = seaS16(si - 0x870); else if (si < -0x438) si = seaS16(si + 0x870);
-      const d = (dy * dy + si * si) >>> 0;                             // seg0:37bc 長整數乘法
+      const d = (dy * dy + si * si) >>> 0;                             // seg0:37bc 长整数乘法
       if (d < best) { best = d; bi = i; }
     }
     return (best === 0 ? 0x8000 : 0) | bi;
   }
-  // 232a6 地點路線搜尋: 由目的地最近的地點往外做廣度優先 (5 bytes 的佇列項 {由哪個方向來的位元, 地點, 距離}; 已訪問的只放寬距離, 不重排),
-  //   主角艦隊只走已探索 (+1 bit7) 的地點; 擴展到起點後由起點沿「距離 + 邊長 = 本點距離」的鄰點走回, 最多 4 個 (起點本身距離 0 時不算)
-  //   → 從目前路線格起找第一個空格 (DS:ae30 遮罩), 依序填入, 遇到目的地的地點時 +0d |= 8; 最後 +0d &= BF。起點 = 目的地的地點且距離 0 → +0d |= 28
+  // 232a6 地点路线搜索: 由目的地最近的地点往外做广度优先 (5 bytes 的队列项 {由哪个方向来的比特, 地点, 距离}; 已访问的只放宽距离, 不重排),
+  //   主角舰队只走已探索 (+1 bit7) 的地点; 扩展到起点后由起点沿「距离 + 边长 = 本点距离」的邻点走回, 最多 4 个 (起点本身距离 0 时不算)
+  //   → 从目前路线格起找第一个空格 (DS:ae30 遮罩), 依序填入, 遇到目的地的地点时 +0d |= 8; 最后 +0d &= BF。起点 = 目的地的地点且距离 0 → +0d |= 28
   routeSearch(F) {
     const st = this.st, N = this.nodes, AE = [0x80, 0x40, 0x20, 0x10];
     const link = (n, k) => this.nodeW(n, 4 + 2 * k), cost = (n, k) => N?.[((n << 4) + 0x0c + k) & 0xffff] ?? 0;
@@ -719,7 +719,7 @@ export class SeaScene extends PortScene {
         const c = (cost(h.node, k) + h.cost) & 0xffff;
         if (hero && !((N?.[((nb << 4) + 1) & 0xffff] ?? 0) & 0x80)) continue;
         h.flags |= mask;
-        let rm = 8; for (let j = 0; j < 64 && link(nb, j) !== h.node; j++) rm = (rm >> 1) & 0xff;   // 2333d: 鄰點的哪一個鄰點是本點 (原版不限次數)
+        let rm = 8; for (let j = 0; j < 64 && link(nb, j) !== h.node; j++) rm = (rm >> 1) & 0xff;   // 2333d: 邻点的哪一个邻点是本点 (原版不限次数)
         if (vis[nb] < 0) {
           vis[nb] = E.length; E.push({ flags: rm, node: nb, cost: c });
           if (nb === start) { found = 1; break; }
@@ -739,7 +739,7 @@ export class SeaScene extends PortScene {
         const nb = link(e.node, k), v = vis[nb];
         if (v >= 0 && ((cost(e.node, k) + E[v].cost) & 0xffff) === e.cost) break;
       }
-      cur = link(e.node, k);                                           // k = 4 (都不符) 時讀到距離欄位, 原版如此
+      cur = link(e.node, k);                                           // k = 4 (都不符) 时读到距离字段, 原版如此
       path.push(cur);
     }
     let slot = st.u8(F + OFF.FLEET.ROUTE_FLAGS) & 7;
@@ -753,9 +753,9 @@ export class SeaScene extends PortScene {
     st.set8(F + 0x0d, st.u8(F + 0x0d) & 0xbf);
     return 1;
   }
-  // 314eb 船速 (各船取最小): 風向差 k = |風向 − 航向| → DS:06d8 表第 k 列的帆種係數 × 推進力 × 風力 (縱帆船 (+10 bit4 = 0) 風力至少 3) / 150
-  //   × min(100, 駕駛% × 水手 / 船型 +5) / 100 × min(150, 180 − min(180, 載重%)) / 100 → 加上航海術 (+24) 10%/點 (上限 30) → × 技能 (+1d) / 75 (上限 40)
-  //   k = 3..5 (逆風) 時再 × 轉向力 / 100; 結果至少 2; 風力 0 且沒有縱帆船 → 0
+  // 314eb 船速 (各船取最小): 风向差 k = |风向 − 航向| → DS:06d8 表第 k 列的帆种系数 × 推进力 × 风力 (纵帆船 (+10 bit4 = 0) 风力至少 3) / 150
+  //   × min(100, 驾驶% × 水手 / 船型 +5) / 100 × min(150, 180 − min(180, 载重%)) / 100 → 加上航海术 (+24) 10%/点 (上限 30) → × 技能 (+1d) / 75 (上限 40)
+  //   k = 3..5 (逆风) 时再 × 转向力 / 100; 结果至少 2; 风力 0 且没有纵帆船 → 0
   shipSpeedAt(h, wStr, wDir) {
     const st = this.st, T = this.SJ.tab.windSpeed;
     const k = Math.abs(wDir - h) & 0xff, row = k * 8, beat = k >= 3 && k <= 5;
@@ -782,9 +782,9 @@ export class SeaScene extends PortScene {
     if (best < 2) best = 2;
     return !wStr && !fore ? 0 : best;
   }
-  // 31728 依航向與海流移動一步: 格內位置 (+18/+19, 每格 0x3c) 累加 (方位向量 × 船速 + 海流向量 × 海流強度, 8 位元);
-  //   跨格時檢查陸地 (3135c); 走到 WORLDMAP 項的左右邊界 (x mod 720 < 0 或 >= 719) / 南北邊界時不檢查陸地並設 crossed
-  //   回傳 1 = 被陸地擋住 (連斜向也不行)
+  // 31728 依航向与海流移动一步: 格内位置 (+18/+19, 每格 0x3c) 累加 (方位矢量 × 船速 + 海流矢量 × 海流强度, 8 比特);
+  //   跨格时检查陆地 (3135c); 走到 WORLDMAP 项的左右边界 (x mod 720 < 0 或 >= 719) / 南北边界时不检查陆地并设 crossed
+  //   返回 1 = 被陆地挡住 (连斜向也不行)
   stepFleet(h, out) {
     const st = this.st, F = this.fleet, X = this.SJ.tab.dirX, Y = this.SJ.tab.dirY, b = st.u8(DS.WIND_CUR);
     const cd = (b & 0x38) >> 3, cs = b & 7;
@@ -821,18 +821,18 @@ export class SeaScene extends PortScene {
     if (this.port !== 0xff) return;
     if (si !== 8) {
       const a = st.u8(DS.PORT_FLAGS), b = st.u8(DS.WIND_CUR);
-      this.speed = this.shipSpeedAt(si, a & 7, (a & 0x38) >> 3) & 0xff;   // [bdac] (海流方向/強度是傳入的參數, 但 314eb 沒有用到)
+      this.speed = this.shipSpeedAt(si, a & 7, (a & 0x38) >> 3) & 0xff;   // [bdac] (海流方向/强度是传入的参数, 但 314eb 没有用到)
       const ox = st.u16(F), oy = st.u16(F + OFF.FLEET.Y), out = {};
       if (this.stepFleet(si, out)) {
         si = (si + 1) & 7;
         if (this.stepFleet(si, out)) { si = (si - 2) & 7; if (this.stepFleet(si, out)) this.blocked(); }
       }
       if (out.crossed) {
-        this.item = Math.trunc(this.wx(F) / 0x2d0) & 0xff;             // 849a 換 WORLDMAP 項
+        this.item = Math.trunc(this.wx(F) / 0x2d0) & 0xff;             // 849a 换 WORLDMAP 项
         const r = this.regionOf(); this.region = r; this.decodeRegion(r);
         if (this.landAt(this.wx(F), this.wy(F))) {
           st.set16(F, ox); st.set16(F + OFF.FLEET.Y, oy);
-          this.item = Math.trunc(this.wx(F) / 0x2d0) & 0xff;           // 849a (區域緩衝保留新項的內容, [06c8] 之後設為 FFFF)
+          this.item = Math.trunc(this.wx(F) / 0x2d0) & 0xff;           // 849a (区域缓冲保留新项的内容, [06c8] 之后设为 FFFF)
         } else {
           if (out.x < 0 || out.x >= 0x2cf) this.vx1006 = Math.trunc(this.wx(F) / 24) * 24;
           if (out.y < 0 || out.y >= 0x437) this.vy1008 = Math.trunc(this.wy(F) / 24) * 24;
@@ -843,11 +843,11 @@ export class SeaScene extends PortScene {
     }
     this.scroll();
   }
-  // 1fd9:44d8 = 24268: 三個方向都被擋住 → 23a97(目標 = 艦隊 +8, 艦隊, 0): 以 +8/+a 為目標重求中途點寫回 +8/+a
+  // 1fd9:44d8 = 24268: 三个方向都被挡住 → 23a97(目标 = 舰队 +8, 舰队, 0): 以 +8/+a 为目标重求中途点写回 +8/+a
   blocked() { this.pathStep(this.fleet, this.pt(this.fleet + 8), 0); }
-  // 237fb + 23872 區域距離場 (緩衝 [0c88] = 視窗保存區, 72 × 72 字): 0x800 = 未到, 0x801 = 陸地 (圖塊 >= 0x34); 由目標往外做帶權最短路
-  //   (DS:ae18: 8 方向 dx, dy, 成本 2 / 3; 佇列 = 堆疊上 72×72 字的環狀緩衝, 插入排序); 船身 2×2: 該格與 東、南、東南 都不能是陸地
-  //   回傳 1 = 由目標擴展到了起點 (起點 = 艦隊 F, 座標以區域左上為原點的 8 位元值); 目標在陸地上或到不了 → 0
+  // 237fb + 23872 区域距离场 (缓冲 [0c88] = 窗口保存区, 72 × 72 字): 0x800 = 未到, 0x801 = 陆地 (图块 >= 0x34); 由目标往外做带权最短路
+  //   (DS:ae18: 8 方向 dx, dy, 成本 2 / 3; 队列 = 堆栈上 72×72 字的环状缓冲, 插入排序); 船身 2×2: 该格与 东、南、东南 都不能是陆地
+  //   返回 1 = 由目标扩展到了起点 (起点 = 舰队 F, 座标以区域左上为原点的 8 比特值); 目标在陆地上或到不了 → 0
   pathField(F, T) {
     const st = this.st, D = this.SJ.tab.path8, N = 72 * 72, Q = new Int32Array(N);
     const buf = (this.pathBuf ??= new Uint16Array(0x8000)); buf.fill(0);
@@ -883,8 +883,8 @@ export class SeaScene extends PortScene {
     }
     return 0;
   }
-  // 23a97(T, F, mode): 距離場建好後由艦隊沿距離遞減走 (最多 256 步, 每步取 8 鄰格中最小的; 都不更小時往北), 第一步的方向一直延伸到不再同向的位置 → T
-  //   艦隊與目標同一格時 T = 區域左上 (原版如此)。mode ≠ 0 的後半 (再嘗試轉向) 只有艦隊 AI 使用, 尚未移植
+  // 23a97(T, F, mode): 距离场建好后由舰队沿距离递减走 (最多 256 步, 每步取 8 邻格中最小的; 都不更小时往北), 第一步的方向一直延伸到不再同向的位置 → T
+  //   舰队与目标同一格时 T = 区域左上 (原版如此)。mode ≠ 0 的后半 (再尝试转向) 只有舰队 AI 使用, 尚未移植
   pathStep(F, T, mode) {
     const st = this.st, D = this.SJ.tab.path8;
     if (!this.pathField(F, T)) return 0;
@@ -906,12 +906,12 @@ export class SeaScene extends PortScene {
     }
     let y0 = Math.trunc(path[0] / 72), x0 = path[0] % 72, run = 0, si = 1;
     let d = this.SJ.tab.dir3[(y0 - fy) * 3 + (x0 - fx) + 4];
-    const X = this.SJ.tab.dirX, Y = this.SJ.tab.dirY, next = k => (x0 + X[k]) + (y0 + Y[k]) * 72;   // DS:ae42 / ae4a (與 0718 / 0720 相同)
+    const X = this.SJ.tab.dirX, Y = this.SJ.tab.dirY, next = k => (x0 + X[k]) + (y0 + Y[k]) * 72;   // DS:ae42 / ae4a (与 0718 / 0720 相同)
     for (; si < path.length; si++, run++) {
       if (path[si] !== next(d)) break;
       x0 += X[d]; y0 += Y[d];
     }
-    // 23c9c 第 3 引數 ≠ 0 (委任 / 艦隊 AI 的 240a7): 路線轉彎處先試 方向 +1、再試 −1 走一格; 轉成功且直線段長度 ≠ 0 時沿新方向繼續延伸
+    // 23c9c 第 3 参数 ≠ 0 (委任 / 舰队 AI 的 240a7): 路线转弯处先试 方向 +1、再试 −1 走一格; 转成功且直线段长度 ≠ 0 时沿新方向继续延伸
     if (mode && path.length > si) {
       d = (d + 1) & 7;
       let ok = path[si] === next(d);
@@ -925,7 +925,7 @@ export class SeaScene extends PortScene {
     T.x = x0 + left; T.y = y0 + top;
     return 1;
   }
-  // 31b73 地圖視窗捲動: 主角離視窗左上 < 11 − [0ca9] 或 > 11 + [0ca9] 時移動一格 (x 限 項內 0..0x2b8, y 0..0x420)
+  // 31b73 地图窗口滚动: 主角离窗口左上 < 11 − [0ca9] 或 > 11 + [0ca9] 时移动一格 (x 限 项内 0..0x2b8, y 0..0x420)
   scroll() {
     const st = this.st, F = this.fleet, m = st.u8(DS.SEA_SCROLL);
     const rx = this.wx(F) - this.vx1006, si = this.vx1006 % 0x2d0;
@@ -936,7 +936,7 @@ export class SeaScene extends PortScene {
     else if (m + 11 < ry) { if (dy < 0x420) this.vy1008 = dy + 1; }
   }
 
-  // ================= 2e09:2f3d = 30fcd 發現 (港口 / 村落) 與海上特殊地點 =================
+  // ================= 2e09:2f3d = 30fcd 发现 (港口 / 村落) 与海上特殊地点 =================
   async discover() {
     const st = this.st, F = this.fleet, rng = this.c.sys.rng;
     if (this.port !== 0xff) return;
@@ -959,7 +959,7 @@ export class SeaScene extends PortScene {
         if (!this.inSight(sight, x, y)) continue;
         if (rng.random(0xc8) >= skill) return;
       }
-      marketTradeLog(st, this.c.rt, 9, di, 0, 0);                    // 0fea:e3e5 交易記錄 種類 9 (發現港口)
+      marketTradeLog(st, this.c.rt, 9, di, 0, 0);                    // 0fea:e3e5 交易记录 种类 9 (发现港口)
       st.set8(R + 0x15, st.u8(R + 0x15) | 0x10);
       await this.found(0, di);
       return;
@@ -977,19 +977,19 @@ export class SeaScene extends PortScene {
       return;
     }
   }
-  // 0fea:30fc = 12f9c: |主角 − (x, y)| 各軸 <= r
+  // 0fea:30fc = 12f9c: |主角 − (x, y)| 各轴 <= r
   near(r, x, y) {
     const F = this.fleet, fx = this.wx(F), fy = this.wy(F);
     const dx = fx < x ? x - fx : fx - x, dy = fy < y ? y - fy : fy - y;
     return dx <= r && dy <= r;
   }
-  // 30f81: 霧 (天候 3) 以外、距離 <= r 且在地圖視窗內
+  // 30f81: 雾 (天候 3) 以外、距离 <= r 且在地图窗口内
   inSight(r, x, y) {
     if ((this.st.u8(DS.WEATHER) & 15) === 3) return false;
     if (!this.near(r, x, y)) return false;
     return x >= this.vx1006 && x < this.vx1006 + 0x18 && y >= this.vy1008 && y < this.vy1008 + 0x18;
   }
-  // 30b34 發現: 重新解碼區域並畫地圖, 「船長！發現%s港！」/「發現村落！」, 港口 (< 100) 加冒險名聲 25 × 規模 (+1c), 補給港與村落 50
+  // 30b34 发现: 重新解码区域并画地图, 「船长！发现%s港！」/「发现村落！」, 港口 (< 100) 加冒险名声 25 × 规模 (+1c), 补给港与村落 50
   async found(kind, id) {
     const { sys, con, printf, message, win, menu } = this.c, st = this.st;
     let fame = 0x32;
@@ -1013,15 +1013,15 @@ export class SeaScene extends PortScene {
     sys.mouseShow();
     con.left = l; con.right = r;
   }
-  // 31047: 以唯讀開 MONSTER.DAT (0fea:6114, 開不了時原版顯示錯誤並結束程式), lseek 到第 [1044] 筆 (5 bytes), 讀 4 bytes 到 DS:1012 + 4i (x, y)、
-  //   1 byte 到 DS:103a + i (事件編號) — 用過的地點換成檔案裡的下一個; 讀到檔尾以後讀不到, 該地點維持 (0, 0) (RE_NOTES 36.2)
+  // 31047: 以唯读开 MONSTER.DAT (0fea:6114, 开不了时原版显示错误并结束程序), lseek 到第 [1044] 笔 (5 bytes), 读 4 bytes 到 DS:1012 + 4i (x, y)、
+  //   1 byte 到 DS:103a + i (事件编号) — 用过的地点换成文件里的下一个; 读到档尾以后读不到, 该地点维持 (0, 0) (RE_NOTES 36.2)
   monsterRead(i) {
     const st = this.st, M = this.P.monster; let pos = st.u8(0x1044) * 5;
     for (let k = 0; k < 4; k++, pos++) if (pos < M.length) st.set8(0x1012 + 4 * i + k, M[pos]);
     if (pos < M.length) st.set8(0x103a + i, M[pos]);
   }
-  // 30e9f 海上特殊地點事件 n: 先執行 DS:b796[n] 的函式 (回傳 0 = 沒有發生, 什麼都不顯示); 發生時效果音 DS:0c44 兩次 (各 0x1e tick, 中間 0x14),
-  //   30b1e 視窗「船長！不得了啦！快看海面上！」, 再兩段訊息 (n + 0xff) × 2 + i 各自一個視窗, 8067 重畫, 9888
+  // 30e9f 海上特殊地点事件 n: 先运行 DS:b796[n] 的函数 (返回 0 = 没有发生, 什么都不显示); 发生时效果音 DS:0c44 两次 (各 0x1e tick, 中间 0x14),
+  //   30b1e 窗口「船长！不得了啦！快看海面上！」, 再两段消息 (n + 0xff) × 2 + i 各自一个窗口, 8067 重画, 9888
   async seaEvent(n) {
     const { sys, con, message, win, menu } = this.c, sfx = this.c.sfx;
     sys.mouseHide();                                                   // 4ee7
@@ -1043,54 +1043,54 @@ export class SeaScene extends PortScene {
     }
     sys.mouseShow();                                                   // 4ecf
   }
-  // DS:b796 的 10 個函式 (回傳 1 = 發生)
+  // DS:b796 的 10 个函数 (返回 1 = 发生)
   seaEventFn(n) {
     const st = this.st, H = st.u8(DS.HERO);
-    // 事件 2 / 5 / 8: 從第 9 艘往前找第一艘「有船且船長不是主角」的 (10 艘都不是 → 0)
+    // 事件 2 / 5 / 8: 从第 9 艘往前找第一艘「有船且船长不是主角」的 (10 艘都不是 → 0)
     const other = () => { for (let i = 9; i >= 0; i--) if ((st.u8(this.slotOf(i) + 8) & 0x30) === 0x10 && st.u8(this.crewOf(i) + 0x1b) !== H) return i; return -1; };
     const has = i => (st.u8(this.slotOf(i) + 8) & 0x30) === 0x10;
     switch (n) {
-      case 0:                                                          // 30c10: 348ff(0x19, 0) 各船水手 −25% (不顯示損失)
+      case 0:                                                          // 30c10: 348ff(0x19, 0) 各船水手 −25% (不显示损失)
         for (let i = 0; i < 10; i++) if (has(i)) {
-          const S = this.slotOf(i), p = seaS16(Math.imul(0x19, seaS16(st.u16(S))) & 0xffff);   // imul 後只用低 16 位元 (cwd)
+          const S = this.slotOf(i), p = seaS16(Math.imul(0x19, seaS16(st.u16(S))) & 0xffff);   // imul 后只用低 16 比特 (cwd)
           st.set16(S, st.u16(S) + Math.trunc(p / -100));
         }
         return 1;
-      case 1: {                                                        // 30c1d: 主角 + 船員 (12d8c → [0538]) 各 +20 −= min(+20, 10)
+      case 1: {                                                        // 30c1d: 主角 + 船员 (12d8c → [0538]) 各 +20 −= min(+20, 10)
         const cnt = this.b.captainPool(), L = this.c.persons;
         for (let i = 0; i < cnt; i++) { const P = st.personRecord(L[i] & 0xff); st.set8(P + 0x20, st.u8(P + 0x20) - seaUmin(st.u8(P + 0x20), 10)); }
         return 1;
       }
-      case 2: {                                                        // 30c6a: 那艘船離隊 (+8 &= EF), 船長 +2e = 6, 船長欄 = FF
+      case 2: {                                                        // 30c6a: 那艘船离队 (+8 &= EF), 船长 +2e = 6, 船长栏 = FF
         const i = other(); if (i < 0) return 0;
         const S = this.slotOf(i), M = this.crewOf(i);
         st.set8(S + 8, st.u8(S + 8) & 0xef); st.set8(st.personRecord(st.u8(M + OFF.CREW_SLOT.CAPTAIN)) + 0x2e, 6); st.set8(M + OFF.CREW_SLOT.CAPTAIN, 0xff);
         return 1;
       }
-      case 3: return 1;                                                // 30cce: 沒有效果
-      case 4: {                                                        // 30cd2: 有船的船位 (12c8a → [0538]) 士氣 +1c += min(10, 100 − +1c)
+      case 3: return 1;                                                // 30cce: 没有效果
+      case 4: {                                                        // 30cd2: 有船的船位 (12c8a → [0538]) 士气 +1c += min(10, 100 − +1c)
         const cnt = this.b.fleetShips(), L = this.c.persons;
         for (let i = 0; i < cnt; i++) { const M = this.crewOf(L[i] & 0xff); st.set8(M + OFF.CREW_SLOT.MORALE, st.u8(M + OFF.CREW_SLOT.MORALE) + seaUmin(10, 100 - st.u8(M + OFF.CREW_SLOT.MORALE))); }
         return 1;
       }
       case 5: { const i = other(); if (i < 0) return 0; const S = this.slotOf(i); st.set8(S + 5, st.u8(S + 5) >> 1); return 1; }   // 30d24
-      case 6:                                                          // 30d75: 各船 +16..+1a = FF、+0c..+14 (5 字) = 0, 每艘之後 0fea:9d01 (19ba1, 只計算)
+      case 6:                                                          // 30d75: 各船 +16..+1a = FF、+0c..+14 (5 字) = 0, 每艘之后 0fea:9d01 (19ba1, 只计算)
         for (let i = 0; i < 10; i++) if (has(i)) {
           const M = this.crewOf(i);
           for (let k = 0; k < 5; k++) { st.set8(M + OFF.CREW_SLOT.CARGO_GOODS + k, 0xff); st.set16(M + OFF.CREW_SLOT.CARGO_AMTS + 2 * k, 0); }
         }
         return 1;
-      case 7:                                                          // 30dd9: 各船士氣 +1c −= min(+1c, 10)
+      case 7:                                                          // 30dd9: 各船士气 +1c −= min(+1c, 10)
         for (let i = 0; i < 10; i++) if (has(i)) { const M = this.crewOf(i); st.set8(M + OFF.CREW_SLOT.MORALE, st.u8(M + OFF.CREW_SLOT.MORALE) - seaUmin(st.u8(M + OFF.CREW_SLOT.MORALE), 10)); }
         return 1;
-      case 8: {                                                        // 30e29: 那艘船 +2 >>= 1, 0fea:83f9 艦隊重算
+      case 8: {                                                        // 30e29: 那艘船 +2 >>= 1, 0fea:83f9 舰队重算
         const i = other(); if (i < 0) return 0;
         const S = this.slotOf(i); st.set8(S + 2, st.u8(S + 2) >> 1); this.fleetDurability(this.fleet);
         return 1;
       }
       case 9: { const P = this.b.hero; st.set8(P + 0x23, st.u8(P + 0x23) - seaUmin(st.u8(P + 0x23), 0x1e)); return 1; }   // 30e83: 主角 +23 −= min(+23, 30)
     }
-    return 0;                                                          // 表外: 原版會跳到表後的位址 (正常不會發生)
+    return 0;                                                          // 表外: 原版会跳到表后的地址 (正常不会发生)
   }
 
   // ================= 每日 195b6 (只在海上) =================
@@ -1099,13 +1099,13 @@ export class SeaScene extends PortScene {
     this.foodDaily(); this.waterDaily();
     await this.rats(); await this.scurvy(); await this.lost();
   }
-  // 19427: 鼠患 (0cb3 bit4): 未發生時 19358 判斷發生, 發生中 193dc 每船糧食 −min(10, 糧食)
+  // 19427: 鼠患 (0cb3 bit4): 未发生时 19358 判断发生, 发生中 193dc 每船粮食 −min(10, 粮食)
   async rats() {
     const st = this.st;
     if (!(st.u8(DS.WEATHER) & 0x10)) await this.ratsStart();
     if (st.u8(DS.WEATHER) & 0x10) for (let i = 0; i < 10; i++) if (this.present(i)) { const M = this.crewOf(i); st.set16(M + OFF.CREW_SLOT.FOOD, st.u16(M + OFF.CREW_SLOT.FOOD) - seaUmin(10, st.u16(M + OFF.CREW_SLOT.FOOD))); }
   }
-  // 19358: 出港 > 30 天、沒有貓 ([bda8]&0x40)、random(主角 +24 / 5 + 2) = 0 且 random(105) > 主角 +23 → GRAPH #0x39、0x1d9
+  // 19358: 出港 > 30 天、没有猫 ([bda8]&0x40)、random(主角 +24 / 5 + 2) = 0 且 random(105) > 主角 +23 → GRAPH #0x39、0x1d9
   async ratsStart() {
     const st = this.st, H = this.b.hero, rng = this.c.sys.rng, di = st.u8(H + 0x23), si = st.u8(H + 0x24);
     if (st.u8(DS.WEATHER) & 0x10 || this.bda8 & 0x40 || st.u8(DS.DAYS_AT_SEA) <= 0x1e) return;
@@ -1124,7 +1124,7 @@ export class SeaScene extends PortScene {
     sys.mouseHide(); this.clearCache(); graph.draw(pic, 0xa0, 0x10);
     this.b.crewSpeaks(); message(msg); await menu.waitPrompt(); await win.close(); sys.mouseShow();
   }
-  // 19511: 壞血病 (0cb3 bit5): 出港 > 60 天且 random(105) > 主角 +23 時發生 (GRAPH #0x3b、0x1da); 發生中每船水手 −min(random(2) + (100 − 船長 +1e) / 5, 水手)
+  // 19511: 坏血病 (0cb3 bit5): 出港 > 60 天且 random(105) > 主角 +23 时发生 (GRAPH #0x3b、0x1da); 发生中每船水手 −min(random(2) + (100 − 船长 +1e) / 5, 水手)
   async scurvy() {
     const st = this.st, rng = this.c.sys.rng;
     if (!(st.u8(DS.WEATHER) & 0x20)) {
@@ -1137,7 +1137,7 @@ export class SeaScene extends PortScene {
       st.set16(S, st.u16(S) - seaUmin(v, st.u16(S)));
     }
   }
-  // 19528: 全艦隊沒有水手 (或沒有船) → 0x1ba / 0x241 後遊戲結束 ([03ea] = 0x19)
+  // 19528: 全舰队没有水手 (或没有船) → 0x1ba / 0x241 后游戏结束 ([03ea] = 0x19)
   async lost() {
     const st = this.st, { sys, palette, message, menu, win } = this.c;
     let n = 0, crew = 0;
@@ -1154,8 +1154,8 @@ export class SeaScene extends PortScene {
   }
 
   // ================= 天候 (1a011 的海上部分) =================
-  // 19a99 天候開始: 所在海域的風向表 bit7 (天候區) 時, random(155) > 最高的觀測 (航海士/測量士 +23) + 50 且 random(11) > 平均 +1d
-  //   → bit6: 1988c (落水); 海流表 bit6..7 = 1 暴風雨 / 2 無風 / 3 霧
+  // 19a99 天候开始: 所在海域的风向表 bit7 (天候区) 时, random(155) > 最高的观测 (航海士/测量士 +23) + 50 且 random(11) > 平均 +1d
+  //   → bit6: 1988c (落水); 海流表 bit6..7 = 1 暴风雨 / 2 无风 / 3 雾
   async weatherStart() {
     const st = this.st, rng = this.c.sys.rng, [w, c] = this.clock.windAt(this.fleet);
     if (!(w & 0x80)) return;
@@ -1176,7 +1176,7 @@ export class SeaScene extends PortScene {
       case 0xc0: if (!rng.random(10) && rng.random(6) >= (st.u8(DS.PORT_FLAGS) & 7)) await this.weatherBegin(0x15c, 3); break;
     }
   }
-  // 1988c 海難: 非主角當船長、船長 +1b & 0xc0 且 random(100) > 船長 +23 的第一艘船 → 19849 (船長離隊、船 5deb 移除) → 197f7
+  // 1988c 海难: 非主角当船长、船长 +1b & 0xc0 且 random(100) > 船长 +23 的第一艘船 → 19849 (船长离队、船 5deb 移除) → 197f7
   async overboard() {
     const st = this.st, rng = this.c.sys.rng;
     for (let i = 0; i < 10; i++) {
@@ -1190,7 +1190,7 @@ export class SeaScene extends PortScene {
       return;
     }
   }
-  // 19849: 船長從船員名單 (DS:2e1b) 移除 (+2d = FF, +31 &= DF), 再 5deb 移除船位 i
+  // 19849: 船长从船员名单 (DS:2e1b) 移除 (+2d = FF, +31 &= DF), 再 5deb 移除船位 i
   dropShip(i, M) {
     const st = this.st, c = st.u8(M + OFF.CREW_SLOT.CAPTAIN);
     for (let k = 0; k < 0x1e; k++) if (st.u8(DS.PARTY_CREW + k) === c) {
@@ -1200,7 +1200,7 @@ export class SeaScene extends PortScene {
     }
     this.removeShip(i);
   }
-  // seg0:5deb 移除船位 i: 船 (+0f = FF, +10/+11/+12/+14 = 0)、船位 (+2..+6 = FF, +0 = 0, +8 = 0)、船員配置清空, 船長 (非主角) 職務 = 6; +08 先寫 0x19 再寫 0x32 (原版如此)
+  // seg0:5deb 移除船位 i: 船 (+0f = FF, +10/+11/+12/+14 = 0)、船位 (+2..+6 = FF, +0 = 0, +8 = 0)、船员配置清空, 船长 (非主角) 职务 = 6; +08 先写 0x19 再写 0x32 (原版如此)
   removeShip(i) {
     const st = this.st, M = this.crewOf(i), S = this.slotOf(i), ship = this.shipRec(st.u8(S + 7));
     st.set8(ship + 0x0f, 0xff); st.set8(ship + 0x11, 0); st.set8(ship + 0x10, 0); st.set16(ship + 0x14, 0); st.set16(ship + 0x12, 0);
@@ -1212,7 +1212,7 @@ export class SeaScene extends PortScene {
     if (st.u8(M + OFF.CREW_SLOT.CAPTAIN) !== st.u8(DS.HERO)) st.set8(st.personRecord(st.u8(M + OFF.CREW_SLOT.CAPTAIN)) + 0x2e, 6);
     st.set8(M + OFF.CREW_SLOT.CAPTAIN, 0xff); st.set8(M + OFF.CREW_SLOT.MORALE, 0); st.set8(M + OFF.CREW_SLOT.FIGUREHEAD, 0); st.set8(M + OFF.CREW_SLOT.NAV_RATIO, 0x19); st.set8(M + OFF.CREW_SLOT.NAV_RATIO, 0x32);
   }
-  // 197f7: 0x150 / 0x151「%s 不見了」— 原版以「船位編號」當船編號取船名 (5c7a(i)), 照搬
+  // 197f7: 0x150 / 0x151「%s 不见了」— 原版以「船位编号」当船编号取船名 (5c7a(i)), 照搬
   async shipLostMsg(i) {
     if (this.port !== 0xff) return;
     const { sys, message, con } = this.c, st = this.st, ship = this.shipRec(i);
@@ -1223,7 +1223,7 @@ export class SeaScene extends PortScene {
     sys.mouseShow();
     con.right = 0x50;
   }
-  // 19909 觀測者: 船員名單中最後一個職務 3 與最後一個職務 5 的人, 取 +1f 較高者 (相同時取職務 5)
+  // 19909 观测者: 船员名单中最后一个职务 3 与最后一个职务 5 的人, 取 +1f 较高者 (相同时取职务 5)
   watcher() {
     const st = this.st; let a = 0xffff, b = 0xffff, pa = 0, pb = 0;
     for (let i = 0; i < 0x1e; i++) {
@@ -1236,7 +1236,7 @@ export class SeaScene extends PortScene {
     if (a !== 0xffff && st.u8(pb + 0x1f) < st.u8(pa + 0x1f)) return a;
     return b;
   }
-  // 1999c 天候開始: [0cb3] = (高 4 位元) | 種類 | 0x40; 觀測者 random(100) <= +1f 時發言 (msg + 2 若 +1e < 70; + 1 若 +2f bit3)
+  // 1999c 天候开始: [0cb3] = (高 4 比特) | 种类 | 0x40; 观测者 random(100) <= +1f 时发言 (msg + 2 若 +1e < 70; + 1 若 +2f bit3)
   async weatherBegin(msg, kind) {
     const st = this.st, { sys, message, menu, win } = this.c;
     const di = this.watcher();
@@ -1252,13 +1252,13 @@ export class SeaScene extends PortScene {
     await menu.waitPrompt(); await win.close();
     sys.mouseShow();
   }
-  // 船員發言 0x... (+1 若發言者 +2f bit3) 後等待、關閉
+  // 船员发言 0x... (+1 若发言者 +2f bit3) 后等待、关闭
   async crewSay(m0, m1, ...a) {
     const { message, menu, win } = this.c, st = this.st, p = this.b.crewSpeaks();
     message(p !== 0xff && (st.u8(st.personRecord(p) + 0x2f) & 8) ? m1 : m0, ...a);
     await menu.waitPrompt(); await win.close();
   }
-  // 19f48 天候進行中: 剛開始 (bit6) 時船員報告 (暴風雨先 2103 + GRAPH #0x3a), 重畫地圖, bit6 → bit7; 依種類 19bd1 / 19e84 / 19efc; 1976e
+  // 19f48 天候进行中: 刚开始 (bit6) 时船员报告 (暴风雨先 2103 + GRAPH #0x3a), 重画地图, bit6 → bit7; 依种类 19bd1 / 19e84 / 19efc; 1976e
   async weatherOngoing() {
     const st = this.st, { sys, graph } = this.c;
     if (st.u8(DS.WEATHER) & 0x40) {
@@ -1277,10 +1277,10 @@ export class SeaScene extends PortScene {
     }
     this.c.palette.selectTimePalette(this.time, true, st.u8(DS.WEATHER));   // 1976e
   }
-  // 19bd1 暴風雨 (每時刻): 各船損傷 si = min(10, (100 − 船長 +1d) / (+24/5 + 3) + 1) + random(2), 非 +10 bit6 的船 ×5;
-  //   耐久度 (+2) −si, 轉向力 (+4)、推進力 (+5) −si/2; 最大耐久 (+3) = max(船型 +1 / 4, +3 − 1), 耐久度 <= 最大耐久;
-  //   耐久度 0: 主角的船 → 淡出、[03ea] = 0x18 (遊戲結束); 其他船 → 沉沒訊息 0x166/0x167 (+ 船長 0x329 或 19849), 5deb
-  //   [1005]&0x18 時不損傷。之後 18299、風力 = 7; 非當天開始且 (random(8) = 0 或離開天候區) → 結束 0x168/0x169; 8067
+  // 19bd1 暴风雨 (每时刻): 各船损伤 si = min(10, (100 − 船长 +1d) / (+24/5 + 3) + 1) + random(2), 非 +10 bit6 的船 ×5;
+  //   耐久度 (+2) −si, 转向力 (+4)、推进力 (+5) −si/2; 最大耐久 (+3) = max(船型 +1 / 4, +3 − 1), 耐久度 <= 最大耐久;
+  //   耐久度 0: 主角的船 → 淡出、[03ea] = 0x18 (游戏结束); 其他船 → 沉没消息 0x166/0x167 (+ 船长 0x329 或 19849), 5deb
+  //   [1005]&0x18 时不损伤。之后 18299、风力 = 7; 非当天开始且 (random(8) = 0 或离开天候区) → 结束 0x168/0x169; 8067
   async storm() {
     const st = this.st, { sys, palette, message, menu, win } = this.c, rng = this.c.sys.rng, F = this.fleet;
     if (!(st.u8(DS.SEA_FLAGS2) & 0x18)) {
@@ -1309,12 +1309,12 @@ export class SeaScene extends PortScene {
           const p = this.b.crewSpeaks();
           message(p !== 0xff && (st.u8(st.personRecord(p) + 0x2f) & 8) ? 0x167 : 0x166, this.b.dstr(this.shipRec(st.u8(S + 7))));
           message(0x329, this.b.dstr(Pc));
-          st.set8(DS.PARTY_CREW + k, cap);                                      // 原版把船長放回原位 (找不到時寫到 DS:2e39)
+          st.set8(DS.PARTY_CREW + k, cap);                                      // 原版把船长放回原位 (找不到时写到 DS:2e39)
           this.removeShip(i);
         } else {
           this.dropShip(i, M);
           const p = this.b.crewSpeaks();
-          message(p !== 0xff && (st.u8(st.personRecord(p) + 0x2f) & 8) ? 0x167 : 0x166, this.b.dstr(this.shipRec(st.u8(S + 7))));   // 5deb 不清 +7 與船名, 仍是原船名
+          message(p !== 0xff && (st.u8(st.personRecord(p) + 0x2f) & 8) ? 0x167 : 0x166, this.b.dstr(this.shipRec(st.u8(S + 7))));   // 5deb 不清 +7 与船名, 仍是原船名
         }
         await menu.waitPrompt(); await win.close();
         sys.mouseShow();
@@ -1329,14 +1329,14 @@ export class SeaScene extends PortScene {
     }
     this.seaPanel();                                                   // 8067
   }
-  // 18299 艦隊 +28 = (各船耐久度和 + 4) / 5; 和為 0 時 +29 bit0 清除
+  // 18299 舰队 +28 = (各船耐久度和 + 4) / 5; 和为 0 时 +29 bit0 清除
   fleetDurability(F) {
     const st = this.st; let sum = 0;
     for (let i = 0; i < 10; i++) { const S = F + OFF.FLEET.SHIPS + 9 * i; if ((st.u8(S + 8) & 0x30) === 0x10) sum += st.u8(S + 2); }
     st.set8(F + OFF.FLEET.STRENGTH, Math.trunc((sum + 4) / 5));
     if (!sum) st.set8(F + OFF.FLEET.FLAGS, st.u8(F + OFF.FLEET.FLAGS) & 0xfe);
   }
-  // 19e84 無風: 非當天開始、random(20) = 0 且所在海域風力 (風向表 &7) ≠ 0 → 結束 0x16a/0x16b; 期間風力 = 0
+  // 19e84 无风: 非当天开始、random(20) = 0 且所在海域风力 (风向表 &7) ≠ 0 → 结束 0x16a/0x16b; 期间风力 = 0
   async calm() {
     const st = this.st, rng = this.c.sys.rng, [w] = this.clock.windAt(this.fleet), { sys } = this.c;
     if (!(st.u8(DS.WEATHER) & 0x80) && !rng.random(0x14) && (w & 7)) {
@@ -1345,7 +1345,7 @@ export class SeaScene extends PortScene {
     }
     st.set8(DS.PORT_FLAGS, st.u8(DS.PORT_FLAGS) & 0xf8);
   }
-  // 19efc 霧: 非當天開始且 (random(30) = 0 或離開天候區 (風 bit7 = 0)) → 結束 0x16c
+  // 19efc 雾: 非当天开始且 (random(30) = 0 或离开天候区 (风 bit7 = 0)) → 结束 0x16c
   async fog() {
     const st = this.st, rng = this.c.sys.rng, { sys, message, menu, win } = this.c;
     if (st.u8(DS.WEATHER) & 0x80) return;
@@ -1355,9 +1355,9 @@ export class SeaScene extends PortScene {
   }
 
   // ================= 靠港 0fea:c0d9 = 1bf79 =================
-  // 主角周圍 12 格 (DS:a6e8) 中地圖緩衝 ([03f6], 96 寬, 以區域左上為原點) 是港口圖塊 0x74 / 0x78 的: 1bb4a 找座標相同的港口 → [0cae]
-  //   → 1bf4c 確認 → [1005] |= 0x20、交易記錄 (種類 0, +4 出港天數, +6 港口) → 1bd16 到港處理 → 8c53 進港; 否 → [0cae] = FF 結束
-  //   **進港後迴圈不結束**: 繼續檢查其餘的格, 但緩衝已換成港口地圖 (原版如此, 若剛好是 0x74 / 0x78 會再問一次)
+  // 主角周围 12 格 (DS:a6e8) 中地图缓冲 ([03f6], 96 宽, 以区域左上为原点) 是港口图块 0x74 / 0x78 的: 1bb4a 找座标相同的港口 → [0cae]
+  //   → 1bf4c 确认 → [1005] |= 0x20、交易记录 (种类 0, +4 出港天数, +6 港口) → 1bd16 到港处理 → 8c53 进港; 否 → [0cae] = FF 结束
+  //   **进港后循环不结束**: 继续检查其余的格, 但缓冲已换成港口地图 (原版如此, 若刚好是 0x74 / 0x78 会再问一次)
   async dock() {
     const st = this.st, F = this.fleet, T = this.SJ.tab.dock12;
     let cx = (Math.trunc(this.wx(F) / 24) % 30) - 1, cy = (Math.trunc(this.wy(F) / 24) % 45) - 1;
@@ -1376,13 +1376,13 @@ export class SeaScene extends PortScene {
       await this.enter();                                              // 8c53
     }
   }
-  // 1bb4a 座標完全相同的港口 (130 個), 沒有 → 0xffff
+  // 1bb4a 座标完全相同的港口 (130 个), 没有 → 0xffff
   portIdAt(x, y) {
     const st = this.st;
     for (let i = 0; i < 0x82; i++) { const R = DS.TBL_PORT + i * 0x16; if (st.u16(R) === (x & 0xffff) && st.u16(R + 2) === (y & 0xffff)) return i; }
     return 0xffff;
   }
-  // 1bf4c 船員「要進入%s港嗎？」(0x16d) 是/否
+  // 1bf4c 船员「要进入%s港吗？」(0x16d) 是/否
   async askDock() {
     const st = this.st, { message, menu, win } = this.c;
     this.b.crewSpeaks();
@@ -1391,8 +1391,8 @@ export class SeaScene extends PortScene {
     await win.close();
     return r;
   }
-  // 1bd16 到港: 港口 +15 |= 0x50、[1005] |= 0x20、[0cb3] &= C0; 依出港天數 d 給經驗 (主角與職務 2/3 的船員 2·min(d,70)², 其他船員 min(d,100)²);
-  //   1fd9:333a 地點位元表; 港口 < 100 時更新中古船清單 DS:7f74 (3 筆 × 8: +0..+4 船型, +5 港口)
+  // 1bd16 到港: 港口 +15 |= 0x50、[1005] |= 0x20、[0cb3] &= C0; 依出港天数 d 给经验 (主角与职务 2/3 的船员 2·min(d,70)², 其他船员 min(d,100)²);
+  //   1fd9:333a 地点比特表; 港口 < 100 时更新中古船清单 DS:7f74 (3 笔 × 8: +0..+4 船型, +5 港口)
   async arrival() {
     const st = this.st, rng = this.c.sys.rng, port = st.u8(DS.PORT);
     st.set8(DS.TBL_PORT + port * 0x16 + 0x15, st.u8(DS.TBL_PORT + port * 0x16 + 0x15) | 0x50);
@@ -1430,7 +1430,7 @@ export class SeaScene extends PortScene {
     if (di) for (let n = 0; n < 3; n++) st.set8(L + k++, R[row + (rng.random(di) & 0xff)]);
     for (let n = 0; n < 2; n++) st.set8(L + k++, this.SJ.tab.usedShips2[rng.random(Math.floor(seaUmin(st.u16(E), 0x2a8) / 0x28) + 1) & 0xff]);
   }
-  // 1bb9c 經驗 (+26) += g; 足夠時升級 (+24, 所需 = min(等級, 18)² × 30, 100 為上限: 經驗歸零); 有升級時 +1c..+1f 各 + min(random(3), 100 − 值)
+  // 1bb9c 经验 (+26) += g; 足够时升级 (+24, 所需 = min(等级, 18)² × 30, 100 为上限: 经验归零); 有升级时 +1c..+1f 各 + min(random(3), 100 − 值)
   levelUp(P, g) {
     const st = this.st, rng = this.c.sys.rng;
     let n = 0;
@@ -1444,7 +1444,7 @@ export class SeaScene extends PortScene {
     if (n) for (let i = 0; i < 4; i++) st.set8(P + OFF.PERSON.STATS + i, st.u8(P + OFF.PERSON.STATS + i) + seaUmin(rng.random(3), (100 - st.u8(P + OFF.PERSON.STATS + i)) & 0xffff));
     return n;
   }
-  // 1bc14 升級訊息: 發言者就是本人 → 「助手」, 主角 → 「船長」, 其他 → 姓名; 「的航海等級有所提高．」+ 3 項能力各 + min(random(3), 100 − 值) (有增加的列出) + 「上昇．」
+  // 1bc14 升级消息: 发言者就是本人 → 「助手」, 主角 → 「船长」, 其他 → 姓名; 「的航海等级有所提高．」+ 3 项能力各 + min(random(3), 100 − 值) (有增加的列出) + 「上升．」
   async levelMsg(P, kind) {
     const st = this.st, { sys, con, printf, menu, win } = this.c, rng = sys.rng;
     const l = con.left, r = con.right;
@@ -1460,14 +1460,14 @@ export class SeaScene extends PortScene {
       st.set8(P + OFF.PERSON.STATS + i, st.u8(P + OFF.PERSON.STATS + i) + v); up = 1;
     }
     if (up) { con.setCursor(con.x - 2, con.y); con.puts(this.SS.rise); }
-    this.c.sfx?.voice(0x0c2e); this.c.sfx?.note(0x3c);                // 9768(DS:0c2e) + 9804(0x3c) 效果音, 5998(0x14) 延遲, 9888
+    this.c.sfx?.voice(0x0c2e); this.c.sfx?.note(0x3c);                // 9768(DS:0c2e) + 9804(0x3c) 效果音, 5998(0x14) 延迟, 9888
     await sys.waitTicks(0x14);
     this.c.sfx?.off();
     await menu.waitPrompt(); await win.close();
     sys.mouseShow();
     con.left = l; con.right = r;
   }
-  // 1fd9:333a = 230ca 地點 (x & 0x7fff, y) 所在的格在探索表 DS:0de8 有位元的, DS:1046 位元表設位元
+  // 1fd9:333a = 230ca 地点 (x & 0x7fff, y) 所在的格在探索表 DS:0de8 有比特的, DS:1046 比特表设比特
   locationBits() {
     const st = this.st, N = this.c.nodesRT ?? this.c.mapNodes;
     if (!N) return;
@@ -1478,9 +1478,9 @@ export class SeaScene extends PortScene {
     }
   }
 
-  // 2e09:3223 = 312b3 委任: 職務 3 的第一個船員 (seg0:5cee) 沒有或 +30 bit4 (技能) = 0 → 船員 0x357/0x358 (+2f bit3), 回傳 0;
-  //   否則 0fea:321a 已發現港口清單 (清單 0x85 = 種類 5 港名) → 艦隊 +4/+6 = 港口座標 (陸地上, 之後 23e53 換成附近的海), +0c = 0x4000, +1b = 0,
-  //   [1005] = (&DF) | 0x80 (之後每個時刻由 316b3 / 313b1 自動航行); 取消 → 0
+  // 2e09:3223 = 312b3 委任: 职务 3 的第一个船员 (seg0:5cee) 没有或 +30 bit4 (技能) = 0 → 船员 0x357/0x358 (+2f bit3), 返回 0;
+  //   否则 0fea:321a 已发现港口清单 (清单 0x85 = 种类 5 港名) → 舰队 +4/+6 = 港口座标 (陆地上, 之后 23e53 换成附近的海), +0c = 0x4000, +1b = 0,
+  //   [1005] = (&DF) | 0x80 (之后每个时刻由 316b3 / 313b1 自动航行); 取消 → 0
   async delegate() {
     const st = this.st;
     let ok = 0;
@@ -1497,7 +1497,7 @@ export class SeaScene extends PortScene {
     st.set8(DS.SEA_FLAGS2, (st.u8(DS.SEA_FLAGS2) & 0xdf) | 0x80);
     return 1;
   }
-  // 0fea:321a = 130ba 已發現 (+15 bit4) 的港口編號 → [0538], 回傳個數
+  // 0fea:321a = 130ba 已发现 (+15 bit4) 的港口编号 → [0538], 返回个数
   knownPorts() {
     const st = this.st, P = this.c.persons; let n = 0;
     for (let i = 0; i < 0x82; i++) if (st.u8(DS.TBL_PORT + i * 0x16 + 0x15) & 0x10) P[n++] = i;
@@ -1513,10 +1513,10 @@ export class SeaScene extends PortScene {
     await menu.waitPrompt(); await win.close();
   }
 
-  // ================= 登陸 2e09:6e37 = 34ec7 =================
-  // 主角周圍 8 個 2×2 位置 (DS:b92e / b93e, 靠視窗邊緣的方向略過) 做成點擊區 → 0fea:37d1 選擇 → [8246] = 34c53 該處的發現物
-  //   → 該處地圖格: 0x41/0x49/0x51/0x59 (0x59 時 [b8de] = 0) 或 0x7c..0x7f → 34d54 上陸; 0x74..0x7b → 靠港; < 0x74 → 0x1b9「這裡不能上陸」; >= 0x80 → 無
-  //   [1005]&0x18 時直接 34d54
+  // ================= 登陆 2e09:6e37 = 34ec7 =================
+  // 主角周围 8 个 2×2 位置 (DS:b92e / b93e, 靠窗口边缘的方向略过) 做成点击区 → 0fea:37d1 选择 → [8246] = 34c53 该处的发现物
+  //   → 该处地图格: 0x41/0x49/0x51/0x59 (0x59 时 [b8de] = 0) 或 0x7c..0x7f → 34d54 上陆; 0x74..0x7b → 靠港; < 0x74 → 0x1b9「这里不能上陆」; >= 0x80 → 无
+  //   [1005]&0x18 时直接 34d54
   async land() {
     const st = this.st, F = this.fleet, { menu, message, win } = this.c;
     if (st.u8(DS.SEA_FLAGS2) & 0x18) { await this.landExplore(); return; }
@@ -1533,7 +1533,7 @@ export class SeaScene extends PortScene {
     const sel = await this.pickRect();                                 // 0fea:37d1
     if (sel === 0xff) return;
     const x = Math.trunc(seaS16(Pn[2 * sel] - 0x60) / 16), y = Math.trunc(seaS16(Pn[2 * sel + 1] - 8) / 16);
-    st.set8(DS.DISCOVERY_ID, this.discNear(x, y));                              // [8246] (在存檔範圍內)
+    st.set8(DS.DISCOVERY_ID, this.discNear(x, y));                              // [8246] (在存盘范围内)
     let cx = (Math.trunc(this.wx(F) / 24) % 30) - 1, cy = (Math.trunc(this.wy(F) / 24) % 45) - 1;
     cx = cx < 0 ? 0 : cx > 0x1b ? 0x1b : cx; cy = cy < 0 ? 0 : cy > 0x2a ? 0x2a : cy;
     const bx = seaS16((this.wx(F) % 0x2d0) - 24 * cx), by = seaS16(this.wy(F) - 24 * cy);
@@ -1544,7 +1544,7 @@ export class SeaScene extends PortScene {
     else if (t < 0x7c) await this.dock();
     else if (t < 0x80) await this.landExplore();
   }
-  // 34c53 視窗座標 (x, y) 的 2×2 (含左上 1 格) 內的發現物編號, 沒有 → 0xff
+  // 34c53 窗口座标 (x, y) 的 2×2 (含左上 1 格) 内的发现物编号, 没有 → 0xff
   discNear(x, y) {
     const st = this.st;
     for (let d = 0; d < 0x64; d++) for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) {
@@ -1553,7 +1553,7 @@ export class SeaScene extends PortScene {
     }
     return 0xff;
   }
-  // 0fea:37d1 = 13671 以點擊區選擇 (數字鍵 4 / 6 循環, Enter 確定, Esc / '0' 取消 → 0xff); [a160] 不重設 (超出時才歸 0)
+  // 0fea:37d1 = 13671 以点击区选择 (数字键 4 / 6 循环, Enter 确定, Esc / '0' 取消 → 0xff); [a160] 不重设 (超出时才归 0)
   async pickRect() {
     const { sys, menu, scr } = this.c;
     if (scr.wideRenderer && scr._wideSeaCam) {
@@ -1590,7 +1590,7 @@ export class SeaScene extends PortScene {
         ctx.strokeStyle = `rgba(255, 232, 148, ${(0.98 * pulse).toFixed(3)})`;
         ctx.lineWidth = 3.5;
         ctx.strokeRect(curBox.x + 1.5, curBox.y + 1.5, curBox.size - 3, curBox.size - 3);
-        // 頂部提示
+        // 顶部提示
         const promptText = "请选择登陆地点";
         ctx.font = '700 15px "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", sans-serif';
         const pw = ctx.measureText(promptText).width + 36, ph = 38, px = (1280 - pw) / 2, py = 20;
@@ -1664,11 +1664,11 @@ export class SeaScene extends PortScene {
     sys.mouseHide();
     return k === 0x1b || k === 0x30 ? 0xff : menu.cur;
   }
-  // 34d54 上陸探索 (確認、MENU #0x24 上陸選單、34ccc 發現物) → scenes/land.js (RE_NOTES 第 36 節)
+  // 34d54 上陆探索 (确认、MENU #0x24 上陆菜单、34ccc 发现物) → scenes/land.js (RE_NOTES 第 36 节)
   async landExplore() { await new Land(this).run(); }
 
-  // ================= 命令 交涉 20a6d / 戰鬥 0fea:1181 / 偵察 1feae =================
-  // 0fea:314a = 12fea(r) 距離 <= r、出航中 (+29 bit0)、非 bit4、指揮者 (+2a) 不是主角的艦隊 → DS:0538 = 指揮者, 回傳數量
+  // ================= 命令 交涉 20a6d / 战斗 0fea:1181 / 侦察 1feae =================
+  // 0fea:314a = 12fea(r) 距离 <= r、出航中 (+29 bit0)、非 bit4、指挥者 (+2a) 不是主角的舰队 → DS:0538 = 指挥者, 返回数量
   nearFleets(r) {
     const st = this.st, P = this.c.persons; let n = 0;
     for (let k = 0; k < 0x46; k++) {
@@ -1684,11 +1684,11 @@ export class SeaScene extends PortScene {
     else win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0);
     message(m); await menu.waitPrompt(); await win.close();
   }
-  // 20a6d 交涉 → 20127 (scenes/negotiate.js, 第 30.1 節)
+  // 20a6d 交涉 → 20127 (scenes/negotiate.js, 第 30.1 节)
   async negotiate() { return seaNegotiate(this); }
-  // 10f7e 海戰 (AL, DL = 雙方指揮者, 其中一方是主角; BL、堆疊參數 = 雙方援軍, 0xff = 沒有) → scenes/battle.js (第 30 節)
+  // 10f7e 海战 (AL, DL = 双方指挥者, 其中一方是主角; BL、堆栈参数 = 双方援军, 0xff = 没有) → scenes/battle.js (第 30 节)
   async navalBattle(al, dl, bl, arg) { return new NavalBattle(this).run(al, dl, bl, arg); }
-  // 0fea:1181 = 11021 戰鬥: 時刻 < 15 或 >= 60 → 0x30d「夜間不能開戰」; 10df0 選對象 (附近沒有 → 0x30a); 與主角同國 (非 6) → 0x30e 確認; → 10f7e(主角, 對象, 0xff, 0xff)
+  // 0fea:1181 = 11021 战斗: 时刻 < 15 或 >= 60 → 0x30d「夜间不能开战」; 10df0 选对象 (附近没有 → 0x30a); 与主角同国 (非 6) → 0x30e 确认; → 10f7e(主角, 对象, 0xff, 0xff)
   async battle() {
     const st = this.st, t = this.c.rt.time;
     if (t < 0x0f || t >= 0x3c) { await this.smallMsg(0x30d); return; }
@@ -1708,7 +1708,7 @@ export class SeaScene extends PortScene {
       return;
     }
   }
-  // 10df0 對象: 12fea(2) → 清單 3 → 1c839 人物資料 + 是/否
+  // 10df0 对象: 12fea(2) → 清单 3 → 1c839 人物数据 + 是/否
   async battleTarget() {
     for (;;) {
       const n = this.nearFleets(2);
@@ -1720,12 +1720,12 @@ export class SeaScene extends PortScene {
       if (await this.c.menu.yesNo()) return this.c.persons[si];
     }
   }
-  // ================= 情報 航海圖 0fea:dc2e = 1dace、隨身物 地圖 0fea:ded6 = 1dd76 =================
-  // 1d8ac(0x80): 現代 PNG 模式直接由 seachip.png 縮放繪製，無需二進位縮圖表
+  // ================= 情报 航海图 0fea:dc2e = 1dace、随身物 地图 0fea:ded6 = 1dd76 =================
+  // 1d8ac(0x80): 现代 PNG 模式直接由 seachip.png 缩放绘制，无需二进位缩略图表
   chartTiles() {
     return null;
   }
-  // 1d710(欄 col, y, 世界欄 bc, 列 br, 縮圖表 T, 模式)
+  // 1d710(栏 col, y, 世界栏 bc, 列 br, 缩略图表 T, 模式)
   chartQuad(col, y, bc, br, _T, mode) {
     const st = this.st, scr = this.c.scr, art = this.c.art;
     bc %= 0x5a;
@@ -1740,15 +1740,15 @@ export class SeaScene extends PortScene {
     for (let rr = 0; rr < 0x18; rr++) for (let cc = 0; cc < 0x18; cc++)
       art?.drawSheetTile(scr, "seachip", this.seaBuf[0x60 * (oy + rr) + ox + cc], (col + cc) * 8, y + rr * 8, { dw: 8, dh: 8, smooth: true });
   }
-  // 1fd9:1f2a 水平 XOR 線 (逐點 seg0:0b33, 剪裁矩形 DS:aaac)
+  // 1fd9:1f2a 水平 XOR 线 (逐点 seg0:0b33, 剪裁矩形 DS:aaac)
   xorLine(x0, y, x1, color) {
     const [cx0, cy0, cx1, cy1] = this.c.clip ?? [0, 0, 0x27f, 0x18f], fb = this.c.scr.fb;
     if (y < cy0 || y > cy1) return;
     for (let x = Math.max(x0, cx0); x <= Math.min(x1, cx1); x++) fb[y * 640 + x] ^= color & 15;
     this.c.scr.dirty = true;
   }
-  // 1d9be 世界全圖: 淡出 → GRAPH.DAT #0x19 (5b5d) → 未探索的海域格 (DS:0de8) 以 6 × 6 色 0xd 蓋住 (畫面欄 = 世界欄 + [06d5] (= 30) mod 90) →
-  //   主角位置 ((x + 720) mod 2160 − 12) / 4、(y − 12) / 4 起 6 條 XOR 色 0xb 的橫線 → 99ce(DS:a700) 航海圖調色盤
+  // 1d9be 世界全图: 淡出 → GRAPH.DAT #0x19 (5b5d) → 未探索的海域格 (DS:0de8) 以 6 × 6 色 0xd 盖住 (画面栏 = 世界栏 + [06d5] (= 30) mod 90) →
+  //   主角位置 ((x + 720) mod 2160 − 12) / 4、(y − 12) / 4 起 6 条 XOR 色 0xb 的横线 → 99ce(DS:a700) 航海图调色盘
   async worldView() {
     const st = this.st, { palette, graph, scr } = this.c, F = this.fleet;
     scr.setAtmosphere?.({ active: false });
@@ -1767,14 +1767,14 @@ export class SeaScene extends PortScene {
     for (let i = 0; i < 6; i++, y++) this.xorLine(x, y, x + 5, 0x0b);
     await palette.fadeTo(palette.table("chart"));                      // 99ce(DS:a700)
   }
-  // 0fea:dc2e = 1dace 航海圖: 在港時先讀海上圖塊 (84de, [06ca] = FF); 世界全圖上以 0fea:5f74 (90 × 45 格, 格寬 −6 = 1 格游標, 起點 = 主角所在) 選格 →
-  //   該格與右、下 共 2 × 2 格都未探索 → 重選 (游標回到上次的格); 否則 淡出、清畫面 (07f7)、外框 (5a91: 在港 #3/#5 + 8894, 海上 #2/#4 + 日期 / 8067 / 8fbf)、
-  //   1d710 畫 2 × 2 個海域格 (模式 0) → 航海圖調色盤 → 等按鍵 (131f9) → 淡出 → 1d9be → 99ce → 再選。取消後: 在港 88e9 + 外框 + 8894 + 羅盤指針;
-  //   海上 還原 [06ca] (849a)、重新解碼目前區域、外框、舵輪指針 (95f2) → 1976e → 2103 + 1fac → 淡入
+  // 0fea:dc2e = 1dace 航海图: 在港时先读海上图块 (84de, [06ca] = FF); 世界全图上以 0fea:5f74 (90 × 45 格, 格宽 −6 = 1 格光标, 起点 = 主角所在) 选格 →
+  //   该格与右、下 共 2 × 2 格都未探索 → 重选 (光标回到上次的格); 否则 淡出、清画面 (07f7)、外框 (5a91: 在港 #3/#5 + 8894, 海上 #2/#4 + 日期 / 8067 / 8fbf)、
+  //   1d710 画 2 × 2 个海域格 (模式 0) → 航海图调色盘 → 等按键 (131f9) → 淡出 → 1d9be → 99ce → 再选。取消后: 在港 88e9 + 外框 + 8894 + 罗盘指针;
+  //   海上 还原 [06ca] (849a)、重新解码目前区域、外框、舵轮指针 (95f2) → 1976e → 2103 + 1fac → 淡入
   async chart() {
     const st = this.st, { palette, sys, graph, scr, menu } = this.c, F = this.fleet;
     const item0 = this.item, needle0 = this.needle, inPort = this.port !== 0xff;
-    if (inPort) this.item = 0xff;                                      // 84de (移植版的 seachip 常駐)
+    if (inPort) this.item = 0xff;                                      // 84de (移植版的 seachip 常驻)
     const T = this.chartTiles();                                       // 1d8ac(0x80)
     await this.worldView();                                            // 1d9be
     let init = Math.trunc(st.u16(F + OFF.FLEET.Y) / 0x18) * 0x5a + Math.trunc(((0x1e * 0x18 + st.u16(F)) % 0x870) / 0x18);
@@ -1811,10 +1811,10 @@ export class SeaScene extends PortScene {
     await palette.fadeToTarget();                                      // 99e8
     sys.flush();                                                       // 3fae
   }
-  // 0fea:ded6 = 1dd76 隨身物 種類 0x0c 地圖 (it = 隨身物編號): 縮圖表的圖塊 0x7c..0x7f 改成在圖塊 0x41 (海) 上畫 X 記號
-  //   (DS:a7c8 / a7cf 兩條斜線: 平面 1 OR, 其他平面 AND NOT) → 發現物 (隨身物 +12 → DS:7f8c + 7 × n) 所在的 2 × 2 海域格
-  //   (x mod 24 < 12 時往左一格, y mod 24 < 12 且列 ≠ 0 時往上一格) 以 1d710 模式 1 畫在地圖視窗 → 航海圖調色盤 → 等按鍵 →
-  //   在港 88e9 / 海上 還原 [06ca] 與區域 → 淡出 → 1976e → 2103 + 1fac → 淡入 (不重畫外框與面板)
+  // 0fea:ded6 = 1dd76 随身物 种类 0x0c 地图 (it = 随身物编号): 缩略图表的图块 0x7c..0x7f 改成在图块 0x41 (海) 上画 X 记号
+  //   (DS:a7c8 / a7cf 两条斜线: 平面 1 OR, 其他平面 AND NOT) → 发现物 (随身物 +12 → DS:7f8c + 7 × n) 所在的 2 × 2 海域格
+  //   (x mod 24 < 12 时往左一格, y mod 24 < 12 且列 ≠ 0 时往上一格) 以 1d710 模式 1 画在地图窗口 → 航海图调色盘 → 等按键 →
+  //   在港 88e9 / 海上 还原 [06ca] 与区域 → 淡出 → 1976e → 2103 + 1fac → 淡入 (不重画外框与面板)
   async mapItem(it) {
     const st = this.st, { palette, sys, menu, scr, art, codec } = this.c, item0 = this.item, inPort = this.port !== 0xff;
     const R = DS.TBL_DISCOVERY + ((st.u8(DS.TBL_ITEM + ((it * 0x14) & 0xffff) + 0x12) * 7) & 0xffff);   // seg0:5cde → +12 → seg0:5cce
@@ -1856,7 +1856,7 @@ export class SeaScene extends PortScene {
           drawQuad(24, 0, di + 1, si);
           drawQuad(0, 24, di, si + 1);
           drawQuad(24, 24, di + 1, si + 1);
-          // 繪製紅色 X 寶藏標記
+          // 绘制红色 X 宝藏标记
           let rx = x - di * 24;
           if (rx < -1080) rx += 2160; else if (rx > 1080) rx -= 2160;
           const ry = y - si * 24;
@@ -1897,10 +1897,10 @@ export class SeaScene extends PortScene {
     sys.flush();                                                       // 3fae
   }
 
-  // 1feae 偵察: 1fd9c 選格 → 港口 (已顯示訊息) / 沒有 → 再選; 艦隊 → 指揮者的資料視窗 7849(0x0f, 0x20, 0x21, 0xd8, 1):
-  //   「名•姓」、國名 (DS:08de; 國籍 6 時 = 指揮者編號 mod 6) + 艦隊種類 (MENU #0x27: 艦隊編號 mod 10 = 0 → 0, 1..4 → 1, 5..9 → 2)、
-  //   速度 (1acbf / 2, 呼叫端把風力 / 風向、海流方向 / 強度對調傳入, 原版如此)、航向 (MENU #0x28[+1a])、各船名 (兩欄, 行高 [8a1e] = 0x10)
-  //   艦隊編號 61..69 (除 60) 時, 船員中最高的 +1e > random(90) → 船員 0x2fe「國名 + 種類」
+  // 1feae 侦察: 1fd9c 选格 → 港口 (已显示消息) / 没有 → 再选; 舰队 → 指挥者的数据窗口 7849(0x0f, 0x20, 0x21, 0xd8, 1):
+  //   「名•姓」、国名 (DS:08de; 国籍 6 时 = 指挥者编号 mod 6) + 舰队种类 (MENU #0x27: 舰队编号 mod 10 = 0 → 0, 1..4 → 1, 5..9 → 2)、
+  //   速度 (1acbf / 2, 调用端把风力 / 风向、海流方向 / 强度对调传入, 原版如此)、航向 (MENU #0x28[+1a])、各船名 (两栏, 行高 [8a1e] = 0x10)
+  //   舰队编号 61..69 (除 60) 时, 船员中最高的 +1e > random(90) → 船员 0x2fe「国名 + 种类」
   async scout() {
     const st = this.st, { win, con, printf, message, menu } = this.c, S = this.SS, rng = this.c.sys.rng;
     const types = (this.fleetTypes ??= this.c.menuItems(0x27)), heads = (this.headNames ??= this.c.menuItems(0x28));   // 2e09:57aa
@@ -1960,8 +1960,8 @@ export class SeaScene extends PortScene {
       if (rng.random(0x5a) < mx) { this.b.crewSpeaks(); message(0x2fe, nations[nat], types[ty]); await menu.waitPrompt(); await win.close(); }
     }
   }
-  // 1fd9c 偵察的選格: 0fea:5f74 地圖視窗 24 × 24 格 (起點 = 主角) → 取消 0xff; 已發現港口 (+15 bit4) 的座標 = 視窗左上 + 格 → 「船長，那是%s港．」0x80;
-  //   0fea:31a8 該格的他艦隊: 0 → 0xd7「那兒什麼也沒有」0x80; 1 → 指揮者; 多個 → 清單 0x8c (種類 12) 選 (取消 0x80)
+  // 1fd9c 侦察的选格: 0fea:5f74 地图窗口 24 × 24 格 (起点 = 主角) → 取消 0xff; 已发现港口 (+15 bit4) 的座标 = 窗口左上 + 格 → 「船长，那是%s港．」0x80;
+  //   0fea:31a8 该格的他舰队: 0 → 0xd7「那儿什么也没有」0x80; 1 → 指挥者; 多个 → 清单 0x8c (种类 12) 选 (取消 0x80)
   async scoutPick() {
     const st = this.st, F = this.fleet, { win, printf, message, menu, scr } = this.c;
     if (scr.wideRenderer && scr._wideSeaCam) {
@@ -2006,7 +2006,7 @@ export class SeaScene extends PortScene {
     const c = await this.cellSel().select(0x60, 8, 0x18, 0x10, 0x10, 0x18, init);
     if (c < 0) return 0xff;
     const cCol = c % 0x18, cRow = Math.trunc(c / 0x18);
-    // 寬螢幕下允許點擊 2×2 船隻/港口任意一格命中（優先精準格，再查相鄰 ±1 格）
+    // 宽屏幕下允许点击 2×2 船只/港口任意一格命中（优先精准格，再查相邻 ±1 格）
     const probes = scr.wideRenderer
       ? [c, c - 1, c - 0x18, c - 0x19, c + 1, c + 0x18]
       : [c];
@@ -2035,7 +2035,7 @@ export class SeaScene extends PortScene {
     else win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0);
     message(0xd7); await menu.waitPrompt(); await win.close(); return 0x80;
   }
-  // 0fea:31a8 = 13048 格 c (視窗內) 上的他艦隊 (出航中、非 +29 bit4、指揮者不是主角) 的指揮者 → [0538]
+  // 0fea:31a8 = 13048 格 c (窗口内) 上的他舰队 (出航中、非 +29 bit4、指挥者不是主角) 的指挥者 → [0538]
   fleetsAt(c) {
     const st = this.st, P = this.c.persons; let n = 0;
     for (let k = 0; k < 0x46; k++) {
@@ -2045,11 +2045,11 @@ export class SeaScene extends PortScene {
     }
     return n;
   }
-  // 0fea:ae1f = 1acbf 艦隊 F 的速度 (艦隊 AI 共用): AX = wDir, DX = wStr, [bp+6] = cB, [bp+8] = cA
-  //   各船: 風向差 k = |wDir − 航向| 的帆種係數 × 推進力 × wStr / 150 → + 指揮者 +24 × v / 10 (上限 30) → × 指揮者 +1d / 75 (上限 40),
-  //   k = 3..5 再 × 轉向力 / 100; 取最小 (至少 2); 再依 |cA − 航向|: 0..1 或 ≥ 7 → + min(40 − v, cB), 3..5 → − min(v − 1, cB);
-  //   wStr = 0 且沒有縱帆船 → 0 (與 314eb 不同: 沒有水手與載重項, 也沒有縱帆船至少 3 的風力)
-  // DS 位元組: 存檔區 (0ca4..8a18) 讀遊戲狀態, 其他讀 MAIN.EXE 的 DS 初值 (assets/data/fleet.json dsLow; 原版在表外讀取時用到, 例: 航向 FF)
+  // 0fea:ae1f = 1acbf 舰队 F 的速度 (舰队 AI 共用): AX = wDir, DX = wStr, [bp+6] = cB, [bp+8] = cA
+  //   各船: 风向差 k = |wDir − 航向| 的帆种系数 × 推进力 × wStr / 150 → + 指挥者 +24 × v / 10 (上限 30) → × 指挥者 +1d / 75 (上限 40),
+  //   k = 3..5 再 × 转向力 / 100; 取最小 (至少 2); 再依 |cA − 航向|: 0..1 或 ≥ 7 → + min(40 − v, cB), 3..5 → − min(v − 1, cB);
+  //   wStr = 0 且没有纵帆船 → 0 (与 314eb 不同: 没有水手与载重项, 也没有纵帆船至少 3 的风力)
+  // DS 字节: 存盘区 (0ca4..8a18) 读游戏状态, 其他读 MAIN.EXE 的 DS 初值 (assets/data/fleet.json dsLow; 原版在表外读取时用到, 例: 航向 FF)
   dsb(a) {
     a &= 0xffff;
     if (a >= DS.OPTIONS && a < DS.TRADE_LOGS) return this.st.u8(a);
@@ -2067,7 +2067,7 @@ export class SeaScene extends PortScene {
       const ship = this.shipRec(st.u8(S + 7));
       if (!(st.u8(ship + 0x10) & 0x10)) fore = (fore - 1) & 0xff;
       const t = this.typeOf(st.u8(ship + 0x0f));
-      let v = Math.trunc(seaS16(Math.imul(this.dsb(0x06d8 + ((k * 8) & 0xffff) + st.u8(t + 9)) * st.u8(S + 5), wStr)) / 0x96) & 0xff;   // DS:06d8 表 (航向 FF 時讀到表外)
+      let v = Math.trunc(seaS16(Math.imul(this.dsb(0x06d8 + ((k * 8) & 0xffff) + st.u8(t + 9)) * st.u8(S + 5), wStr)) / 0x96) & 0xff;   // DS:06d8 表 (航向 FF 时读到表外)
       v = seaUmin(0x1e, (Math.trunc(seaS16(Math.imul(v, lv)) / 10) + v) & 0xffff) & 0xff;
       v = seaUmin(0x28, Math.trunc(seaS16(Math.imul(v, sk)) / 0x4b) & 0xffff) & 0xff;
       if (beat) v = Math.trunc((st.u8(S + 4) * v) / 100) & 0xff;

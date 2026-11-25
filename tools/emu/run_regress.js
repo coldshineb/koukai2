@@ -1,10 +1,10 @@
-// run_regress.js — 本機 Node 批次差分回歸執行器
-// 前提: 已執行 python tools/emu/prep_local.py && python tools/emu/make_runf.py
+// run_regress.js — 本地 Node 批量差分回归运行器
+// 前提: 已运行 python tools/emu/prep_local.py && python tools/emu/make_runf.py
 // 用法:
-//   node tools/emu/run_regress.js --fast               (核心代表路線 ~18 條)
-//   node tools/emu/run_regress.js --all                (全部路線)
-//   node tools/emu/run_regress.js --filter port,market (按名稱關鍵字過濾)
-//   node tools/emu/run_regress.js --from 0 --to 20     (按索引區間)
+//   node tools/emu/run_regress.js --fast               (内核代表路线 ~18 条)
+//   node tools/emu/run_regress.js --all                (全部路线)
+//   node tools/emu/run_regress.js --filter port,market (按名称关键字过滤)
+//   node tools/emu/run_regress.js --from 0 --to 20     (按索引区间)
 "use strict";
 const fs = require("fs"), path = require("path"), vm = require("vm");
 const HERE = __dirname, W = path.resolve(HERE, "..", "..", "..").replace(/\\/g, "/");
@@ -52,7 +52,7 @@ load(W + "/uw2_remake/tools/work/runf.js");
     const a = Number(val("--from") ?? 0), b = Number(val("--to") ?? list.length);
     for (let i = Math.max(0, a); i < Math.min(list.length, b); i++) indices.push(i);
   } else {
-    // 預設 --fast
+    // 默认 --fast
     for (let i = 0; i < list.length; i++) if (FAST_NAMES.has(list[i].name)) indices.push(i);
   }
 

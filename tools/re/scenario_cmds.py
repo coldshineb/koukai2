@@ -9,7 +9,7 @@ exec(open(os.path.join(HERE, "..", "re_tools.py"), encoding="utf-8").read())
 SEG = 0x2e090
 TABLE = SEG + 0x5055
 RD_B, RD_W = 0x327b8, 0x327cc
-# 共用結尾: PC 前進量
+# 共用结尾: PC 前进量
 TAILS = {0x333cf: 1, 0x333d3: 0, 0x3317e: 2, 0x331b2: 3, 0x331d2: 4, 0x33201: 6, 0x3327e: 5}
 
 

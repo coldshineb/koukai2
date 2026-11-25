@@ -1,6 +1,6 @@
-// sfx_worklet.js — 效果音的 AudioWorklet (RE_NOTES 第 35 節): FMDRV 效果音聲部 (core/sfx.js FmDriver) 驅動 OPL2 合成 (core/opl.js, Nuked OPL3 的移植, LGPL-2.1)
-// 時間: OPL 原生取樣率 49716 Hz (14.31818 MHz / 288); 每 4096 × 49716 / 1193182 個原生取樣送一次 FMDRV 的 IRQ0 (PIT 4096 分頻 = 291.304 Hz)。
-// 主執行緒送來的 INT 66h 指令 ({ ah, al, dl, addr }) 在下一個原生取樣之前執行 (原版在遊戲程式呼叫的當下執行, 這裡最多晚一個 128 取樣的處理區塊)。
+// sfx_worklet.js — 效果音的 AudioWorklet (RE_NOTES 第 35 节): FMDRV 效果音声部 (core/sfx.js FmDriver) 驱动 OPL2 合成 (core/opl.js, Nuked OPL3 的移植, LGPL-2.1)
+// 时间: OPL 原生采样率 49716 Hz (14.31818 MHz / 288); 每 4096 × 49716 / 1193182 个原生采样送一次 FMDRV 的 IRQ0 (PIT 4096 分频 = 291.304 Hz)。
+// 主线程送来的 INT 66h 指令 ({ ah, al, dl, addr }) 在下一个原生采样之前运行 (原版在游戏程序调用的当下运行, 这里最多晚一个 128 采样的处理区块)。
 import { OPL3 } from "./opl.js";
 import { FmDriver, SFX_VOICES } from "./sfx.js";
 
@@ -18,7 +18,7 @@ class SfxProcessor extends AudioWorkletProcessor {
         const m = this.q.shift(), d = m.addr ? SFX_VOICES[m.addr] : null;
         this.drv.int66(m.ah, m.al, m.dl ?? 0, m.addr || 0, d || null);
       }
-      this.acc += PIT_HZ;                                        // 原生取樣 × PIT_HZ 對 IRQ_DIV × OPL_HZ 取整 = IRQ0 次數
+      this.acc += PIT_HZ;                                        // 原生采样 × PIT_HZ 对 IRQ_DIV × OPL_HZ 取整 = IRQ0 次数
       if (this.acc >= IRQ_DIV * OPL_HZ) { this.acc -= IRQ_DIV * OPL_HZ; this.drv.irq0(); }
     };
   }

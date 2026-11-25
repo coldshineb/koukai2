@@ -1,5 +1,5 @@
-// domain/fleet.ts — 純 TypeScript 艦隊與船隻領域公式 (載貨量 / 總載重 / 船速)
-// 無任何 DOM / Canvas / 幀緩衝依賴，完整保留原版 16/32 位元整數語意。
+// domain/fleet.ts — 纯 TypeScript 舰队与船只领域公式 (载货量 / 总载重 / 船速)
+// 无任何 DOM / Canvas / 帧缓冲依赖，完整保留原版 16/32 比特整数语意。
 import { domS16, domUmin16 } from "./economy.ts";
 
 export interface ShipSpeedParams {
@@ -14,7 +14,7 @@ export interface ShipSpeedParams {
   captainSailing: number;
 }
 
-/** seg0:5d36 船上已用的載貨量 (水/食物除以 10 + 資材 + 砲彈 + 5 格商品) */
+/** seg0:5d36 船上已用的载货量 (水/食物除以 10 + 资材 + 砲弹 + 5 格商品) */
 export function calcCargoUsed(
   water: number,
   food: number,
@@ -30,18 +30,18 @@ export function calcCargoUsed(
   return v & 0xffff;
 }
 
-/** 船隻剩餘載貨空間 */
+/** 船只剩余载货空间 */
 export function calcShipFreeCargo(maxCargo: number, cargoUsed: number): number {
   return ((maxCargo & 0xffff) - (cargoUsed & 0xffff)) & 0xffff;
 }
 
-/** seg0:5db1 船隻總載重 = 已用載貨 + 砲重 + 水手數 */
+/** seg0:5db1 船只总载重 = 已用载货 + 砲重 + 水手数 */
 export function calcShipLoadTotal(cargoUsed: number, gunWeight: number, guns: number, crew: number): number {
   const g = Math.trunc(Math.imul(domS16(gunWeight & 0xffff), guns & 0xff) / 10);
   return ((cargoUsed & 0xffff) + g + (crew & 0xffff)) & 0xffff;
 }
 
-/** 1c0a8 船隻航速計算 */
+/** 1c0a8 船只航速计算 */
 export function calcShipSpeed(p: ShipSpeedParams): number {
   let di = Math.trunc(domS16((p.speedRate * p.propulsion * 4) & 0xffff) / 150);
   const q = Math.trunc(Math.imul(p.sailRatio, domS16(p.crew)) / (p.minCrew || 1));

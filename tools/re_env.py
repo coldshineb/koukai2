@@ -1,4 +1,4 @@
-# re_env.py — 逆向分析用 Python 環境 (在沙盒中 exec 本檔即可)
+# re_env.py — 逆向分析用 Python 环境 (在沙盒中 exec 本档即可)
 import os, re, struct, json
 import numpy as np
 from collections import Counter

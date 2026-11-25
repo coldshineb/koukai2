@@ -1,17 +1,17 @@
-// market.js — 交易所 (MAIN.EXE 1fd9:5569 = 252f9; MENU #6 子功能 DS:aed8 = 買進 24bd9 / 賣出 24dbf / 投資 250b6 / 物價 252cf), 見 RE_NOTES 21
+// market.js — 交易所 (MAIN.EXE 1fd9:5569 = 252f9; MENU #6 子功能 DS:aed8 = 买进 24bd9 / 卖出 24dbf / 投资 250b6 / 物价 252cf), 见 RE_NOTES 21
 import { DS } from "../model/schema_views.ts";
 import { GameConst, MenuId, SkillFlag } from "../model/flags.ts";
 import { domS16, domUmin16, domUmax16, goodsCategory, hasTradeLicense, calcBuyPrice, calcSellPrice, calcHaggleBounds, calcBuyPriceShift, calcSellPriceShift, clampPriceIndexUp, clampPriceIndexDown } from "../domain/economy.ts";
 import { runWideTableSelect } from "../canvas_ui/wide_table.ts";
-import { runWideMarketWorkbench } from "../canvas_ui/wide_market.ts";
+import { runDomMarketWorkbench } from "../modern/dom_workbenches.ts";
 import { decodeCleanCstr } from "../canvas_ui/text_util.ts";
 
 const mHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const mS16 = domS16, mUmin = domUmin16, mUmax = domUmax16;
 
-// 0fea:e3e5 = 1e285 → 1e1ff 交易記錄: 緩衝 [0c8e] 48 筆 × 16 bytes (DS.TRADE_LOGS); 滿了就整體前移、寫在最後一筆
-//   引數 (AX 種類, DX, BX, 堆疊 2 個): +0 日期 ((12×年 + 月) × 31 + 日)  +2 種類 (AX)  +4 DX  +6 BX  +8 / +a 堆疊的兩個值
-//   交易所買進 = 種類 0x0c (+4 商品, +6 0, +8 價格, +a 數量); 出港 = 1 (+4 補給天數, +6 港口); 發現港口 = 9 (+4 港口)
+// 0fea:e3e5 = 1e285 → 1e1ff 交易记录: 缓冲 [0c8e] 48 笔 × 16 bytes (DS.TRADE_LOGS); 满了就整体前移、写在最后一笔
+//   参数 (AX 种类, DX, BX, 堆栈 2 个): +0 日期 ((12×年 + 月) × 31 + 日)  +2 种类 (AX)  +4 DX  +6 BX  +8 / +a 堆栈的两个值
+//   交易所买进 = 种类 0x0c (+4 商品, +6 0, +8 价格, +a 数量); 出港 = 1 (+4 补给天数, +6 港口); 发现港口 = 9 (+4 港口)
 export function marketTradeLog(st, rt, kind, g, price, amount, a6 = 0) {
   const B = DS.TRADE_LOGS, N = GameConst.TRADE_LOG_COUNT;
   let i = 0; while (i < N && st.u16(B + i * 16) !== 0xffff) i++;
@@ -36,18 +36,18 @@ export class Market {
   get money() { return this.b.money; } set money(v) { this.b.money = v; }
   wait() { return this.b.wait(); }
   greet(n, ...a) { this.b.greet(n, ...a); }
-  async crewSays(n, ...a) { this.b.crewSpeaks([4, 3, 5, 2, 6]); this.c.message(n, ...a); await this.wait(); await this.b.closeTalk(); }   // seg0:9076 + 訊息
+  async crewSays(n, ...a) { this.b.crewSpeaks([4, 3, 5, 2, 6]); this.c.message(n, ...a); await this.wait(); await this.b.closeTalk(); }   // seg0:9076 + 消息
   goodsName(g) { return this.T.goods[g] ?? Uint8Array.of(0); }
-  // 2441e 商品分類: 第一個 DS:0784[i] > g 的 i, 沒有 = 0
+  // 2441e 商品分类: 第一个 DS:0784[i] > g 的 i, 没有 = 0
   cat(g) { return goodsCategory(g, this.T.catEnd); }
   sup(g) { return this.eco.getPrices(this.cat(g)); }
-  // 24441 通商許可: 港口所屬國 n < 6 且隨身物 (DS.INVENTORY) 中有 n + 0x23
+  // 24441 通商许可: 港口所属国 n < 6 且随身物 (DS.INVENTORY) 中有 n + 0x23
   license() {
     const m = this.m, inv = [];
     for (let i = 0; i < GameConst.INV_SLOTS; i++) inv.push(m.inventory(i));
     return hasTradeLicense(this.port.region, inv) ? 1 : 0;
   }
-  // 2446d 買價 (i = 地區清單第 i 項; 超出或空 = 本港特產), 無許可時 ×12/10
+  // 2446d 买价 (i = 地区清单第 i 项; 超出或空 = 本港特产), 无许可时 ×12/10
   price(i) {
     const R = this.reg, E = this.eco;
     const isReg = (i & 0xff) < 9 && R.getBuyGoods(i) !== GameConst.EMPTY_SLOT;
@@ -55,28 +55,28 @@ export class Market {
     const base = isReg ? R.getBuyBase(i) : E.specialtyBase;
     return calcBuyPrice(this.sup(good), base, !!this.license());
   }
-  // 24c88 賣價: 特產 = (物價指數 + 50) × 特產基價 / 200, 其他 = (物價指數 + 50) × 地區賣價基準[g] / 100
+  // 24c88 卖价: 特产 = (物价指数 + 50) × 特产基价 / 200, 其他 = (物价指数 + 50) × 地区卖价基准[g] / 100
   sellPrice(g) {
     const E = this.eco, isSpec = E.specialtyGood === g;
     return calcSellPrice(this.sup(g), isSpec ? E.specialtyBase : this.reg.getSellBase(g), isSpec);
   }
-  // 25178 地區清單中 g 的買價, 不在清單 = 0
+  // 25178 地区清单中 g 的买价, 不在清单 = 0
   regionBuy(g) { const R = this.reg; for (let i = 0; i < 9; i++) if (R.getBuyGoods(i) === g) return this.price(i); return 0; }
-  // 24340 船位 slot: bit0 = 尚有載貨空間, bit1 = 有空的貨物欄
+  // 24340 船位 slot: bit0 = 尚有载货空间, bit1 = 有空的货物栏
   room(slot) {
     const m = this.m, b = this.b, cs = m.crewSlot(slot), shipId = this.st.u8(b.fleetSlot(slot) + 7), used = b.cargoUsed(slot);
     let r = mS16(m.ship(shipId).maxCargo) > mS16(used) ? 1 : 0;
     for (let j = 0; j < GameConst.CARGO_SLOTS; j++) if (cs.getCargoGoods(j) === GameConst.EMPTY_SLOT) { r |= 2; break; }
     return r;
   }
-  // 0fea:e3e5 交易記錄 (見 marketTradeLog)
+  // 0fea:e3e5 交易记录 (见 marketTradeLog)
   tradeLog(kind, g, price, amount) { marketTradeLog(this.st, this.c.rt, kind, g, price, amount); }
 
   // ================= 入口 252f9 =================
   async run() {
     const m = this.m, b = this.b, hero = m.heroPerson(), menu = this.c.menu;
     if (this.c.scr.wideRenderer && this.c.codec) {
-      await runWideMarketWorkbench(this);
+      await runDomMarketWorkbench(this);
       return;
     }
     if (b.noEvent()) this.greet(m.heroInfo().tradeFame >= 1000 ? 1 : 0, hero.givenNameBytes, hero.familyNameBytes);
@@ -89,8 +89,8 @@ export class Market {
     } while (sel !== 0xff);
   }
 
-  // ================= 買進 24bd9 =================
-  // 24399: 不能買 → 1
+  // ================= 买进 24bd9 =================
+  // 24399: 不能买 → 1
   async cannotBuy() {
     const m = this.m, b = this.b;
     if (!b.fleetShips()) return 1;
@@ -105,7 +105,7 @@ export class Market {
     this.greet(this.license() ? 0x2fa : 0x2fb); await this.wait();
     await this.buyList();
   }
-  // 2487a 商品清單 (兩欄) → 確認價錢 → 是: 買入 / 否: 殺價
+  // 2487a 商品清单 (两栏) → 确认价钱 → 是: 买入 / 否: 杀价
   async buyList() {
     const b = this.b, E = this.eco, R = this.reg, { con, printf, menu } = this.c, T = this.T;
     let si = 0, di = 0;
@@ -157,7 +157,7 @@ export class Market {
       if (await this.cannotBuy()) return;
     }
   }
-  // 246c2 殺價: 底價 di = 價 × (19 − 交涉) / 20 (港口所屬國 = 主角國家時才算爵位), 出價 ≥ (價 + di) / 2 就成交
+  // 246c2 杀价: 底价 di = 价 × (19 − 交涉) / 20 (港口所属国 = 主角国家时才算爵位), 出价 ≥ (价 + di) / 2 就成交
   async haggle(v, code) {
     const m = this.m, b = this.b, R = this.reg, E = this.eco;
     let rev = 0, hp = m.heroPerson();
@@ -184,7 +184,7 @@ export class Market {
     const g = ((v & 0xff) < 9 && R.getBuyGoods(v) !== GameConst.EMPTY_SLOT) ? R.getBuyGoods(v) : E.specialtyGood;
     await this.buyQty(g, at);
   }
-  // 244fd 買入: 選船 (清單 0x84) → 數量 (載貨空間與現金的較小者) → 寫入貨物欄, 物價指數上升
+  // 244fd 买入: 选船 (清单 0x84) → 数量 (载货空间与现金的较小者) → 写入货物栏, 物价指数上升
   async buyQty(code, price) {
     const m = this.m, b = this.b, E = this.eco, list = b.listSel();
     const n = b.fleetShips();
@@ -212,12 +212,12 @@ export class Market {
     const c = this.cat(code), { catDelta: d, allDelta: t } = calcBuyPriceShift(v * price, E.commerce);
     E.setPrices(c, clampPriceIndexUp(E.getPrices(c), d));
     for (let i = 0; i < 10; i++) E.setPrices(i, clampPriceIndexUp(E.getPrices(i), t));
-    b.loadTotal(slot);                                                          // seg0:5db1 (原版只計算, 回傳值沒有使用)
+    b.loadTotal(slot);                                                          // seg0:5db1 (原版只计算, 返回值没有使用)
     b.p.panels();                                                               // 8894
   }
 
-  // ================= 賣出 24dbf =================
-  // 24c01 艦隊中有貨物的船 → [0538]
+  // ================= 卖出 24dbf =================
+  // 24c01 舰队中有货物的船 → [0538]
   shipsWithCargo() {
     const m = this.m, b = this.b, P = this.c.persons, n = b.fleetShips();
     let k = 0;
@@ -228,7 +228,7 @@ export class Market {
     return k;
   }
   hasCargo(cs) { for (let j = 0; j < GameConst.CARGO_SLOTS; j++) if (cs.getCargoGoods(j) !== GameConst.EMPTY_SLOT) return 1; return 0; }   // 24c6e
-  // 24cea 一艘船的貨物清單 (商品 < 0x2e)
+  // 24cea 一艘船的货物清单 (商品 < 0x2e)
   cargoMenu(cs) {
     const { con, printf, menu } = this.c, T = this.T, P = this.c.persons;
     if (this.c.scr.wideRenderer && this.c.codec) {
@@ -287,7 +287,7 @@ export class Market {
     }
   }
 
-  // ================= 投資 250b6 =================
+  // ================= 投资 250b6 =================
   async invest() {
     const b = this.b, E = this.eco;
     if (b.isCapital()) { this.greet(2); await this.wait(); return; }
@@ -299,18 +299,18 @@ export class Market {
     this.greet(v < 500 ? 0x0e : v < 10000 ? 0x0f : 0x10); await this.wait();
     E.commerceInvest += v;
     this.money = this.money - v;
-    b.investSupport(v, E.commerce);                                             // 24f92: 與 2c6c6 相同, 但以商業值為基準
+    b.investSupport(v, E.commerce);                                             // 24f92: 与 2c6c6 相同, 但以商业值为基准
     b.investOwner();                                                            // 2c7ec
     b.p.panels();
   }
 
-  // ================= 物價 252cf =================
+  // ================= 物价 252cf =================
   async prices() {
     const list = this.b.listSel();
     this.b.setPersons([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
     for (;;) { const r = await list.select(0x88, 10); if (r === -1) return; await this.priceTable(r); }
   }
-  // 251a2 分類 c 的商品: 名稱、買價 (地區清單 / 本港特產 / 「 ----」)、賣價
+  // 251a2 分类 c 的商品: 名称、买价 (地区清单 / 本港特产 / 「 ----」)、卖价
   async priceTable(c) {
     const E = this.eco, { con, printf, scr, codec } = this.c, T = this.T;
     this.greet(0x97, T.cats[c], E.getPrices(c) + 50);
@@ -336,7 +336,7 @@ export class Market {
       printf(T.name, this.goodsName(g));
       const r = this.regionBuy(g);
       if (r) printf(T.n5b, r);
-      else if (g === E.specialtyGood) printf(T.n5, this.price(g));              // 原版以商品碼當清單索引呼叫 2446d
+      else if (g === E.specialtyGood) printf(T.n5, this.price(g));              // 原版以商品码当清单索引调用 2446d
       else con.puts(T.none);
       printf(T.sp5, this.sellPrice(g));
     }

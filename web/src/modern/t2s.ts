@@ -1,8 +1,8 @@
-// modern/t2s.ts — 統一繁體轉簡體中文轉換器 (基於 opencc-js/t2cn，按需載入體積小、含快取)
-// 同時修正 build_charmap.py 透過 Unifont 字形比對產生的 5 組相鄰對調字：
-//   速↔連 (0x9F75/0x9F76)、散↔敢 (0xA072/0xA073)、髯↔髮 (0xA8A0/0xA8A1)、
-//   匾↔區 (0x9D4A/0x9D4B)、綞↔緩 (0xA7C1/0xA7C2)
-// 保持底層 charmap.json 雙向位元組可逆性不變，所有顯示出口自動呈現正確簡體中文。
+// modern/t2s.ts — 统一繁体转简体中文转换器 (基于 opencc-js/t2cn，按需加载体积小、含缓存)
+// 同时修正 build_charmap.py 透过 Unifont 字形比对产生的 5 组相邻对调字：
+//   速↔连 (0x9F75/0x9F76)、散↔敢 (0xA072/0xA073)、髯↔发 (0xA8A0/0xA8A1)、
+//   匾↔区 (0x9D4A/0x9D4B)、缍↔缓 (0xA7C1/0xA7C2)
+// 保持底层 charmap.json 双向字节可逆性不变，所有显示出口自动呈现正确简体中文。
 import * as OpenCC from "opencc-js/t2cn";
 
 const converter: (s: string) => string = OpenCC.Converter({ from: "tw", to: "cn" });
@@ -25,7 +25,7 @@ const UNMAPPED_GLYPHS: Record<string, string> = {
 const UNMAPPED_RE = /\{#[0-9A-Fa-f]{4}\}/g;
 const CTRL_BRACE_RE = /\{[0-9A-Fa-f]{2,4}\}/g;
 
-/** 將任意繁體中文文字修正 charmap 對調字、補齊未映射字形並清除殘留 {XX} 控制碼後轉為標準簡體中文（自動快取） */
+/** 将任意繁体中文文字修正 charmap 对调字、补齐未映射字形并清除残留 {XX} 控制码后转为标准简体中文（自动缓存） */
 export function toSimp(text: string): string {
   if (!text) return text;
   const cleaned = text.includes("{")

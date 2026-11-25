@@ -1,6 +1,6 @@
-// modern/dom_info_hub.ts — F1「情報中心」一體化多標籤頁工作台 +「隨身物」一體化面板
-// 與「讀取進度 (save_modal.ts)」1:1 同套暖羊皮紙視覺，徹底消滅多層嵌套選單，並完整呈現所有原版插圖
-// （發現物插圖、道具插圖、高清船圖、船首像、具名與 5 層拼合人物頭像）。100% 原版遊戲文本。
+// modern/dom_info_hub.ts — F1「情报中心」一体化多标签页工作台 +「随身物」一体化面板
+// 与「读取进度 (save_modal.ts)」1:1 同套暖羊皮纸视觉，彻底消灭多层嵌套菜单，并完整呈现所有原版插图
+// （发现物插图、道具插图、高清船图、船首像、具名与 5 层拼合人物头像）。100% 原版游戏文本。
 import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
 import { ListSelect } from "../ui/listsel.js";
@@ -11,7 +11,7 @@ import { UI_STR } from "./ui_strings.ts";
 const s16 = (v: number) => (v << 16) >> 16;
 const umin = (a: number, b: number) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);
 
-/** 將世界航海圖內嵌繪製到任意 DOM 容器中（支援懸停港名 + 點擊放大檢視 72×72 局部真實海域地形圖與漫遊） */
+/** 将世界航海图内嵌绘制到任意 DOM 容器中（支持悬停港名 + 点击放大查看 72×72 局部真实海域地形图与漫游） */
 export function mountDomWorldChart(container: HTMLElement, c: any, scene?: any) {
   const st = c.state, art = c.art;
   const dec = (bts: Uint8Array) => decodeCleanCstr(c.codec, bts);
@@ -146,7 +146,7 @@ export function mountDomWorldChart(container: HTMLElement, c: any, scene?: any) 
       ctx.beginPath(); ctx.moveTo(0, row * ch); ctx.lineTo(mapW, row * ch); ctx.stroke();
     }
 
-    // 懸停 3×3 放大預覽框
+    // 悬停 3×3 放大预览框
     if (hoverCell && wm) {
       const sc = ((hoverCell.wcol + 30) % 90) - 1;
       const sr = Math.max(0, Math.min(42, hoverCell.row - 1));
@@ -173,7 +173,7 @@ export function mountDomWorldChart(container: HTMLElement, c: any, scene?: any) 
   const drawLocal = () => {
     const ctx = cv.getContext("2d");
     if (!ctx || !wm) return;
-    const tilePx = 6; // 72×6 = 432×432 清晰真實海域圖
+    const tilePx = 6; // 72×6 = 432×432 清晰真实海域图
     const sz = 72 * tilePx;
     cv.width = sz;
     cv.height = sz;
@@ -188,7 +188,7 @@ export function mountDomWorldChart(container: HTMLElement, c: any, scene?: any) 
     const scaleY = sheetImg && seaMeta ? (sheetImg.naturalHeight || seaMeta.h) / seaMeta.h : 1;
     ctx.imageSmoothingEnabled = false;
 
-    // 逐海域格 (3×3) 解碼，支援跨大區 (item 0/1/2) 與全球環繞
+    // 逐海域格 (3×3) 解码，支持跨大区 (item 0/1/2) 与全球环绕
     const decodedItems = new Map<string, Uint8Array>();
     for (let dr = 0; dr < 3; dr++) {
       const rCell = zoomRow + dr;
@@ -202,7 +202,7 @@ export function mountDomWorldChart(container: HTMLElement, c: any, scene?: any) 
         }
         const item = Math.trunc(wcol / 30);
         const colInItem = wcol % 30;
-        // 取包含 (colInItem, rCell) 的合法 3×3 解碼起點
+        // 取包含 (colInItem, rCell) 的合法 3×3 解码起点
         const c0 = Math.max(0, Math.min(27, colInItem));
         const r0 = Math.max(0, Math.min(42, rCell));
         const key = `${item}_${r0}_${c0}`;
@@ -233,7 +233,7 @@ export function mountDomWorldChart(container: HTMLElement, c: any, scene?: any) 
       }
     }
 
-    // 標註區域內的已知港口與名稱
+    // 标注区域内的已知港口与名称
     const baseWX = zoomCol * 24;
     const baseWY = zoomRow * 24;
     ctx.font = `700 12px ${UI_FONT}`;
@@ -263,7 +263,7 @@ export function mountDomWorldChart(container: HTMLElement, c: any, scene?: any) 
       ctx.fillText(pt.name, lx, ly + 1);
     }
 
-    // 若主角艦隊在區域內則繪製紅點
+    // 若主角舰队在区域内则绘制红点
     let hdx = fx - baseWX;
     if (hdx < -1080) hdx += 2160;
     else if (hdx > 1080) hdx -= 2160;
@@ -333,7 +333,7 @@ export function mountDomWorldChart(container: HTMLElement, c: any, scene?: any) 
     const col = Math.max(0, Math.min(89, Math.floor(mx / cw)));
     const row = Math.max(0, Math.min(44, Math.floor(my / ch)));
     const wcol = (col - 30 + 90) % 90;
-    // 若點擊區域（含周圍 3×3）任一格已探索即可放大檢視
+    // 若点击区域（含周围 3×3）任一格已探索即可放大查看
     let anySeen = false;
     for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) if (isCellSeen(wcol + dc, row + dr)) anySeen = true;
     if (!anySeen) return;
@@ -343,7 +343,7 @@ export function mountDomWorldChart(container: HTMLElement, c: any, scene?: any) 
     tip.style.display = "none";
     renderAll();
   });
-  // 局部放大狀態下右鍵返回世界航海圖主介面（不直接關閉整個情報視窗）
+  // 局部放大状态下右键返回世界航海图主界面（不直接关闭整个情报窗口）
   const onLocalRightClick = (e: MouseEvent) => {
     if (!container.isConnected) {
       window.removeEventListener("contextmenu", onLocalRightClick, true);
@@ -359,7 +359,7 @@ export function mountDomWorldChart(container: HTMLElement, c: any, scene?: any) 
   void localBuf;
 }
 
-/** 將完整海港地圖 (全港 96×96 格) 內嵌繪製到任意 DOM 容器中（點擊不會關閉） */
+/** 将完整海港地图 (全港 96×96 格) 内嵌绘制到任意 DOM 容器中（点击不会关闭） */
 export function mountDomPortMap(container: HTMLElement, c: any, p: any) {
   const st = c.state, art = c.art;
   const dec = (bts: Uint8Array) => decodeCleanCstr(c.codec, bts);
@@ -462,7 +462,7 @@ export function runDomPortMapModal(c: any, p: any, title = "海港地图"): Prom
   });
 }
 
-/** F1 情報中心：10 項原版情報全部平鋪為一體化標籤頁，零嵌套選單 */
+/** F1 情报中心：10 项原版情报全部平铺为一体化标签页，零嵌套菜单 */
 export async function runDomInfoHub(cmd: any): Promise<void> {
   const c = cmd.c, st = cmd.st, b = cmd.b, p = cmd.p, art = c.art;
   const dec = (bts: Uint8Array) => decodeCleanCstr(c.codec, bts);
@@ -536,7 +536,7 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
       }, keepScroll);
     };
 
-      // ---- Tab 0: 自艦隊情報 ----
+      // ---- Tab 0: 自舰队情报 ----
       const renderFleetTab = (root: HTMLElement) => {
         const f = st.u8(st.personRecord(st.hero) + 0x2c);
         const F = DS.TBL_FLEET + f * 0x85;
@@ -634,7 +634,7 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
         root.append(grid, summary);
       };
 
-      // ---- Tab 1: 艦船情報 ----
+      // ---- Tab 1: 舰船情报 ----
       const renderShipTab = (root: HTMLElement) => {
         const n = b.fleetShips();
         const slots: number[] = [];
@@ -717,7 +717,7 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
         root.appendChild(split);
       };
 
-      // ---- Tab 2: 人物情報 ----
+      // ---- Tab 2: 人物情报 ----
       const renderPersonTab = (root: HTMLElement) => {
         const n = b.captainPool();
         const pids: number[] = [];
@@ -785,7 +785,7 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
         root.appendChild(split);
       };
 
-      // ---- Tab 3: 主公情報 ----
+      // ---- Tab 3: 主公情报 ----
       const renderLordTab = (root: HTMLElement) => {
         const lab = c.menuItems(0x2a), H = DS.TBL_HERO_DATA + st.hero * 0x0e;
         const money = (st.u16(DS.MONEY) | (st.u16(0x12b0) << 16)) | 0;
@@ -842,7 +842,7 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
         root.appendChild(split);
       };
 
-      // ---- Tab 4: 積載情報 ----
+      // ---- Tab 4: 积载情报 ----
       const renderCargoShipTab = (root: HTMLElement) => {
         const n = b.fleetShips();
         const slots: number[] = [];
@@ -892,7 +892,7 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
         root.appendChild(split);
       };
 
-      // ---- Tab 5: 積載一覽表 ----
+      // ---- Tab 5: 积载一览表 ----
       const renderCargoSummaryTab = (root: HTMLElement) => {
         const totals = new Map<number, number>();
         for (let i = 0; i < 10; i++) {
@@ -965,7 +965,7 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
         root.appendChild(split);
       };
 
-      // ---- Tab 6: 發現物情報 (附高清發現物插圖) ----
+      // ---- Tab 6: 发现物情报 (附高清发现物插图) ----
       const renderDiscoveryTab = (root: HTMLElement) => {
         const n = cmd.discList(0);
         const ids: number[] = [];
@@ -1027,7 +1027,7 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
         root.appendChild(split);
       };
 
-      // ---- Tab 8: 航海日誌 ----
+      // ---- Tab 8: 航海日志 ----
       const renderLogTab = (root: HTMLElement) => {
         const L = DS.TRADE_LOGS, S = cmd.S;
         const entries: { date: string; text: string }[] = [];
@@ -1070,7 +1070,7 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
   });
 }
 
-/** 隨身物一體化工作台：左側道具清單 + 右側高清道具插圖、屬性、原版說明與佩戴/使用按鈕 */
+/** 随身物一体化工作台：左侧道具清单 + 右侧高清道具插图、属性、原版说明与佩戴/使用按钮 */
 export async function runDomBelongings(cmd: any): Promise<void> {
   const c = cmd.c, st = cmd.st, b = cmd.b, art = c.art;
   const dec = (bts: Uint8Array) => decodeCleanCstr(c.codec, bts);
@@ -1194,7 +1194,7 @@ export async function runDomBelongings(cmd: any): Promise<void> {
   }
 }
 
-/** 現代隊形變更面板：上移 / 下移 / 置頂即時調整艦隊順序，一鍵確定寫回原版槽位 */
+/** 现代队形变更面板：上移 / 下移 / 置顶实时调整舰队顺序，一键确定写回原版槽位 */
 export function runDomFormation(cmd: any, title: string): Promise<void> {
   const c = cmd.c, st = cmd.st, b = cmd.b, art = c.art;
   const dec = (bts: Uint8Array) => decodeCleanCstr(c.codec, bts);

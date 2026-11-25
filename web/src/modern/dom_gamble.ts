@@ -1,4 +1,4 @@
-// modern/dom_gamble.ts — 現代羊皮紙酒館賭博工作台（二十一點 + 撲克骰子，含賭場插圖與 NPC/主角頭像，100% 沿用原版洗牌/判定/賠率）
+// modern/dom_gamble.ts — 现代羊皮纸酒馆赌博工作台（二十一点 + 扑克骰子，含赌场插图与 NPC/主角头像，100% 沿用原版洗牌/判定/赔率）
 import { createDomModal, getComposedPortraitSrc, getGraphArtUrl, getPersonPortraitSrc, hasDom, mountBuildingBanner } from "./dom_ui.ts";
 
 const SUITS = ["♠", "♥", "♦", "♣"];
@@ -18,7 +18,7 @@ export async function runDomGamble(gamble: any): Promise<void> {
   if (!hasDom()) return;
   let activeTab = 0; // 0 = 二十一点, 1 = 扑克骰子
 
-  // 二十一點狀態
+  // 二十一点状态
   let bjDeck: number[] = [];
   let bjPlayer: number[] = [];
   let bjDealer: number[] = [];
@@ -26,7 +26,7 @@ export async function runDomGamble(gamble: any): Promise<void> {
   let bjBet = Math.min(100, gamble.maxBet());
   let bjMsg = "请下注后开始发牌。";
 
-  // 撲克骰子狀態
+  // 扑克骰子状态
   let dcPhase: "bet" | "roll" | "done" = "bet";
   let dcBet = Math.min(100, gamble.maxBet());
   let dcRerolls = 2;

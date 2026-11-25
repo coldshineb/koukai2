@@ -1,5 +1,5 @@
-// modern/dom_workbenches.ts — 與「讀取進度 (save_modal.ts)」1:1 同款視覺的三大一體化工作台 + 艦船/人物情報卡
-// 涵蓋：交易所一體化工作台、碼頭補給與出航工作台、艦隊經營一體化大面板、人物情報卡（修正拼合頭像）、艦船情報卡。
+// modern/dom_workbenches.ts — 与「读取进度 (save_modal.ts)」1:1 同款视觉的三大一体化工作台 + 舰船/人物情报卡
+// 涵盖：交易所一体化工作台、码头补给与出航工作台、舰队经营一体化大面板、人物情报卡（修正拼合头像）、舰船情报卡。
 import { DS, OFF } from "../model/schema_views.ts";
 import { GameConst, MenuId } from "../model/flags.ts";
 import { domS16, domUmin16, calcBuyPriceShift, calcSellPriceShift, clampPriceIndexUp, clampPriceIndexDown } from "../domain/economy.ts";
@@ -10,7 +10,7 @@ import { renderUnifiedInvestPane } from "./dom_buildings.ts";
 import { UI_STR } from "./ui_strings.ts";
 
 // ============================================================================
-// 1. 交易所一體化工作台（買進 / 賣出 / 投資 / 物價）
+// 1. 交易所一体化工作台（买进 / 卖出 / 投资 / 物价）
 // ============================================================================
 export function runDomMarketWorkbench(market: any): Promise<void> {
   const c = market.c, b = market.b, codec = c.codec;
@@ -391,7 +391,7 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
 }
 
 // ============================================================================
-// 2. 碼頭一體化工作台（合併「補給」+「船塢」雙標籤 + 購物車差額結算 + 一鍵按比例全補給 + 出航）
+// 2. 码头一体化工作台（合并「补给」+「船坞」双标签 + 购物车差额结算 + 一键按比例全补给 + 出航）
 // ============================================================================
 export async function runDomWharfWorkbench(b: any): Promise<number> {
   const c = b.c, st = b.st, codec = c.codec;
@@ -418,7 +418,7 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
     ];
   };
 
-  // 純補級載重以外的貨艙占用（僅商業貨物）
+  // 纯补级载重以外的货舱占用（仅商业货物）
   const goodsUsed = (slot: number): number => {
     const M = b.crewData(slot);
     let sum = 0;
@@ -430,13 +430,13 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
 
   for (;;) {
     const action = await new Promise<{ type: "close" | "depart"; days?: number }>(resolve => {
-      let activeTab: 0 | 1 = 0; // 0 = 補給, 1 = 船塢
+      let activeTab: 0 | 1 = 0; // 0 = 补给, 1 = 船坞
       let toastMsg = b.captureMessage(0x38);
       let toastOk = true;
       let selFleetDockIdx = 0;
       let selDockShipIdx = 0;
 
-      // 購物車暫存：每艘船的目標 4 項補給數（修改時隨時可增可減，不提前扣款，確認時一次性結算）
+      // 购物车暂存：每艘船的目标 4 项补给数（修改时随时可增可减，不提前扣款，确认时一次性结算）
       const draft = new Map<number, [number, number, number, number]>();
       const resetDraft = () => {
         draft.clear();
@@ -497,7 +497,7 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
         return true;
       };
 
-      // 全補給：僅按水 1:1 食物均衡補滿各船剩餘載重（不補資材、不補砲彈），受現有金幣上限約束
+      // 全补给：仅按水 1:1 食物均衡补满各船剩余载重（不补资材、不补砲弹），受现有金币上限约束
       const autoFillWaterFood = () => {
         const n = b.fleetShips();
         if (!n) return;
@@ -725,8 +725,8 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
             }
             h.body.appendChild(grid);
           } else {
-            // ---- 船塢標籤頁（保管 / 配备 / 交换） ----
-            // 先保存艦隊槽位再呼 dockScan()（因 dockScan() 內部的 dockList() 會覆寫 c.persons）
+            // ---- 船坞标签页（保管 / 配备 / 交换） ----
+            // 先保存舰队槽位再呼 dockScan()（因 dockScan() 内部的 dockList() 会覆写 c.persons）
             const fleetSlots: number[] = [];
             for (let i = 0; i < n; i++) fleetSlots.push(c.persons[i] & 0xff);
             b.dockScan();
@@ -800,7 +800,7 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
             const selF = fleetList[selFleetDockIdx];
             const selD = dockList[selDockShipIdx];
 
-            // 保管 (艦隊 → 船塢)
+            // 保管 (舰队 → 船坞)
             const keepBtn = document.createElement("button");
             keepBtn.className = "uw2-btn";
             keepBtn.textContent = dockMenu[0] || "保管";
@@ -821,7 +821,7 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
               render();
             });
 
-            // 配備 (船塢 → 艦隊)
+            // 配备 (船坞 → 舰队)
             const takeBtn = document.createElement("button");
             takeBtn.className = "uw2-btn";
             takeBtn.textContent = dockMenu[1] || "配备";
@@ -843,7 +843,7 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
               render();
             });
 
-            // 交換 (艦隊 ↔ 船塢)
+            // 交换 (舰队 ↔ 船坞)
             const swapBtn = document.createElement("button");
             swapBtn.className = "uw2-btn uw2-btn-primary";
             swapBtn.textContent = dockMenu[2] || "交换";
@@ -893,7 +893,7 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
 }
 
 // ============================================================================
-// 3. 艦隊經營一體化大面板（左選船、右切 船長與艦船 / 水手與比例 / 人事變更 / 積載）
+// 3. 舰队经营一体化大面板（左选船、右切 船长与舰船 / 水手与比例 / 人事变更 / 积载）
 // ============================================================================
 export function runDomFleetHub(cmd: any): Promise<void> {
   const c = cmd.c, st = cmd.st, b = cmd.b, { codec, art } = c;
@@ -1225,7 +1225,7 @@ export function runDomFleetHub(cmd: any): Promise<void> {
 }
 
 // ============================================================================
-// 4. 現代人物情報彈窗（支援具名頭像 + 5 層拼合隨機頭像，徹底修復艾德瓦等夥伴頭像錯誤）
+// 4. 现代人物情报弹窗（支持具名头像 + 5 层拼合随机头像，彻底修复艾德瓦等伙伴头像错误）
 // ============================================================================
 export async function runDomPersonInfo(
   art: any,
@@ -1292,7 +1292,7 @@ export async function runDomPersonInfo(
 }
 
 // ============================================================================
-// 5. 現代艦船情報彈窗
+// 5. 现代舰船情报弹窗
 // ============================================================================
 export function runDomShipInfo(
   art: any,

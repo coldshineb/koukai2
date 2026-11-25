@@ -1,5 +1,5 @@
-// canvas_ui/wide_table.ts — Stage 3C: 原生 16:9 (1280×720) 現代 Canvas 2D 表格選擇面板
-// 供交易所 (買進/賣出/物價表) 與碼頭 (補給表) 共用，位於建築內景右側、底部對話欄上方，零 DOM、100% 原版文本。
+// canvas_ui/wide_table.ts — Stage 3C: 原生 16:9 (1280×720) 现代 Canvas 2D 表格选择面板
+// 供交易所 (买进/卖出/物价表) 与码头 (补给表) 共用，位于建筑内景右侧、底部对话栏上方，零 DOM、100% 原版文本。
 import { VIEW_W } from "../core/screen.js";
 
 export interface WideTableItem {
@@ -12,7 +12,7 @@ export interface WideTableOpts {
   title?: string;
   columns?: number; // 1 或 2
   items: WideTableItem[];
-  toggleLabel?: string; // 碼頭裝上/卸下切換鈕 (100% 原版 WF.load / WF.unload)
+  toggleLabel?: string; // 码头装上/卸下切换钮 (100% 原版 WF.load / WF.unload)
 }
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {

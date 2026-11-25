@@ -1,12 +1,12 @@
-// commands.js — 港口畫面右側 4 個指令按鈕 (MAIN.EXE 0FEA:1b8c8 → DS:a642 遠程函式表) 與其在港內可用的子功能
-//   按鈕 8..11: 情報 1fd9:0e33 (線性 20bc3) / 經營 1fd9:0fdc (20d6c) / 命令 1fd9:10a8 (20e38) / 航海術 1fd9:119e (20f2e)
-//   (1b8c8 以 DS:[a622 + di×4] 取函式, di = 8..11, 所以表其實在 DS:a642; a622 起是建築處理表 a612 的第 4 項)
-//   分析: tools/re/commands.py → tools/work/re_cmd_*.txt; 常數: tools/extract_commands.py → assets/data/commands.json
-//   結論與未移植部分: docs/RE_NOTES.md 第 26 節
+// commands.js — 港口画面右侧 4 个指令按钮 (MAIN.EXE 0FEA:1b8c8 → DS:a642 远程函数表) 与其在港内可用的子功能
+//   按钮 8..11: 情报 1fd9:0e33 (线性 20bc3) / 经营 1fd9:0fdc (20d6c) / 命令 1fd9:10a8 (20e38) / 航海术 1fd9:119e (20f2e)
+//   (1b8c8 以 DS:[a622 + di×4] 取函数, di = 8..11, 所以表其实在 DS:a642; a622 起是建筑处理表 a612 的第 4 项)
+//   分析: tools/re/commands.py → tools/work/re_cmd_*.txt; 常数: tools/extract_commands.py → assets/data/commands.json
+//   结论与未移植部分: docs/RE_NOTES.md 第 26 节
 // 共用:
-//   1b8c8   按下按鈕: 隱藏游標 → seg0:9396(n) 按鈕凹下圖 → 處理函式 → seg0:937e(n) 還原 → 顯示游標
-//   20b0c   右側選單: 0fea:44c4 = 14364 帶陰影直式選單, x = 0x4a − 最長項目字數, 可取消; [a158] = 項目數
-//   20b40   結束時重畫地圖視窗 (2103 + 1fac, 主角不重畫) → 99e8 淡入 → 清鍵盤緩衝
+//   1b8c8   按下按钮: 隐藏光标 → seg0:9396(n) 按钮凹下图 → 处理函数 → seg0:937e(n) 还原 → 显示光标
+//   20b0c   右侧菜单: 0fea:44c4 = 14364 带阴影直式菜单, x = 0x4a − 最长项目字数, 可取消; [a158] = 项目数
+//   20b40   结束时重画地图窗口 (2103 + 1fac, 主角不重画) → 99e8 淡入 → 清键盘缓冲
 import { Buildings } from "./buildings.js";
 import { Title } from "../game/title.js";
 import { PortMove } from "./portmove.js";
@@ -16,7 +16,7 @@ import { drawWideFleetView } from "../canvas_ui/wide_fleet.ts";
 import { drawWideShipInfo, drawWidePersonInfo } from "../canvas_ui/wide_info.ts";
 import { runWideFleetTableSelect, runWidePersonnelSelect, runWideControlsModal, showWideNotice } from "../canvas_ui/wide_manage.ts";
 import { runWideLordInfo, runWideInfoLinesModal, runWideLogBook, runWideWorldChart } from "../canvas_ui/wide_panels.ts";
-import { runWideFleetHub } from "../canvas_ui/wide_fleet_hub.ts";
+import { runDomFleetHub } from "../modern/dom_workbenches.ts";
 import { captureConsoleText, decodeCleanCstr, UI_FONT } from "../canvas_ui/text_util.ts";
 import { hasDom } from "../modern/dom_ui.ts";
 import { runDomSettingsModal } from "../modern/dom_hud.ts";
@@ -26,7 +26,7 @@ import { runDomInfoHub, runDomBelongings, runDomFormation, runDomPortMapModal } 
 
 const cmHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const cmStrlen = s => { let n = 0; while (n < s.length && s[n]) n++; return n; };
-const cmUmin = (a, b) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);     // seg0:4d7c (無號)
+const cmUmin = (a, b) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);     // seg0:4d7c (无号)
 const cmWarned = new Set();
 const cmTodo = n => { if (!cmWarned.has(n)) { cmWarned.add(n); console.warn("尚未移植: " + n); } };
 
@@ -38,13 +38,13 @@ export class Commands {
     const D = scene.P.data, h = a => a.map(cmHex);                     // port.json 的共用表 + commands.json 的表
     this.T = { ...J.tab, cannons: h(D.build.cannons), skills: h(J.ptr.skills) };
     this.c.persons ??= new Array(0x50).fill(0);
-    this.c.barColors ??= [0, 0];                                       // DS:bafa / bafc (BSS 初值 0, seg0:9376 設定)
+    this.c.barColors ??= [0, 0];                                       // DS:bafa / bafc (BSS 初值 0, seg0:9376 设置)
   }
   get st() { return this.c.state; }
   get b() { return this.p.buildings ??= new Buildings(this.p); }
   get rt() { return this.c.rt; }
 
-  // ================= 1b8c8 後半: 指令按鈕 n (0..3) =================
+  // ================= 1b8c8 后半: 指令按钮 n (0..3) =================
   async button(n) {
     const { sys, menu } = this.c;
     sys.mouseHide();
@@ -63,9 +63,9 @@ export class Commands {
       sys.mouseShow();
     }
   }
-  // seg0:9396 按鈕凹下: 先以 2929 保存 (0x4d 欄, y = 0x48 + 0x50n) 3 欄 × 0x50 行 4 平面;
-  //   動畫效果開: TRANSIT.DAT 0x4b00 + 0x2d0n 的 0x2d0 bytes 以 seg0:055e (044d 模式 0: 每欄 3 bytes = 平面 0..2, 平面 3 不動) 貼上
-  //   關: seg0:063e 以 [0c86]+0 (全 FF) 模式 0x107 (XOR 色 7) 反白
+  // seg0:9396 按钮凹下: 先以 2929 保存 (0x4d 栏, y = 0x48 + 0x50n) 3 栏 × 0x50 行 4 平面;
+  //   动画效果开: TRANSIT.DAT 0x4b00 + 0x2d0n 的 0x2d0 bytes 以 seg0:055e (044d 模式 0: 每栏 3 bytes = 平面 0..2, 平面 3 不动) 粘贴
+  //   关: seg0:063e 以 [0c86]+0 (全 FF) 模式 0x107 (XOR 色 7) 反白
   press(n) {
     const { scr, gfx, art } = this.c, y = 0x48 + 0x50 * n;
     if (scr.wideRenderer) return;
@@ -74,12 +74,12 @@ export class Commands {
       art?.drawSheetTile(scr, "hud_buttons", n, 0x4d * 8, y);
     } else scr.glyphMode(0x4d, y, 3, 0x50, gfx.subarray(0), 0x107);
   }
-  // seg0:937e 還原 (2997)
+  // seg0:937e 还原 (2997)
   release(n) {
     if (this.c.scr.wideRenderer || !this.pressSave) return;
     this.c.scr.restoreRegion(this.pressSave, 0, 0x48 + 0x50 * n, 0x50);
   }
-  // 20b0c 右側選單 (y, 項目)
+  // 20b0c 右侧菜单 (y, 项目)
   async popMenu(y, items, title = "") {
     const m = this.c.menu;
     m.count = items.length;                                            // [a158]
@@ -92,20 +92,20 @@ export class Commands {
       m.wideMenuTitle = prevTitle;
     }
   }
-  // 20b40 重畫地圖視窗 (不畫主角) → 淡入 → 清鍵盤
+  // 20b40 重画地图窗口 (不画主角) → 淡入 → 清键盘
   async redrawMap() {
     const p = this.p;
     p.clearCache(); p.drawMap();
     await this.c.palette.fadeToTarget();
     this.c.sys.flush();
   }
-  // 1721f 依目前位置重新進入港口 (8c53) 或海上 (851f)
+  // 1721f 依目前位置重新进入港口 (8c53) 或海上 (851f)
   async reenter() {
     if (this.st.port !== 0xff) await this.p.enter(); else await this.p.enterSea();
   }
-  // 1b39a 時間迴圈中止旗標
+  // 1b39a 时间循环中止标志
   abort() { const r = this.rt; return r.month >= 0xf0 || r.day >= 0xf0 || r.time >= 0xf0; }
-  // 小訊息視窗 294bf: 寬螢幕下路由到 16:9 wideDialog
+  // 小消息窗口 294bf: 宽屏幕下路由到 16:9 wideDialog
   smallWin() {
     if (this.c.scr.wideRenderer) { this.b.beginWideTalk(null); return; }
     this.c.win.shadowedSaved(0x12, 0x30, 0x1c, 0x60, 0);
@@ -148,7 +148,7 @@ export class Commands {
     }
     return rows;
   }
-  // ================= 情報 1fd9:0e33 (20bc3) =================
+  // ================= 情报 1fd9:0e33 (20bc3) =================
   async info() {
     const st = this.st, { menu, palette, scr } = this.c, items = this.c.menuItems(0x1a).slice(0, 10), b = this.b, p = this.p;
     if (scr.wideRenderer && hasDom() && this.c.codec) {
@@ -189,7 +189,7 @@ export class Commands {
     } while (!di);
     if (!scr.wideRenderer) await this.redrawMap();
   }
-  // 20b6a 艦隊中有船且載有商品 (+16..+1a ≠ FF) 的船位
+  // 20b6a 舰队中有船且载有商品 (+16..+1a ≠ FF) 的船位
   anyCargo() {
     const st = this.st, b = this.b;
     for (let i = 0; i < 10; i++) {
@@ -198,7 +198,7 @@ export class Commands {
     }
     return 0;
   }
-  // 發現物 (DS:7f8c + 7×i, 100 筆): +6 bit7 = 0 且 bit6、bit5 = 1; first = 1 時只判斷有無 (20bc3), 否則列入 [0538] (1d084)
+  // 发现物 (DS:7f8c + 7×i, 100 笔): +6 bit7 = 0 且 bit6、bit5 = 1; first = 1 时只判断有无 (20bc3), 否则列入 [0538] (1d084)
   discList(first) {
     const st = this.st, P = this.c.persons; let n = 0;
     for (let i = 0; i < 100; i++) {
@@ -207,7 +207,7 @@ export class Commands {
     }
     return n;
   }
-  // ---- 0 自艦隊情報 1d65e → 1d0e8(主角艦隊): 回傳 1 時重新進港 (8c53) ----
+  // ---- 0 自舰队情报 1d65e → 1d0e8(主角舰队): 返回 1 时重新进港 (8c53) ----
   async fleetInfo() {
     const st = this.st, { sys } = this.c;
     if (!this.b.fleetShips()) return 0;
@@ -216,8 +216,8 @@ export class Commands {
     sys.mouseShow();
     return 1;
   }
-  // 1d0e8 艦隊一覽: 全畫面 [0c86]+0x2ba0 底紋 → 各船圖 (seg0:8050, 位置 DS:a7a4) → 下方資料框: 提督頭像、0x397..0x399、
-  //   最慢的船 (速度計算同 1c0a8 但風向表 DS:06d8) 的 +4/+5 與 總水手、總砲數、最低耐久、總戰力 (0x39a..0x39c)
+  // 1d0e8 舰队一览: 全画面 [0c86]+0x2ba0 底纹 → 各船图 (seg0:8050, 位置 DS:a7a4) → 下方数据框: 提督头像、0x397..0x399、
+  //   最慢的船 (速度计算同 1c0a8 但风向表 DS:06d8) 的 +4/+5 与 总水手、总砲数、最低耐久、总战力 (0x39a..0x39c)
   async fleetView(f) {
     const st = this.st, { scr, gfx, graph, con, message, palette } = this.c, b = this.b, T = this.T;
     const F = DS.TBL_FLEET + f * 0x85, hero = st.u8(st.personRecord(st.hero) + 0x2c) === f;
@@ -281,7 +281,7 @@ export class Commands {
     con.setCursor(0x1d, 0x158); message(0x39b, st.u8(slow + 5), sumGuns);
     con.setCursor(0x1d, 0x170); message(0x39c, minDur, sumX);
 
-    // 16:9 原生現代 Canvas 自艦隊情報畫面 (100% 沿用原版文字與船隻/提督資料)
+    // 16:9 原生现代 Canvas 自舰队情报画面 (100% 沿用原版文字与船只/提督数据)
     if (this.c.codec && this.c.art) {
       const capMsg = (id, ...args) => this.cap(() => message(id, ...args));
       const ships = [];
@@ -323,13 +323,13 @@ export class Commands {
     await this.c.menu.waitPress();
     await this.c.menu.waitRelease();
   }
-  // 1d607 艦隊的船 (清單 0x80), FF = 取消或沒有船
+  // 1d607 舰队的船 (清单 0x80), FF = 取消或没有船
   async pickShip() {
     const n = this.b.fleetShips(); if (!n) return 0xff;
     const r = await this.b.listSel().select(0x80, n);
     return r === -1 ? 0xff : this.c.persons[r];
   }
-  // ---- 1 艦船情報 1d688 ----
+  // ---- 1 舰船情报 1d688 ----
   async shipInfos() {
     const { palette, scr, menu } = this.c;
     const prevWide = scr.wideRenderer;
@@ -354,9 +354,9 @@ export class Commands {
       scr.wideRenderer = prevWide;
     }
   }
-  // 1c1a3 船隻詳細資料 (欄 x): 7358(x,0x20,0x29,0x150) 船圖 / 船首像 (TRANSIT.DAT 0x1980 + 0x480×n) / 補給 2×2 (圖 [0c86]+0x20d0) /
-  //   船級、0x374/0x375/0x377 砲 (DS:07cc)/0x378/0x379/0x37a 人數/0x37b/0x37c 載重比例 (>79 色 2, >30 色 4)/0x37e 速度 /
-  //   MENU #0x29 七項 「目前 / 最大」 與長條 (seg0:90c0 / 91a1)
+  // 1c1a3 船只详细数据 (栏 x): 7358(x,0x20,0x29,0x150) 船图 / 船首像 (TRANSIT.DAT 0x1980 + 0x480×n) / 补给 2×2 (图 [0c86]+0x20d0) /
+  //   船级、0x374/0x375/0x377 砲 (DS:07cc)/0x378/0x379/0x37a 人数/0x37b/0x37c 载重比例 (>79 色 2, >30 色 4)/0x37e 速度 /
+  //   MENU #0x29 七项 「目前 / 最大」 与长条 (seg0:90c0 / 91a1)
   shipInfo(slot, x) {
     const st = this.st, { scr, gfx, graph, con, printf, message, win } = this.c, b = this.b, S0 = this.S, T = this.T;
     const lab = this.c.menuItems(0x29);
@@ -427,7 +427,7 @@ export class Commands {
       return data;
     }
   }
-  // ---- 2 人物情報 1d6bf ----
+  // ---- 2 人物情报 1d6bf ----
   async personInfos() {
     const { scr, menu } = this.c;
     const prevWide = scr.wideRenderer;
@@ -449,8 +449,8 @@ export class Commands {
       scr.wideRenderer = prevWide;
     }
   }
-  // 1c839 人物資料 (欄 x, mode ≠ 0 時加上 所乘的船、職務、爵位 / 酬金): 頭像 7d39、0x381 姓名、0x382 年齡、
-  //   能力 7 項 (DS:08f6「%-6s%3d」與 9216 / 92f7)、0x386..0x38a、技能 5 項 (DS:08ec, +30 bit (0x10>>i) 為 ○)
+  // 1c839 人物数据 (栏 x, mode ≠ 0 时加上 所乘的船、职务、爵位 / 酬金): 头像 7d39、0x381 姓名、0x382 年龄、
+  //   能力 7 项 (DS:08f6「%-6s%3d」与 9216 / 92f7)、0x386..0x38a、技能 5 项 (DS:08ec, +30 bit (0x10>>i) 为 ○)
   personInfo(n, x, mode) {
     const st = this.st, { scr, con, printf, message, kao, win } = this.c, b = this.b, S0 = this.S, T = this.T;
     const P = st.personRecord(n), H = DS.TBL_HERO_DATA + st.hero * 0x0e, isHero = n === st.hero;
@@ -545,7 +545,7 @@ export class Commands {
       return data;
     }
   }
-  // ---- 3 主公情報 1cc11 ----
+  // ---- 3 主公情报 1cc11 ----
   async lordInfo(title = "") {
     const st = this.st, { con, printf, message, win, scr, art } = this.c, lab = this.c.menuItems(0x2a), H = DS.TBL_HERO_DATA + st.hero * 0x0e;
     const money = (st.u16(DS.MONEY) | (st.u16(0x12b0) << 16)) | 0;
@@ -579,7 +579,7 @@ export class Commands {
     }
     win.frame(0x0f, 0x20, 0x1f, 0xa8, 0);
     con.setCursor(0x11, 0x30); message(0x38e);
-    con.setCursor(0x11, 0x48); message(0x38f, money % 10000);            // seg0:37ee 有號長整數餘數
+    con.setCursor(0x11, 0x48); message(0x38f, money % 10000);            // seg0:37ee 有号长整数余数
     con.setCursor(0x11, 0x58); message(0x390, Math.trunc(money / 10000));
     con.setCursor(0x11, 0x70); message(0x391);
     for (let i = 0; i < 3; i++) { con.setCursor(0x11, (i << 4) + 0x88); message(0x392, lab[i], st.u16(H + 2 * i)); }
@@ -591,11 +591,11 @@ export class Commands {
     }
     await this.c.menu.waitPrompt();
   }
-  // ---- 4 積載情報 1d6e8: 反覆選船 → 1cd6c (沒有商品的船什麼都不顯示) ----
+  // ---- 4 积载情报 1d6e8: 反复选船 → 1cd6c (没有商品的船什么都不显示) ----
   async cargoInfos() {
     for (;;) { const s = await this.pickShip(); if (s === 0xff) break; await this.cargoInfo(s); }
   }
-  // 1cd6c 74f7(0x0f,0x20,0x14,0x90,0): 0x374 船名, 每種商品 0x395 (名稱 DS:0728, 數量 +0c)
+  // 1cd6c 74f7(0x0f,0x20,0x14,0x90,0): 0x374 船名, 每种商品 0x395 (名称 DS:0728, 数量 +0c)
   async cargoInfo(slot) {
     const st = this.st, { con, message, win, scr } = this.c, M = this.b.crewData(slot);
     let any = 0; for (let k = 0; k < 5; k++) if (st.u8(M + OFF.CREW_SLOT.CARGO_GOODS + k) !== 0xff) any = 1;
@@ -620,8 +620,8 @@ export class Commands {
     }
     await this.waitClose();
   }
-  // ---- 5 積載一覽表 1cf02: 各商品總數 ([0538 + 0x32×2 + 商品×2]) → 清單 0x81 → 1ce45 最高價港口:
-  //   主角 +30 bit1 → 主角說 0x350; 否則每位會計 (職務 4) 各說一次: +30 bit1 → 0x351 (港名), 否則 0x352 ----
+  // ---- 5 积载一览表 1cf02: 各商品总数 ([0538 + 0x32×2 + 商品×2]) → 清单 0x81 → 1ce45 最高价港口:
+  //   主角 +30 bit1 → 主角说 0x350; 否则每位会计 (职务 4) 各说一次: +30 bit1 → 0x351 (港名), 否则 0x352 ----
   async cargoList() {
     const st = this.st, { message } = this.c, b = this.b, P = this.c.persons;
     for (let i = 0x32; i < 0x64; i++) P[i] = 0;
@@ -648,19 +648,19 @@ export class Commands {
       await this.waitClose();
     }
   }
-  // 1ce45 商品 g 賣價最高的港口 (+15 bit6 的港才算): 特產港 (+1a = g) = (分類物價 + 50) × +18 / 200, 其他 = (分類物價 + 50) × 地區價 / 100
+  // 1ce45 商品 g 卖价最高的港口 (+15 bit6 的港才算): 特产港 (+1a = g) = (分类物价 + 50) × +18 / 200, 其他 = (分类物价 + 50) × 地区价 / 100
   bestPort(g) {
     const st = this.st, cats = this.T.goodsCat; let best = 0, port = 0;
     let cat = 0; while (cat < 10 && !(cats[cat] > g)) cat++; if (cat >= 10) cat = 0;     // 1fd9:468e = 2441e
     for (let p = 0; p < 100; p++) {
       const R = DS.TBL_PORT + p * 0x16, E = DS.TBL_PORT_ECONOMY + p * 0x25, pr = st.u8(E + 0x0e + cat) + 0x32, s16 = v => (v << 16) >> 16;
       const v = st.u8(E + 0x1a) === g ? s16(Math.trunc(pr * s16(st.u16(E + 0x18)) / 200))                         // seg0:3722
-        : s16(Math.trunc(pr * s16(st.u16(DS.TBL_REGION_PRICE + st.u8(E + 0x21) * 0x80 + 2 * g)) / 100));                         // seg0:5cba 地區價
+        : s16(Math.trunc(pr * s16(st.u16(DS.TBL_REGION_PRICE + st.u8(E + 0x21) * 0x80 + 2 * g)) / 100));                         // seg0:5cba 地区价
       if (v > best && (st.u8(R + OFF.PORT.REGION) & 0x40)) { best = v; port = p; }
     }
     return port;
   }
-  // ---- 6 發現物情報 1d084: 清單 0x92 → 發現物資料 ----
+  // ---- 6 发现物情报 1d084: 清单 0x92 → 发现物数据 ----
   async discInfos() {
     for (;;) {
       const n = this.discList(0);
@@ -669,7 +669,7 @@ export class Commands {
       await this.b.discInfo(this.c.persons[r]);
     }
   }
-  // ---- 8 航海日誌 1e31e ----
+  // ---- 8 航海日志 1e31e ----
   async logBook(title = "") {
     const st = this.st, { win, con, printf, message, sys, menu, scr } = this.c, S = this.S, L = DS.TRADE_LOGS;
     if (scr.wideRenderer && this.c.codec) {
@@ -697,7 +697,7 @@ export class Commands {
     win.shadowedSaved(0x0f, 0x20, 0x2a, 0x140, 0);
     con.left = 0x1c; con.right--;
     let n = 0; while (n < 0x30 && st.u16(L + n * 16) !== 0xffff) n++;
-    const last = Math.trunc((n - Math.sign(n)) / 6);                    // seg0:4dde 符號
+    const last = Math.trunc((n - Math.sign(n)) / 6);                    // seg0:4dde 符号
     let page = last;
     con.lineH = 0x10;
     for (;;) {
@@ -714,7 +714,7 @@ export class Commands {
           const k = v >= 0x3c ? 0 : v % 10 === 0 ? 0 : v % 10 < 5 ? 1 : 2;
           message(0x345, this.p.nations[Math.trunc(v / 10)], m34[k], m35[st.u16(a + 2)]);
         } else if (t === 9) message(0x17d, st.cstr(DS.TBL_PORT + st.u8(a) * 0x16 + 4));
-        // 0x180 的 %ld 由堆疊上相鄰的兩個字組成: 低字 = +8, 高字 = +6 (原版依 +10, +6, +8 的順序推入, 照搬)
+        // 0x180 的 %ld 由堆栈上相邻的两个字组成: 低字 = +8, 高字 = +6 (原版依 +10, +6, +8 的顺序推入, 照搬)
         else if (t === 0x0c) message(0x180, this.p.goods[st.u16(a)], (st.u16(a + 4) | (st.u16(a + 2) << 16)) | 0, st.u16(a + 6));
       }
       con.setCursor(0x11, 0x148);
@@ -733,7 +733,7 @@ export class Commands {
     con.lineH = 0x18;
     await win.close();
   }
-  // 13762 橫列選單 (x 欄, y, 每項寬 w 欄, 每列 cols 項, 共 count 項; 行高 [a15e] = 0x10): 1347c 點擊區 → 136cb (游標保留, 超出才歸 0)
+  // 13762 横列菜单 (x 栏, y, 每项宽 w 栏, 每列 cols 项, 共 count 项; 行高 [a15e] = 0x10): 1347c 点击区 → 136cb (光标保留, 超出才归 0)
   async pageMenu(x, y, w, cols, count) {
     const m = this.c.menu, R = m.rects;
     m.lineH = 0x10; m.count = count;
@@ -750,7 +750,7 @@ export class Commands {
     await m.waitRelease();
     return k === 0x1b || k === 0x30 ? 0xff : m.cur;
   }
-  // 134db 導覽 (13412 取鍵; 與 13df0 不同: ← 在列首一律 +C−1, 不檢查範圍)
+  // 134db 导览 (13412 取键; 与 13df0 不同: ← 在列首一律 +C−1, 不检查范围)
   async nav134db(C, step) {
     const m = this.c.menu;
     let k = await m.getKeyFree();
@@ -767,7 +767,7 @@ export class Commands {
     this.c.sys.flush();
     return k;
   }
-  // ---- 9 海港地圖 1dfaf ----
+  // ---- 9 海港地图 1dfaf ----
   async portMap() {
     if (hasDom() && this.c.codec) {
       await runDomPortMapModal(this.c, this.p, this.dec(this.c.menuItems(0x1a)[9]));
@@ -826,7 +826,7 @@ export class Commands {
         }
       }
 
-      // 主角位置標記
+      // 主角位置标记
       const hx = mx + (X - startCol) * tilePx + tilePx / 2;
       const hy = my + (Y - startRow) * tilePx + tilePx / 2;
       ctx.fillStyle = "#ff4d4d";
@@ -837,7 +837,7 @@ export class Commands {
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      // 建築標籤 (100% 原版 MENU #0x3a)
+      // 建筑标签 (100% 原版 MENU #0x3a)
       ctx.font = `700 12px ${UI_FONT}`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -871,29 +871,29 @@ export class Commands {
       scr.dirty = true;
     }
   }
-  // 1d710 模式 2: 地圖第 (bc, br) 塊 24×24 格以 8×8 縮小圖塊畫於 (欄 col, y)
+  // 1d710 模式 2: 地图第 (bc, br) 块 24×24 格以 8×8 缩小图块画于 (栏 col, y)
   miniQuad(col, y, bc, br) {
     const p = this.p, fb = this.c.scr.fb, M = p.map;
     bc %= 0x5a;
     for (let r = 0; r < 24; r++) for (let c = 0; c < 24; c++) {
       const px = p.tile(M[(br * 24 + r) * 0x60 + bc * 24 + c]), o = (y + r * 8) * 640 + (col + c) * 8;
-      // 1d8ac: DS:a7b8 把每 4 個像素 (半個位元組) 縮成第 0 與第 3 個像素; 只取偶數行
+      // 1d8ac: DS:a7b8 把每 4 个像素 (半个字节) 缩成第 0 与第 3 个像素; 只取偶数行
       for (let yy = 0; yy < 8; yy++) for (let xx = 0; xx < 8; xx++) fb[o + yy * 640 + xx] = px[(yy * 2) * 16 + (xx >> 1) * 4 + (xx & 1) * 3];
     }
     this.c.scr.dirty = true;
   }
-  // 1fd9:1f9d 矩形外框, 4 條線各自依剪裁矩形裁切 (1fd9:171e; 水平/垂直線的裁切等於夾限座標)
+  // 1fd9:1f9d 矩形外框, 4 条线各自依剪裁矩形裁切 (1fd9:171e; 水平/垂直线的裁切等于夹限座标)
   clipRect(x0, y0, x1, y1, color, [cx0, cy0, cx1, cy1]) {
     const s = this.c.scr;
     const v = (x, ya, yb) => { if (x < cx0 || x > cx1) return; const a = Math.max(Math.min(ya, yb), cy0), b = Math.min(Math.max(ya, yb), cy1); if (a <= b) s.line(x, a, x, b, color); };
     const h = (y, xa, xb) => { if (y < cy0 || y > cy1) return; const a = Math.max(Math.min(xa, xb), cx0), b = Math.min(Math.max(xa, xb), cx1); if (a <= b) s.line(a, y, b, y, color); };
     v(x0, y0, y1); h(y1, x0, x1); v(x1, y0, y1); h(y0, x0, x1);
   }
-  // ================= 經營 1fd9:0fdc (20d6c) =================
+  // ================= 经营 1fd9:0fdc (20d6c) =================
   async manage() {
     const { menu, scr } = this.c, items = this.c.menuItems(0x1b).slice(0, 6), b = this.b;
     if (scr.wideRenderer && this.c.codec) {
-      await runWideFleetHub(this);
+      await runDomFleetHub(this);
       return;
     }
     let si = 0;
@@ -972,7 +972,7 @@ export class Commands {
       }
     }
   }
-  // 1e8b5 艦隊表各列的點擊區 (x 0x88..0x1b8, 第 i 列 y = (i+3)×0x18) 與第 n 區 (整張表); [8a28] = 0x0f
+  // 1e8b5 舰队表各列的点击区 (x 0x88..0x1b8, 第 i 列 y = (i+3)×0x18) 与第 n 区 (整张表); [8a28] = 0x0f
   fleetRects() {
     const { menu, con } = this.c, R = menu.rects, n = this.b.fleetShips();
     menu.count = n;
@@ -983,7 +983,7 @@ export class Commands {
   }
   winE2() { this.c.win.shadowedSaved(0x10, 0xa0, 0x24, 0x48, 1); }       // 1e89e
   winBot() { this.c.win.shadowedSaved(0x1e, 0x120, 0x1c, 0x48, 1); }     // 1edb5
-  // 1ea39 船長變更: 選船 → 清單 0x89 (主角 + 船員, 12d8c) → 1e921; Esc 時主角必須是某艘船的船長 (1e9d6), 否則 0xe2 並繼續
+  // 1ea39 船长变更: 选船 → 清单 0x89 (主角 + 船员, 12d8c) → 1e921; Esc 时主角必须是某艘船的船长 (1e9d6), 否则 0xe2 并继续
   async captains(title = "") {
     const { menu, scr } = this.c, b = this.b;
     if (scr.wideRenderer && this.c.codec) {
@@ -1019,8 +1019,8 @@ export class Commands {
     this.winE2(); this.c.message(0xe2); await this.waitClose();
     return 0;
   }
-  // 1e921 船位 slot 的船長改為 p: p 的職務是 1 或 2 且已是另一艘船的船長 → 兩船互換船長 (職務不變);
-  //   否則原船長職務 (不是 1 時) 改 6, p 的職務 (不是 1 時) 改 2
+  // 1e921 船位 slot 的船长改为 p: p 的职务是 1 或 2 且已是另一艘船的船长 → 两船互换船长 (职务不变);
+  //   否则原船长职务 (不是 1 时) 改 6, p 的职务 (不是 1 时) 改 2
   setCaptain(slot, p) {
     const st = this.st, b = this.b, M = b.crewData(slot), oldP = st.personRecord(st.u8(M + OFF.CREW_SLOT.CAPTAIN)), P = st.personRecord(p);
     let other = 0;
@@ -1034,7 +1034,7 @@ export class Commands {
     }
     st.set8(M + OFF.CREW_SLOT.CAPTAIN, p);
   }
-  // 1ed2d 人事變更
+  // 1ed2d 人事变更
   async personnel(title = "") {
     const st = this.st, { win, con, menu, message, scr, art } = this.c, S = this.S;
     this.posts = [0xff, 0xff, 0xff];
@@ -1068,7 +1068,7 @@ export class Commands {
     }
     win.shadowedSaved(0x12, 0x60, 0x1c, 0x60, 1);
     con.puts(S.pAssist); con.setCursor(con.left, 0x88); con.puts(S.pAccount); con.setCursor(con.left, 0xa0); con.puts(S.pBosun);
-    // 沒有船員: 0xe5 後只關閉訊息視窗就返回, 人事變更視窗留在畫面與視窗堆疊上 (照搬; 選單已停用此項, 實際走不到)
+    // 没有船员: 0xe5 后只关闭消息窗口就返回, 人事变更窗口留在画面与窗口堆栈上 (照搬; 菜单已禁用此项, 实际走不到)
     if (!this.b.crewCount()) { this.winE2(); message(0xe5); await menu.waitPrompt(); await win.close(); return; }
     for (;;) {
       this.postRows();
@@ -1078,7 +1078,7 @@ export class Commands {
     }
     await win.close();
   }
-  // 1eae1 現任者姓名 (補空白到 12 字) 與點擊區 0..2, 第 3 區 = 視窗
+  // 1eae1 现任者姓名 (补空白到 12 字) 与点击区 0..2, 第 3 区 = 窗口
   postRows() {
     const st = this.st, { con, menu } = this.c, S = this.S, R = menu.rects;
     con.left = 0x14; con.right = 0x2b;
@@ -1093,7 +1093,7 @@ export class Commands {
     }
     R[3] = { x0: 0x90, x1: 0x170, y0: 0x60, y1: 0xc0 };
   }
-  // 1ec2b 職位 k: 清單 0x89 → 船長 (職務 2) 不行 0xe3; 原本擔任 3/4/5 的職位空出; 現任者 (< 0x78) 職務改 6; 新任職務 = k+3 → 0xe4
+  // 1ec2b 职位 k: 清单 0x89 → 船长 (职务 2) 不行 0xe3; 原本担任 3/4/5 的职位空出; 现任者 (< 0x78) 职务改 6; 新任职务 = k+3 → 0xe4
   async setPost(k) {
     const st = this.st, { message, scr } = this.c, b = this.b, roles = b.T.crewRoles;
     const s = await b.listSel().select(0x89, b.crewCount());
@@ -1110,7 +1110,7 @@ export class Commands {
     if (scr.wideRenderer) { await showWideNotice(this.c, this.cap(() => message(0xe4, st.cstr(P), roles[st.u8(P + 0x2e)]))); return; }
     this.winE2(); message(0xe4, st.cstr(P), roles[st.u8(P + 0x2e)]); await this.waitClose();
   }
-  // 1ef45 水手編組
+  // 1ef45 水手编组
   async sailors(title = "") {
     const { win, con, menu, message, printf, scr } = this.c, S = this.S;
     this.pool = 0; this.poolMorale = 0;
@@ -1151,7 +1151,7 @@ export class Commands {
     }
     await win.close();
   }
-  // 1edf9 一艘船的水手數 (0..min(現有 + 剩餘, 最多水手)); 士氣依人數加權平均 (seg0:38ba 長整數除法)
+  // 1edf9 一艘船的水手数 (0..min(现有 + 剩余, 最多水手)); 士气依人数加权平均 (seg0:38ba 长整数除法)
   async assignSailors(slot) {
     const st = this.st, { win, message, scr } = this.c, b = this.b;
     const M = b.crewData(slot), S = b.fleetSlot(slot), ship = DS.TBL_SHIP + st.u8(S + OFF.DOCK_SLOT.SHIP) * 0x16;
@@ -1176,7 +1176,7 @@ export class Commands {
     this.poolMorale = 0;
     if (this.pool) this.poolMorale = (di < si ? pm : Math.trunc((pm * pool + (di - si) * mor) / this.pool)) & 0xff;
   }
-  // 1f33d 水手比例: 選船 → 1f25a
+  // 1f33d 水手比例: 选船 → 1f25a
   async ratios(title = "") {
     const { menu, scr } = this.c;
     if (scr.wideRenderer && this.c.codec) {
@@ -1195,7 +1195,7 @@ export class Commands {
       this.b.fleetTable();
     }
   }
-  // 1f25a 駕駛 (+9) / 瞭望 (+8) / 甲板 (其餘) 比例
+  // 1f25a 驾驶 (+9) / 瞭望 (+8) / 甲板 (其余) 比例
   async ratio(slot, shipName = "") {
     const st = this.st, { win, con, scr, gfx, menu } = this.c, S = this.S, M = this.b.crewData(slot), R = menu.rects;
     if (scr.wideRenderer && this.c.codec) {
@@ -1255,12 +1255,12 @@ export class Commands {
     }
     await win.close();
   }
-  // 1f227: 奇數 → t0 +1 (≤ 100), 由 t1 扣 (t1 為 0 時改由 t2 扣); 偶數 → t0 −1 (≥ 0), t1 +1
+  // 1f227: 奇数 → t0 +1 (≤ 100), 由 t1 扣 (t1 为 0 时改由 t2 扣); 偶数 → t0 −1 (≥ 0), t1 +1
   ratioStep(r, t) {
     if (r & 1) { if (t[0] < 100) { t[0]++; if (t[1]) t[1]--; else t[2] = (t[2] - 1) & 0xff; } }
     else if (t[0]) { t[0]--; t[1] = (t[1] + 1) & 0xff; }
   }
-  // 1f036 「%4d人:%3d%%」(人數 = 比例 × 水手 / 100, seg0:3722) 與百分比條
+  // 1f036 「%4d人:%3d%%」(人数 = 比例 × 水手 / 100, seg0:3722) 与百分比条
   ratioValues(slot) {
     const st = this.st, { con, printf } = this.c, S = this.S, M = this.b.crewData(slot), s0 = (st.u16(this.b.fleetSlot(slot)) << 16) >> 16;
     const v9 = st.u8(M + OFF.CREW_SLOT.LOOK_RATIO), v8 = st.u8(M + OFF.CREW_SLOT.NAV_RATIO);
@@ -1268,7 +1268,7 @@ export class Commands {
     con.setCursor(con.left + 6, 0x120); const c = Math.trunc(v8 * s0 / 100); printf(S.rNum, c, v8); this.bar(con.left + 7, 0x114, v8);
     con.setCursor(con.left + 6, 0x140); const v = 100 - v8 - v9; printf(S.rNum, s0 - c - a, v); this.bar(con.left + 7, 0x134, v);
   }
-  // 1f4ae 艦船銷毀
+  // 1f4ae 舰船销毁
   async scrap(title = "") {
     const st = this.st, { menu, message, scr } = this.c, b = this.b;
     if (b.fleetShips() === 1) {
@@ -1297,7 +1297,7 @@ export class Commands {
       if ((st.u8(S + OFF.DOCK_SLOT.FLAGS) & 0x30) === 0x10 && st.u8(b.crewData(i) + 0x1b) === 0xff) st.set8(S + OFF.DOCK_SLOT.FLAGS, 0);
     }
   }
-  // 1f38a 尚未銷毀 (+1b bit7 = 0) 的船: 點擊區位置仍依艦隊表的列, [0538] 重新排緊
+  // 1f38a 尚未销毁 (+1b bit7 = 0) 的船: 点击区位置仍依舰队表的列, [0538] 重新排紧
   scrapRects() {
     const st = this.st, { menu } = this.c, b = this.b, R = menu.rects, P = this.c.persons, n = b.fleetShips();
     let k = 0;
@@ -1310,7 +1310,7 @@ export class Commands {
     menu.count = k;
     return k;
   }
-  // 1f43a 主角的船 → 0xe9; 否則 0xea (%s 船名) 是/否 → 1f41d: seg0:5deb 移除後 +8 = 0x10 (表上顯示「銷毀完畢」直到離開)
+  // 1f43a 主角的船 → 0xe9; 否则 0xea (%s 船名) 是/否 → 1f41d: seg0:5deb 移除后 +8 = 0x10 (表上显示「销毁完毕」直到离开)
   async scrapShip(slot) {
     const st = this.st, { message, menu, scr } = this.c, b = this.b, M = b.crewData(slot), ship = DS.TBL_SHIP + st.u8(b.fleetSlot(slot) + 7) * 0x16;
     if (scr.wideRenderer) {
@@ -1335,8 +1335,8 @@ export class Commands {
     await this.c.win.close();
   }
   // ================= 命令 1fd9:10a8 (20e38) =================
-  // MENU #0x1c (偵察/交涉/戰鬥/隊形變更/糧食分配/酬金設定) 於 y=0xe0; 在港 → 0..2 停用; 沒有船 → 3,4; 沒有船員 → 5
-  // 偵察、隊形變更、糧食分配、酬金設定 後回到選單; 交涉 回傳 0 時、戰鬥、取消 後結束
+  // MENU #0x1c (侦察/交涉/战斗/队形变更/粮食分配/酬金设置) 于 y=0xe0; 在港 → 0..2 禁用; 没有船 → 3,4; 没有船员 → 5
+  // 侦察、队形变更、粮食分配、酬金设置 后回到菜单; 交涉 返回 0 时、战斗、取消 后结束
   async order() {
     const st = this.st, { menu, scr } = this.c, items = this.c.menuItems(0x1c).slice(0, 6), b = this.b;
     let si = 0;
@@ -1346,9 +1346,9 @@ export class Commands {
       if (!b.crewCount()) menu.disabled |= 0x20;
       const r = await this.popMenu(0xe0, items, "命令");
       switch (r) {
-        case 0: await this.p.scout(); break;                            // 1feae 偵察 (以下 3 項在港時停用; scenes/sea.js)
+        case 0: await this.p.scout(); break;                            // 1feae 侦察 (以下 3 项在港时禁用; scenes/sea.js)
         case 1: si = (await this.p.negotiate()) ? 0 : 1; break;          // 20a6d 交涉
-        case 2: await this.p.battle(); si = 1; break;                   // 0fea:1181 戰鬥
+        case 2: await this.p.battle(); si = 1; break;                   // 0fea:1181 战斗
         case 3: await this.formation(this.dec(items[3])); break;        // 20587
         case 4: await this.rations(this.dec(items[4])); break;          // 208af
         case 5: await this.wages(); break;                              // 20ade
@@ -1357,7 +1357,7 @@ export class Commands {
     } while (!si);
     if (!scr.wideRenderer) await this.redrawMap();
   }
-  // 20587 隊形變更
+  // 20587 队形变更
   async formation(title = "") {
     const { win, con, message, menu, scr } = this.c, b = this.b, P = this.c.persons;
     if (scr.wideRenderer && hasDom() && this.c.codec) {
@@ -1426,14 +1426,14 @@ export class Commands {
       return;
     }
   }
-  // 2029f 編號視窗 7849(0x16, 0x90, 0x18, (n+2)×16) 與「%2d﹒」
+  // 2029f 编号窗口 7849(0x16, 0x90, 0x18, (n+2)×16) 与「%2d﹒」
   fmNumbers(n) {
     const { win, con, printf } = this.c;
     win.shadowedSaved(0x16, 0x90, 0x18, (n + 2) << 4, 0);
     con.setCursor(con.left, 0x90);
     for (let si = 0; si < n; si++) { con.setCursor(con.left, (si + 10) << 4); printf(this.S.fmNum, si + 1); }
   }
-  // 202f7 已指定的船名 (左邊界 0x18, 右邊界 0x2b; 未指定 = 16 個空白)
+  // 202f7 已指定的船名 (左边界 0x18, 右边界 0x2b; 未指定 = 16 个空白)
   fmNames(n, nw) {
     const st = this.st, { con, printf } = this.c, S = this.S, b = this.b;
     con.left = 0x18; con.right = 0x2b;
@@ -1443,7 +1443,7 @@ export class Commands {
       if (nw[si] !== 0xff) printf(S.fmShip, st.cstr(DS.TBL_SHIP + st.u8(b.fleetSlot(nw[si]) + 7) * 0x16)); else con.puts(S.fmBlank);
     }
   }
-  // 20363 [0538] = 原順序中還沒被指定的船位
+  // 20363 [0538] = 原顺序中还没被指定的船位
   fmRemain(nw, old) {
     const P = this.c.persons; let k = 0;
     for (let i = 0; old[i] !== 0xff && i < 10; i++) {
@@ -1452,7 +1452,7 @@ export class Commands {
       if (P[k] !== 0xff) k++;
     }
   }
-  // 2051b 第 i 位應為 nw[i]: 交換 old[i] 與 nw[i] 兩個船位, 並把 nw 中等於 old[i] 的那一格改成 nw[i]; 最後 20468 整理
+  // 2051b 第 i 位应为 nw[i]: 交换 old[i] 与 nw[i] 两个船位, 并把 nw 中等于 old[i] 的那一格改成 nw[i]; 最后 20468 整理
   fmApply(old, nw) {
     const b = this.b;
     for (let i = 0; i < 10; i++) {
@@ -1462,7 +1462,7 @@ export class Commands {
     }
     b.compactSlots();
   }
-  // 208af 糧食分配: 水 [2e19] / 糧食 [2e1a] 0..100%
+  // 208af 粮食分配: 水 [2e19] / 粮食 [2e1a] 0..100%
   async rations(title = "") {
     const st = this.st, { con, menu, win, scr } = this.c;
     if (!this.b.fleetShips()) return;
@@ -1496,7 +1496,7 @@ export class Commands {
     }
     await win.close();
   }
-  // 206dd 視窗 74f7(0x39, 0xe0, 0x16, 0x60, 1), 文字區 0x3b..0x4b; −/+ 按鈕 (左邊界 +5 / +0x10) 與點擊區 0..3, 第 4 區 = 視窗
+  // 206dd 窗口 74f7(0x39, 0xe0, 0x16, 0x60, 1), 文字区 0x3b..0x4b; −/+ 按钮 (左边界 +5 / +0x10) 与点击区 0..3, 第 4 区 = 窗口
   async rtParts() {
     const { win, con, scr, gfx, menu } = this.c, S = this.S, R = menu.rects;
     await win.open(0x39, 0xe0, 0x16, 0x60, 1);
@@ -1517,13 +1517,13 @@ export class Commands {
     R[n] = { x0: 0x1c8, x1: 0x278, y0: 0xe0, y1: 0x140 };
     menu.count = n;                                                    // [a158] = 4
   }
-  // 20848 「%3d%%」與百分比條
+  // 20848 「%3d%%」与百分比条
   rtValues() {
     const st = this.st, { con, printf } = this.c, S = this.S;
     con.setCursor(con.left + 0x0d, 0x100); printf(S.pct, st.u8(0x2e19)); this.bar(con.left + 7, 0xf4, st.u8(0x2e19));
     con.setCursor(con.left + 0x0d, 0x120); printf(S.pct, st.u8(0x2e1a)); this.bar(con.left + 7, 0x114, st.u8(0x2e1a));
   }
-  // 20ade 酬金設定: 有船員時反覆 清單 0x89 → 20933
+  // 20ade 酬金设置: 有船员时反复 清单 0x89 → 20933
   async wages() {
     for (;;) {
       const n = this.b.crewCount();
@@ -1533,9 +1533,9 @@ export class Commands {
       await this.wage(this.c.persons[r]);
     }
   }
-  // 20933 一名船員的酬金: 忠誠 (+2b) ≥ 80 → 本人 0xdc; 否則船員 (9076 [4,3,5,2,6]) 說 0xdd (本人) / 0xde (%s = 姓名),
-  //   「（%d∼2000）」目前 = 10 × [2e39 + 序號] → 計算機 (0, 2000), 低於目前 → 0xe0 再輸入 (不再印範圍);
-  //   0xdf → 忠誠 = min(100, 忠誠 + (新 − 舊) / 5), [2e39 + 序號] = 新 / 10
+  // 20933 一名船员的酬金: 忠诚 (+2b) ≥ 80 → 本人 0xdc; 否则船员 (9076 [4,3,5,2,6]) 说 0xdd (本人) / 0xde (%s = 姓名),
+  //   「（%d∼2000）」目前 = 10 × [2e39 + 序号] → 计算机 (0, 2000), 低于目前 → 0xe0 再输入 (不再印范围);
+  //   0xdf → 忠诚 = min(100, 忠诚 + (新 − 旧) / 5), [2e39 + 序号] = 新 / 10
   async wage(p) {
     const st = this.st, { message, printf } = this.c, b = this.b, S = this.S;
     let idx = 0;
@@ -1558,13 +1558,13 @@ export class Commands {
     st.set8(0x2e39 + idx, Math.trunc(si / 10));
   }
 
-  // ================= 航海術 1fd9:119e (20f2e) =================
-  // MENU #0x1d (委任/停船/靠港/登陸/隨身物/功能), [1005] bit5 (停船中) 時 #0x2e (第 2 項改為「出航」)
-  // 停用: [1005] & 0x18 → 0..2; 在港 → 0..3; 沒有隨身物 → 4。選隨身物以外的項目 (或取消) 後結束; 功能回傳值決定是否結束
+  // ================= 航海术 1fd9:119e (20f2e) =================
+  // MENU #0x1d (委任/停船/靠港/登陆/随身物/功能), [1005] bit5 (停船中) 时 #0x2e (第 2 项改为「出航」)
+  // 禁用: [1005] & 0x18 → 0..2; 在港 → 0..3; 没有随身物 → 4。选随身物以外的项目 (或取消) 后结束; 功能返回值决定是否结束
   async nav() {
     const st = this.st, { menu, palette } = this.c;
     const items = this.c.menuItems(st.u8(DS.SEA_FLAGS2) & 0x20 ? 0x2e : 0x1d).slice(0, 6);
-    const pm = !hasDom() && PortMove.enabled(this.c);                  // 現代 DOM 下已由右上港內直達面板承接，不再塞入航海術選單
+    const pm = !hasDom() && PortMove.enabled(this.c);                  // 现代 DOM 下已由右上港内直达面板承接，不再塞入航海术菜单
     if (pm) items.push(PortMove.label(this.c));
     let si = 0;
     while (!palette.ending) {                                          // 20fd9: [03ea] == 0
@@ -1575,25 +1575,25 @@ export class Commands {
       if (pm && st.port === 0xff) menu.disabled |= 0x40;
       const r = await this.popMenu(pm ? 0xc8 : 0xe0, items, "航海术");
       switch (r) {
-        case 0: await this.p.delegate(); si = 1; break;                // 2e09:3223 委任 (以下 4 項在港時停用; scenes/sea.js)
+        case 0: await this.p.delegate(); si = 1; break;                // 2e09:3223 委任 (以下 4 项在港时禁用; scenes/sea.js)
         case 1: await this.p.stopToggle(); si = 1; break;              // 20ee3 停船 / 出航
         case 2: await this.p.dock(); si = 1; break;                    // 0fea:c0d9 = 1bf79 靠港
-        case 3: await this.p.land(); si = 1; break;                    // 2e09:6e37 = 34ec7 登陸
-        case 4: await this.belongings(); break;                        // 29a4c (不結束)
+        case 3: await this.p.land(); si = 1; break;                    // 2e09:6e37 = 34ec7 登陆
+        case 4: await this.belongings(); break;                        // 29a4c (不结束)
         case 5: si = await this.functions(); break;                    // 215bd
-        case 6: si = await PortMove.choose(this); break;               // 擴充功能: 港內移動 (scenes/portmove.js)
+        case 6: si = await PortMove.choose(this); break;               // 扩充功能: 港内移动 (scenes/portmove.js)
         default: si = 1;
       }
     }
     if (!this.c.scr.wideRenderer) await this.redrawMap();
   }
-  // 0fea:32a6 = 13146 隨身物 (DS:2e57, 20 格, FF = 空) → [0538], 回傳個數
+  // 0fea:32a6 = 13146 随身物 (DS:2e57, 20 格, FF = 空) → [0538], 返回个数
   itemList() {
     const st = this.st, P = this.c.persons; let n = 0;
     for (let i = 0; i < 0x14; i++) { const v = st.u8(DS.INVENTORY + i); if (v !== 0xff) P[n++] = v; }
     return n;
   }
-  // 29a4c 隨身物
+  // 29a4c 随身物
   async belongings() {
     const { win, scr } = this.c, ls = this.b.listSel();
     if (scr.wideRenderer && hasDom() && this.c.codec) {
@@ -1622,8 +1622,8 @@ export class Commands {
       else if (r === 1) await this.use(it);
     }
   }
-  // 294d5 佩戴: 種類 (+13 & 0f) ≥ 7 不能裝備; 已裝備 → 除去; 否則裝上:
-  //   先除去所有已裝備的隨身物, 依種類記住各類最後一件 (0..3 武器 / 4,5 甲 / 6 盾), 本件取代它那一類, 再把 3 類各自裝回
+  // 294d5 佩戴: 种类 (+13 & 0f) ≥ 7 不能装备; 已装备 → 除去; 否则装上:
+  //   先除去所有已装备的随身物, 依种类记住各类最后一件 (0..3 武器 / 4,5 甲 / 6 盾), 本件取代它那一类, 再把 3 类各自装回
   async equip(it) {
     const st = this.st, { con } = this.c, S = this.S, R = DS.TBL_ITEM + it * 0x14, t = st.u8(R + 0x13) & 0x0f;
     if (t >= 7) { this.smallWin(); con.puts(S.noEquip); await this.waitClose(); return; }
@@ -1639,7 +1639,7 @@ export class Commands {
     { const k = cat(t); if (k >= 0) slot[k] = it; }
     for (const x of slot) if (x !== 0xff) { const Q = DS.TBL_ITEM + x * 0x14; st.set8(Q + 0x13, st.u8(Q + 0x13) | 0x10); }
   }
-  // 299f5 使用: 種類 7 → 298a5 (位置), 8 → 29710 (道具), 9 → 29808 (藥品, 用後消失), 0x0c → 0fea:ded6 (地圖), 其他 → 2962f
+  // 299f5 使用: 种类 7 → 298a5 (位置), 8 → 29710 (道具), 9 → 29808 (药品, 用后消失), 0x0c → 0fea:ded6 (地图), 其他 → 2962f
   async use(it) {
     const st = this.st, R = DS.TBL_ITEM + it * 0x14, t = st.u8(R + 0x13) & 0x0f;
     switch (t) {
@@ -1650,7 +1650,7 @@ export class Commands {
       default: return this.cantUse(t);
     }
   }
-  // 2962f 用不了: 0..3「武器」4「盾」5「防禦」+「武器」6「甲」其他「這東西」+「在這兒用不了．」(cs:98b9 跳躍表, 照搬)
+  // 2962f 用不了: 0..3「武器」4「盾」5「防御」+「武器」6「甲」其他「这东西」+「在这儿用不了．」(cs:98b9 跳跃表, 照搬)
   async cantUse(t) {
     const { con } = this.c, S = this.S;
     this.smallWin();
@@ -1662,11 +1662,11 @@ export class Commands {
     con.puts(S.cantUse);
     await this.waitClose();
   }
-  // 298a5 種類 7 (測量用具, BX = 隨身物記錄 R): 在港 → MESSAGE 0x2f4。海上:
-  //   主角 ([c2ce]) +30 bit4 (測量技能) 沒有 → 0x2f5 → 29852 選有技能的船員; 取消 → 主角發言 (+31 bit4 ? 0x2f6 + 0x2f8 : 0x2f7 + 0x2f9), 誤差 = random(100) + 1
-  //   經度 si = (x + 0x7bd) mod 0x870 (> 0x438 → 0x870 − si, 訊息 0x81 西經, 否則 0x80 東經) → (si / (精度 × 6)) × 精度 (精度 = R +12)
-  //   緯度 = 0x280 − y (≥ 0 → 0x7e 北緯, 否則 0x7f 南緯) → (|緯度| × 8 / (精度 × 0x39)) × 精度
-  //   誤差加在兩個值上 (原版如此: 不會測量時顯示的度數直接多 1..100 度)。兩則訊息印在同一個小視窗 (294bf) 中
+  // 298a5 种类 7 (测量用具, BX = 随身物记录 R): 在港 → MESSAGE 0x2f4。海上:
+  //   主角 ([c2ce]) +30 bit4 (测量技能) 没有 → 0x2f5 → 29852 选有技能的船员; 取消 → 主角发言 (+31 bit4 ? 0x2f6 + 0x2f8 : 0x2f7 + 0x2f9), 误差 = random(100) + 1
+  //   经度 si = (x + 0x7bd) mod 0x870 (> 0x438 → 0x870 − si, 消息 0x81 西经, 否则 0x80 东经) → (si / (精度 × 6)) × 精度 (精度 = R +12)
+  //   纬度 = 0x280 − y (≥ 0 → 0x7e 北纬, 否则 0x7f 南纬) → (|纬度| × 8 / (精度 × 0x39)) × 精度
+  //   误差加在两个值上 (原版如此: 不会测量时显示的度数直接多 1..100 度)。两则消息印在同一个小窗口 (294bf) 中
   async useNavi(R) {
     const st = this.st, { message, sys } = this.c;
     if (st.port !== 0xff) { this.smallWin(); message(0x2f4); await this.waitClose(); return; }
@@ -1692,7 +1692,7 @@ export class Commands {
     message(di, s16(err + lon));
     await this.waitClose();
   }
-  // 29852 選測量者: 船員清單 (0fea:2f1b) → 清單 0x89; 選到沒有技能 (+30 bit4) 的 → 0x2f3 再選; 選到有的 → 1, 取消 → 0
+  // 29852 选测量者: 船员清单 (0fea:2f1b) → 清单 0x89; 选到没有技能 (+30 bit4) 的 → 0x2f3 再选; 选到有的 → 1, 取消 → 0
   async pickSurveyor() {
     const st = this.st, P = this.c.persons;
     for (;;) {
@@ -1703,7 +1703,7 @@ export class Commands {
       this.smallWin(); this.c.message(0x2f3); await this.waitClose();
     }
   }
-  // 29710 種類 8: 編號 0x17 時刻 (29694), 0x19 喵嗚 (296f8), 0x18/0x1a..0x1c 看得很遠 (296e0), 其他用不了 (cs:9996 跳躍表)
+  // 29710 种类 8: 编号 0x17 时刻 (29694), 0x19 喵呜 (296f8), 0x18/0x1a..0x1c 看得很远 (296e0), 其他用不了 (cs:9996 跳跃表)
   async useTool(it) {
     const { con, printf } = this.c, S = this.S, k = it - 0x17;
     if (k < 0 || k > 5) return this.cantUse(8);
@@ -1715,8 +1715,8 @@ export class Commands {
     } else con.puts(k === 2 ? S.meow : S.farSight);
     await this.waitClose();
   }
-  // 29808 種類 9: 0x29 老鼠藥 ([0cb3] bit4) / 0x2a 暴風雨 (29780, [0cb3] 低 4 位 = 1) / 0x2b 壞血病 ([0cb3] bit5) / 其他用不了;
-  //   之後一律從隨身物中移除第一個同編號的格子 (連「用不了」的也被消耗, 照搬)
+  // 29808 种类 9: 0x29 老鼠药 ([0cb3] bit4) / 0x2a 暴风雨 (29780, [0cb3] 低 4 位 = 1) / 0x2b 坏血病 ([0cb3] bit5) / 其他用不了;
+  //   之后一律从随身物中移除第一个同编号的格子 (连「用不了」的也被消耗, 照搬)
   async useMedicine(it) {
     const st = this.st, { con } = this.c, S = this.S;
     if (it === 0x29) {
@@ -1740,8 +1740,8 @@ export class Commands {
     } else await this.cantUse(st.u8(DS.TBL_ITEM + it * 0x14 + 0x13) & 0x0f);
     for (let i = 0; i < 0x14; i++) if (st.u8(DS.INVENTORY + i) === it) { st.set8(DS.INVENTORY + i, 0xff); break; }
   }
-  // 215bd 功能: MENU #0x14 (環境設定/儲存檔案/取出存檔/結束遊戲) 於 y=0xf8, 無停用項;
-  //   讀檔成功 → [0533..0535] = F0 (時間迴圈中止) 並回傳 1 (結束航海術選單); 其他回到此選單, 取消回傳 0
+  // 215bd 功能: MENU #0x14 (环境设置/保存文件/取出存盘/结束游戏) 于 y=0xf8, 无禁用项;
+  //   读档成功 → [0533..0535] = F0 (时间循环中止) 并返回 1 (结束航海术菜单); 其他回到此菜单, 取消返回 0
   async functions() {
     const st = this.st, { menu, palette } = this.c, items = this.c.menuItems(0x14).slice(0, 4);
     while (!palette.ending) {
@@ -1751,10 +1751,10 @@ export class Commands {
         case 0: {
           const o = st.options;
           await this.settings();
-          if ((st.options ^ o) & 0x80) { this.release(3); await this.reenter(); this.press(3); }   // 環境設定不會改 bit7 (死碼, 照搬)
+          if ((st.options ^ o) & 0x80) { this.release(3); await this.reenter(); this.press(3); }   // 环境设置不会改 bit7 (死码, 照搬)
           break; }
         case 1:
-          if (st.port !== 0xff) st.set8(DS.LAST_PORT, 0x82);                   // 讀檔後重新讀入入口表但保留位置
+          if (st.port !== 0xff) st.set8(DS.LAST_PORT, 0x82);                   // 读档后重新读入入口表但保留位置
           await this.saveLoad(0); break;
         case 2:
           if (await this.saveLoad(1)) { this.rt.time = this.rt.day = this.rt.month = 0xf0; return 1; }
@@ -1765,7 +1765,7 @@ export class Commands {
     }
     return 0;
   }
-  // 214cf 環境設定
+  // 214cf 环境设置
   async settings() {
     const st = this.st, { win, con, printf, menu, scr } = this.c, S = this.S;
     if (hasDom() && this.c.codec) {
@@ -1821,7 +1821,7 @@ export class Commands {
     } while (r !== 0xff);
     await win.close();
   }
-  // 2123a 3 列 −/+ 按鈕 ([0c86]+0x390 / 0x410 於欄 0x26 / 0x31) 與 9216 數值框; 點擊區 0..3 (每列 2 個相同的區域, 照搬) 與 4..9
+  // 2123a 3 列 −/+ 按钮 ([0c86]+0x390 / 0x410 于栏 0x26 / 0x31) 与 9216 数值框; 点击区 0..3 (每列 2 个相同的区域, 照搬) 与 4..9
   settingsParts() {
     const { scr, gfx, menu } = this.c, R = menu.rects;
     for (let si = 0; si < 3; si++) {
@@ -1835,7 +1835,7 @@ export class Commands {
     for (let di = 0; di < 3; di++) for (let bx = 0; bx < 2; bx++) { const x0 = bx * 0x58 + 0x130; R[n++] = { x0, x1: x0 + 0x10, y0: (di << 5) + 0x70, y1: (di << 5) + 0x80 }; }
     menu.count = n;                                                    // [a158] = 10
   }
-  // 21342 ON/OFF 與 3 個百分比條
+  // 21342 ON/OFF 与 3 个百分比条
   settingsValues() {
     const st = this.st, { con } = this.c, S = this.S;
     for (let si = 0; si < 2; si++) { con.setCursor(0x26, 0x30 + (si << 5)); con.puts(st.options & (si ? 4 : 1) ? S.on : S.off); }
@@ -1844,9 +1844,9 @@ export class Commands {
       this.bar(0x28, 0x74 + (si << 5), v);
     }
   }
-  // 213c5: 0 表示效果; 1 BGM ([8c1e] ≠ FF 且有音源驅動 [03e4] 時, 否則連開關位元都不改): 開 → (暴風雨中 9768(DS:0c5a) + 9804(0x30)) 9670([8c1e]) 重播目前曲目,
-  //   關 → 9888 + 9712(5) 淡出並等到停止 (9739)。[8c1e] = core/audio.js BGM.song (港口 / 海上 / 標題各自的目前曲目; 不是重算港口曲目)
-  //   (效果音跟著背景音樂開關: 關掉音樂也停掉暴風雨聲, 打開音樂時重新開始, 照搬)
+  // 213c5: 0 表示效果; 1 BGM ([8c1e] ≠ FF 且有音源驱动 [03e4] 时, 否则连开关比特都不改): 开 → (暴风雨中 9768(DS:0c5a) + 9804(0x30)) 9670([8c1e]) 重播目前曲目,
+  //   关 → 9888 + 9712(5) 淡出并等到停止 (9739)。[8c1e] = core/audio.js BGM.song (港口 / 海上 / 标题各自的目前曲目; 不是重算港口曲目)
+  //   (效果音跟着背景音乐开关: 关掉音乐也停掉暴风雨声, 打开音乐时重新开始, 照搬)
   async settingsToggle(r) {
     const st = this.st;
     if ((r >> 1) === 0) { st.options = st.options ^ 1; return; }
@@ -1856,13 +1856,13 @@ export class Commands {
     if (st.options & 4) { if ((st.u8(DS.WEATHER) & 15) === 1) { this.c.sfx?.voice(0x0c5a); this.c.sfx?.note(0x30); } bgm.playSong(song); }
     else { this.c.sfx?.off(); bgm.fadeOut(); await bgm.stopped?.(); }
   }
-  // 21432: si = 項目 − 4; 奇數 +1 (不超過上限), 偶數 −1 (不低於 0); 之後 seg0:5022 以 ([0ca8]+2)×2 設定滑鼠速度
+  // 21432: si = 项目 − 4; 奇数 +1 (不超过上限), 偶数 −1 (不低于 0); 之后 seg0:5022 以 ([0ca8]+2)×2 设置鼠标速度
   settingsStep(si) {
     const st = this.st, max = si >= 2 ? 10 : 4, a = si < 4 ? DS.MOUSE_SENS + (si >> 1) : DS.SEA_SPEED, v = st.u8(a);
     if (si & 1) st.set8(a, v + cmUmin(max - v, 1)); else st.set8(a, v - cmUmin(v, 1));
     const m = (st.u8(DS.MOUSE_SENS) + 2) * 2; this.c.sys.mickeyRatio = [m, m];
   }
-  // seg0:9216 數值框 (欄 x, y); wide = seg0:90c0 (13 欄, 右端 +0x6a / +0x6f)
+  // seg0:9216 数值框 (栏 x, y); wide = seg0:90c0 (13 栏, 右端 +0x6a / +0x6f)
   barFrame(x, y, wide = 0) {
     const s = this.c.scr, si = (x << 3) + 4, e = wide ? 0x6a : 0x38;
     s.fillCols(x + 1, y, wide ? 0x0d : 7, 8, 5);
@@ -1875,14 +1875,14 @@ export class Commands {
     s.line(si + 5, y + 6, si + e, y + 6, 7);
     s.line(si + e, y + 1, si + e, y + 6, 7);
   }
-  // seg0:92f7 百分比條 (0..100 → 0..50 像素), 顏色 DS:bafa / bafc; wide = seg0:91a1 (0..100 像素)
+  // seg0:92f7 百分比条 (0..100 → 0..50 像素), 颜色 DS:bafa / bafc; wide = seg0:91a1 (0..100 像素)
   bar(x, y, v, wide = 0) {
     const s = this.c.scr, [ca, cb] = this.c.barColors, c = v < 0 ? 0 : v > 100 ? 100 : v;
     const si = wide ? c : Math.trunc(c / 2), x8 = x << 3, full = wide ? 100 : 50, end = wide ? 0x6d : 0x3b;
     if (si) s.fillRectPxPlanes(x8 + 0x0a, y + 2, x8 + si + 9, y + 5, ca, 4);
     if (si !== full) s.fillRectPxPlanes(x8 + si + 0x0a, y + 2, x8 + end, y + 5, cb, 4);
   }
-  // 0fea:7042 = 16ee2(mode): 0/2/3 存檔 (16cf0), 1 讀檔 (16b3f); 讀檔成功且 mode = 1 時 1721f 重新進港, 回傳 1
+  // 0fea:7042 = 16ee2(mode): 0/2/3 存盘 (16cf0), 1 读档 (16b3f); 读档成功且 mode = 1 时 1721f 重新进港, 返回 1
   async saveLoad(mode) {
     if (mode === 1) {
       const ok = await new Title(this.c).loadMenu();
@@ -1892,9 +1892,9 @@ export class Commands {
     await this.save(mode);
     return 0;
   }
-  // 16cf0 存檔: 16a03 存檔一覽 (標題「儲存進度」) → 14524(10,1,1) → 74f7(0x18,0x100,0x20,0x30,1) MESSAGE 0x3ba 是/否
-  //   標頭 15 bytes: 日 (≤8 時十位為空白) "/" 月字串 (DS:8af0) "/15" 年 (+9,+10), +12 港, +13 = mode ([0ca4] 無 bit6 → 2, 無 bit1 → 3);
-  //   [0caa..0cad] = 目前日期時刻, 寫入 DS:0CA4..8A18 + 緩衝 [0c8e] 0x300 bytes
+  // 16cf0 存盘: 16a03 存盘一览 (标题「保存进度」) → 14524(10,1,1) → 74f7(0x18,0x100,0x20,0x30,1) MESSAGE 0x3ba 是/否
+  //   头部 15 bytes: 日 (≤8 时十位为空白) "/" 月字符串 (DS:8af0) "/15" 年 (+9,+10), +12 港, +13 = mode ([0ca4] 无 bit6 → 2, 无 bit1 → 3);
+  //   [0caa..0cad] = 目前日期时刻, 写入 DS:0CA4..8A18 + 缓冲 [0c8e] 0x300 bytes
   async save(mode) {
     const st = this.st, { win, con, menu, message } = this.c, f = this.c.saveFile, T = new Title(this.c);
     let flag = mode;
@@ -1935,7 +1935,7 @@ export class Commands {
       return 1;
     }
   }
-  // 2157f 結束遊戲
+  // 2157f 结束游戏
   async quit() {
     const { win, con, menu, palette, scr } = this.c;
     let yes;
@@ -1957,7 +1957,7 @@ export class Commands {
   }
 }
 
-// 現代 DOM 版環境設定彈窗（不依賴 portAssets，供標題頁與港海指令共用，邏輯與原版 214cf / 213c5 完全一致）
+// 现代 DOM 版环境设置弹窗（不依赖 portAssets，供标题页与港海指令共用，逻辑与原版 214cf / 213c5 完全一致）
 export async function openDomSettings(ctx) {
   const st = ctx.state;
   const toggle = async r => {

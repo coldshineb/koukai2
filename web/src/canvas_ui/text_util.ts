@@ -1,5 +1,5 @@
-// canvas_ui/text_util.ts — 統一原版控制碼清理、文字擷取、繁轉簡與高清晰度字體常數
-// 精確對應 console.js 的所有 ESC 控制序列，徹底消除 64 / 01 / 51 / 2 等殘留色碼字元。
+// canvas_ui/text_util.ts — 统一原版控制码清理、文字截取、繁转简与高清晰度字体常数
+// 精确对应 console.js 的所有 ESC 控制串行，彻底消除 64 / 01 / 51 / 2 等残留色码字符。
 import { toSimp } from "../modern/t2s.ts";
 export { toSimp };
 export const UI_FONT = '"Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", "Segoe UI", sans-serif';

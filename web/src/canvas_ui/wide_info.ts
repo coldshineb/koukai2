@@ -1,20 +1,20 @@
-// canvas_ui/wide_info.ts — Stage 3B: 原生 16:9 (1280×720) 現代 Canvas 2D 艦船情報 & 人物情報詳細頁
-// 零 DOM、100% 沿用原版 message.json / menuItems(0x29) / port.json 欄位文字。
+// canvas_ui/wide_info.ts — Stage 3B: 原生 16:9 (1280×720) 现代 Canvas 2D 舰船情报 & 人物情报详细页
+// 零 DOM、100% 沿用原版 message.json / menuItems(0x29) / port.json 字段文字。
 import { VIEW_W, VIEW_H } from "../core/screen.js";
 
 export interface WideShipInfoData {
   typeId: number;
   figureheadId: number;
-  supplies: number[]; // [水, 糧, 資材, 砲彈]
-  leftLines: string[]; // 100% 原版格式化輸出列 (船級 / 船名 / 船長 / 火砲 / 水手配置 / 載重 / 速度)
-  bars: Array<{ label: string; cur: number; max: number }>; // 7 項進度條 (來自 MENU #0x29)
+  supplies: number[]; // [水, 粮, 资材, 砲弹]
+  leftLines: string[]; // 100% 原版格式化输出列 (船级 / 船名 / 船长 / 火砲 / 水手配置 / 载重 / 速度)
+  bars: Array<{ label: string; cur: number; max: number }>; // 7 项进度条 (来自 MENU #0x29)
 }
 
 export interface WidePersonInfoData {
   faceId: number;
-  headerLines: string[]; // 所乘船 / 職務 / 姓名 / 年齡
-  stats: Array<{ label: string; val: number }>; // 7 項能力
-  detailLines: string[]; // 爵位/酬金/經驗/等級/技能等原版列
+  headerLines: string[]; // 所乘船 / 职务 / 姓名 / 年龄
+  stats: Array<{ label: string; val: number }>; // 7 项能力
+  detailLines: string[]; // 爵位/酬金/经验/等级/技能等原版列
 }
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
@@ -61,7 +61,7 @@ export function drawWideShipInfo(ctx: CanvasRenderingContext2D, art: any, d: Wid
   const px = 84, py = 48, pw = VIEW_W - 168, ph = VIEW_H - 96;
   drawCard(ctx, px, py, pw, ph);
 
-  // 左上: 大尺寸船型圖 + 船首像
+  // 左上: 大尺寸船型图 + 船首像
   const shipUrl = art?.shipUrl?.(d.typeId);
   const shipImg = art?.getImage?.(shipUrl);
   ctx.fillStyle = "#0a1728";
@@ -89,7 +89,7 @@ export function drawWideShipInfo(ctx: CanvasRenderingContext2D, art: any, d: Wid
     ctx.stroke();
   }
 
-  // 4 項補給小卡 (水/糧/資材/砲彈)
+  // 4 项补给小卡 (水/粮/资材/砲弹)
   const supSheet = art?.sheet?.("supply_icons");
   const supImg = supSheet ? art.getImage(art.sheetUrl("supply_icons")) : null;
   for (let i = 0; i < 4; i++) {
@@ -112,7 +112,7 @@ export function drawWideShipInfo(ctx: CanvasRenderingContext2D, art: any, d: Wid
     ctx.fillText(String(d.supplies[i] ?? 0), sx + 102, sy + 45);
   }
 
-  // 左下: 原版船隻詳細文字 (船級 / 船名 / 船長 / 火砲 / 水手 / 載重 / 速度)
+  // 左下: 原版船只详细文字 (船级 / 船名 / 船长 / 火砲 / 水手 / 载重 / 速度)
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
   let ly = py + 242;
@@ -125,14 +125,14 @@ export function drawWideShipInfo(ctx: CanvasRenderingContext2D, art: any, d: Wid
     ly += idx === 0 ? 34 : 30;
   });
 
-  // 中央分隔線
+  // 中央分隔线
   ctx.strokeStyle = "rgba(208, 169, 94, 0.3)";
   ctx.beginPath();
   ctx.moveTo(px + 668, py + 28);
   ctx.lineTo(px + 668, py + ph - 28);
   ctx.stroke();
 
-  // 右側: 7 項現代進度條 (耐久 / 轉向 / 推進 / 水手 / 士氣 / 載貨 / 總載重)
+  // 右侧: 7 项现代进度条 (耐久 / 转向 / 推进 / 水手 / 士气 / 载货 / 总载重)
   const bx = px + 698, bw = pw - 730;
   d.bars.forEach((b, i) => {
     const by = py + 44 + i * 76;
@@ -170,7 +170,7 @@ export function drawWidePersonInfo(ctx: CanvasRenderingContext2D, art: any, d: W
   const px = 112, py = 48, pw = VIEW_W - 224, ph = VIEW_H - 96;
   drawCard(ctx, px, py, pw, ph);
 
-  // 左上: 大尺寸人物立繪
+  // 左上: 大尺寸人物立绘
   const pUrl = art?.portraitUrl?.(d.faceId & 0xff);
   const pImg = art?.getImage?.(pUrl);
   ctx.fillStyle = "#0a1728";
@@ -183,7 +183,7 @@ export function drawWidePersonInfo(ctx: CanvasRenderingContext2D, art: any, d: W
   ctx.lineWidth = 2;
   ctx.strokeRect(px + 32, py + 28, 128, 160);
 
-  // 頭像右側基本資料 (原版文字)
+  // 头像右侧基本数据 (原版文字)
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
   d.headerLines.forEach((line, i) => {
@@ -194,14 +194,14 @@ export function drawWidePersonInfo(ctx: CanvasRenderingContext2D, art: any, d: W
     ctx.fillText(line, px + 188, py + 32 + i * 34, pw - 224);
   });
 
-  // 橫向分隔線
+  // 横向分隔线
   ctx.strokeStyle = "rgba(208, 169, 94, 0.3)";
   ctx.beginPath();
   ctx.moveTo(px + 32, py + 210);
   ctx.lineTo(px + pw - 32, py + 210);
   ctx.stroke();
 
-  // 左下: 7 項能力值進度條
+  // 左下: 7 项能力值进度条
   const sx = px + 32, sw = 420;
   d.stats.forEach((st, i) => {
     const sy = py + 232 + i * 52;
@@ -226,7 +226,7 @@ export function drawWidePersonInfo(ctx: CanvasRenderingContext2D, art: any, d: W
     }
   });
 
-  // 右下: 經驗 / 等級 / 爵位 / 技能原版列
+  // 右下: 经验 / 等级 / 爵位 / 技能原版列
   ctx.textAlign = "left";
   ctx.font = '500 16px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
   ctx.fillStyle = "#f4ead2";

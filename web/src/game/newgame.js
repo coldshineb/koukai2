@@ -1,8 +1,8 @@
-// newgame.js — 開始新航海 (MAIN.EXE 0FEA 段)
-//   16f96 標題選單「開始新航海」處理
-//   16564 主角選擇 (6 位主角頭像, 調色盤循環, 框選高亮)   1637a 主角資料視窗   1630f 確認框
-//   164b7 改名 (2e09:2a38 鍵盤)   164e0 / 16506 姓名備份/還原
-//   16949 新遊戲初始化: 162e4, 16854 (發現物/寶物), 168ea (地圖視窗), 1681a, 167bd + 1fd9:333a (已探索範圍)
+// newgame.js — 开始新航海 (MAIN.EXE 0FEA 段)
+//   16f96 标题菜单「开始新航海」处理
+//   16564 主角选择 (6 位主角头像, 调色盘循环, 框选高亮)   1637a 主角数据窗口   1630f 确认框
+//   164b7 改名 (2e09:2a38 键盘)   164e0 / 16506 姓名备份/还原
+//   16949 新游戏初始化: 162e4, 16854 (发现物/宝物), 168ea (地图窗口), 1681a, 167bd + 1fd9:333a (已探索范围)
 import { NameInput } from "../ui/nameinput.js";
 import { DS } from "../model/schema_views.ts";
 import { DiscoveryFlag, FleetFlag, WorkDS } from "../model/flags.ts";
@@ -18,7 +18,7 @@ const ngDiv8 = v => (v < 0 ? -((-v) >> 3) : v >> 3);
 const ngDiv2 = v => (v < 0 ? -((-v) >> 1) : v >> 1);
 
 export class NewGame {
-  // data: assets/data/newgame.json; nodes: assets/data/mapnodes.bin (DATA1.LZW #4, 每筆 16 bytes)
+  // data: assets/data/newgame.json; nodes: assets/data/mapnodes.bin (DATA1.LZW #4, 每笔 16 bytes)
   constructor(ctx, data, nodes) {
     this.c = ctx; this.d = data; this.nodes = nodes;
     this.S = { all: ngHex(data.strings.all), d3: ngHex(data.strings.d3) };
@@ -27,25 +27,25 @@ export class NewGame {
   }
   get st() { return this.c.state; }
   get m() { return this.c.state.model; }
-  // 162e4: [c2ce] = 主角人物記錄, [c2d4] = 主角艦隊記錄 (人物 +2c = 艦隊編號)
+  // 162e4: [c2ce] = 主角人物记录, [c2d4] = 主角舰队记录 (人物 +2c = 舰队编号)
   get personDS() { return this.m.heroPerson().addr; }
   get fleetDS() { return this.m.fleet(this.m.heroPerson().fleet).addr; }
 
-  // 16f96: [03d5] ≠ 0 時先選主角 (本版本恆為 1); 取消回傳 0
+  // 16f96: [03d5] ≠ 0 时先选主角 (本版本恒为 1); 取消返回 0
   async run() {
     if (this.c.flag03d5 ?? 1) { if (await this.select(0) === -1) return 0; }
     this.init();
-    // [03d5] = 0 時會把姓名寫進 USERNAME.DAT (本版本不會發生)
+    // [03d5] = 0 时会把姓名写进 USERNAME.DAT (本版本不会发生)
     return 1;
   }
-  // 16532 畫 6 位主角頭像 (KAO #0..5)
+  // 16532 画 6 位主角头像 (KAO #0..5)
   drawPortraits() {
     for (let i = 5; i >= 0; i--) { const [x, y] = this.d.portraits[i]; this.c.kao.drawNamed(this.c.scr, i, ngDiv8(x), y); }
   }
   captureMessage(n, ...args) {
     return captureConsoleText(this.c, () => this.c.message(n, ...args));
   }
-  // 16564 主角選擇; 回傳主角編號, 取消回傳 -1
+  // 16564 主角选择; 返回主角编号, 取消返回 -1
   async select(di) {
     const { palette, graph, menu, win, scr, art, codec, sys } = this.c;
     if (scr.hdCtx && art && codec) {
@@ -82,7 +82,7 @@ export class NewGame {
             const bts = this.c.font.encode(newStr).subarray(0, maxBytes);
             for (let i = 0; i < bts.length; i++) this.st.set8(dest + i, bts[i]);
             this.st.set8(dest + bts.length, 0);
-          } catch { /* 若輸入含字庫未收錄字元則保留原名 */ }
+          } catch { /* 若输入含字库未收录字符则保留原名 */ }
         };
         writeIfChanged(this.personDS, heroes[res.id].given, res.given, 12);
         writeIfChanged(this.personDS + 13, heroes[res.id].family, res.family, 12);
@@ -179,7 +179,7 @@ export class NewGame {
       }
     }
   }
-  // 1637a 主角資料視窗
+  // 1637a 主角数据窗口
   async info() {
     const { win, con, kao, scr, message, printf } = this.c, m = this.m, heroId = m.globals.hero, p = m.heroPerson();
     await win.open(0x1e, 0x20, 0x2e, 0xf0, 1);                          // 74f7
@@ -187,19 +187,19 @@ export class NewGame {
     kao.drawNamed(scr, heroId, 0x20, 0x30);                              // 7cdd
     con.setCursor(0x29, 0x30); message(0x3a6, p.givenNameBytes, p.familyNameBytes);   // 姓名
     con.setCursor(0x2a, 0x50); message(0x3a7);
-    con.setCursor(0x36, -1); message(0x3a8);                              // 442c: 只設欄
+    con.setCursor(0x36, -1); message(0x3a8);                              // 442c: 只设栏
     con.setCursor(0x2a, -1); message(0x3a9);
     con.setCursor(0x36, -1); message(0x3aa);
-    con.setCursor(0x2f, 0x50); message(0x3ab, p.age);                    // 年齡
+    con.setCursor(0x2f, 0x50); message(0x3ab, p.age);                    // 年龄
     for (let i = 0; i < 7; i++) {
       con.setCursor((i & 1) * 11 + 0x3c, (ngDiv2(i) + 5) << 4);
       printf(this.S.d3, p.getStats(i));                                  // 能力值 %3d
     }
     con.setCursor(0x2c, 0x80); con.puts(this.skillNames[this.d.heroSkill[heroId]]);  // 技能
-    con.setCursor(0x22, 0xa0); message(this.d.heroMessage[heroId]);      // 介紹
+    con.setCursor(0x22, 0xa0); message(this.d.heroMessage[heroId]);      // 介绍
     con.lineH = 0x18;
   }
-  // 1630f 確認框 (flag=1 時前置「全部」); 回傳 1 = 是
+  // 1630f 确认框 (flag=1 时前置「全部」); 返回 1 = 是
   async confirm(flag) {
     const { win, con, menu, message } = this.c;
     const y = con.left === con.x ? con.y : con.y + 0x18;
@@ -218,26 +218,26 @@ export class NewGame {
     await this.kb.renameHero(this.personDS, 6);                          // 2e09:2a38
     await win.close();
   }
-  // ---------------- 16949 新遊戲初始化 ----------------
+  // ---------------- 16949 新游戏初始化 ----------------
   init() {
     const st = this.st, m = this.m, g = m.globals, rng = this.c.sys.rng, p = m.heroPerson(), fl = m.fleet(p.fleet);
     fl.flags |= FleetFlag.AT_SEA;
     p.setStats(7, rng.random(0x65));
-    g.port = fl.homePort;                                                 // 出發港
+    g.port = fl.homePort;                                                 // 出发港
     m.port(g.port).region |= 0x50;
     this.shuffleDiscoveries(rng);                                         // 16854
     this.mapView();                                                       // 168ea
     this.c.rt = { year: g.year, month: g.month, day: g.day, time: g.time };   // 1681a: [0532..0535]
     this.c.scenario = g.hero + 1;
-    this.c.eventFile = `EVENT${g.hero + 1}.DAT`;                          // 1681a 結尾: [0a89] = '1' + 主角 (劇情插圖檔, scenario.js CB)
+    this.c.eventFile = `EVENT${g.hero + 1}.DAT`;                          // 1681a 结尾: [0a89] = '1' + 主角 (剧情插图档, scenario.js CB)
     this.c.windOffset = g.month >= 3 && g.month < 9 ? 0 : 0x1c2;
     { const r = (g.mouseSens + 2) * 2; this.c.sys.mickeyRatio = [r, r]; }
     this.exploreStart();                                                  // 167bd
-    st.b.fill(0xff, DS.TRADE_LOGS - DS.STATE_BASE, DS.TRADE_LOGS - DS.STATE_BASE + 0x300);   // [0c8e] 緩衝 0x300 bytes = FF
+    st.b.fill(0xff, DS.TRADE_LOGS - DS.STATE_BASE, DS.TRADE_LOGS - DS.STATE_BASE + 0x300);   // [0c8e] 缓冲 0x300 bytes = FF
     this.c.buf0c8e = st.b.slice(DS.TRADE_LOGS - DS.STATE_BASE, DS.TRADE_LOGS - DS.STATE_BASE + 0x300);
   }
-  // 16854: 98 個發現物先全部標成「未發現」(+6 bit7), 再隨機取消 50 個;
-  //   然後替寶物 #80..89 各隨機指定一個仍未發現、且 +4 < 0x5a 的發現物 (+4 = 0x5a + 序號, 寶物 +0x12 = 發現物編號)
+  // 16854: 98 个发现物先全部标成「未发现」(+6 bit7), 再随机取消 50 个;
+  //   然后替宝物 #80..89 各随机指定一个仍未发现、且 +4 < 0x5a 的发现物 (+4 = 0x5a + 序号, 宝物 +0x12 = 发现物编号)
   shuffleDiscoveries(rng) {
     const m = this.m;
     for (let i = 0; i < 98; i++) m.discovery(i).flags |= DiscoveryFlag.FOUND;
@@ -252,7 +252,7 @@ export class NewGame {
       }
     }
   }
-  // 168ea: 世界地圖視窗左上角 seaViewX / seaViewY = 艦隊座標 - 11, 限制在範圍內
+  // 168ea: 世界地图窗口左上角 seaViewX / seaViewY = 舰队座标 - 11, 限制在范围内
   mapView() {
     const m = this.m, g = m.globals, fl = m.fleet(m.heroPerson().fleet), s16 = v => (v << 16) >> 16;
     const x = s16(fl.x), base = Math.trunc(x / 0x2d0) * 0x2d0;
@@ -262,7 +262,7 @@ export class NewGame {
     if (vy < 0) vy = 0; else if (0x420 <= vy) vy = 0x420;
     g.seaViewX = vx; g.seaViewY = vy;
   }
-  // 167bd: 清除已探索點陣 WorkDS.EXPLORE_MAP (0x21c bytes, 每列 12 bytes = 96 格), 標記第 8..17 列 x 第 4..16 欄
+  // 167bd: 清除已探索点阵 WorkDS.EXPLORE_MAP (0x21c bytes, 每列 12 bytes = 96 格), 标记第 8..17 列 x 第 4..16 栏
   exploreStart() {
     const st = this.st;
     st.b.fill(0, WorkDS.EXPLORE_MAP - DS.STATE_BASE, WorkDS.EXPLORE_MAP - DS.STATE_BASE + 0x21c);

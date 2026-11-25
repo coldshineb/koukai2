@@ -1,6 +1,6 @@
-// modern/dom_buildings.ts — 與交易所 / 碼頭 / 道具店 1:1 統一規格的六大建築一體化工作台
-// 涵蓋：王宮 (Palace)、銀行 (Bank)、事務所 (Office)、旅館 (Inn)、教會 (Church)、占卜師 (Fortune)
-// 統一結構：createDomModal(wide) + headerRight(.uw2-pill + 關閉) + .uw2-modal-toolbar(.uw2-tab-btn) + .uw2-split + .uw2-modal-footer
+// modern/dom_buildings.ts — 与交易所 / 码头 / 道具店 1:1 统一规格的六大建筑一体化工作台
+// 涵盖：王宫 (Palace)、银行 (Bank)、事务所 (Office)、旅馆 (Inn)、教会 (Church)、占卜师 (Fortune)
+// 统一结构：createDomModal(wide) + headerRight(.uw2-pill + 关闭) + .uw2-modal-toolbar(.uw2-tab-btn) + .uw2-split + .uw2-modal-footer
 import { DS, OFF } from "../model/schema_views.ts";
 import { DiscoveryFlag, GameConst, NobleFlag, OptionFlag, SkillFlag, TreatyFlag, WorkDS } from "../model/flags.ts";
 import { domS16, calcDepositLimit, canTakeLoan, calcLoanLimit } from "../domain/economy.ts";
@@ -45,7 +45,7 @@ function createWorkbenchShell(title: string, money: number, onClose: () => void,
   return { h, moneyPill, toolbar, footer, toastEl };
 }
 
-/** 交易所「商業投資」與造船廠「工業投資」共用 1:1 統一雙欄投資面板 */
+/** 交易所「商业投资」与造船厂「工业投资」共用 1:1 统一双栏投资面板 */
 export function renderUnifiedInvestPane(opts: {
   container: HTMLElement;
   leftTitle: string;
@@ -159,7 +159,7 @@ export function renderUnifiedInvestPane(opts: {
 }
 
 // ============================================================================
-// 1. 王宮一體化工作台 (Palace)
+// 1. 王宫一体化工作台 (Palace)
 // ============================================================================
 export async function runDomPalaceWorkbench(palace: any): Promise<void> {
   const b = palace.b, c = palace.c, st = palace.st, m = palace.m;
@@ -176,7 +176,7 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
 
   const regionNames = Array.from({ length: 8 }, (_, i) => capMsg(c, 0x1d1 + i));
 
-  // 先計算某地區的本國港口清單與收益評估（與 palace.js regionPorts / regionEval 完全一致）
+  // 先计算某地区的本国港口清单与收益评估（与 palace.js regionPorts / regionEval 完全一致）
   const evalRegion = (sel: number) => {
     const n = palace.nation;
     const ports: { name: string; inf: number; ind: number; com: number }[] = [];
@@ -255,7 +255,7 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
         const split = document.createElement("div");
         split.className = "uw2-split";
 
-        // 左欄：國王與身分概況 / 或地區清單（勢力狀況分頁）
+        // 左栏：国王与身分概况 / 或地区清单（势力状况分页）
         const left = document.createElement("div");
         left.className = "uw2-pane";
 
@@ -311,7 +311,7 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
           left.appendChild(card);
         }
 
-        // 右欄：對應分頁操作
+        // 右栏：对应分页操作
         const right = document.createElement("div");
         right.className = "uw2-pane";
 
@@ -380,7 +380,7 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
           const box = document.createElement("div");
           box.className = "uw2-action-box";
 
-          // 1. 私掠許可證
+          // 1. 私掠许可证
           const lomBtn = document.createElement("button");
           lomBtn.className = "uw2-row-card";
           lomBtn.textContent = UI_STR.palaceActions.letterOfMarque;
@@ -396,7 +396,7 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
             render();
           });
 
-          // 2. 免稅證
+          // 2. 免税证
           const tfTarget = (palace.nation + 0x23) & 0xff;
           let tfCostW = 0;
           if (!palace.same()) tfCostW = 11 - hd.rank;
@@ -421,7 +421,7 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
             render();
           });
 
-          // 3. 申請國籍（歸化）
+          // 3. 申请国籍（归化）
           const natBtn = document.createElement("button");
           natBtn.className = "uw2-row-card";
           natBtn.disabled = !canNaturalize;
@@ -512,7 +512,7 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
 }
 
 // ============================================================================
-// 2. 銀行一體化工作台 (Bank)
+// 2. 银行一体化工作台 (Bank)
 // ============================================================================
 export function runDomBankWorkbench(bank: any): Promise<void> {
   const b = bank.b, c = bank.c, m = bank.m, g = m.globals, codec = c.codec;
@@ -580,7 +580,7 @@ export function runDomBankWorkbench(bank: any): Promise<void> {
       const split = document.createElement("div");
       split.className = "uw2-split";
 
-      // 左欄：帳戶狀態
+      // 左栏：帐户状态
       const left = document.createElement("div");
       left.className = "uw2-pane";
       const lt = document.createElement("div");
@@ -597,7 +597,7 @@ export function runDomBankWorkbench(bank: any): Promise<void> {
         `<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--uw2-ink-muted);"><span>爵位信用额度</span><span>${(m.heroInfo().rank * m.heroInfo().rank * 10000 + 1000).toLocaleString()} 金币</span></div>`;
       left.appendChild(infoCard);
 
-      // 右欄：金額滑桿與確認
+      // 右栏：金额滑杆与确认
       const right = document.createElement("div");
       right.className = "uw2-pane";
       const rt = document.createElement("div");
@@ -705,7 +705,7 @@ export function runDomBankWorkbench(bank: any): Promise<void> {
 }
 
 // ============================================================================
-// 3. 事務所一體化工作台 (Office — 補齊原先不可見的各國情報表)
+// 3. 事务所一体化工作台 (Office — 补齐原先不可见的各国情报表)
 // ============================================================================
 export async function runDomOfficeWorkbench(office: any): Promise<void> {
   const b = office.b, c = office.c, st = office.st, m = office.m, g = m.globals, codec = c.codec;
@@ -928,7 +928,7 @@ export async function runDomOfficeWorkbench(office: any): Promise<void> {
 }
 
 // ============================================================================
-// 4. 旅館一體化工作台 (Inn — 補齊原先不可見的海港支持度表)
+// 4. 旅馆一体化工作台 (Inn — 补齐原先不可见的海港支持度表)
 // ============================================================================
 export async function runDomInnWorkbench(b: any): Promise<void> {
   const c = b.c, st = b.st, codec = c.codec, art = c.art;
@@ -1073,7 +1073,7 @@ export async function runDomInnWorkbench(b: any): Promise<void> {
 }
 
 // ============================================================================
-// 5. 教會 / 清真寺一體化工作台 (Church)
+// 5. 教会 / 清真寺一体化工作台 (Church)
 // ============================================================================
 export function runDomChurchWorkbench(b: any, base: number): Promise<void> {
   const c = b.c, st = b.st, codec = c.codec;
@@ -1196,7 +1196,7 @@ export function runDomChurchWorkbench(b: any, base: number): Promise<void> {
 }
 
 // ============================================================================
-// 6. 占卜師一體化工作台 (Fortune)
+// 6. 占卜师一体化工作台 (Fortune)
 // ============================================================================
 export function runDomFortuneWorkbench(b: any): Promise<void> {
   const c = b.c, st = b.st, codec = c.codec;
@@ -1323,7 +1323,7 @@ export function runDomFortuneWorkbench(b: any): Promise<void> {
 }
 
 // ============================================================================
-// 7. 酒館一體化工作台 (Tavern — 與交易所 / 碼頭 / 道具店 / 王宮 1:1 統一結構)
+// 7. 酒馆一体化工作台 (Tavern — 与交易所 / 码头 / 道具店 / 王宫 1:1 统一结构)
 // ============================================================================
 export async function runDomTavernWorkbench(b: any, drinkNameBytes: Uint8Array, onGamble: () => Promise<void>): Promise<void> {
   const c = b.c, st = b.st, codec = c.codec, art = c.art;
@@ -1581,7 +1581,7 @@ export async function runDomTavernWorkbench(b: any, drinkNameBytes: Uint8Array, 
 }
 
 // ============================================================================
-// 8. 造船廠一體化工作台 (Shipyard — 6 分頁全部內建操作，零層疊彈窗)
+// 8. 造船厂一体化工作台 (Shipyard — 6 分页全部内置操作，零层叠弹窗)
 // ============================================================================
 export async function runDomShipyardWorkbench(b: any): Promise<void> {
   const c = b.c, st = b.st, m = st.model, codec = c.codec, art = c.art;
@@ -1590,7 +1590,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
   const remodelLabels = [...UI_STR.remodelTabs];
   const initGreet = capMsg(c, 0x4d);
 
-  // 依原版 rmFigure / rmGuns 規則：每次切換到「船首像」或「武裝」子分頁時都進行 1/20 稀有品判定（與原版反覆進出子選單刷彩蛋完全一致）
+  // 依原版 rmFigure / rmGuns 规则：每次切换到「船首像」或「武装」子分页时都进行 1/20 稀有品判定（与原版反复进出子菜单刷彩蛋完全一致）
   const E = b.eco, H = b.hero, rng = c.sys.rng;
   let figCount = Math.min(8, Math.trunc(st.u16(E) / 100) + 1);
   let gunCount = Math.min(6, Math.trunc(((st.u16(E + 4) + st.u16(E)) & 0xffff) / 200) + 1);
@@ -1834,7 +1834,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
           }
           right.appendChild(box);
         } else if (tab === 2) {
-          // ---- 2. 修理（全部就地完成，零彈窗） ----
+          // ---- 2. 修理（全部就地完成，零弹窗） ----
           if (selIdx >= fleetSlots.length) selIdx = Math.max(0, fleetSlots.length - 1);
           const lt = document.createElement("div");
           lt.className = "uw2-pane-title";
@@ -1898,7 +1898,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
           }
           right.appendChild(box);
         } else if (tab === 3) {
-          // ---- 3. 卖船（全部就地完成，零彈窗） ----
+          // ---- 3. 卖船（全部就地完成，零弹窗） ----
           if (selIdx >= fleetSlots.length) selIdx = Math.max(0, fleetSlots.length - 1);
           const lt = document.createElement("div");
           lt.className = "uw2-pane-title";
@@ -1976,7 +1976,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
           }
           right.appendChild(box);
         } else if (tab === 4) {
-          // ---- 4. 改造（船首像 / 武装 / 积载比例变更 / 船名变更，全部內建分頁） ----
+          // ---- 4. 改造（船首像 / 武装 / 积载比例变更 / 船名变更，全部内置分页） ----
           if (selIdx >= fleetSlots.length) selIdx = Math.max(0, fleetSlots.length - 1);
           const lt = document.createElement("div");
           lt.className = "uw2-pane-title";
@@ -2134,7 +2134,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
             btn.addEventListener("click", () => { pending = { kind: "ratio", arg: slot }; done(); });
             box.append(p, btn);
           } else {
-            // 船名变更（就地輸入改名）
+            // 船名变更（就地输入改名）
             const curName = decodeCleanCstr(codec, ship.nameBytes);
             const inp = document.createElement("input");
             inp.type = "text";
@@ -2155,13 +2155,13 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
                 b.p.panels();
                 notice = nv;
                 render();
-              } catch { /* 字庫未收錄字元保留原名 */ }
+              } catch { /* 字库未收录字符保留原名 */ }
             });
             box.append(inp, btn);
           }
           right.appendChild(box);
         } else {
-          // ---- 5. 工业投资（與交易所商業投資 1:1 統一面板） ----
+          // ---- 5. 工业投资（与交易所商业投资 1:1 统一面板） ----
           shell.toastEl.textContent = "";
           const curInv = st.u16(E + 6);
           const capAmt = b.money >= GameConst.MAX_INVEST ? GameConst.MAX_INVEST : b.money & 0xffff;
@@ -2229,7 +2229,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
 }
 
 // =========================================================================
-// 9. 住宅一體化工作台 (House — 發現物收購 / 地圖製作 / 測量技術 / 砲術)
+// 9. 住宅一体化工作台 (House — 发现物收购 / 地图制作 / 测量技术 / 砲术)
 // =========================================================================
 export async function runDomHouseWorkbench(house: any): Promise<void> {
   const b = house.b, c = house.c, st = house.st, m = house.m, noble = house.noble;
@@ -2311,7 +2311,7 @@ export async function runDomHouseWorkbench(house: any): Promise<void> {
         const right = document.createElement("div");
         right.className = "uw2-pane";
 
-        // 左欄：主人頭像與基本資訊（或發現物報告清單）
+        // 左栏：主人头像与基本信息（或发现物报告清单）
         const profile = document.createElement("div");
         profile.style.cssText = "display:flex;gap:14px;align-items:center;";
         const url = art?.portraitUrl?.(noble.portrait);
@@ -2388,7 +2388,7 @@ export async function runDomHouseWorkbench(house: any): Promise<void> {
           left.appendChild(kvBox);
         }
 
-        // 右欄：對應頁籤的操作面板
+        // 右栏：对应页签的操作面板
         const rt = document.createElement("div");
         rt.className = "uw2-pane-title";
         rt.textContent = tabLabels[activeTab];
@@ -2633,7 +2633,7 @@ export async function runDomHouseWorkbench(house: any): Promise<void> {
             }
           }
         } else {
-          // 種類 2 測量技術 / 種類 3 砲術
+          // 种类 2 测量技术 / 种类 3 砲术
           const isGun = kind === 3;
           const M = isGun
             ? { ask: 0x2e7, done: 0x2e8, lack: 0x2e9, poor: 0x2eb, ok: 0x2ec, bye: 0x2ed, bit: SkillFlag.GUNNERY, req: [75, 65, 80], idx: house.D.gunSkills }

@@ -1,5 +1,5 @@
-// boot_port.js — 開發用: 從標題選單狀態以按鍵開始新航海 (主角 hero, 不改名), 讓原版一直跑到港口走路迴圈 (1b966 的 1fd9:1361 讀輸入)
-// 保存狀態 session.portState, 之後 session.restorePort() 可重複從進港後第一次等待輸入開始測試
+// boot_port.js — 开发用: 从标题菜单状态以按键开始新航海 (主角 hero, 不改名), 让原版一直跑到港口走路循环 (1b966 的 1fd9:1361 读输入)
+// 保存状态 session.portState, 之后 session.restorePort() 可重复从进港后第一次等待输入开始测试
 "use strict";
 (function () {
 const S = session, L = 0x110 * 16;
@@ -11,15 +11,15 @@ S.loadEmu = (env, st) => { const c = env.cpu;
   st.planes.forEach((p, i) => c.vga.planes[i].set(p)); c.vga.gc.set(st.gc); c.vga.seq.set(st.seq); c.vga.dac.set(st.dac); c.vga.attr.set(st.attr);
   env.t66 = st.t66.slice(); env.bioskeys = []; c.halted = false; c.pendingIRQ = [];
   env.handles = JSON.parse(JSON.stringify(st.handles)); env.nextHandle = st.next; Object.assign(env.mouse, st.mouse); };
-// hero: 0..5; 走: ↓ Enter (開始新航海) → 方向鍵選主角 → Enter → Enter(是) → 鍵盤: Esc→游標「結束」? 用 «結束» = 游標 0: 從 10 按 ← ← 再 ↑↑ 到 0 → Enter → (姓氏) 同 → Enter(是)
+// hero: 0..5; 走: ↓ Enter (开始新航海) → 方向键选主角 → Enter → Enter(是) → 键盘: Esc→光标「结束」? 用 «结束» = 光标 0: 从 10 按 ← ← 再 ↑↑ 到 0 → Enter → (姓氏) 同 → Enter(是)
 S.bootPortStart = function (hero = 0) {
   S.restoreTitle();
   const env = S.titleEnv, c = env.cpu, K = { down: [0x50, 0], up: [0x48, 0], left: [0x4b, 0], right: [0x4d, 0], enter: [0x1c, 0x0d] };
   const keys = [K.down, K.enter];
   for (let i = 0; i < hero; i++) keys.push(K.right);
-  keys.push(K.enter, K.enter);                                   // 選定, 是
-  for (let n = 0; n < 2; n++) keys.push(K.left, K.left, K.enter); // 名字/姓氏 鍵盤: 10 → 5 → 0 (結束)
-  keys.push(K.enter);                                            // 全部可以了嗎 → 是
+  keys.push(K.enter, K.enter);                                   // 选定, 是
+  for (let n = 0; n < 2; n++) keys.push(K.left, K.left, K.enter); // 名字/姓氏 键盘: 10 → 5 → 0 (结束)
+  keys.push(K.enter);                                            // 全部可以了吗 → 是
   const sc = S.makeScript(keys);
   const saveEnv = S.env, sH16 = S._H16, sH33 = S._H33; S.env = env; S._H16 = S._H33 = undefined;
   S.installEmuServices(sc, null);
@@ -27,7 +27,7 @@ S.bootPortStart = function (hero = 0) {
   S.bp = { sc, hit: 0, hero };
   c.onTick = cpu => { if (cpu.s[1] * 16 + cpu.ip === L + 0x1b9a3 && !S.bp.sc.keys.length) { S.bp.hit++; cpu.halted = true; } };
 };
-// 每次呼叫執行 n 條指令; 到達港口後保存狀態
+// 每次调用运行 n 条指令; 到达港口后保存状态
 S.bootPortStep = function (n = 4e8) {
   const env = S.titleEnv, c = env.cpu, t0 = Date.now();
   while (!S.bp.hit && Date.now() - t0 < 200000) c.run(2e7);

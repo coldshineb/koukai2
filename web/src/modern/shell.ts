@@ -1,4 +1,4 @@
-// modern/shell.ts — 階段 4 現代高清 DOM/CSS 殼層 (倍速 / 暫停 / 獨立音量 / 存檔管理 / 全螢幕)
+// modern/shell.ts — 阶段 4 现代高清 DOM/CSS 壳层 (倍速 / 暂停 / 独立音量 / 存盘管理 / 全屏幕)
 import type { GameRuntime, GameSpeed } from "./runtime.ts";
 import { ModernSaveModal } from "./save_modal.ts";
 import type { SaveModalBridge } from "./save_modal.ts";
@@ -45,7 +45,7 @@ export class ModernShell {
     const controls = document.createElement("div");
     controls.className = "uw2-controls";
 
-    // 倍速控制組
+    // 倍速控制组
     const speedGroup = document.createElement("div");
     speedGroup.className = "uw2-group";
     const speedButtons = new Map<GameSpeed, HTMLButtonElement>();
@@ -59,7 +59,7 @@ export class ModernShell {
       speedGroup.appendChild(btn);
     }
 
-    // BGM 獨立音量
+    // BGM 独立音量
     const bgmWrap = document.createElement("div");
     bgmWrap.className = "uw2-slider-wrap";
     const bgmMute = document.createElement("button");
@@ -71,7 +71,7 @@ export class ModernShell {
     bgmSlider.addEventListener("input", () => this.runtime.setBgmVolume(Number(bgmSlider.value) / 100));
     bgmWrap.append(bgmMute, bgmSlider);
 
-    // SFX 獨立音量
+    // SFX 独立音量
     const sfxWrap = document.createElement("div");
     sfxWrap.className = "uw2-slider-wrap";
     const sfxMute = document.createElement("button");
@@ -83,7 +83,7 @@ export class ModernShell {
     sfxSlider.addEventListener("input", () => this.runtime.setSfxVolume(Number(sfxSlider.value) / 100));
     sfxWrap.append(sfxMute, sfxSlider);
 
-    // 存檔管理與全螢幕
+    // 存盘管理与全屏幕
     const utilGroup = document.createElement("div");
     utilGroup.className = "uw2-group";
 

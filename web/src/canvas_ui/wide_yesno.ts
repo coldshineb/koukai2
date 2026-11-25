@@ -1,5 +1,5 @@
-// canvas_ui/wide_yesno.ts — 原生 16:9 (1280×720) 現代 Canvas 2D「是 / 否」確認框
-// 零 DOM、100% 原版「是」「否」二字，取代原版 GRAPH.DAT #0 像素確認框。
+// canvas_ui/wide_yesno.ts — 原生 16:9 (1280×720) 现代 Canvas 2D「是 / 否」确认框
+// 零 DOM、100% 原版「是」「否」二字，取代原版 GRAPH.DAT #0 像素确认框。
 import { VIEW_W, VIEW_H } from "../core/screen.js";
 
 export interface WideYesNoState {

@@ -1,9 +1,9 @@
-// save/format.ts — 現代 JSON 存檔格式 (uw2-save-v2)
+// save/format.ts — 现代 JSON 存盘格式 (uw2-save-v2)
 // 特色:
-//   - 以具名業務欄位 (globals / tables) 儲存遊戲狀態，不含雜亂的 u_xx 十六進位欄位
-//   - 支援完整存檔摘要 (主角、日期、港口、資金、現實保存時間) 與自動存檔槽
-//   - 階段 3–4 過渡期可選擇攜帶 _compat 以達成與原版位元組 100% 無損往返；
-//     純語意 JSON (不含 _compat) 亦可直接套疊於新遊戲初值 (baseState) 載入遊玩。
+//   - 以具名业务字段 (globals / tables) 保存游戏状态，不含杂乱的 u_xx 十六进位字段
+//   - 支持完整存盘摘要 (主角、日期、港口、资金、现实保存时间) 与自动存盘槽
+//   - 阶段 3–4 过渡期可选择携带 _compat 以达成与原版字节 100% 无损往返；
+//     纯语意 JSON (不含 _compat) 亦可直接套叠于新游戏初值 (baseState) 加载游玩。
 import { decodeState, encodeState } from "../game/data.js";
 import { DS } from "../model/schema_views.ts";
 import { GameConst } from "../model/flags.ts";
@@ -31,7 +31,7 @@ export interface SaveCompatLayer {
   sourceLength: number;
   gaps: Record<string, string>;
   tail: string;
-  /** 每個表中尚未具名化的殘留位元組 (僅供階段 3–4 與原版引擎逐位元組相容) */
+  /** 每个表中尚未具名化的残留字节 (仅供阶段 3–4 与原版引擎逐字节兼容) */
   unknownFields?: Record<string, Record<number, Record<string, string>>>;
 }
 
@@ -44,7 +44,7 @@ export interface SaveStateV2 {
 export interface SaveSlotV2 {
   slotIndex: number | "auto";
   summary: SaveSlotSummary;
-  /** 原版 15 bytes 標頭 (供階段 3–4 原版 640×400 讀檔列表顯示用) */
+  /** 原版 15 bytes 头部 (供阶段 3–4 原版 640×400 读档列表显示用) */
   headerHex?: string;
   state: SaveStateV2;
 }
@@ -70,7 +70,7 @@ function hexToBytes(s: string): Uint8Array {
   return out;
 }
 
-/** 遞迴分離具名欄位與 u_xx / *Tail 原版殘留欄位 */
+/** 递归分离具名字段与 u_xx / *Tail 原版残留字段 */
 function splitRecordUnknowns(
   rec: Record<string, unknown>,
   prefix = "",
@@ -91,7 +91,7 @@ function splitRecordUnknowns(
   return clean;
 }
 
-/** 遞迴將 _compat 中的殘留欄位合併回記錄 */
+/** 递归将 _compat 中的残留字段合并回记录 */
 function mergeRecordUnknowns(
   clean: Record<string, unknown>,
   unk: Record<string, string> | undefined,
@@ -118,7 +118,7 @@ function mergeRecordUnknowns(
   return out;
 }
 
-/** 將 0x8074 bytes 遊戲狀態轉換為現代 uw2-save-v2 具名狀態物件 */
+/** 将 0x8074 bytes 游戏状态转换为现代 uw2-save-v2 具名状态对象 */
 export function stateBytesToV2(
   bytes: Uint8Array,
   schema: any,
@@ -154,14 +154,14 @@ export function stateBytesToV2(
   return out;
 }
 
-/** 將 uw2-save-v2 狀態物件還原為 0x8074 bytes (供階段 3–4 執行期使用) */
+/** 将 uw2-save-v2 状态对象还原为 0x8074 bytes (供阶段 3–4 运行期使用) */
 export function v2ToStateBytes(
   v2: SaveStateV2,
   schema: any,
   codec: any,
   baseStateBytes?: Uint8Array,
 ): Uint8Array {
-  // 若無 _compat (純語意 JSON 存檔), 以 baseStateBytes (world.json 初值) 作為底層填充
+  // 若无 _compat (纯语意 JSON 存盘), 以 baseStateBytes (world.json 初值) 作为底层填充
   let compat = v2._compat;
   if (!compat) {
     if (!baseStateBytes) throw new Error("v2ToStateBytes: pure uw2-save-v2 requires baseStateBytes");
@@ -186,7 +186,7 @@ export function v2ToStateBytes(
   return encodeState(doc, schema, codec);
 }
 
-/** 從具名狀態建立可讀存檔摘要 */
+/** 从具名状态创建可读存盘摘要 */
 export function buildSaveSummary(
   state: SaveStateV2,
   header15?: Uint8Array,
@@ -231,7 +231,7 @@ export function buildSaveSummary(
   };
 }
 
-/** 封裝單一存檔槽為 SaveSlotV2 */
+/** 封装单一存盘槽为 SaveSlotV2 */
 export function createSaveSlotV2(
   slotIndex: number | "auto",
   stateBytes: Uint8Array,
@@ -250,7 +250,7 @@ export function createSaveSlotV2(
   };
 }
 
-/** 從 SaveSlotV2 重建原版 15 bytes 標頭 (供原版 640×400 介面顯示) */
+/** 从 SaveSlotV2 重建原版 15 bytes 头部 (供原版 640×400 界面显示) */
 export function slotV2ToLegacyHeader(slot: SaveSlotV2 | null): Uint8Array {
   const out = new Uint8Array(15);
   if (!slot) return out;
@@ -284,7 +284,7 @@ export function isSaveBundleV2(obj: unknown): obj is SaveBundleV2 {
   return b.format === SAVE_FORMAT_V2 && b.version === SAVE_VERSION_V2 && Array.isArray(b.slots);
 }
 
-/** 驗證並標準化外部 JSON 存檔 (支援整包 SaveBundleV2 或單一 SaveSlotV2) */
+/** 验证并标准化外部 JSON 存盘 (支持整包 SaveBundleV2 或单一 SaveSlotV2) */
 export function parseSaveJsonV2(text: string): SaveBundleV2 | SaveSlotV2 {
   const parsed = JSON.parse(text);
   if (isSaveBundleV2(parsed)) {
@@ -294,7 +294,7 @@ export function parseSaveJsonV2(text: string): SaveBundleV2 | SaveSlotV2 {
   if (parsed && typeof parsed === "object" && parsed.state && parsed.summary) {
     return parsed as SaveSlotV2;
   }
-  throw new Error("不支援的 JSON 存檔格式 (預期 uw2-save-v2)");
+  throw new Error("不支持的 JSON 存盘格式 (预期 uw2-save-v2)");
 }
 
 export function getHeroFromStateBytes(stateBytes: Uint8Array): number {

@@ -1,5 +1,5 @@
-// modern/scenario_host.ts — 階段 5 現代高清劇情對話宿主 (實作 IScenarioHost)
-// 保留原版事件插圖 (EVENT*.DAT)、一騎打、音樂與結局，將劇情對話視窗、頭像、選單與是/否改以現代高清羊皮紙卡片呈現。
+// modern/scenario_host.ts — 阶段 5 现代高清剧情对话宿主 (实现 IScenarioHost)
+// 保留原版事件插图 (EVENT*.DAT)、一骑打、音乐与结局，将剧情对话窗口、头像、菜单与是/否改以现代高清羊皮纸卡片呈现。
 import type { IScenarioHost, ScenarioWindowDef } from "../ui/protocol.ts";
 import { DS } from "../model/schema_views.ts";
 import { GameConst } from "../model/flags.ts";
@@ -90,7 +90,7 @@ export class ModernScenarioHost implements IScenarioHost {
   }
 
   openWindow(id: number, w: ScenarioWindowDef): void {
-    // 視窗 3 為劇情插圖大框 (EVENT*.DAT)，照原版在主 Canvas 繪製外框
+    // 窗口 3 为剧情插图大框 (EVENT*.DAT)，照原版在主 Canvas 绘制外框
     if (id === 3) {
       this.activePictureWin = true;
       this.c.win.save(w.x, w.y, w.w, w.h);

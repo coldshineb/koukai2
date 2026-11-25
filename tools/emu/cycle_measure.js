@@ -1,8 +1,8 @@
-// cycle_measure.js — 執行速度量測 (RE_NOTES 第 32 節): 在 port_tests.js 的同一條按鍵路線上,
-//   原版: 以 cycles.js 依 DOSBox 0.72 規則計算週期; 移植版: 讀 web/src/core/cpucost.js 的耗時模型累計的週期。
-//   兩邊各記錄一串「輸入查詢 / 計時器讀寫」事件與當時的週期數, 依序對齊後逐段比較。
-// 用法 (先載入 emu_boot.js、ui_bundle.js、cycles.js 與路線設定):
-//   執行本檔 (安裝) → 執行 port_tests.js → S.cmReport() 取得結果 → S.cmUninstall()
+// cycle_measure.js — 运行速度量测 (RE_NOTES 第 32 节): 在 port_tests.js 的同一条按键路在线,
+//   原版: 以 cycles.js 依 DOSBox 0.72 规则计算周期; 移植版: 读 web/src/core/cpucost.js 的耗时模型累计的周期。
+//   两边各记录一串「输入查找 / 计时器读写」事件与当时的周期数, 依序对齐后逐段比较。
+// 用法 (先加载 emu_boot.js、ui_bundle.js、cycles.js 与路线设置):
+//   运行本档 (安装) → 运行 port_tests.js → S.cmReport() 取得结果 → S.cmUninstall()
 //   S.CM = { max: 10500, profile: false }
 "use strict";
 (function () {
@@ -13,10 +13,10 @@ const log = { E: [], J: [], side: "E" };
 const C = new S.DOSBoxCycles({ max: O.max || 10500, profile: !!O.profile });
 const cpu = S.titleEnv.cpu;
 cpu.cyc = C;
-// FMDRV INT 66h 計時器服務在 DOSBox 下實際執行的指令數 (cs:0108 → 013e 分派 → F0/F1; tools/work/re_fmdrv.txt), 模擬器的樁只算 3 條
+// FMDRV INT 66h 计时器服务在 DOSBox 下实际运行的指令数 (cs:0108 → 013e 分派 → F0/F1; tools/work/re_fmdrv.txt), 模拟器的桩只算 3 条
 const FM66 = O.fm66 ?? 18;
 let nK = 0;
-// S.CM.profileFromKey = n: 從原版第 n 次送鍵起才累計 依指令位置的週期 (只看某一段, 例: 出海之後)
+// S.CM.profileFromKey = n: 从原版第 n 次送键起才累计 依指令位置的周期 (只看某一段, 例: 出海之后)
 if (O.profileFromKey !== undefined) C.hist = null;
 let ev = (k) => {
   if (log.side === "E") { log.E.push([k, C.game]); if (k === "K" && ++nK === O.profileFromKey) { C.hist = new Float64Array(0x100000); C.histFrom = C.game; } }
@@ -24,7 +24,7 @@ let ev = (k) => {
 };
 // ---- 原版 ----
 const inst0 = S.installEmuServices;
-// 包裝只在本次量測 (S.cmLog === log) 且是最外層時記錄; port_tests 每次安裝都會把上一次的處理常式串在裡面
+// 包装只在本次量测 (S.cmLog === log) 且是最外层时记录; port_tests 每次安装都会把上一次的处理常式串在里面
 const wrap = f => c => { if (S._cmIn || S.cmLog !== log) return; S._cmIn = 1; try { f(c); } finally { S._cmIn = 0; } };
 S.installEmuServices = (sc, od) => {
   inst0(sc, k => { ev("K"); od?.(k); });
@@ -35,8 +35,8 @@ S.installEmuServices = (sc, od) => {
   H[0x16] = c => { m16(c); h16(c); };                                                      // DOSBox INT 16h: STI + 回呼 + IRET (+1)
   H[0x33] = c => { m33(c); h33(c); };                                                      // DOSBox INT 33h: JMP + 回呼 + IRET (+1)
   H[0x66] = c => { m66(c); h66(c); };
-  // S.CM.realtime: 原版的計時器 (FMDRV F0/F1) 與垂直同步 (3DAh) 改依 DOSBox 時間 (週期 / N, 再扣掉 IRQ0 佔用 S.CM.irqLoad) 計算,
-  //   用來量原版實際的節奏 (秒數)。F1 01 設定時累加器 [0123] 歸零, 之後每次 IRQ0 (4096/1193182 秒) +0x35, 進位時減一 (01d0)。
+  // S.CM.realtime: 原版的计时器 (FMDRV F0/F1) 与垂直同步 (3DAh) 改依 DOSBox 时间 (周期 / N, 再扣掉 IRQ0 占用 S.CM.irqLoad) 计算,
+  //   用来量原版实际的节奏 (秒数)。F1 01 设置时累加器 [0123] 归零, 之后每次 IRQ0 (4096/1193182 秒) +0x35, 进位时减一 (01d0)。
   if (O.realtime) {
     const PIT = 4096 / 1193181.6667 * 1000, load = O.irqLoad ?? 0.012;
     const nowMs = () => C.T / C.max / (1 - load);
@@ -59,11 +59,11 @@ S.installEmuServices = (sc, od) => {
     };
     S.cmRestoreVGA = () => { vga.portIn = pin; delete vga.portIn0; };
   }
-  // S.CM.marks = [DS 位址, ...]: 該位元組改變時記錄 [位址, 新值, 原版時間 ms] (例: 0x2e18 出港天數、0x0535 時刻)
+  // S.CM.marks = [DS 地址, ...]: 该字节改变时记录 [地址, 新值, 原版时间 ms] (例: 0x2e18 出港天数、0x0535 时刻)
   if (O.marks) {
     const d = S.DSEG * 16, last = O.marks.map(a => cpu.mem[d + a]); S.cmMarks = [];
     const h = H[0x16]; H[0x16] = c => { O.marks.forEach((a, i) => { const v = c.mem[d + a]; if (v !== last[i]) { last[i] = v; S.cmMarks.push([a, v, C.T / C.max / (1 - (O.irqLoad ?? 0.012)), C.game]); } });
-      // S.CM.stop(mem, DS 線性位址): 回傳 true 時結束原版 (port_tests.js 的 S.EMU_DONE)
+      // S.CM.stop(mem, DS 线性地址): 返回 true 时结束原版 (port_tests.js 的 S.EMU_DONE)
       if (O.stop && O.stop(c.mem, d)) { S.EMU_DONE = true; c.halted = true; return; }
       h(c); };
   }
@@ -74,7 +74,7 @@ U.Title.prototype.run = function (...a) { log.side = "J"; return run0.apply(this
 const TP = U.Timer.prototype, tg = TP.get, ts = TP.set;
 TP.get = function () { if (this.virtual) ev("tr"); return tg.call(this); };
 TP.set = function (n) { if (this.virtual) ev("ts"); return ts.call(this, n); };
-// S.CM.features: 移植版每個類別方法的呼叫次數 (每個事件記一次與上一事件的差) — 供擬合耗時模型 (tools/emu/cycle_fit.py)
+// S.CM.features: 移植版每个类别方法的调用次数 (每个事件记一次与上一事件的差) — 供拟合耗时模型 (tools/emu/cycle_fit.py)
 const feat = new Map(), featNames = [], wrapped = [];
 let fcnt = null;
 if (O.features) {
@@ -91,7 +91,7 @@ if (O.features) {
       C.prototype[name] = g; wrapped.push([C.prototype, name, f]);
     }
   }
-  // 依工作量 (面積、長度、圖像大小) 的特徵: 名稱後加 "#a" / "#p"
+  // 依工作量 (面积、长度、图像大小) 的特征: 名称后加 "#a" / "#p"
   const pxA = a => (Math.abs(a[2] - a[0]) + 1) * (Math.abs(a[3] - a[1]) + 1) / 8;
   const AREA = {
     "Screen.putPlanar": a => a[2] * a[3], "Screen.tile": a => a[2] * a[3], "Screen.fillCols": a => a[2] * a[3],
@@ -111,19 +111,19 @@ if (O.features) {
     C.prototype[name] = function (...a) { try { fcnt[id] += +fn(a, this) || 0; } catch (e) { /* */ } return g.apply(this, a); };
     wrapped.push([C.prototype, name, g]);
   }
-  // 軟體游標: 顯示計數由 0 變 1 時畫游標、由 1 變 0 時擦掉 (2f9a / 2fc0)
+  // 软件光标: 显示计数由 0 变 1 时画光标、由 1 变 0 时擦掉 (2f9a / 2fc0)
   { const SP = U.Sys.prototype, sh = SP.mouseShow, hd = SP.mouseHide, i1 = featNames.length, i2 = i1 + 1; featNames.push("Sys.mouseShow!", "Sys.mouseHide!");
     SP.mouseShow = function (...a) { if (this.mouse.present && this.mouse.visible === 0) fcnt[i1]++; return sh.apply(this, a); };
     SP.mouseHide = function (...a) { if (this.mouse.present && this.mouse.visible === 1) fcnt[i2]++; return hd.apply(this, a); };
     wrapped.push([SP, "mouseShow", sh], [SP, "mouseHide", hd]); }
-  // 屬性改變 ("類別.屬性="): SeaScene.item = 849a 換 WORLDMAP 項 (移植版只是指定); 舊值已定義且新值不同時算一次 (與 core/cpucost.js 相同)
+  // 属性改变 ("类别.属性="): SeaScene.item = 849a 换 WORLDMAP 项 (移植版只是指定); 旧值已定义且新值不同时算一次 (与 core/cpucost.js 相同)
   for (const [cn, prop] of [["SeaScene", "item"]]) { const C = U[cn]; if (!C || Object.getOwnPropertyDescriptor(C.prototype, prop)) continue;
     const id = featNames.length, slot = "\u0000" + prop; featNames.push(cn + "." + prop + "=");
     Object.defineProperty(C.prototype, prop, { configurable: true, get() { return this[slot]; }, set(v) { const o = this[slot]; if (o !== undefined && o !== v && !this.__cmInEnter) fcnt[id]++; this[slot] = v; } });
     wrapped.push([C.prototype, prop, undefined]);
-    // enterSea (851f) 的固定耗時已含一次 849a: 其同步部分執行中的改變不算 (與 core/cpucost.js PROP_SKIP_IN 相同)
+    // enterSea (851f) 的固定耗时已含一次 849a: 其同步部分运行中的改变不算 (与 core/cpucost.js PROP_SKIP_IN 相同)
     const fe = C.prototype.enterSea; if (fe) { C.prototype.enterSea = function (...a) { this.__cmInEnter = true; try { return fe.apply(this, a); } finally { this.__cmInEnter = false; } }; wrapped.push([C.prototype, "enterSea", fe]); } }
-  // 靜態方法 Kao.blit3 (頭像)
+  // 静态方法 Kao.blit3 (头像)
   if (U.Kao && U.Kao.blit3) { const g = U.Kao.blit3, id = featNames.length; featNames.push("Kao.blit3");
     U.Kao.blit3 = function (...a) { fcnt[id]++; return g.apply(this, a); }; wrapped.push([U.Kao, "blit3", g]); }
 }
@@ -140,20 +140,20 @@ if (fcnt) {
   };
   ev = evx;
 }
-// S.CM.noLog: 不記事件 (realtime 量秒數時原版每個等待迴圈都在查詢輸入, 事件會多到記憶體不夠)
+// S.CM.noLog: 不记事件 (realtime 量秒数时原版每个等待循环都在查找输入, 事件会多到内存不够)
 if (O.noLog) ev = () => {};
 Object.defineProperty(U.Sys.prototype, "onIO", { configurable: true,
   get() { return this._onIO; },
   set(f) { this._onIO = f ? (s => { ev("io"); f(s); }) : f; } });
 const sstep = S.scriptStep;
-// S.CM.gapAfter = [n, gap]: 送出 n 個動作之後, 每個動作之間的輸入查詢次數改為 gap (realtime 量測: 出港後長時間航行)
+// S.CM.gapAfter = [n, gap]: 送出 n 个动作之后, 每个动作之间的输入查找次数改为 gap (realtime 量测: 出港后长时间航行)
 S.scriptStep = (sc, buf, push, od) => { if (O.gapAfter && sc.delivered + (sc.mouseN || 0) >= O.gapAfter[0]) sc.gap = O.gapAfter[1]; return sstep(sc, buf, push, k => { if (k && k.mouse) sc.mouseN = (sc.mouseN || 0) + 1; if (log.side === "J") ev("K"); od?.(k); }); };
 S.cmUninstall = () => {
   for (const [p, n, f] of wrapped.reverse()) { if (f === undefined) delete p[n]; else p[n] = f; }
   cpu.cyc = null; S.installEmuServices = inst0; U.Title.prototype.run = run0; TP.get = tg; TP.set = ts; S.scriptStep = sstep;
   delete U.Sys.prototype.onIO; S.cmRestoreVGA?.(); S.cmRestoreVGA = null; S.cmUninstall = null;
 };
-// 依 "K" (送鍵) 切段, 段內事件依序對齊
+// 依 "K" (送键) 切段, 段内事件依序对齐
 S.cmReport = () => {
   const E = log.E, J = log.J, split = a => { const r = [[]]; for (const e of a) { if (e[0] === "K") r.push([]); else r[r.length - 1].push(e); } return r; };
   const sE = split(E), sJ = split(J), out = { segs: [], mism: [] };

@@ -1,13 +1,13 @@
-// game/scenario_adapter.ts — 劇本 VM 的記憶體位址橋接層
-// 把 SNR 劇本對原版 DS 位址的讀寫 (rd8/wr8/rd16/wr16 與 31f0b 記錄表索引) 獨立封裝,
-// 讓階段 3–5 切換至純 JSON 狀態物件時, 只需替換此適配器而無需改動劇本指令直譯器。
+// game/scenario_adapter.ts — 剧本 VM 的内存地址桥接层
+// 把 SNR 剧本对原版 DS 地址的读写 (rd8/wr8/rd16/wr16 与 31f0b 记录表索引) 独立封装,
+// 让阶段 3–5 切换至纯 JSON 状态对象时, 只需替换此适配器而无需改动剧本指令解释器。
 import { DS } from "../model/schema_views.ts";
 
 export const SC_STRBUF = 0x041e;
 export const SC_STRLEN = 0x100;
 export const SC_COLONY = 0xbb64;
 
-// 31f0b 記錄種類 → [基底, 每筆大小] (7 = 艦隊船位, 18 = COLONY.DAT 記錄, 另行處理)
+// 31f0b 记录种类 → [基底, 每笔大小] (7 = 舰队船位, 18 = COLONY.DAT 记录, 另行处理)
 export const SC_KINDS: ReadonlyArray<readonly [number, number] | null> = [
   [DS.TBL_COUNTRY, 0x20], [DS.TBL_HERO_DATA, 0x0e], [DS.MONEY, 0], [DS.TBL_PERSON, 0x32],
   [DS.TBL_NOBLE, 0x16], [DS.TBL_BARMAID, 0x13], [DS.DAYS_AT_SEA, 0], null,

@@ -1,4 +1,4 @@
-// shipyard.js — 造船廠 (造新船 / 交船 / 買舊船 / 修理 / 賣船 / 改造 / 工業投資 / 折抵剩餘貨物分配)
+// shipyard.js — 造船厂 (造新船 / 交船 / 买旧船 / 修理 / 卖船 / 改造 / 工业投资 / 折抵剩余货物分配)
 import { ListSelect } from "../ui/listsel.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
@@ -8,7 +8,7 @@ import { runDomShipyardWorkbench } from "../modern/dom_buildings.ts";
 import { decodeCleanCstr, toSimp } from "../canvas_ui/text_util.ts";
 
 class ShipyardMixin {
-  // ================= 2 造船廠 1fd9:cc01 =================
+  // ================= 2 造船厂 1fd9:cc01 =================
   async shipyard() {
     const st = this.st, { palette, menu } = this.c;
     if (!hasDom()) { palette.setTarget(palette.table("ships")); await palette.fadeToTarget(); }
@@ -22,7 +22,7 @@ class ShipyardMixin {
     let sel;
     do {
       const items = this.c.menuItems(22);
-      let n = 0; for (let i = 0; i < 5; i++) if (st.u8(DS.TBL_USED_SHIP_CACHE + i) !== 0xff) n++;   // seg0:5cc4(0) 中古船表第 1 筆 (到港 1bd16 把本港移到第 1 筆; 原版各處都傳 al = 0)
+      let n = 0; for (let i = 0; i < 5; i++) if (st.u8(DS.TBL_USED_SHIP_CACHE + i) !== 0xff) n++;   // seg0:5cc4(0) 中古船表第 1 笔 (到港 1bd16 把本港移到第 1 笔; 原版各处都传 al = 0)
       if (!n) menu.disabled |= 2;
       this.b2f4 = this.b2f5 = this.b2f6 = this.b2f7 = 0xff; this.b2f8 = 0;
       sel = await this.menu(items);
@@ -50,7 +50,7 @@ class ShipyardMixin {
     const t0 = this.BT.levels[st.u8(E + 0x22)][0];
     if (((10 * st.u8(this.typeRec(t0))) & 0xffff) > st.u16(E + 4)) { this.greet(0xfb); await this.wait(); return; }
     this.freeSlots();
-    if (domS16(this.c.persons[0]) < 10) {                                   // 船塢已滿
+    if (domS16(this.c.persons[0]) < 10) {                                   // 船坞已满
       sys.mouseHide();
       await win.open(0x15, 0xc0, 0x1e, 0x48, 0);
       con.puts(this.BT.fmt.dockFull);
@@ -66,7 +66,7 @@ class ShipyardMixin {
     this.greet(0xfc); await this.wait();
     await this.buildSelect();
   }
-  // 2bb91 選船型 → 材質 → 交涉 → 開工
+  // 2bb91 选船型 → 材质 → 交涉 → 开工
   async buildSelect() {
     const st = this.st, E = this.eco, { menu } = this.c, list = this.listSel(), P = this.c.persons;
     const row = this.BT.levels[st.u8(E + 0x22)];
@@ -100,7 +100,7 @@ class ShipyardMixin {
       return;
     }
   }
-  // 2bad3 材質
+  // 2bad3 材质
   async material(t) {
     const st = this.st, E = this.eco, { menu } = this.c, list = this.listSel(), P = this.c.persons, T = this.typeRec(t);
     const ind = st.u16(E + 4);
@@ -115,20 +115,20 @@ class ShipyardMixin {
       if (await menu.yesNo()) return v;
     }
   }
-  // 2aebb 耐久度數字
+  // 2aebb 耐久度数字
   durPrint(v) {
     const { con, printf } = this.c;
     con.left = 0x1e; con.right = 0x39; con.setCursor(0x27, 0xb8);
     printf(this.BT.fmt.durNum, v);
   }
-  // 2aeeb 最大載貨 / 水手數 / 武器數
+  // 2aeeb 最大载货 / 水手数 / 武器数
   designPrint(cargo, crew, guns) {
     const { con, printf } = this.c;
     con.lineH = 0x10; con.right = 0x3a; con.left = 0x35; con.setCursor(0x35, 0xd0);
     printf(this.BT.fmt.designNums, domS16(cargo), domS16(crew), guns);
     con.lineH = 0x18; con.left = 0x1f;
   }
-  // 2b19d 設計 (水手數與武器數)
+  // 2b19d 设计 (水手数与武器数)
   async design(slot) {
     const st = this.st, { menu, printf } = this.c, F = this.BT.fmt;
     const S = this.fleetSlot(slot), ship = this.shipOf(slot), T = this.typeRec(st.u8(ship + 0x0f));
@@ -153,7 +153,7 @@ class ShipyardMixin {
       return 1;
     }
   }
-  // 2b88d 交涉與付款 (造新船 / 買舊船)
+  // 2b88d 交涉与付款 (造新船 / 买旧船)
   async negotiate(t, price) {
     const st = this.st, { menu, message, sys } = this.c;
     let k = 5, avail = this.money;
@@ -310,7 +310,7 @@ class ShipyardMixin {
       render();
     });
   }
-  // 1e628 艦隊表 (不保存背景)
+  // 1e628 舰队表 (不保存背景)
   fleetTable() {
     const st = this.st, { win, con, printf } = this.c, F = this.LO.fmt;
     let n = 0;
@@ -330,13 +330,13 @@ class ShipyardMixin {
         const a = Math.floor(((st.u8(M + 9) * s0) & 0xffff) / 100), b = Math.floor(((st.u8(M + 8) * s0) & 0xffff) / 100);
         const c = (s0 - b - a) & 0xffff;
         const ld = domS16((this.cargoUsed(i) + st.u8(S + OFF.DOCK_SLOT.GUNS) + st.u16(S)) & 0xffff);          // seg0:5d8b
-        const d = Math.floor((Math.imul(ld, 100) >>> 0) / (domS16(st.u16(T + 6)) >>> 0 || 1)) & 0xffff;   // seg0:38ba 無號長整數除法
+        const d = Math.floor((Math.imul(ld, 100) >>> 0) / (domS16(st.u16(T + 6)) >>> 0 || 1)) & 0xffff;   // seg0:38ba 无号长整数除法
         printf(F.fleetRow, a, b, domS16(c), domS16(d), (this.shipSpeed(i) + 1) >> 1);
       }
       row++;
     }
   }
-  // 1f555 「未裝載的貨物」清單 (重新排緊)
+  // 1f555 「未装载的货物」清单 (重新排紧)
   leftList(lg, la) {
     const { scr, con, printf } = this.c, F = this.LO.fmt, names = this.LO.goods;
     scr.fillCols(0x3c, 0x70, 0x10, 0x90, 7);
@@ -354,7 +354,7 @@ class ShipyardMixin {
       lg[d] = g[i]; la[d] = a[i]; d++;
     }
   }
-  // 1f64a 一艘船的補給與貨物 → 暫存表 sg / sa (水與糧食 /10), 回傳筆數
+  // 1f64a 一艘船的补给与货物 → 暂存表 sg / sa (水与粮食 /10), 返回笔数
   shipList(slot, sg, sa) {
     const st = this.st, { scr, con, printf } = this.c, F = this.LO.fmt, names = this.LO.goods, SUP = this.LO.supplies;
     scr.fillCols(0x18, 0x70, 0x10, 0x90, 7);
@@ -378,7 +378,7 @@ class ShipyardMixin {
     }
     return d;
   }
-  // 1f851 暫存表寫回船員配置
+  // 1f851 暂存表写回船员配置
   shipWrite(slot, sg, sa) {
     const st = this.st, M = this.crewData(slot);
     for (let k = 0; k < 5; k++) { st.set8(M + 0x16 + k, 0xff); st.set16(M + 0x0c + 2 * k, 0); }
@@ -394,7 +394,7 @@ class ShipyardMixin {
     }
     st.set16(M + 0x0a, this.loadTotal(slot));
   }
-  // 1f93d 選中船上第 sel 列: 空列 → 先從剩餘貨物選一種; 再用計算機決定裝在船上的數量
+  // 1f93d 选中船上第 sel 列: 空列 → 先从剩余货物选一种; 再用计算机决定装在船上的数量
   async loadItem(slot, sel, sg, sa, lg, la) {
     const st = this.st, { menu } = this.c, R = menu.rects, ship = this.shipOf(slot);
     let total = 0;
@@ -424,7 +424,7 @@ class ShipyardMixin {
     if (!sa[sel] && !(sg[sel] & 0x80)) sg[sel] = 0xff;
     if (!la[k]) lg[k] = 0xff;
   }
-  // 1fb6e 一艘船的裝卸
+  // 1fb6e 一艘船的装卸
   async shipLoad(slot, lg, la) {
     const { win, menu } = this.c, R = menu.rects, sg = new Array(9).fill(0xff), sa = new Array(9).fill(0);
     win.shadowedSaved(0x16, 0x40, 0x14, 0xd0, 1);
@@ -439,7 +439,7 @@ class ShipyardMixin {
       this.leftList(lg, la);
     }
   }
-  // 1fcf7 (0fea:fe57) 剩餘貨物分配: 選艦隊的船 → 裝卸; Esc → 確認 (還有剩 0xd3 / 全部裝完 0xdb)
+  // 1fcf7 (0fea:fe57) 剩余货物分配: 选舰队的船 → 装卸; Esc → 确认 (还有剩 0xd3 / 全部装完 0xdb)
   async distribute(lg, la) {
     const { win, menu, con, message } = this.c, R = menu.rects;
     win.shadowedSaved(0x3a, 0x40, 0x14, 0xd0, 1);
@@ -463,7 +463,7 @@ class ShipyardMixin {
       this.fleetTable();
     }
   }
-  // 2b326 折抵船 (b2f4) 的砲、水手、補給與貨物 (原版目的船位也是 b2f4)
+  // 2b326 折抵船 (b2f4) 的砲、水手、补给与货物 (原版目的船位也是 b2f4)
   transfer(flag, left) {
     const st = this.st, src = this.b2f4, dst = this.b2f4;
     const Md = this.crewData(dst), Ms = this.crewData(src), Sd = this.fleetSlot(dst), Ss = this.fleetSlot(src), shipD = this.shipOf(dst);
@@ -486,7 +486,7 @@ class ShipyardMixin {
     if (st.u16(Ms + 6)) add(0x83, st.u16(Ms + 6));
     for (let k = 0; k < 5; k++) { const g = st.u8(Ms + 0x16 + k); if (g !== 0xff) add(g, st.u16(Ms + 0x0c + 2 * k)); }
   }
-  // 2ad12 建立新船記錄並命名
+  // 2ad12 创建新船记录并命名
   async createShip(t) {
     const st = this.st, { win } = this.c, T = this.typeRec(t), tmpl = ListSelect.shipRec(t + 0x28);
     const S = this.fleetSlot(this.b2f6), M = this.crewData(this.b2f6), trade = this.b2f4 !== 0xff;
@@ -516,13 +516,13 @@ class ShipyardMixin {
     }
     await win.close();
   }
-  // 2b2f2 船員欄第一個職務 ≥ 3 的人 → b2f7
+  // 2b2f2 船员栏第一个职务 ≥ 3 的人 → b2f7
   findMate() {
     const st = this.st;
     for (let i = 0; i < 0x1e; i++) { const n = st.u8(DS.PARTY_CREW + i); if (n !== 0xff && st.u8(st.personRecord(n) + 0x2e) >= 3) { this.b2f7 = n; return 1; } }
     return 0;
   }
-  // 2b66a 決定新船的船長與船位
+  // 2b66a 决定新船的船长与船位
   async captainAndSlot() {
     this.b2f5 = this.b2f4 = 0xff;
     let need = 0;
@@ -561,7 +561,7 @@ class ShipyardMixin {
     }
     st.set8(st.personRecord(this.b2f7) + 0x2e, this.b2f7 !== st.hero ? 2 : 1);
   }
-  // 2be49 買舊船
+  // 2be49 买旧船
   async usedShip() {
     const st = this.st, { menu } = this.c, list = this.listSel(), P = this.c.persons;
     this.b2f8 = 0;
@@ -592,7 +592,7 @@ class ShipyardMixin {
       if (sel !== 0xff) { await [() => this.rmFigure(), () => this.rmGuns(), () => this.rmRatio(), () => this.rmName()][sel](); this.after(); }
     } while (sel !== 0xff);
   }
-  // 改造子功能共用: 選艦隊的船並顯示資料 (清單 0x80 → 2af30(3) + 2b119)
+  // 改造子功能共用: 选舰队的船并显示数据 (清单 0x80 → 2af30(3) + 2b119)
   async rmPick(msg) {
     this.greet(msg);
     const r = await this.listSel().select(0x80, this.fleetShips());
@@ -634,7 +634,7 @@ class ShipyardMixin {
       return;
     }
   }
-  // 2c43d 武裝
+  // 2c43d 武装
   async rmGuns() {
     const st = this.st, E = this.eco, H = this.hero, rng = this.c.sys.rng;
     let n = domUmin16(Math.trunc(((st.u16(E + 4) + st.u16(E)) & 0xffff) / 200) + 1, 6);
@@ -680,7 +680,7 @@ class ShipyardMixin {
       return;
     }
   }
-  // 2c4f6 積載比例變更
+  // 2c4f6 积载比例变更
   async rmRatio() {
     const st = this.st, { menu } = this.c;
     for (;;) {
@@ -693,7 +693,7 @@ class ShipyardMixin {
       if (await this.design(slot)) { this.money = (this.money - cost) | 0; this.p.panels(); }
     }
   }
-  // 2c5c2 船名變更
+  // 2c5c2 船名变更
   async rmName() {
     const st = this.st, { win } = this.c;
     for (;;) {
@@ -729,7 +729,7 @@ class ShipyardMixin {
       this.p.panels();
     }
   }
-  // 2b571 選擇要賣的船 (flag: 主角是該船船長時另選一艘當主角的船)
+  // 2b571 选择要卖的船 (flag: 主角是该船船长时另选一艘当主角的船)
   async sellSelect(flag) {
     const st = this.st, { menu, message } = this.c, list = this.listSel();
     for (;;) {
@@ -757,7 +757,7 @@ class ShipyardMixin {
       return this.b2f4;
     }
   }
-  // 2c043 賣船
+  // 2c043 卖船
   async sellShip() {
     const st = this.st, { menu, message } = this.c;
     for (;;) {
@@ -792,7 +792,7 @@ class ShipyardMixin {
     this.removeShip(this.b2f4);
     this.p.panels();
   }
-  // 2c8d0 工業投資
+  // 2c8d0 工业投资
   async invest() {
     const st = this.st, E = this.eco;
     if (this.isCapital()) { this.greet(2); await this.wait(); return; }

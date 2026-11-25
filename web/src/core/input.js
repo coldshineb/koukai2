@@ -1,9 +1,9 @@
-// input.js — 把瀏覽器鍵盤/滑鼠事件送進原版輸入模型 (core/sys.js)
+// input.js — 把浏览器键盘/鼠标事件送进原版输入模型 (core/sys.js)
 import { keyToBios } from "./keymap.js";
 import { SCREEN_W, CANVAS_H, Y_OFFSET, VIEW_W, VIEW_H, LEGACY_SCALE, LEGACY_OFF_X } from "./screen.js";
 
-// 瀏覽器保留鍵 (重新整理 / 強制重新整理 / 開發者工具): 不送進遊戲、不 preventDefault。
-// 原版只看單獨的 F5 (numpad.js 0x3f = 填入最大值) 等; DOS 下 Ctrl+F5 是另一個掃描碼 (0x62), 原版本來就不當作 F5, 所以放行不影響原版操作。
+// 浏览器保留键 (刷新 / 强制刷新 / 开发者工具): 不送进游戏、不 preventDefault。
+// 原版只看单独的 F5 (numpad.js 0x3f = 填入最大值) 等; DOS 下 Ctrl+F5 是另一个扫描码 (0x62), 原版本来就不当作 F5, 所以放行不影响原版操作。
 function browserReserved(e) {
   const mod = e.ctrlKey || e.metaKey;
   if (mod && (e.code === "F5" || e.code === "KeyR")) return true;                 // Ctrl+F5 / Ctrl+R / Ctrl+Shift+R
@@ -37,7 +37,7 @@ export function bindInput(canvas, sys) {
       sys.mouse.y = Math.max(0, Math.min(CANVAS_H - 1, Math.floor(vy / LEGACY_SCALE) + Y_OFFSET));
     }
   };
-  // INT 33h 移動量 (mickey): 每 8 像素 = sys.mickeyRatio (seg0:5022 依「滑鼠速度」設定, 預設水平 8 / 垂直 16)
+  // INT 33h 移动量 (mickey): 每 8 像素 = sys.mickeyRatio (seg0:5022 依「鼠标速度」设置, 默认水平 8 / 垂直 16)
   canvas.addEventListener("mousemove", e => {
     const r = canvas.getBoundingClientRect(), k = SCREEN_W / r.width, m = sys.mouse;
     m.mdx = (m.mdx | 0) + Math.round(e.movementX * k * (sys.mickeyRatio?.[0] ?? 8) / 8);
@@ -55,5 +55,5 @@ export function bindInput(canvas, sys) {
   addEventListener("mouseup", e => { sys.mouse.buttons &= ~(e.button === 2 ? 2 : e.button === 0 ? 1 : 0); });
   window.addEventListener("contextmenu", e => e.preventDefault());
   window.addEventListener("dragstart", e => e.preventDefault());
-  canvas.style.cursor = "default";        // 階段 4: 使用瀏覽器原生高精度指標
+  canvas.style.cursor = "default";        // 阶段 4: 使用浏览器原生高精度指针
 }

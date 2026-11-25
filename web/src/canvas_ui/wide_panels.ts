@@ -1,6 +1,6 @@
-// canvas_ui/wide_panels.ts — 原生 16:9 (1280×720) 現代 Canvas 2D 浮窗套件
-// 涵蓋：主公情報、積載情報、發現物卡片、航海日誌、世界航海圖、隊形變更、隨身物詳情卡。
-// 100% 純 Canvas 2D、零 DOM、零黑屏切場、100% 原版遊戲文本。
+// canvas_ui/wide_panels.ts — 原生 16:9 (1280×720) 现代 Canvas 2D 浮窗套件
+// 涵盖：主公情报、积载情报、发现物卡片、航海日志、世界航海图、队形变更、随身物详情卡。
+// 100% 纯 Canvas 2D、零 DOM、零黑屏切场、100% 原版游戏文本。
 import { VIEW_W, VIEW_H } from "../core/screen.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
@@ -57,7 +57,7 @@ function drawPanelFrame(ctx: CanvasRenderingContext2D, x: number, y: number, w: 
   ctx.stroke();
 }
 
-// ---------------- 1. 主公情報 ----------------
+// ---------------- 1. 主公情报 ----------------
 export interface WideLordData {
   title: string;
   portraitUrl: string | null;
@@ -79,7 +79,7 @@ export async function runWideLordInfo(ctx: any, data: WideLordData) {
     c2d.save();
     drawPanelFrame(c2d, x, y, w, h, data.title);
 
-    // 左側頭像 + 金錢 + 聲望
+    // 左侧头像 + 金钱 + 声望
     const px = x + 28, py = y + 72;
     c2d.fillStyle = "#081220";
     c2d.fillRect(px, py, 104, 130);
@@ -121,7 +121,7 @@ export async function runWideLordInfo(ctx: any, data: WideLordData) {
       }
     }
 
-    // 右側 6 國友好度
+    // 右侧 6 国友好度
     const rx = x + 396;
     c2d.strokeStyle = "rgba(214, 174, 96, 0.25)";
     c2d.beginPath();
@@ -167,7 +167,7 @@ export async function runWideLordInfo(ctx: any, data: WideLordData) {
   }
 }
 
-// ---------------- 2. 積載情報 / 發現物 / 隨身物詳情浮窗 ----------------
+// ---------------- 2. 积载情报 / 发现物 / 随身物详情浮窗 ----------------
 export async function runWideInfoLinesModal(
   ctx: any,
   title: string,
@@ -263,7 +263,7 @@ export async function runWideInfoLinesModal(
   return res;
 }
 
-// ---------------- 3. 航海日誌 ----------------
+// ---------------- 3. 航海日志 ----------------
 export async function runWideLogBook(
   ctx: any,
   title: string,
@@ -365,7 +365,7 @@ export async function runWideLogBook(
   }
 }
 
-// ---------------- 4. 世界航海圖 (16:9 現代浮窗，載入 GRAPH.DAT #0x19 真實大陸底圖 + 迷霧 + 已知港口) ----------------
+// ---------------- 4. 世界航海图 (16:9 现代浮窗，加载 GRAPH.DAT #0x19 真实大陆底图 + 迷雾 + 已知港口) ----------------
 export async function runWideWorldChart(ctx: any, scene: any, title: string) {
   if (hasDom()) return runDomWorldChartModal(ctx, title, scene);
   const { scr, sys, menu, state: st, codec, art } = ctx;
@@ -393,7 +393,7 @@ export async function runWideWorldChart(ctx: any, scene: any, title: string) {
     c2d.fillStyle = "#0a1b32";
     c2d.fillRect(mx, my, mapW, mapH);
 
-    // 繪製原版 GRAPH.DAT #0x19 世界大陸地圖 (原圖 640×400，地圖本體位於 50,50 寬540 高270)
+    // 绘制原版 GRAPH.DAT #0x19 世界大陆地图 (原图 640×400，地图本体位于 50,50 宽540 高270)
     const mapImg = mapUrl ? art?.getImage?.(mapUrl) : null;
     if (mapImg) {
       const sx = (50 / 640) * mapImg.naturalWidth;
@@ -404,7 +404,7 @@ export async function runWideWorldChart(ctx: any, scene: any, title: string) {
       c2d.drawImage(mapImg, sx, sy, sw, sh, mx, my, mapW, mapH);
     }
 
-    // 未探索海域覆蓋深色戰爭迷霧
+    // 未探索海域覆盖深色战争迷雾
     for (let row = 0; row < 45; row++) {
       for (let col = 0; col < 90; col++) {
         const wcol = (col - 30 + 90) % 90;
@@ -415,7 +415,7 @@ export async function runWideWorldChart(ctx: any, scene: any, title: string) {
       }
     }
 
-    // 網格經緯線
+    // 网格经纬线
     c2d.strokeStyle = "rgba(214, 174, 96, 0.12)";
     c2d.lineWidth = 1;
     for (let c = 0; c <= 90; c += 15) {
@@ -425,7 +425,7 @@ export async function runWideWorldChart(ctx: any, scene: any, title: string) {
       c2d.beginPath(); c2d.moveTo(mx, my + r * ch); c2d.lineTo(mx + mapW, my + r * ch); c2d.stroke();
     }
 
-    // 繪製已知港口點與懸停港名
+    // 绘制已知港口点与悬停港名
     const vx = sys.mouse?.vx ?? -1, vy = sys.mouse?.vy ?? -1;
     let hoverPortName = "";
     let hoverX = 0, hoverY = 0;
@@ -443,7 +443,7 @@ export async function runWideWorldChart(ctx: any, scene: any, title: string) {
       }
     }
 
-    // 主角艦隊位置
+    // 主角舰队位置
     const hx = toScreenX(fx), hy = toScreenY(fy);
     c2d.fillStyle = "#ff4d4d";
     c2d.beginPath();

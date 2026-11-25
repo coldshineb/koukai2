@@ -1,4 +1,4 @@
-// graph.js — 現代純 PNG 圖像渲染器 (由 ArtRegistry 讀取 web/assets/art/ 標準 PNG，取代原版 GRAPH.DAT / GRAPH2.DAT / EVENT*.DAT)
+// graph.js — 现代纯 PNG 图像渲染器 (由 ArtRegistry 读取 web/assets/art/ 标准 PNG，取代原版 GRAPH.DAT / GRAPH2.DAT / EVENT*.DAT)
 export class Graph {
   constructor(scr, art = null) {
     this.scr = scr;
@@ -9,7 +9,7 @@ export class Graph {
   async load(_base, names = ["GRAPH.DAT", "GRAPH2.DAT"]) {
     this.curFile = names[0] || "GRAPH.DAT";
     if (this.art) {
-      // 預載常用主介面外框與背景，確保首幀無閃爍
+      // 预载常用主界面外框与背景，确保首帧无闪烁
       const preload = [];
       for (const idx of [2, 3, 4, 5, 0x17, 0x19, 0x1a, 0x1b, 0x3c, 0x3e]) {
         const e = this.art.graphEntry("GRAPH.DAT", idx);

@@ -1,8 +1,8 @@
-// data_tests_event.js — 劇情插圖 EVENT0..6.DAT 的解碼測試 (不需要模擬器; 先載入 ui_bundle.js)  docs/RE_NOTES.md 第 31 節
-//   1. 每張以 16 色版本 (seg0:5b5d) 在 (112, 24) 解碼, 解碼結束位置必須剛好等於下一張的偏移 (最後一張 = 檔案長度), 寬高 192 × 144
-//   2. web/assets/gfx/event 的副本與原版 tools/work/sea2 的檔案逐位元組相同
-//   3. 七個劇本的 CB 都在 (112, 24), 張數不超過該主角的 EVENT 檔
-//   4. 總覽: 全部插圖排成 6 欄 × 7 列 (每列一個檔), 原始索引色寫到 tools/work/event_overview.bin (w, h u16le + 像素), 由 Python 轉 PNG
+// data_tests_event.js — 剧情插图 EVENT0..6.DAT 的解码测试 (不需要模拟器; 先加载 ui_bundle.js)  docs/RE_NOTES.md 第 31 节
+//   1. 每张以 16 色版本 (seg0:5b5d) 在 (112, 24) 解码, 解码结束位置必须刚好等于下一张的偏移 (最后一张 = 文件长度), 宽高 192 × 144
+//   2. web/assets/gfx/event 的副本与原版 tools/work/sea2 的文件逐字节相同
+//   3. 七个剧本的 CB 都在 (112, 24), 张数不超过该主角的 EVENT 档
+//   4. 总览: 全部插图排成 6 栏 × 7 列 (每列一个档), 原始索引色写到 tools/work/event_overview.bin (w, h u16le + 像素), 由 Python 转 PNG
 (function () {
 const fs = require("fs"), U = session.UI, W = session.W || WORKSPACE_DIR, A = W + "/uw2_remake/web/assets";
 const out = [], ow = 6 * 200, oh = 7 * 152, ov = new Uint8Array(ow * oh);

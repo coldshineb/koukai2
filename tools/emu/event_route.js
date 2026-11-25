@@ -1,17 +1,17 @@
-// event_route.js — 劇本事件差分測試設定 (先執行本檔, 再執行 port_tests.js)
-// 新遊戲 (約翰) → 里斯本港; 進港時把主角放到指定建築入口正下方, 往上走進去, 之後一直按 Enter 推進對話。
-//   S.EVENT_BUILDING = 建築編號 (0 交易所 1 酒館 2 造船廠 3 碼頭 4 旅館 5 王宮 7 住宅 9 道具店 10 教會)
-//   S.EVENT_ENTERS   = 進去之後按幾次 Enter (預設 40)
-//   S.EVENT_TAIL     = 最後再送的按鍵 (預設 ↓)
-//   S.EVENT_POKE     = 額外寫入 [[DS 位址, 值], ...]
-//   S.EVENT_HERO     = 主角 (0 約翰 … 5; 預設 0): 主角選擇畫面先按 → 若干次 (S.NEWGAME 給 port_tests.js); 進港仍放到里斯本
-// 入口座標 = ZA_DAT.DAT 里斯本 (DS:0904): 視窗左上 (vx, vy) 讓主角在視窗內 (12, 12) 一帶。
+// event_route.js — 剧本事件差分测试设置 (先运行本档, 再运行 port_tests.js)
+// 新游戏 (约翰) → 里斯本港; 进港时把主角放到指定建筑入口正下方, 往上走进去, 之后一直按 Enter 推进对话。
+//   S.EVENT_BUILDING = 建筑编号 (0 交易所 1 酒馆 2 造船厂 3 码头 4 旅馆 5 王宫 7 住宅 9 道具店 10 教会)
+//   S.EVENT_ENTERS   = 进去之后按几次 Enter (默认 40)
+//   S.EVENT_TAIL     = 最后再送的按键 (默认 ↓)
+//   S.EVENT_POKE     = 额外写入 [[DS 地址, 值], ...]
+//   S.EVENT_HERO     = 主角 (0 约翰 … 5; 默认 0): 主角选择画面先按 → 若干次 (S.NEWGAME 给 port_tests.js); 进港仍放到里斯本
+// 入口座标 = ZA_DAT.DAT 里斯本 (DS:0904): 窗口左上 (vx, vy) 让主角在窗口内 (12, 12) 一带。
 "use strict";
 (function () {
 const S = session;
 const K = { down: [0x50, 0], up: [0x48, 0], left: [0x4b, 0], right: [0x4d, 0], enter: [0x1c, 0x0d] };
 const DOORS = [[41, 59], [54, 34], [79, 64], [54, 67], [36, 46], [48, 7], [38, 35], [69, 49], [31, 59], [14, 47], [12, 62]];
-//   S.EVENT_SEQ = [[建築, Enter 次數], ...] 依序拜訪多棟建築 (第二棟起以 S.TELEPORT 在送出「↑」之前把主角移到門口下方)
+//   S.EVENT_SEQ = [[建筑, Enter 次数], ...] 依序拜访多栋建筑 (第二栋起以 S.TELEPORT 在送出「↑」之前把主角移到门口下方)
 const below = k => { const [dx, dy] = DOORS[k], vx = Math.max(0, Math.min(72, dx - 12)), vy = Math.max(0, Math.min(72, dy + 1 - 12));
   return { vx, vy, hx: dx - vx, hy: dy + 1 - vy }; };
 const seq = S.EVENT_SEQ || [[S.EVENT_BUILDING ?? 10, S.EVENT_ENTERS ?? 40]];

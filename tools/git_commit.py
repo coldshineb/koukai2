@@ -10,7 +10,7 @@ import os, sys, time, zlib, hashlib, struct, fnmatch
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 GIT = os.path.join(ROOT, ".git")
-PENDING = os.path.join(GIT, "pending_commits")      # 讀不到身份時暫存的快照 (tree + 時間 + 說明), 由 git_fix_author.py 補成提交
+PENDING = os.path.join(GIT, "pending_commits")      # 读不到身份时暂存的快照 (tree + 时间 + 说明), 由 git_fix_author.py 补成提交
 
 
 def _cfg_user(path):
@@ -199,7 +199,7 @@ def read_ref(ref):
 def commit_tree_of(sha):
     p = os.path.join(GIT, "objects", sha[:2], sha[2:])
     if not os.path.exists(p):
-        return None                      # 已被打包: 視為不同, 照常提交
+        return None                      # 已被打包: 视为不同, 照常提交
     raw = zlib.decompress(open(p, "rb").read()); body = raw[raw.index(b"\0") + 1:]
     return body.split(b"\n", 1)[0][5:].decode()
 

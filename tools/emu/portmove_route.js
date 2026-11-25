@@ -1,26 +1,26 @@
-// portmove_route.js — 擴充功能「港內移動」(非原版, 仿外傳; scenes/portmove.js, RE_NOTES 第 33 節) 的測試設定 (先執行本檔, 再執行 port_tests.js)
+// portmove_route.js — 扩充功能「港内移动」(非原版, 仿外传; scenes/portmove.js, RE_NOTES 第 33 节) 的测试设置 (先运行本档, 再运行 port_tests.js)
 //
-// 一、一致性 (S.PM_DOOR = 入口編號): 原版沒有這個功能, 改成比較「瞬移 + 原版進門流程」與「原版直接把主角寫到門口 + 原版進門流程」。
-//   兩邊都從同一位置開始, 送出第一個方向鍵 (↑) 時:
-//     原版: 走路迴圈呼叫 66be (移動) 的那一刻, 改成寫入主角/視窗 (DS:0cb4..0cba, [bdba], 規則同 PortMove.teleport), 再跳到 1b1a3 (重畫, retf 回到走路迴圈) → 1b6ba 進門
-//     移植版: 同一次 move() 改成呼叫 PortMove.teleport() → 原版流程 tryEnter (1b6ba)
-//   之後的按鍵 (建築內、出門、再走幾步) 兩邊照常執行, 每次送鍵比對畫面、調色盤、亂數、狀態。
-//   S.PM_NPC = 行人編號: 瞬移那一刻兩邊同時把這個行人寫到門口那一格 (主角與行人重疊)
+// 一、一致性 (S.PM_DOOR = 入口编号): 原版没有这个功能, 改成比较「瞬移 + 原版进门流程」与「原版直接把主角写到门口 + 原版进门流程」。
+//   两边都从同一位置开始, 送出第一个方向键 (↑) 时:
+//     原版: 走路循环调用 66be (移动) 的那一刻, 改成写入主角/窗口 (DS:0cb4..0cba, [bdba], 规则同 PortMove.teleport), 再跳到 1b1a3 (重画, retf 回到走路循环) → 1b6ba 进门
+//     移植版: 同一次 move() 改成调用 PortMove.teleport() → 原版流程 tryEnter (1b6ba)
+//   之后的按键 (建筑内、出门、再走几步) 两边照常运行, 每次送键比对画面、调色盘、随机数、状态。
+//   S.PM_NPC = 行人编号: 瞬移那一刻两边同时把这个行人写到门口那一格 (主角与行人重叠)
 //
-// 二、移植版自測 (S.PM_ENABLE = 1): 移植版開啟擴充 (ctx.portMove), 用 F4 → 第 7 項打開設施清單; 原版沒有這個功能, 畫面從 F4 之後就不同 (預期)。
-//   清單內容記錄在 S.pmLog (每次打開清單一筆: [{ k, ok }])
+// 二、移植版自测 (S.PM_ENABLE = 1): 移植版打开扩充 (ctx.portMove), 用 F4 → 第 7 项打开设施清单; 原版没有这个功能, 画面从 F4 之后就不同 (预期)。
+//   清单内容记录在 S.pmLog (每次打开清单一笔: [{ k, ok }])
 //
 // S.PM_MODE:
-//   "market"     里斯本 白天 0x20: 造船廠門下 → 瞬移 交易所 (0) → 選單 Esc → 出門 → 走 4 步
-//   "tavern"     里斯本 夜間 0x40: → 瞬移 酒館 (1) → Esc × 3 → 走 3 步
-//   "closed"     塞維爾 白天 0x20: 碼頭門下 → 瞬移 占卜師 (11, 0x30 前關門) → 關門訊息 → 停在門口 → 走 3 步
-//   "overlap"    港 2 白天 0x20: 碼頭門下 → 瞬移 造船廠 (2), 行人 0 站在門口 → 進門 → Esc → 出門 → 走 5 步
-//   "overlap_closed" 港 2 白天 0x10: 瞬移 酒館 (1, 0x18 前關門), 行人 0 站在門口 → 關門 → 停在門口 (原版: 主角與行人互卡; 移植版先把行人挪開) → 走 5 步
-//   "event"      里斯本 劇本開啟 (約翰開場): 交易所門下 → 瞬移 教會 (10) → 主教劇情 Enter × 40 → ↓
-//   "menu"       (自測) 里斯本 白天: F4 → 港內移動 → 清單 → Esc (回到航海術選單) → Esc
-//   "guard"      (自測) 里斯本 白天: 主角在碼頭門下, 3 名衛兵 (站立種類 2) 照 8b3b 的位置圍住 → F4 → 港內移動 (只有「港」能選) → 選「港」→ 瞬移進碼頭 → Esc
-//   "guard_door" (自測) 里斯本 白天: 1 名衛兵站在交易所門右下 (x+1, y+1) → F4 → 港內移動 (交易所灰) → Esc → Esc
-//   "night_guard"(自測) 里斯本 夜間 0x40: 同 guard 的 3 名衛兵 → 清單全部可選 (夜間沒有碰撞)
+//   "market"     里斯本 白天 0x20: 造船厂门下 → 瞬移 交易所 (0) → 菜单 Esc → 出门 → 走 4 步
+//   "tavern"     里斯本 夜间 0x40: → 瞬移 酒馆 (1) → Esc × 3 → 走 3 步
+//   "closed"     塞维尔 白天 0x20: 码头门下 → 瞬移 占卜师 (11, 0x30 前关门) → 关门消息 → 停在门口 → 走 3 步
+//   "overlap"    港 2 白天 0x20: 码头门下 → 瞬移 造船厂 (2), 行人 0 站在门口 → 进门 → Esc → 出门 → 走 5 步
+//   "overlap_closed" 港 2 白天 0x10: 瞬移 酒馆 (1, 0x18 前关门), 行人 0 站在门口 → 关门 → 停在门口 (原版: 主角与行人互卡; 移植版先把行人挪开) → 走 5 步
+//   "event"      里斯本 剧本打开 (约翰开场): 交易所门下 → 瞬移 教会 (10) → 主教剧情 Enter × 40 → ↓
+//   "menu"       (自测) 里斯本 白天: F4 → 港内移动 → 清单 → Esc (回到航海术菜单) → Esc
+//   "guard"      (自测) 里斯本 白天: 主角在码头门下, 3 名卫兵 (站立种类 2) 照 8b3b 的位置围住 → F4 → 港内移动 (只有「港」能选) → 选「港」→ 瞬移进码头 → Esc
+//   "guard_door" (自测) 里斯本 白天: 1 名卫兵站在交易所门右下 (x+1, y+1) → F4 → 港内移动 (交易所灰) → Esc → Esc
+//   "night_guard"(自测) 里斯本 夜间 0x40: 同 guard 的 3 名卫兵 → 清单全部可选 (夜间没有碰撞)
 "use strict";
 (function () {
 const S = session;
@@ -47,13 +47,13 @@ switch (mode) {
   case "guard": {
     setup = { port: 0, ...below(0, 3), time: 0x20 }; enable = 1;
     const [wx, wy] = DOORS[0][3];
-    npcAt(4, wx - 2, wy + 2, 2); npcAt(5, wx, wy + 3, 2); npcAt(6, wx + 2, wy + 2, 2);     // 8b3b 的 3 名衛兵
-    keys = [...NAV, K.down, K.down, K.down, K.enter, K.esc, K.esc, K.down]; break;      // 清單第 4 項「港」→ 瞬移進碼頭 → Esc
+    npcAt(4, wx - 2, wy + 2, 2); npcAt(5, wx, wy + 3, 2); npcAt(6, wx + 2, wy + 2, 2);     // 8b3b 的 3 名卫兵
+    keys = [...NAV, K.down, K.down, K.down, K.enter, K.esc, K.esc, K.down]; break;      // 清单第 4 项「港」→ 瞬移进码头 → Esc
   }
   case "guard_door": {
     setup = { port: 0, ...below(0, 3), time: 0x20 }; enable = 1;
     const [mx, my] = DOORS[0][0]; npcAt(4, mx + 1, my + 1, 2);
-    keys = [...NAV, K.enter, K.esc, K.esc, K.down]; break;                                   // 清單第 1 項 (交易所) 是灰的: Enter 沒反應
+    keys = [...NAV, K.enter, K.esc, K.esc, K.down]; break;                                   // 清单第 1 项 (交易所) 是灰的: Enter 没反应
   }
   case "night_guard": {
     setup = { port: 0, ...below(0, 3), time: 0x40 }; enable = 1;
@@ -69,7 +69,7 @@ S.PORT_KEYS = S.PM_KEYS || keys;
 S.NO_EVENTS = ev ? 0 : 1;
 S.PM_DOOR = door; S.PM_NPC = npc;
 const U = S.UI;
-// 移植版: 擴充開關 (只在自測開啟) 與清單記錄
+// 移植版: 扩充开关 (只在自测打开) 与清单记录
 S._pmWalk0 ??= U.PortScene.prototype.walk;
 U.PortScene.prototype.walk = function () { this.c.portMove = !!enable; return S._pmWalk0.call(this); };
 S._pmFac0 ??= U.PortMove.facilities;
@@ -85,7 +85,7 @@ U.PortScene.prototype.move = async function (dir) {
   U.PortMove.teleport(this, door);
   return 1;
 };
-// 原版: 第一次 66be → 寫入主角/視窗 → 1b1a3 (0fea:b303)
+// 原版: 第一次 66be → 写入主角/窗口 → 1b1a3 (0fea:b303)
 let armedE = door !== undefined;
 S.EMU_TICK = armedE ? (cpu, ip) => {
   if (!armedE || ip !== 0x66be) return;
@@ -95,6 +95,6 @@ S.EMU_TICK = armedE ? (cpu, ip) => {
   if (npc !== undefined) { m[d + 0x0cbc + npc * 3] = ex; m[d + 0x0cbd + npc * 3] = ey; }
   const vx = clamp(ex - 12), vy = clamp(ey - 13);
   w16(0x0cb4, vx); w16(0x0cb6, vy); w16(0x0cb8, ex - vx); w16(0x0cba, ey - vy); w16(0xbdba, vy * 96 + vx);
-  cpu.s[1] = cpu.s[1] + 0x0fea; cpu.ip = 0xb303;                        // 66be 在 seg0; 1b1a3 = 0fea:b303, 堆疊上是走路迴圈的 far 返回位址
+  cpu.s[1] = cpu.s[1] + 0x0fea; cpu.ip = 0xb303;                        // 66be 在 seg0; 1b1a3 = 0fea:b303, 堆栈上是走路循环的 far 返回地址
 } : undefined;
 })();

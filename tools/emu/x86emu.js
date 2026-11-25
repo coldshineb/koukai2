@@ -1,7 +1,7 @@
-// x86emu.js — 開發用 16 位元 x86 (8086/80186/286 實模式) + VGA 平面模式模擬器
-// 用途: 執行原版 MAIN.EXE 的個別例程或整個遊戲, 取得「標準答案」畫面與數值, 與重寫版逐像素比對。
-// 不屬於移植版遊戲本體; 遊戲本體不載入任何原版機器碼。
-// 用法: 本檔執行後掛在 session.X86 (Quick 沙盒) 或 globalThis.X86 (瀏覽器/Node)。
+// x86emu.js — 开发用 16 比特 x86 (8086/80186/286 实模式) + VGA 平面模式模拟器
+// 用途: 运行原版 MAIN.EXE 的个别例程或整个游戏, 取得「标准答案」画面与数值, 与重写版逐像素比对。
+// 不属于移植版游戏本体; 游戏本体不加载任何原版机器码。
+// 用法: 本档运行后挂在 session.X86 (Quick 沙盒) 或 globalThis.X86 (浏览器/Node)。
 "use strict";
 (function (G) {
 const PAR = new Uint8Array(256);
@@ -69,7 +69,7 @@ class VGA {
       case 0x3c0: if (!this.attrFlip) this.attrIdx = v & 31; else if (this.attrIdx < 21) this.attr[this.attrIdx] = v; this.attrFlip ^= 1; break;
     }
   }
-  // 640 x lines 索引畫面 (平面 -> 0..15)
+  // 640 x lines 索引画面 (平面 -> 0..15)
   snapshotIndexed(lines = 480, start = null) {
     const s = start ?? ((this.crt[0x0c] << 8) | this.crt[0x0d]);
     const out = new Uint8Array(640 * lines), P = this.planes;
@@ -94,19 +94,19 @@ class CPU {
     this.ip = 0; this.flags = 0x0202;
     this.vga = new VGA();
     this.hooks = {};                  // F1 nn 回呼
-    this.ports = {};                  // 其他 I/O 埠: {in(p), out(p,v)}
+    this.ports = {};                  // 其他 I/O 端口: {in(p), out(p,v)}
     this.icount = 0; this.halted = false; this.segov = -1;
     this.pendingIRQ = [];
     this.trace = null;
-    this.cyc = null;                  // DOSBox 週期計數器 (tools/emu/cycles.js 安裝; null = 關閉, 不影響其他測試)
+    this.cyc = null;                  // DOSBox 周期计数器 (tools/emu/cycles.js 安装; null = 关闭, 不影响其他测试)
   }
-  // ---- 記憶體 ----
+  // ---- 内存 ----
   rb(a) { a &= 0xfffff; if (a >= 0xa0000 && a < 0xb0000) return this.vga.read(a - 0xa0000); return this.mem[a]; }
   wb(a, v) { a &= 0xfffff; if (a >= 0xa0000 && a < 0xb0000) { this.vga.write(a - 0xa0000, v & 255); return; } if (a >= 0xf0000) return; this.mem[a] = v; }
   rw(a) { return this.rb(a) | (this.rb(a + 1) << 8); }
   ww(a, v) { this.wb(a, v & 255); this.wb(a + 1, (v >> 8) & 255); }
   lin(seg, off) { return ((this.s[seg] << 4) + (off & 0xffff)) & 0xfffff; }
-  // ---- 暫存器 ----
+  // ---- 寄存器 ----
   g8(i) { return i < 4 ? this.r[i] & 255 : this.r[i - 4] >> 8; }
   s8(i, v) { if (i < 4) this.r[i] = (this.r[i] & 0xff00) | (v & 255); else this.r[i - 4] = (this.r[i - 4] & 0xff) | ((v & 255) << 8); }
   f8() { const v = this.rb((this.s[1] << 4) + this.ip); this.ip = (this.ip + 1) & 0xffff; return v; }
@@ -137,7 +137,7 @@ class CPU {
   grm16() { return this.misreg ? this.r[this.mrm] : this.rw(this.mea); }
   srm16(v) { if (this.misreg) this.r[this.mrm] = v & 0xffff; else this.ww(this.mea, v); }
   ea2() { return ((this.s[this.mseg] << 4) + ((this.moff + 2) & 0xffff)) & 0xfffff; }
-  // ---- 旗標 ----
+  // ---- 标志 ----
   szp(v, w) {
     let f = this.flags & ~(SF | ZF | PF); v &= w ? 0xffff : 0xff;
     if (v === 0) f |= ZF; if (v & (w ? 0x8000 : 0x80)) f |= SF; if (PAR[v & 255]) f |= PF; this.flags = f;
@@ -191,7 +191,7 @@ class CPU {
   out8(p, v) { if (this.cyc && !this.io16) this.cyc.io(this, 1); v &= 255; if (p >= 0x3c0 && p <= 0x3df) return this.vga.portOut(p, v); const h = this.ports[p]; if (h) h.out(p, v); }
   out16(p, v) { if (this.cyc) this.cyc.io(this, 1); this.io16 = true; this.out8(p, v & 255); this.out8(p + 1, v >> 8); this.io16 = false; }
   in16(p) { if (this.cyc) this.cyc.io(this, 0); this.io16 = true; const v = this.in8(p) | (this.in8(p + 1) << 8); this.io16 = false; return v; }
-  // 依 SI/DI 方向推進
+  // 依 SI/DI 方向推进
   dstep(w) { return (this.flags & DF) ? -(w ? 2 : 1) : (w ? 2 : 1); }
   string(op, rep) {
     const r = this.r, w = op & 1, srcSeg = this.segov >= 0 ? this.segov : 3, d = this.dstep(w);

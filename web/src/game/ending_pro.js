@@ -1,6 +1,6 @@
-// ending_pro.js — 結局序幕: 各主角劇本結局的對話 (END.EXE DS:0e00 far 函式表 01008 / 0113e / 01192 / 01415 / 012c7 / 01509)
-//   由 tools/re/ending_pro.py 自反組譯逐句產生 (函式本身只有 push / mov / call, 沒有分支); 文字在 ending.json 的 DS。
-//   e = Ending 實例: talkTop = 3c01 (上方視窗, 頭像, printf), talkBottom = 3c7f (下方視窗), closeAll = 3cfd, put = 3fd6, setCursor = 1b09, printf = 215b, prompt = 0f34。
+// ending_pro.js — 结局序幕: 各主角剧本结局的对话 (END.EXE DS:0e00 far 函数表 01008 / 0113e / 01192 / 01415 / 012c7 / 01509)
+//   由 tools/re/ending_pro.py 自反汇编逐句产生 (函数本身只有 push / mov / call, 没有分支); 文字在 ending.json 的 DS。
+//   e = Ending 实例: talkTop = 3c01 (上方窗口, 头像, printf), talkBottom = 3c7f (下方窗口), closeAll = 3cfd, put = 3fd6, setCursor = 1b09, printf = 215b, prompt = 0f34。
 export const PROLOGUES = [
   async e => {                                                    // 0: 01008
     await e.talkBottom(0x0, 0x52c);
@@ -96,10 +96,10 @@ export const PROLOGUES = [
     await e.talkTop(0x11, 0xb17);
     await e.talkBottom(0x4, 0xb1e);
     await e.closeAll();
-    // 4bdc 關檔 [025a]
-    e.openEvent(e.b(0x04e1) - 0x30);                              // 0e2c("B:EVENT*.DAT") — '*' = 00000 最後寫入的字元
+    // 4bdc 关档 [025a]
+    e.openEvent(e.b(0x04e1) - 0x30);                              // 0e2c("B:EVENT*.DAT") — '*' = 00000 最后写入的字符
     e.drawGraph(0x5, 0xe0, 0x60);
-    // 4bdc 關檔 [025a]
+    // 4bdc 关档 [025a]
     e.file = e.data.endgrp;                                        // 0e2c("A:ENDGRP.DAT")
     e.sw(0xe2c, 0x36);
     e.sw(0xe2a, 0x18);

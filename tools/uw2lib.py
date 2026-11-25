@@ -6,12 +6,12 @@ import struct
 import numpy as np
 
 # ---------------------------------------------------------------------------
-# LS10 / LS11 壓縮包 (光榮通用)
+# LS10 / LS11 压缩包 (光荣通用)
 #   0x000  "LS10"/"LS11" + 12 bytes 0
 #   0x010  256 bytes 字典
-#   0x110  檔案表: {u32be 壓縮長, u32be 原長, u32be 偏移} * N, 以壓縮長=0 結束
-#   資料: 位元流, 變長碼 code = bits(n+1) + 2^(n+1) - 2 (n = 前導 1 的個數)
-#         code < 256 -> 輸出 dict[code]; 否則 距離 = code-256, 長度 = 下一碼 + 3
+#   0x110  文件表: {u32be 压缩长, u32be 原长, u32be 偏移} * N, 以压缩长=0 结束
+#   数据: 比特流, 变长码 code = bits(n+1) + 2^(n+1) - 2 (n = 前导 1 的个数)
+#         code < 256 -> 输出 dict[code]; 否则 距离 = code-256, 长度 = 下一码 + 3
 # ---------------------------------------------------------------------------
 class _Bits:
     __slots__ = ("b", "p")
@@ -62,9 +62,9 @@ def ls_unpack(b):
     return [ls_decode(b, dic, o, c, u) for c, u, o in ls_entries(b)]
 
 # ---------------------------------------------------------------------------
-# 平面圖形 (VGA 16 色 planar, 640x400, 每行 80 bytes)
+# 平面图形 (VGA 16 色 planar, 640x400, 每行 80 bytes)
 #   "byte": 每 8 像素依序存 plane0..planeN-1 各 1 byte (通用 PUT 例程 seg0:02a7)
-#   "seq" : 整塊先存 plane0 全部, 再 plane1 ... (港口圖塊 PORTCHIP)
+#   "seq" : 整块先存 plane0 全部, 再 plane1 ... (港口图块 PORTCHIP)
 # ---------------------------------------------------------------------------
 def planar(data, w, h, nplanes, mode):
     a = np.frombuffer(data, np.uint8)
@@ -83,7 +83,7 @@ def planar(data, w, h, nplanes, mode):
     return idx
 
 # ---------------------------------------------------------------------------
-# 調色盤: 每色 3 bytes, 4bit/通道, 存放順序 (B, R, G) — seg0:159b set_palette
+# 调色盘: 每色 3 bytes, 4bit/通道, 存放顺序 (B, R, G) — seg0:159b set_palette
 #   DAC: R=b1*4, G=b2*4, B=b0*4 (6bit) -> 8bit: (v<<2)|(v>>4)
 # ---------------------------------------------------------------------------
 def dac8(v4):
@@ -94,9 +94,9 @@ def palette_rgb(raw):
     return [(dac8(raw[i * 3 + 1]), dac8(raw[i * 3 + 2]), dac8(raw[i * 3])) for i in range(len(raw) // 3)]
 
 # ---------------------------------------------------------------------------
-# 字型 1.pat / 2.pat: 14x14 點陣, 每字 28 bytes (每行 2 bytes), 每 18 字補齊 512 bytes
+# 字体 1.pat / 2.pat: 14x14 点阵, 每字 28 bytes (每行 2 bytes), 每 18 字补齐 512 bytes
 #   glyph_offset(n) = (n-1)*28 + ((n-1)//18)*8      (MAIN.EXE seg0:46e0)
-#   字碼 -> 字序                                  (MAIN.EXE seg0:4554)
+#   字码 -> 字序                                  (MAIN.EXE seg0:4554)
 # ---------------------------------------------------------------------------
 def _tidx(T):
     if 0x30 <= T <= 0x39: return T - 0x30
@@ -115,7 +115,7 @@ def code_to_glyph(code):
         if t is None: return None
         if L == 0x81: return (1, t + 1)
         if L >= 0x92: return (1, (L - 0x92) * 188 + 591 + t)
-        if L == 0x91: return None  # 原程式此處會溢位, 遊戲資料中不使用
+        if L == 0x91: return None  # 原程序此处会溢出, 游戏数据中不使用
         return (1, (L - 0x81) * 188 + 591 + t)
     if 0xb030 <= code <= 0xd8c3:
         t = _tidx(T)

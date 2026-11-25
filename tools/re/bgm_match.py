@@ -69,7 +69,7 @@ def synth_fm(song, insts, max_sec=QUERY_MAX, only_ch=None):
             tl = (insts.get(inst, {}).get("carTL", 0) or 0) + (vol or 0) / 2
             amp = 10 ** (-0.75 * tl / 20)
             tt = np.arange(b - a) / SR
-            if bend:                                      # F7 滑音: 在 bend[1] tick 內滑到 ±bend[0] 半音
+            if bend:                                      # F7 滑音: 在 bend[1] tick 内滑到 ±bend[0] 半音
                 bd = max(f(t0 + bend[1]) - s0, 1e-3)
                 ratio = 2 ** (bend[0] / 12 * np.clip(tt / bd, 0, 1))
                 ph = 2 * np.pi * hz * np.cumsum(ratio) / SR
@@ -111,7 +111,7 @@ def chroma_raw(y, hop):
     win = np.hanning(NFFT).astype(np.float32)
     nfr = 1 + (len(y) - NFFT) // hop
     out = np.empty((nfr, 12), np.float32)
-    for a in range(0, nfr, 512):                           # 分批, 省記憶體
+    for a in range(0, nfr, 512):                           # 分批, 省内存
         idx = np.arange(NFFT)[None, :] + hop * np.arange(a, min(nfr, a + 512))[:, None]
         out[a:a + len(idx)] = np.abs(np.fft.rfft(y[idx] * win, axis=1)).astype(np.float32) @ _W.T
     C = np.log1p(100 * out / (out.max() + 1e-9))
@@ -129,7 +129,7 @@ def chroma_rigid(y, hop=1024):
     C, e = chroma_raw(y, hop)
     C = C - C.mean(1, keepdims=True)
     C /= np.maximum(np.linalg.norm(C, axis=1, keepdims=True), 1e-6)
-    C[e < 1e-3 * (e.max() + 1e-9)] = 0                     # 靜音格
+    C[e < 1e-3 * (e.max() + 1e-9)] = 0                     # 静音格
     return C
 
 
@@ -170,8 +170,8 @@ def rigid(Q, R, fps, ratios=RATIOS, min_ov=0.9):
         if L not in cache:
             cache[L] = (np.fft.fft(np.fft.fft(R, n=L, axis=0), axis=1), np.fft.fft(ones_r, n=L))
         Rr, Fo = cache[L]
-        qt = np.fft.fft(q[::-1], n=L, axis=0)                  # 時間: 反轉後卷積 = 互相關
-        qtp = np.conj(np.fft.fft(np.conj(qt), axis=1))         # 音高: 循環互相關
+        qt = np.fft.fft(q[::-1], n=L, axis=0)                  # 时间: 反转后卷积 = 互相关
+        qtp = np.conj(np.fft.fft(np.conj(qt), axis=1))         # 音高: 循环互相关
         X = np.real(np.fft.ifft(np.fft.ifft(qtp * Rr, axis=1), axis=0))
         ones_q = (np.abs(q).sum(1) > 0).astype(float)
         ov = np.real(np.fft.ifft(np.fft.fft(ones_q[::-1], n=L) * Fo))

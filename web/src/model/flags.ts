@@ -1,6 +1,6 @@
-// flags.ts — 原版遊戲狀態的位元旗標與具名列舉常數
+// flags.ts — 原版游戏状态的比特标志与具名枚举常数
 
-/** 遊戲規則常用常數 */
+/** 游戏规则常用常数 */
 export const GameConst = {
   MAX_CASH: 600_000_000,
   MAX_FAME: 50_000,
@@ -14,105 +14,105 @@ export const GameConst = {
   TRADE_LOG_COUNT: 48,
 } as const;
 
-/** 共用劇本 (工作) 與世界探索 DS 位址常數 */
+/** 共用剧本 (工作) 与世界探索 DS 地址常数 */
 export const WorkDS = {
-  FLAGS: 0x0d62,        // 工作狀態旗標 (bit1/2 國王召見/任務中)
-  KINDS: 0x0d68,        // 3 件可選工作的種類 (u16 × 3)
-  PARAMS: 0x0d6e,       // 3 件可選工作的參數 (u16 × 3)
-  CUR_KIND: 0x0d74,     // 目前執行的工作種類 (u16)
-  CUR_PARAM: 0x0d78,    // 目前執行的工作參數 (u16)
-  TARGET_PORT: 0x0d88,  // 工作目標港 (u16)
-  TARGET_PERSON: 0x0d8a,// 工作目標人物 (u16)
-  TARGET_ITEM: 0x0d8c,  // 工作目標道具 (u8)
-  RAND_RANGE: 0x0d96,   // 亂數範圍 (u16)
-  ROYAL_CHAP: 0x0da4,   // 國王召見對應的共用劇本章節 (u8)
-  EXPLORE_MAP: 0x0de8,  // 世界地圖探索位元表 (45 × 12 bytes)
-  EXPLORE_TOTAL: 0x100e,// 已探索總格數 (u16, ≥ 3300 完成世界地圖)
-  EXPLORE_UNREP: 0x1010,// 未報告探索格數 (u16)
+  FLAGS: 0x0d62,        // 工作状态标志 (bit1/2 国王召见/任务中)
+  KINDS: 0x0d68,        // 3 件可选工作的种类 (u16 × 3)
+  PARAMS: 0x0d6e,       // 3 件可选工作的参数 (u16 × 3)
+  CUR_KIND: 0x0d74,     // 目前运行的工作种类 (u16)
+  CUR_PARAM: 0x0d78,    // 目前运行的工作参数 (u16)
+  TARGET_PORT: 0x0d88,  // 工作目标港 (u16)
+  TARGET_PERSON: 0x0d8a,// 工作目标人物 (u16)
+  TARGET_ITEM: 0x0d8c,  // 工作目标道具 (u8)
+  RAND_RANGE: 0x0d96,   // 随机数范围 (u16)
+  ROYAL_CHAP: 0x0da4,   // 国王召见对应的共用剧本章节 (u8)
+  EXPLORE_MAP: 0x0de8,  // 世界地图探索比特表 (45 × 12 bytes)
+  EXPLORE_TOTAL: 0x100e,// 已探索总格数 (u16, ≥ 3300 完成世界地图)
+  EXPLORE_UNREP: 0x1010,// 未报告探索格数 (u16)
 } as const;
 
-/** 人物技能位元 (persons.skills, +0x30) */
+/** 人物技能比特 (persons.skills, +0x30) */
 export const SkillFlag = {
   NEGOTIATE: 0x01,      // 交涉
-  ACCOUNTING: 0x02,     // 會計
-  GUNNERY: 0x04,        // 砲術
-  CARTOGRAPHY: 0x08,    // 地圖製作
-  SURVEY: 0x10,         // 測量
+  ACCOUNTING: 0x02,     // 会计
+  GUNNERY: 0x04,        // 砲术
+  CARTOGRAPHY: 0x08,    // 地图制作
+  SURVEY: 0x10,         // 测量
 } as const;
 
-/** 住宅/貴族旗標 (nobles.flags, +0x14) */
+/** 住宅/贵族标志 (nobles.flags, +0x14) */
 export const NobleFlag = {
-  REWARD_MASK: 0x03,    // 低 2 位: 酬金等級
-  CONTRACTED: 0x10,     // bit4: 已簽合約
+  REWARD_MASK: 0x03,    // 低 2 位: 酬金等级
+  CONTRACTED: 0x10,     // bit4: 已签合约
 } as const;
 
-/** 國家條約旗標 (countries.treaties[i], +0x12+i) */
+/** 国家条约标志 (countries.treaties[i], +0x12+i) */
 export const TreatyFlag = {
-  BLOCKADE: 0x10,       // bit4: 封鎖
+  BLOCKADE: 0x10,       // bit4: 封锁
   ALLY: 0x20,           // bit5: 同盟
 } as const;
 
-/** DS:0x0ca4 環境設定與全域旗標 */
+/** DS:0x0ca4 环境设置与全域标志 */
 export const OptionFlag = {
-  ANIMATION: 0x01,      // bit0: 視窗與轉場動畫
-  ENDING_READY: 0x02,   // bit1: 爵位 9 結局尚未觸發
-  BGM: 0x04,            // bit2: 背景音樂開關
-  SFX: 0x08,            // bit3: FM 效果音開關
-  SCENARIO: 0x40,       // bit6: 主角劇本啟用
+  ANIMATION: 0x01,      // bit0: 窗口与转场动画
+  ENDING_READY: 0x02,   // bit1: 爵位 9 结局尚未触发
+  BGM: 0x04,            // bit2: 背景音乐开关
+  SFX: 0x08,            // bit3: FM 效果音开关
+  SCENARIO: 0x40,       // bit6: 主角剧本激活
 } as const;
 
-/** 港口 12 種建築編號 (MAIN.EXE DS:a612 處理函式表索引) */
+/** 港口 12 种建筑编号 (MAIN.EXE DS:a612 处理函数表索引) */
 export const BuildingId = {
   MARKET: 0,            // 交易所
-  TAVERN: 1,            // 酒館
-  SHIPYARD: 2,          // 造船廠
-  WHARF: 3,             // 碼頭
-  INN: 4,               // 旅館
-  PALACE: 5,            // 王宮
-  OFFICE: 6,            // 事務所
+  TAVERN: 1,            // 酒馆
+  SHIPYARD: 2,          // 造船厂
+  WHARF: 3,             // 码头
+  INN: 4,               // 旅馆
+  PALACE: 5,            // 王宫
+  OFFICE: 6,            // 事务所
   HOUSE: 7,             // 住宅
-  BANK: 8,              // 銀行
+  BANK: 8,              // 银行
   ITEM_SHOP: 9,         // 道具店
-  CHURCH: 10,           // 教會
-  FORTUNE: 11,          // 占卜師
+  CHURCH: 10,           // 教会
+  FORTUNE: 11,          // 占卜师
 } as const;
 
 /** 船位 flags (+0x08) */
 export const ShipSlotFlag = {
-  CANNON_MASK: 0x07,    // 低 3 位: 砲種
-  STATE_MASK: 0x30,     // bit4-5: 狀態
-  ACTIVE: 0x10,         // 艦隊出航 / 現役船
+  CANNON_MASK: 0x07,    // 低 3 位: 砲种
+  STATE_MASK: 0x30,     // bit4-5: 状态
+  ACTIVE: 0x10,         // 舰队出航 / 现役船
   BUILDING: 0x20,       // 建造中 / 援助船待交船
 } as const;
 
-/** 艦隊 flags (+0x29) */
+/** 舰队 flags (+0x29) */
 export const FleetFlag = {
   AT_SEA: 0x01,         // bit0: 出航中 / 有船
-  IN_PORT: 0x10,        // bit4: 在港內
-  ARRIVED: 0x20,        // bit5: 已到達 / 停住
-  SCENARIO: 0x40,       // bit6: 劇本控制
+  IN_PORT: 0x10,        // bit4: 在港内
+  ARRIVED: 0x20,        // bit5: 已到达 / 停住
+  SCENARIO: 0x40,       // bit6: 剧本控制
 } as const;
 
-/** 海上狀態高位元組 DS:0x1005 */
+/** 海上状态高字节 DS:0x1005 */
 export const SeaFlag2 = {
   LANDED_MASK: 0x18,    // bit3-4: 留在岸上
   STOPPED: 0x20,        // bit5: 停船中
 } as const;
 
-/** 發現物 flags (+0x06) */
+/** 发现物 flags (+0x06) */
 export const DiscoveryFlag = {
-  KIND_MASK: 0x07,      // 低 3 位: 發現物種類
-  KNOWN: 0x20,          // bit5: 已知位置/情報
-  FOUND: 0x80,          // bit7: 已發現
+  KIND_MASK: 0x07,      // 低 3 位: 发现物种类
+  KNOWN: 0x20,          // bit5: 已知位置/情报
+  FOUND: 0x80,          // bit7: 已发现
 } as const;
 
 /** 道具 kindFlags (+0x13) */
 export const ItemFlag = {
-  KIND_MASK: 0x0f,      // 低 4 位: 道具種類
-  EQUIPPED: 0x10,       // bit4: 已裝備
+  KIND_MASK: 0x0f,      // 低 4 位: 道具种类
+  EQUIPPED: 0x10,       // bit4: 已装备
 } as const;
 
-/** 道具種類 (ItemFlag.KIND_MASK) */
+/** 道具种类 (ItemFlag.KIND_MASK) */
 export const ItemKind = {
   DAGGER: 0,
   RAPIER: 1,
@@ -130,21 +130,21 @@ export const ItemKind = {
   RELIC: 13,
 } as const;
 
-/** 常用 MENU.DAT 編號 */
+/** 常用 MENU.DAT 编号 */
 export const MenuId = {
-  BANK: 0,              // 存款 / 提款 / 貸款 / 還款
-  INN: 4,               // 海港支持度 / 就寢 / 與航海者閒聊
-  ITEM_SHOP: 5,         // 買進 / 賣出
-  MARKET: 6,            // 買進 / 賣出 / 投資 / 物價
-  DOCK: 8,              // 保管 / 配備 / 交換
-  BARMAID_INFO: 13,     // 工作的情報 / 她的喜好 / 她的芳齡
-  BARMAID: 14,          // 航海見聞 / 送她禮物 / 調查結果 / 探聽情報
-  PALACE: 16,           // 晉見國王 / 入籍 / 資金援助 / 船舶援助 / (密會)
-  FUNCTIONS: 20,        // 環境設定 / 儲存檔案 / 取出存檔 / 結束遊戲
-  SHIPYARD: 22,         // 造新船 / 買舊船 / 修理 / 賣船 / 改造 / 工業投資
-  SEA_NAV: 29,          // 委任 / 停船 / 靠港 / 登陸 / 隨身物 / 功能
-  DISCOVERY_ACT: 35,    // 調查 / 雇嚮導 / 狩獵 / 離開
+  BANK: 0,              // 存款 / 提款 / 贷款 / 还款
+  INN: 4,               // 海港支持度 / 就寝 / 与航海者闲聊
+  ITEM_SHOP: 5,         // 买进 / 卖出
+  MARKET: 6,            // 买进 / 卖出 / 投资 / 物价
+  DOCK: 8,              // 保管 / 配备 / 交换
+  BARMAID_INFO: 13,     // 工作的情报 / 她的喜好 / 她的芳龄
+  BARMAID: 14,          // 航海见闻 / 送她礼物 / 调查结果 / 探听情报
+  PALACE: 16,           // 晋见国王 / 入籍 / 资金援助 / 船舶援助 / (密会)
+  FUNCTIONS: 20,        // 环境设置 / 保存文件 / 取出存盘 / 结束游戏
+  SHIPYARD: 22,         // 造新船 / 买旧船 / 修理 / 卖船 / 改造 / 工业投资
+  SEA_NAV: 29,          // 委任 / 停船 / 靠港 / 登陆 / 随身物 / 功能
+  DISCOVERY_ACT: 35,    // 调查 / 雇向导 / 狩猎 / 离开
   LAND_ACT: 36,         // 修理 / 搜索 / 留在岸上
-  PALACE_AUDIENCE: 55,  // 勢力狀況 / 私掠許可證 / 免稅證
-  TITLE: 56,            // 繼續航海進度 / 開始新航海 / 環境設定 / 結束遊戲
+  PALACE_AUDIENCE: 55,  // 势力状况 / 私掠许可证 / 免税证
+  TITLE: 56,            // 继续航海进度 / 开始新航海 / 环境设置 / 结束游戏
 } as const;

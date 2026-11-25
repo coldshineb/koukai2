@@ -1,5 +1,5 @@
-// canvas_ui/wide_building.ts — 原生 16:9 (1280×720) 現代港內浮動建築視窗
-// 緊湊平衡的雙欄建築卡片：左側高清建築插畫、右側互動選單/表格區，底部與精簡對話條對齊，零黑屏過場。
+// canvas_ui/wide_building.ts — 原生 16:9 (1280×720) 现代港内浮动建筑窗口
+// 紧凑平衡的双栏建筑卡片：左侧高清建筑插画、右侧交互菜单/表格区，底部与精简对话条对齐，零黑屏过场。
 import { VIEW_W, VIEW_H } from "../core/screen.js";
 import { renderWidePort } from "./wide_world.ts";
 import { decodeCleanCstr, UI_FONT, MONO_FONT } from "./text_util.ts";
@@ -27,13 +27,13 @@ export function renderWideBuilding(
   const m = c.state.model;
   const art = c.art;
 
-  // 1. 背景保留即時港口地圖 + 柔和暗角遮罩
+  // 1. 背景保留实时港口地图 + 柔和暗角遮罩
   renderWidePort(ctx, scr, portScene);
   ctx.save();
   ctx.fillStyle = "rgba(4, 10, 20, 0.62)";
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 
-  // 2. 緊湊雙欄建築主卡片
+  // 2. 紧凑双栏建筑主卡片
   const { x: wx, y: wy, w: ww, h: wh } = BLD_CARD;
   ctx.shadowColor = "rgba(0, 0, 0, 0.72)";
   ctx.shadowBlur = 34;
@@ -49,7 +49,7 @@ export function renderWideBuilding(
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
-  // 頂部標題欄微漸層
+  // 顶部标题栏微渐层
   roundRect(ctx, wx + 1, wy + 1, ww - 2, 52, 13);
   const hdrBg = ctx.createLinearGradient(wx, wy, wx + ww, wy);
   hdrBg.addColorStop(0, "rgba(218, 178, 102, 0.14)");
@@ -77,8 +77,8 @@ export function renderWideBuilding(
   ctx.textBaseline = "middle";
   ctx.fillText(bldName ? `${portName} · ${bldName}` : portName, wx + 26, wy + 28);
 
-  // 右上金塊/金幣膠囊
-  const badgeText = `金塊 ${bars}   金幣 ${gold}`;
+  // 右上金块/金币胶囊
+  const badgeText = `金块 ${bars}   金币 ${gold}`;
   ctx.font = `600 14px ${MONO_FONT}`;
   const bwBadge = ctx.measureText(badgeText).width + 26;
   roundRect(ctx, wx + ww - bwBadge - 22, wy + 13, bwBadge, 28, 14);
@@ -91,7 +91,7 @@ export function renderWideBuilding(
   ctx.textAlign = "center";
   ctx.fillText(badgeText, wx + ww - bwBadge / 2 - 22, wy + 28);
 
-  // 左側高清建築插畫 (136×112 -> 408×336)
+  // 左侧高清建筑插画 (136×112 -> 408×336)
   const entry = art?.graphEntry?.("GRAPH.DAT", bldPicId);
   const img = entry ? art.getImage(`${art.baseUrl}/${entry.path}`) : null;
   const bw = 408, bh = 336;
@@ -109,7 +109,7 @@ export function renderWideBuilding(
     ctx.drawImage(img, bx, by, bw, bh);
   }
 
-  // 右側區塊微妙分隔線
+  // 右侧区块微妙分隔线
   ctx.strokeStyle = "rgba(218, 178, 102, 0.18)";
   ctx.beginPath();
   ctx.moveTo(bx + bw + 24, wy + 72);

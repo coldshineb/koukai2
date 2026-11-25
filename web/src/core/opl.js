@@ -1,11 +1,11 @@
-// opl.js — OPL2 (YM3812) 合成器: Nuked OPL3 1.8 的 JavaScript 移植 (效果音用, RE_NOTES 第 35 節)
+// opl.js — OPL2 (YM3812) 合成器: Nuked OPL3 1.8 的 JavaScript 移植 (效果音用, RE_NOTES 第 35 节)
 // 原作: Nuked OPL3, Copyright (C) 2013-2020 Nuke.YKT, https://github.com/nukeykt/Nuked-OPL3 (opl3.c / opl3.h, version 1.8)
-// 授權: GNU Lesser General Public License 2.1 (或更新版本)。本檔是該程式庫的衍生作品, 依 LGPL-2.1 以原始碼形式散布,
-//   使用者可自由修改或替換本檔 (只被 core/sfx_worklet.js 載入)。原作致謝: MAME Development Team (Jarek Burczynski, Tatsuyuki Satoh)、
+// 授权: GNU Lesser General Public License 2.1 (或更新版本)。本档是该程序库的衍生作品, 依 LGPL-2.1 以源代码形式散布,
+//   用户可自由修改或替换本档 (只被 core/sfx_worklet.js 加载)。原作致谢: MAME Development Team (Jarek Burczynski, Tatsuyuki Satoh)、
 //   forums.submarine.org.uk (carbon14, opl3)、OPLx decapsulated (Matthew Gambrell, Olli Niemitalo)、siliconpr0n.org (John McMaster, digshadow)。
-// 移植範圍: 晶片全部 (36 slot / 18 channel / 節奏 / 4op / OPL3 高位暫存器), 不含 OPL_ENABLE_STEREOEXT 與寫入緩衝 (OPL3_WriteRegBuffered:
-//   這裡由呼叫端在正確的取樣點直接寫入)。OPL_QUIRK_CHANNELSAMPLEDELAY = 1 (原作預設)。C 的指標 (slot->mod / channel->out / slot->trem)
-//   改成「來源 slot + 欄位」; 整數寬度依原作 (int16 / uint16 / uint32 的截斷都照做)。
+// 移植范围: 芯片全部 (36 slot / 18 channel / 节奏 / 4op / OPL3 高位寄存器), 不含 OPL_ENABLE_STEREOEXT 与写入缓冲 (OPL3_WriteRegBuffered:
+//   这里由调用端在正确的采样点直接写入)。OPL_QUIRK_CHANNELSAMPLEDELAY = 1 (原作默认)。C 的指针 (slot->mod / channel->out / slot->trem)
+//   改成「来源 slot + 字段」; 整数宽度依原作 (int16 / uint16 / uint32 的截断都照做)。
 const oplLogsin = Uint16Array.of(
   0x859, 0x6c3, 0x607, 0x58b, 0x52e, 0x4e4, 0x4a6, 0x471, 0x443, 0x41a, 0x3f5, 0x3d3, 0x3b5, 0x398, 0x37e, 0x365,
   0x34e, 0x339, 0x324, 0x311, 0x2ff, 0x2ed, 0x2dc, 0x2cd, 0x2bd, 0x2af, 0x2a0, 0x293, 0x286, 0x279, 0x26d, 0x261,
@@ -52,7 +52,7 @@ const OPL_RSM_FRAC = 10;
 const oplS16 = v => (v << 16) >> 16;
 const oplClip = v => (v > 32767 ? 32767 : v < -32768 ? -32768 : v);
 function oplCalcExp(level) { if (level > 0x1fff) level = 0x1fff; return (oplExp[level & 0xff] << 1) >> (level >> 8); }
-// envelope_sin[0..7]: 回傳 int16
+// envelope_sin[0..7]: 返回 int16
 const oplSin = [
   (phase, env) => { phase &= 0x3ff; const neg = phase & 0x200; const out = phase & 0x100 ? oplLogsin[(phase & 0xff) ^ 0xff] : oplLogsin[phase & 0xff];
     const v = oplCalcExp(out + (env << 3)); return neg ? ~v : v; },
@@ -72,7 +72,7 @@ class OplSlot {
   constructor(chip, n) {
     this.chip = chip; this.channel = null; this.slot_num = n;
     this.out = 0; this.fbmod = 0; this.prout = 0;
-    this.modSrc = null; this.modKey = "";                          // slot->mod: null = zeromod, 否則 modSrc[modKey] ("fbmod" / "out")
+    this.modSrc = null; this.modKey = "";                          // slot->mod: null = zeromod, 否则 modSrc[modKey] ("fbmod" / "out")
     this.eg_rout = 0x1ff; this.eg_out = 0x1ff; this.eg_gen = OPL_RELEASE; this.eg_ksl = 0;
     this.trem = false;                                             // slot->trem: true = &chip->tremolo, false = zeromod
     this.reg_vib = 0; this.reg_type = 0; this.reg_ksr = 0; this.reg_mult = 0; this.reg_ksl = 0; this.reg_tl = 0;
@@ -84,7 +84,7 @@ class OplSlot {
 class OplChannel {
   constructor(chip, n) {
     this.chip = chip; this.ch_num = n; this.slotz = [null, null]; this.pair = null;
-    this.out = [null, null, null, null];                           // channel->out[i]: null = zeromod, 否則該 slot 的 out
+    this.out = [null, null, null, null];                           // channel->out[i]: null = zeromod, 否则该 slot 的 out
     this.chtype = OPL_2OP; this.f_num = 0; this.f_num_reg = 0; this.block = 0; this.block_reg = 0;
     this.fb = 0; this.con = 0; this.alg = 0; this.ksv = 0; this.cha = 0xffff; this.chb = 0xffff; this.chc = 0; this.chd = 0;
   }
@@ -111,7 +111,7 @@ export class OPL3 {
     this.samplecnt = 0; this.oldsamples = [0, 0, 0, 0]; this.samples = [0, 0, 0, 0];
     this.tremoloshift = 4; this.vibshift = 1;
   }
-  // ---- 包絡 ----
+  // ---- 包络 ----
   updateKSL(slot) {
     let ksl = (oplKslrom[slot.channel.f_num >> 6] << 2) - ((0x08 - slot.channel.block) << 5);
     if (ksl < 0) ksl = 0;
@@ -303,7 +303,7 @@ export class OPL3 {
     }
   }
   accm(c) { const o = c.out; return oplS16((o[0] ? o[0].out : 0) + (o[1] ? o[1].out : 0) + (o[2] ? o[2].out : 0) + (o[3] ? o[3].out : 0)); }
-  // OPL3_Generate4Ch (原生 49716 Hz 一個取樣; buf4 = [左, 右, 第 3, 第 4 聲道])
+  // OPL3_Generate4Ch (原生 49716 Hz 一个采样; buf4 = [左, 右, 第 3, 第 4 声道])
   generate4Ch(buf4) {
     const S = this.slot, C = this.channel;
     buf4[1] = oplClip(this.mixbuff[1]); buf4[3] = oplClip(this.mixbuff[3]);
@@ -323,7 +323,7 @@ export class OPL3 {
     if ((this.timer & 0x3ff) === 0x3ff) this.vibpos = (this.vibpos + 1) & 7;
     this.timer = (this.timer + 1) & 0xffff;
     if (this.eg_state) {
-      let shift = 0; const lo = this.eg_timer % 8192;                // eg_timer 為 36 位元, 這裡只需要低 13 位
+      let shift = 0; const lo = this.eg_timer % 8192;                // eg_timer 为 36 比特, 这里只需要低 13 位
       while (shift < 13 && ((lo >> shift) & 1) === 0) shift++;
       this.eg_add = shift > 12 ? 0 : shift + 1;
       this.eg_timer_lo = this.eg_timer % 4;
@@ -334,7 +334,7 @@ export class OPL3 {
     }
     this.eg_state ^= 1;
   }
-  // OPL3_Generate4ChResampled: 以建構時的取樣率輸出一個取樣 (線性內插); onNative() 在每個原生取樣產生之前呼叫 (呼叫端在這裡寫暫存器)
+  // OPL3_Generate4ChResampled: 以建构时的采样率输出一个采样 (线性内插); onNative() 在每个原生采样产生之前调用 (调用端在这里写寄存器)
   generateResampled(buf4, onNative) {
     while (this.samplecnt >= this.rateratio) {
       for (let i = 0; i < 4; i++) this.oldsamples[i] = this.samples[i];

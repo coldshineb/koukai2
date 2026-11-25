@@ -1,6 +1,6 @@
-// modern/dom_ui.ts — 與「讀取進度 (save_modal.ts)」1:1 同套視覺的現代羊皮紙 HTML/CSS 彈層元件庫
-// 所有遊戲內選單、清單、確認框、數字輸入、情報卡、控制面板與底部對話欄皆共用本套元件。
-// 嚴格遵守：100% 原版遊戲文本、支援多層巢狀彈窗 (modalDepth)、Node 測試環境自動回退無副作用。
+// modern/dom_ui.ts — 与「读取进度 (save_modal.ts)」1:1 同套视觉的现代羊皮纸 HTML/CSS 弹层组件库
+// 所有游戏内菜单、清单、确认框、数字输入、情报卡、控制面板与底部对话栏皆共用本套组件。
+// 严格遵守：100% 原版游戏文本、支持多层嵌套弹窗 (modalDepth)、Node 测试环境自动回退无副作用。
 
 let modalDepth = 0;
 const modalStack: HTMLElement[] = [];
@@ -10,7 +10,7 @@ export function hasDom(): boolean {
   return typeof document !== "undefined" && !!document.body;
 }
 
-/** 重繪彈窗內容時自動保留所有清單與捲動區的位置，避免點擊項目後跳回頂部 */
+/** 重绘弹窗内容时自动保留所有清单与滚动区的位置，避免点击项目后跳回顶部 */
 export function preserveScroll(root: HTMLElement, fn: () => void, keep = true) {
   const sels = [".uw2-list-col", ".uw2-wharf-grid", ".uw2-slot-list", ".uw2-pane"];
   const bodyTop = keep ? root.scrollTop : 0;
@@ -34,7 +34,7 @@ export function preserveScroll(root: HTMLElement, fn: () => void, keep = true) {
   }
 }
 
-/** 渲染 5 層拼合隨機頭像 (kao_parts_a..e.png)，快取命中時同步回傳 dataURL */
+/** 渲染 5 层拼合随机头像 (kao_parts_a..e.png)，缓存命中时同步返回 dataURL */
 export function getComposedPortraitCached(type: number, parts: number): string | null {
   const s = Math.max(0, Math.min(6, type & 0xffff));
   return composedCache.get(`${s}_${parts & 0xffff}`) ?? null;
@@ -84,7 +84,7 @@ export async function getComposedPortraitSrc(art: any, type: number, parts: numb
   return dataUrl;
 }
 
-/** 渲染任意人物頭像（同時支援具名頭像 kao_NNN.png 與 5 層拼合隨機頭像 kao_parts_a..e.png） */
+/** 渲染任意人物头像（同时支持具名头像 kao_NNN.png 与 5 层拼合随机头像 kao_parts_a..e.png） */
 export async function getPersonPortraitSrc(art: any, rec: Uint8Array): Promise<string | null> {
   if (!art || !rec || rec.length < 0x32) return null;
   const parts = rec[0x1a] | (rec[0x1b] << 8);
@@ -114,7 +114,7 @@ export interface DomModalHandle {
   close: () => void;
 }
 
-/** 取得原版 GRAPH.DAT 建築內景插圖 URL（含殖民地清真寺 #0x14 判定） */
+/** 取得原版 GRAPH.DAT 建筑内景插图 URL（含殖民地清真寺 #0x14 判定） */
 export function getGraphArtUrl(c: any, picId: number): string | null {
   const art = c?.art;
   if (!art?.graphEntry) return null;
@@ -127,7 +127,7 @@ export function getBuildingArtUrl(c: any, buildingKind: number, portScene?: any)
   return getGraphArtUrl(c, picId);
 }
 
-/** 在彈窗頂部掛載「建築插畫 + 頁籤工具列」一體橫幅，回傳頁籤容器 toolbar */
+/** 在弹窗顶部挂载「建筑插画 + 页签工具列」一体横幅，返回页签容器 toolbar */
 export function mountBuildingBanner(modal: HTMLElement, body: HTMLElement, artUrl: string | null): HTMLElement {
   if (!artUrl) {
     const toolbar = document.createElement("div");
@@ -200,7 +200,7 @@ export function createDomModal(opts: {
     });
   }
 
-  // 原版大航海時代 II 右鍵返回/關閉手感：在最頂層彈窗內任意處右鍵即等同 Esc 返回
+  // 原版大航海时代 II 右键返回/关闭手感：在最顶层弹窗内任意处右键即等同 Esc 返回
   backdrop.addEventListener("contextmenu", e => {
     e.preventDefault();
     e.stopPropagation();
@@ -231,7 +231,7 @@ export function createDomModal(opts: {
   return { backdrop, modal, header, headerRight, titleEl, body, close: doClose };
 }
 
-// ---------------- 1. 現代選單彈窗 (取代 listMenu) ----------------
+// ---------------- 1. 现代菜单弹窗 (取代 listMenu) ----------------
 export function runDomMenu(
   items: string[],
   disabledMask: number,
@@ -314,7 +314,7 @@ function appendModalPrompt(container: HTMLElement, promptText: string, portrait?
   container.appendChild(row);
 }
 
-// ---------------- 2. 現代確認彈窗 (取代 yesNo) ----------------
+// ---------------- 2. 现代确认弹窗 (取代 yesNo) ----------------
 export function runDomYesNo(promptText: string, yesLabel: string, noLabel: string, portrait?: DomDialogPortrait): Promise<number> {
   return new Promise(resolve => {
     let settled = false;
@@ -349,7 +349,7 @@ export function runDomYesNo(promptText: string, yesLabel: string, noLabel: strin
   });
 }
 
-// ---------------- 3. 現代清單彈窗 (取代 ListSelect 21 種清單) ----------------
+// ---------------- 3. 现代清单弹窗 (取代 ListSelect 21 种清单) ----------------
 export function runDomList(title: string, rows: string[]): Promise<number> {
   return new Promise(resolve => {
     let settled = false;
@@ -375,7 +375,7 @@ export function runDomList(title: string, rows: string[]): Promise<number> {
   });
 }
 
-// ---------------- 4. 現代數字輸入彈窗 (取代 NumPad) ----------------
+// ---------------- 4. 现代数字输入弹窗 (取代 NumPad) ----------------
 export function runDomNumPad(min: number, max: number, promptText = "", portrait?: DomDialogPortrait): Promise<number> {
   return new Promise(resolve => {
     let settled = false;
@@ -501,7 +501,7 @@ export function runDomStoryCard(
   });
 }
 
-// ---------------- 5. 現代資訊卡片彈窗 (積載/發現物/隨身物/皇宮港口表，支援可選插圖) ----------------
+// ---------------- 5. 现代信息卡片弹窗 (积载/发现物/随身物/皇宫港口表，支持可选插图) ----------------
 export function runDomInfoLines(
   title: string,
   lines: string[],
@@ -563,7 +563,7 @@ export function runDomInfoLines(
   });
 }
 
-// ---------------- 6. 現代主公情報彈窗 ----------------
+// ---------------- 6. 现代主公情报弹窗 ----------------
 export function runDomLordInfo(data: {
   title: string;
   portraitUrl: string | null;
@@ -655,7 +655,7 @@ export function runDomLordInfo(data: {
   });
 }
 
-// ---------------- 7. 現代航海日誌彈窗 ----------------
+// ---------------- 7. 现代航海日志弹窗 ----------------
 export function runDomLogBook(title: string, entries: { date: string; text: string }[]): Promise<void> {
   return new Promise(resolve => {
     const h = createDomModal({ title, size: "wide", cancelable: true, onCancel: () => resolve() });
@@ -678,7 +678,7 @@ export function runDomLogBook(title: string, entries: { date: string; text: stri
   });
 }
 
-// ---------------- 8. 現代滑條/開關控制彈窗 (環境設定 / 糧食分配 / 水手比例) ----------------
+// ---------------- 8. 现代滑条/开关控制弹窗 (环境设置 / 粮食分配 / 水手比例) ----------------
 export function runDomControls(title: string, rows: {
   label: string;
   kind: "toggle" | "slider";
@@ -740,7 +740,7 @@ export function runDomControls(title: string, rows: {
   });
 }
 
-// ---------------- 9. 底部羊皮紙對話欄 (同步 wideDialog) ----------------
+// ---------------- 9. 底部羊皮纸对话栏 (同步 wideDialog) ----------------
 let dialogEl: HTMLElement | null = null;
 let lastDialogKey = "";
 

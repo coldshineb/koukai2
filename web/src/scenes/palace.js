@@ -1,5 +1,5 @@
-// palace.js — 王宮 (MAIN.EXE 1fd9:acda = 線性 2aa6a, 處理函式表 DS:a612[5]); 見 RE_NOTES 25
-// MENU #16 共 5 項, 但原版只傳 4 項 (bl = 4) 給選單, 所以「密會」不會出現 (DS:b258 也只有 4 個處理函式 2a523 / 2a5f6 / 2a713 / 2a79b)
+// palace.js — 王宫 (MAIN.EXE 1fd9:acda = 线性 2aa6a, 处理函数表 DS:a612[5]); 见 RE_NOTES 25
+// MENU #16 共 5 项, 但原版只传 4 项 (bl = 4) 给菜单, 所以「密会」不会出现 (DS:b258 也只有 4 个处理函数 2a523 / 2a5f6 / 2a713 / 2a79b)
 import { Scenario, ENV_COMMON, ENV_HERO } from "../game/scenario.js";
 import { mainEnding } from "../game/endgame.js";
 import { GameConst, MenuId, OptionFlag, ShipSlotFlag, WorkDS } from "../model/flags.ts";
@@ -24,10 +24,10 @@ export class Palace {
   get m() { return this.b.st.model; }
   get money() { return this.b.money; } set money(v) { this.b.money = v; }
   get nation() { return this.m.port(this.b.port).region & 7; }
-  same(mask = 0x0f) { return ((this.nation ^ this.m.heroPerson().face) & mask) === 0; }   // 港口所屬國 = 主角國籍
+  same(mask = 0x0f) { return ((this.nation ^ this.m.heroPerson().face) & mask) === 0; }   // 港口所属国 = 主角国籍
   heroName() { return this.m.heroPerson().familyNameBytes; }
   async gw(n, ...a) { this.b.greet(n, ...a); await this.b.wait(); }
-  // seg0:7e60 國王視窗
+  // seg0:7e60 国王窗口
   king() {
     const { win, kao, scr, con, printf, art, codec } = this.c, K = this.kingRec;
     if (scr.wideRenderer && codec) {
@@ -44,7 +44,7 @@ export class Palace {
     con.right = 0x38; con.left = 0x17; con.setCursor(0x17, 0x128);
     printf(this.F.kingName, K.nameBytes);
   }
-  // seg0:7fa8 國王說話
+  // seg0:7fa8 国王说话
   kingSay(n, ...a) {
     const { sys, con, scr, message, codec } = this.c;
     if (scr.wideRenderer && codec) {
@@ -63,7 +63,7 @@ export class Palace {
   }
   async kingSayWait(n, ...a) { this.kingSay(n, ...a); await this.b.wait(); }
   async crewSays(n) { this.b.crewSpeaks([4, 3, 5, 2, 6]); this.c.message(n); await this.b.wait(); await this.b.closeTalk(); }   // seg0:9076
-  // 2e09:5525 (共用) / 2e09:5678 (主角): 有事件就執行並回傳結果, 沒有回傳 1
+  // 2e09:5525 (共用) / 2e09:5678 (主角): 有事件就运行并返回结果, 没有返回 1
   async event(env, building) {
     if (this.c.noEvents) return 1;
     const sc = (this.c.events ??= new Scenario(this.c)); sc.scene = this.b.p;
@@ -76,7 +76,7 @@ export class Palace {
     const b = this.b, st = this.st, m = this.m, g = m.globals, hd = m.heroInfo(), { sys, menu } = this.c;
     this.kingRec = m.noble((this.nation + 10) & 0xff);                           // [bdbc]
     const standing = hd.getCountryStanding(this.nation);
-    if (standing <= 80 && sys.rng.random(100) > standing) {                      // 惡名昭彰: 抓起來
+    if (standing <= 80 && sys.rng.random(100) > standing) {                      // 恶名昭彰: 抓起来
       await this.gw(0x1bb, this.heroName());
       return this.arrest();
     }
@@ -101,12 +101,12 @@ export class Palace {
       sel = await b.menu(items);
       if (sel !== 0xff) {
         await [() => this.audience(), () => this.naturalize(), () => this.funds(), () => this.shipAid()][sel]();
-        if (hd.rank === 9 && (g.options & OptionFlag.ENDING_READY)) await mainEnding(this.b.p, 0x0f);   // 2ac50: 爵位 9 結局
+        if (hd.rank === 9 && (g.options & OptionFlag.ENDING_READY)) await mainEnding(this.b.p, 0x0f);   // 2ac50: 爵位 9 结局
       }
       b.after();
     } while (sel !== 0xff);
   }
-  // 2a8e8 被抓: (主角 +25 × +21 / 100 + +21) & 0xff ≥ random(150) 時逃脫; 否則沒收 4/5 現金與存款, 對該國聲望 = 100
+  // 2a8e8 被抓: (主角 +25 × +21 / 100 + +21) & 0xff ≥ random(150) 时逃脱; 否则没收 4/5 现金与存款, 对该国声望 = 100
   async arrest() {
     const b = this.b, m = this.m, g = m.globals, hero = m.heroPerson(), { sys, palette } = this.c;
     const bal = g.bankBalance;
@@ -124,14 +124,14 @@ export class Palace {
     this.king();
     await this.kingSayWait(0x1c1, this.heroName());
     await this.kingSayWait(0x1c2); await this.kingSayWait(0x1c3); await this.kingSayWait(0x1c4);
-    this.money = (this.money + Math.trunc((this.money << 2) / -5)) | 0;          // _ldiv(現金 << 2, −5) (左移 32 位元回繞)
+    this.money = (this.money + Math.trunc((this.money << 2) / -5)) | 0;          // _ldiv(现金 << 2, −5) (左移 32 比特回绕)
     const nb = (bal + Math.trunc((bal << 2) / -5)) | 0, q = Math.trunc(nb / 100);
     g.bankQuotient = q & 0xffff; g.bankRem = ((q & 0xff) * 0x9c + (nb & 0xff)) & 0xff;
     m.heroInfo().setCountryStanding(this.nation, 100);
     b.p.panels();
   }
 
-  // ================= 晉見國王 2a523 =================
+  // ================= 晋见国王 2a523 =================
   async audience() {
     const b = this.b, st = this.st, g = this.m.globals, { menu } = this.c;
     if (this.same() && (st.u8(WorkDS.FLAGS) & 2)) {
@@ -150,7 +150,7 @@ export class Palace {
       b.after();
     } while (sel !== 0xff);
   }
-  // 2a20c 勢力狀況
+  // 2a20c 势力状况
   async situation() {
     const m = this.m, n = this.nation;
     this.king();
@@ -167,7 +167,7 @@ export class Palace {
     }
     await this.kingSayWait(0x1c6);
   }
-  // 29eb1 該地區的本國港口表
+  // 29eb1 该地区的本国港口表
   async regionPorts(sel) {
     const m = this.m, b = this.b, { con, printf, message, scr, codec } = this.c, n = this.nation;
     if (scr.wideRenderer && codec) {
@@ -203,7 +203,7 @@ export class Palace {
     if (!cnt) { this.kingSay(0x1d1 + sel); message(0x1c7); await b.wait(); return 0; }
     return 1;
   }
-  // 29fe7 地區收益: 各國各地區 A = Σ工業價值, B = Σ商業價值 × (港 +15 bit3 ? 2 : 1)
+  // 29fe7 地区收益: 各国各地区 A = Σ工业价值, B = Σ商业价值 × (港 +15 bit3 ? 2 : 1)
   async regionEval(sel) {
     const m = this.m, A = new Uint16Array(64), B = new Uint16Array(64), n = this.nation;
     for (let q = 0; q < 100; q++) {
@@ -232,14 +232,14 @@ export class Palace {
     else this.c.message(0x1c8);
     await this.b.wait();
   }
-  // 隨身物中找 target; 回傳 -1 = 已有, -2 = 沒有空格, 否則 = 最後一個空格索引 (0..19)
+  // 随身物中找 target; 返回 -1 = 已有, -2 = 没有空格, 否则 = 最后一个空格索引 (0..19)
   invSlot(target) {
     const m = this.m;
     let slot = -2;
     for (let i = 0; i < GameConst.INV_SLOTS; i++) { const v = m.inventory(i); if (v === target) return -1; if (v === GameConst.EMPTY_SLOT) slot = i; }
     return slot;
   }
-  // 2a27e 私掠許可証 (道具 0x1d + 國): 海盜名聲 ≥ 1000 且不低於商人/冒險家名聲
+  // 2a27e 私掠许可证 (道具 0x1d + 国): 海盗名声 ≥ 1000 且不低于商人/冒险家名声
   async letterOfMarque() {
     const m = this.m, hd = m.heroInfo(), target = (this.nation + 0x1d) & 0xff, slot = this.invSlot(target);
     if (slot === -1) return this.crewSays(0x360);
@@ -253,7 +253,7 @@ export class Palace {
     await this.kingSayWait(0x367);
     m.setInventory(slot, target);
   }
-  // 2a38a 免稅証 (道具 0x23 + 國): 本國人 爵位 < 6 時 (7 − 爵位) 萬, 外國人 (11 − 爵位) 萬; 付錢後不重畫面板 (原版如此)
+  // 2a38a 免税证 (道具 0x23 + 国): 本国人 爵位 < 6 时 (7 − 爵位) 万, 外国人 (11 − 爵位) 万; 付钱后不重画面板 (原版如此)
   async taxFree() {
     const m = this.m, hd = m.heroInfo(), target = (this.nation + 0x23) & 0xff, slot = this.invSlot(target);
     if (slot === -1) return this.crewSays(0x368);
@@ -279,7 +279,7 @@ export class Palace {
     m.setInventory(slot, target);
   }
 
-  // ================= 申請國籍 2a5f6 =================
+  // ================= 申请国籍 2a5f6 =================
   async naturalize() {
     const st = this.st, m = this.m, b = this.b, hero = m.heroPerson(), hd = m.heroInfo();
     this.king();
@@ -296,7 +296,7 @@ export class Palace {
     if (oldVal >= 30) hd.setCountryStanding(oldNat, (oldVal - 30) & 0xff);
     hd.setCountryStanding(newNat, plUmax(100, plUmin(hd.getCountryStanding(newNat) + 10, 200)));
   }
-  // ================= 資金援助 2a713 =================
+  // ================= 资金援助 2a713 =================
   async funds() {
     const country = this.m.country(this.nation), v = country.aidMoneyK;
     if (!v) return this.gw(0x1cd);
@@ -312,7 +312,7 @@ export class Palace {
     const m = this.m, b = this.b, country = m.country(this.nation), tag = b.port | 0x80;
     if (!country.aidShipCount) return this.gw(0x1cd);
     b.freeSlots();                                                              // 12d0e
-    if (plS16(this.c.persons[0]) < 10) return this.gw(0x213);                   // [0538] 不是船塢位 (沒有空位時沿用舊值)
+    if (plS16(this.c.persons[0]) < 10) return this.gw(0x213);                   // [0538] 不是船坞位 (没有空位时沿用旧值)
     if (b.fleetShips() >= GameConst.FLEET_SHIPS) return this.gw(0x213);
     if (!this.mates()) return this.gw(0x214);
     for (let i = 0; i < 40; i++) if (m.crewSlot(i).captain === tag && b.slotState(i) === ShipSlotFlag.BUILDING) return this.gw(0x1cd);
@@ -325,14 +325,14 @@ export class Palace {
       b.greet(0x22b);
       const ni = b.nameInput();
       ni.prompt(2, 7);                                                          // 2e09:29a0
-      while ((await ni.run(ship.addr, 7)) !== 1);                               // 2e09:26a5 (不重開提示視窗)
+      while ((await ni.run(ship.addr, 7)) !== 1);                               // 2e09:26a5 (不重开提示窗口)
       await this.c.win.close();
       break;
     }
     await this.gw(0x228);
     await this.gw(0x1cf);
   }
-  // 0fea:2f43 = 12de3 可當船長的人: 主角 (沒有擔任艦隊船長時) + 船員欄中職務 > 2 的人
+  // 0fea:2f43 = 12de3 可当船长的人: 主角 (没有担任舰队船长时) + 船员栏中职务 > 2 的人
   mates() {
     const m = this.m, heroId = m.globals.hero, L = [];
     let i = 0; for (; i < GameConst.FLEET_SHIPS; i++) if (m.crewSlot(i).captain === heroId) break;
@@ -343,11 +343,11 @@ export class Palace {
     }
     this.b.setPersons(L); return L.length;
   }
-  // 2e09:44bc = 3254c 援助船 (船型 t): 放在第一個空的艦隊位, 狀態 0x20 (在造船所保管), 船員配置 captain = 本港 | 0x80
+  // 2e09:44bc = 3254c 援助船 (船型 t): 放在第一个空的舰队位, 状态 0x20 (在造船所保管), 船员配置 captain = 本港 | 0x80
   makeShip(t) {
     const st = this.st, m = this.m, b = this.b, T = m.shipType(t), tmpl = m.ship(t + 40);
     let i = 0; for (; i < GameConst.FLEET_SHIPS; i++) { const f = b.slotState(i); if (f !== ShipSlotFlag.ACTIVE && f !== ShipSlotFlag.BUILDING) break; }
-    const S = b.fleetSlot(0) + 9 * i;                                           // 找不到空位時 S 指到第 10 格之後 (原版如此)
+    const S = b.fleetSlot(0) + 9 * i;                                           // 找不到空位时 S 指到第 10 格之后 (原版如此)
     let n = 0; for (let k = 0; k < 40; k++) if (m.ship(k).type === GameConst.EMPTY_SLOT) { n = k; break; }
     const d = Math.trunc((9 * T.durability) / 10) & 0xff;
     st.set8(S + 3, d); st.set8(S + 2, d);

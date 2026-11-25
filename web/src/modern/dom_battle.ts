@@ -1,6 +1,6 @@
-// modern/dom_battle.ts — 16:9 現代羊皮紙海戰 HUD + 戰場 Canvas 縮放渲染器 + 無遮擋右側指令/確認欄 + 羊皮紙情報卡
-// 左側 (20, 10, 728×700) 清晰呈現 1.75× 縮放六角格海戰場（絕不被選單模糊遮擋），
-// 右側以暖羊皮紙卡片呈現旗艦狀態、風向、戰術小地圖，底部卡位無縫承載戰況訊息、戰鬥指令與是/否確認。
+// modern/dom_battle.ts — 16:9 现代羊皮纸海战 HUD + 战场 Canvas 缩放渲染器 + 无遮挡右侧指令/确认栏 + 羊皮纸情报卡
+// 左侧 (20, 10, 728×700) 清晰呈现 1.75× 缩放六角格海战场（绝不被菜单模糊遮挡），
+// 右侧以暖羊皮纸卡片呈现旗舰状态、风向、战术小地图，底部卡位无缝承载战况消息、战斗指令与是/否确认。
 import { createDomModal, hasDom, getPersonPortraitSrc, preserveScroll } from "./dom_ui.ts";
 import { hideDomWorldHud } from "./dom_hud.ts";
 import { decodeCleanCstr, toSimp } from "../canvas_ui/text_util.ts";
@@ -74,7 +74,7 @@ export function hideDomBattleHud() {
   lastMsgText = "";
 }
 
-/** 在右側海戰 HUD 底部無遮擋呈現戰鬥指令選單（絕不模糊或蓋住左側戰場） */
+/** 在右侧海战 HUD 底部无遮挡呈现战斗指令菜单（绝不模糊或盖住左侧战场） */
 export function runDomBattleMenu(
   labels: string[],
   disabledMask: number,
@@ -170,7 +170,7 @@ export function runDomBattleMenu(
   });
 }
 
-/** 在右側海戰 HUD 底部無遮擋呈現是/否確認（同時顯示完整戰況提問，絕不蓋住戰場） */
+/** 在右侧海战 HUD 底部无遮挡呈现是/否确认（同时显示完整战况提问，绝不盖住战场） */
 export function runDomBattleYesNo(promptText: string, yesLabel = "是", noLabel = "否"): Promise<number> {
   const root = ensureBattleRoot();
   if (!root || !actionCard || !msgCard) return Promise.resolve(0);
@@ -232,7 +232,7 @@ export function runDomBattleYesNo(promptText: string, yesLabel = "是", noLabel 
   });
 }
 
-/** 現代羊皮紙海戰艦隊情報彈窗（取代老 Canvas 藍底艦隊一覽） */
+/** 现代羊皮纸海战舰队情报弹窗（取代老 Canvas 蓝底舰队一览） */
 export async function runDomBattleFleetModal(battle: any, personId: number): Promise<void> {
   if (!hasDom()) return;
   const st = battle.st, art = battle.c.art, codec = battle.c.codec;
@@ -325,12 +325,12 @@ export async function runDomBattleFleetModal(battle: any, personId: number): Pro
   });
 }
 
-/** 現代羊皮紙人物資料彈窗（海戰敵方提督） */
+/** 现代羊皮纸人物数据弹窗（海战敌方提督） */
 export async function runDomBattlePersonModal(battle: any, personId: number): Promise<void> {
-  return runDomBattleCrewModal(battle, [personId], "人物资料");
+  return runDomBattleCrewModal(battle, [personId], "人物数据");
 }
 
-/** 現代羊皮紙左右分欄人物情報彈窗（左側人名清單、右側即時顯示頭像與能力，無需二次彈窗） */
+/** 现代羊皮纸左右分栏人物情报弹窗（左侧人名清单、右侧实时显示头像与能力，无需二次弹窗） */
 export async function runDomBattleCrewModal(battle: any, personIds: number[], title = "舰队人物"): Promise<void> {
   if (!hasDom() || !personIds.length) return;
   const st = battle.st, art = battle.c.art, codec = battle.c.codec;
@@ -421,7 +421,7 @@ export async function runDomBattleCrewModal(battle: any, personIds: number[], ti
   });
 }
 
-/** 現代羊皮紙作戰一覽彈窗（取代原版 Canvas 列表） */
+/** 现代羊皮纸作战一览弹窗（取代原版 Canvas 列表） */
 export function runDomBattleOrdersModal(battle: any): Promise<void> {
   if (!hasDom()) return Promise.resolve();
   const st = battle.st, codec = battle.c.codec;
@@ -469,7 +469,7 @@ export function runDomBattleOrdersModal(battle: any): Promise<void> {
   });
 }
 
-/** 右側海戰 HUD 無遮擋「信號」面板（3 個可點擊開關 + 確定） */
+/** 右侧海战 HUD 无遮挡「信号」面板（3 个可点击开关 + 确定） */
 export function runDomBattleSignal(battle: any, cur: number): Promise<void> {
   const root = ensureBattleRoot();
   if (!root || !actionCard || !msgCard) return Promise.resolve();
@@ -535,7 +535,7 @@ export function runDomBattleSignal(battle: any, cur: number): Promise<void> {
   });
 }
 
-/** 右側海戰 HUD 無遮擋「作戰」單船指令面板（策略 / 戰術 / 目標均可直接點擊） */
+/** 右侧海战 HUD 无遮挡「作战」单船指令面板（策略 / 战术 / 目标均可直接点击） */
 export async function runDomBattleShipOrders(battle: any, B: number): Promise<void> {
   const root = ensureBattleRoot();
   if (!root || !actionCard || !msgCard) return;
@@ -626,7 +626,7 @@ export async function runDomBattleShipOrders(battle: any, B: number): Promise<vo
   }
 }
 
-/** 現代羊皮紙單船情報彈窗（海戰我方/敵方艦船） */
+/** 现代羊皮纸单船情报弹窗（海战我方/敌方舰船） */
 export async function runDomBattleShipModal(battle: any, slotAddr: number, titleOverride = ""): Promise<void> {
   if (!hasDom()) return;
   const st = battle.st, art = battle.c.art, codec = battle.c.codec;
@@ -782,7 +782,7 @@ export function syncDomBattleHud(battle: any) {
   }
 }
 
-/** 16:9 現代海戰場渲染器：左側渲染 1.75× 縮放六角格戰場，右側交由羊皮紙 DOM HUD */
+/** 16:9 现代海战场渲染器：左侧渲染 1.75× 缩放六角格战场，右侧交由羊皮纸 DOM HUD */
 export function renderWideBattle(ctx: CanvasRenderingContext2D, scr: any, battle: any) {
   const { x, y, w, h, srcW, srcH } = BATTLE_VIEWPORT;
   ctx.fillStyle = "#081222";

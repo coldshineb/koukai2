@@ -1,5 +1,5 @@
-// canvas_ui/wide_list.ts — 原生 16:9 (1280×720) 現代 Canvas 2D 捲動清單選擇器
-// 自動相容 ListSelect 全部 21 種清單格式，100% 沿用原版標題與列文本，支援滾輪/滑鼠懸停/鍵盤。
+// canvas_ui/wide_list.ts — 原生 16:9 (1280×720) 现代 Canvas 2D 滚动清单选择器
+// 自动兼容 ListSelect 全部 21 种清单格式，100% 沿用原版标题与列文本，支持滚轮/鼠标悬停/键盘。
 import { VIEW_W, VIEW_H } from "../core/screen.js";
 
 export interface WideListState {
@@ -76,7 +76,7 @@ export function drawWideList(ctx: CanvasRenderingContext2D, s: WideListState) {
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
-  // 標題列
+  // 标题列
   ctx.fillStyle = "rgba(214, 174, 96, 0.14)";
   ctx.fillRect(s.x + 1, s.y + 1, s.w - 2, s.headerH - 1);
   ctx.strokeStyle = "rgba(214, 174, 96, 0.4)";
@@ -91,7 +91,7 @@ export function drawWideList(ctx: CanvasRenderingContext2D, s: WideListState) {
   ctx.textBaseline = "middle";
   ctx.fillText(s.title, s.x + s.w / 2, s.y + s.headerH / 2 + 1);
 
-  // 清單列
+  // 清单列
   const top = s.y + s.headerH + s.padY;
   ctx.font = '500 15px "Noto Serif TC", "Consolas", "Microsoft JhengHei", serif';
   ctx.textAlign = "left";
@@ -112,7 +112,7 @@ export function drawWideList(ctx: CanvasRenderingContext2D, s: WideListState) {
     ctx.fillText(s.rows[idx], s.x + 22, ry + s.rowH / 2 + 1, s.w - 48);
   }
 
-  // 現代極簡捲軸
+  // 现代极简滚动条
   if (s.rows.length > s.visibleRows) {
     const trackX = s.x + s.w - 12;
     const trackY = top + 4;

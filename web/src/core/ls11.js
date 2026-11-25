@@ -1,6 +1,6 @@
-// ls11.js — 光榮 LS10/LS11 壓縮包解碼 (與 tools/uw2lib.py ls_unpack 相同; MAIN.EXE 2e09:750e/752b)
-//   0x000 "LS10"/"LS11" + 12 bytes 0 | 0x010 256 bytes 字典 | 0x110 {u32be 壓縮長, 原長, 偏移}*N, 壓縮長 0 結束
-//   位元流 MSB 優先; 變長碼 = bits(n+1) + 2^(n+1) − 2 (n = 前導 1 個數); <256 字典字元, 否則 (距離 = 碼−256, 長度 = 下一碼+3)
+// ls11.js — 光荣 LS10/LS11 压缩包解码 (与 tools/uw2lib.py ls_unpack 相同; MAIN.EXE 2e09:750e/752b)
+//   0x000 "LS10"/"LS11" + 12 bytes 0 | 0x010 256 bytes 字典 | 0x110 {u32be 压缩长, 原长, 偏移}*N, 压缩长 0 结束
+//   比特流 MSB 优先; 变长码 = bits(n+1) + 2^(n+1) − 2 (n = 前导 1 个数); <256 字典字符, 否则 (距离 = 码−256, 长度 = 下一码+3)
 export function lsEntries(b) {
   const be32 = o => ((b[o] << 24) | (b[o + 1] << 16) | (b[o + 2] << 8) | b[o + 3]) >>> 0;
   const out = [];

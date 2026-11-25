@@ -1,17 +1,17 @@
-// canvas_ui/wide_world.ts — Stage 1: 16:9 (1280×720) 全屏純 Canvas 2D 港口/海面視口 + 懸浮現代 HUD
-// 嚴格遵守: 零 DOM 遊戲介面、100% 原版文本 (所有標籤/名稱/日期均直接取自原版資料表)。
+// canvas_ui/wide_world.ts — Stage 1: 16:9 (1280×720) 全屏纯 Canvas 2D 港口/海面视口 + 悬浮现代 HUD
+// 严格遵守: 零 DOM 游戏界面、100% 原版文本 (所有标签/名称/日期均直接取自原版数据表)。
 import { DS, OFF } from "../model/schema_views.ts";
 import { VIEW_W, VIEW_H } from "../core/screen.js";
 import { decodeCleanCstr, toSimp } from "./text_util.ts";
 import { hasDom } from "../modern/dom_ui.ts";
 import { syncDomWorldHud } from "../modern/dom_hud.ts";
 
-const TILE = 32; // 40×23 格 = 1280×736，無黑邊鋪滿整個 16:9 畫面
+const TILE = 32; // 40×23 格 = 1280×736，无黑边铺满整个 16:9 画面
 const COLS = Math.ceil(VIEW_W / TILE) + 1;
 const ROWS = Math.ceil(VIEW_H / TILE) + 1;
 const P_MAP_W = 0x60;
 
-// 4 枚主指令按鈕 (右下懸浮)
+// 4 枚主指令按钮 (右下悬浮)
 const CMD_LABELS = ["情报", "经营", "命令", "航海术"] as const;
 const CMD_BTN_W = 94;
 const CMD_BTN_H = 42;
@@ -65,10 +65,10 @@ function drawGlassPanel(ctx: CanvasRenderingContext2D, x: number, y: number, w: 
   ctx.restore();
 }
 
-// 與 core/screen.js 與 tools/extract_art.py 完全一致的 4-bit -> 6-bit VGA DAC -> 8-bit RGB 轉換
+// 与 core/screen.js 与 tools/extract_art.py 完全一致的 4-bit -> 6-bit VGA DAC -> 8-bit RGB 转换
 const dac8 = (v4: number) => Math.round(((v4 & 15) * 4 * 255) / 63);
 
-// 原版日間 16 色調色盤 (PALETTE_ADDR.day = 0xA50C, 原始 B,R,G 4-bit 順序)
+// 原版日间 16 色调色盘 (PALETTE_ADDR.day = 0xA50C, 原始 B,R,G 4-bit 顺序)
 const DAY_PAL_RAW = [
   0, 0, 0,   13, 0, 4,   0, 13, 4,   10, 13, 6,
   6, 0, 10,  15, 0, 10,  6, 15, 10,  13, 15, 14,
@@ -81,7 +81,7 @@ const DAY_PAL_RGB: [number, number, number][] = Array.from({ length: 16 }, (_, i
   dac8(DAY_PAL_RAW[i * 3]),
 ]);
 
-// 地圖圖塊優先對映至原版世界時段色號 8..15 (與 0 黑)，確保清晨/白天/黃昏/夜晚/陰天完全還原原版材質
+// 地图图块优先映射至原版世界时段色号 8..15 (与 0 黑)，确保清晨/白天/黄昏/夜晚/阴天完全还原原版材质
 const MAP_SEARCH_ORDER = [0, 8, 9, 10, 11, 12, 13, 14, 15, 1, 2, 3, 4, 5, 6, 7];
 const SPRITE_SEARCH_ORDER = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 
@@ -240,7 +240,7 @@ function drawFloatingHud(ctx: CanvasRenderingContext2D, scene: any, atSea: boole
   ctx.save();
   ctx.textBaseline = "middle";
 
-  // ---------------- 1. 左上懸浮狀態欄 (主角頭像 + 日期/時刻 + 聲望/金幣/金塊) ----------------
+  // ---------------- 1. 左上悬浮状态栏 (主角头像 + 日期/时刻 + 声望/金币/金块) ----------------
   drawGlassPanel(ctx, 16, 14, 344, 92, 10);
 
   const heroFaceId = st.u8(st.personRecord(m.globals.hero) + 0x1a);
@@ -292,7 +292,7 @@ function drawFloatingHud(ctx: CanvasRenderingContext2D, scene: any, atSea: boole
   ctx.fillStyle = "#f2d89b";
   ctx.fillText(String(gold), 132, 84);
 
-  // ---------------- 2. 右上懸浮地域/港情 或 航海氣象欄 ----------------
+  // ---------------- 2. 右上悬浮地域/港情 或 航海气象栏 ----------------
   if (!atSea) {
     const P = scene.port;
     const portName = decodeCstr(codec, m.port(P).nameBytes);
@@ -356,7 +356,7 @@ function drawFloatingHud(ctx: CanvasRenderingContext2D, scene: any, atSea: boole
     ctx.fillText(`${spd}kt · ${days}`, VIEW_W - 95, 84);
   }
 
-  // ---------------- 3. 左下懸浮現代矢量羅盤 ----------------
+  // ---------------- 3. 左下悬浮现代矢量罗盘 ----------------
   const cx = 56, cy = VIEW_H - 56, cr = 36;
   drawGlassPanel(ctx, cx - cr, cy - cr, cr * 2, cr * 2, cr);
   ctx.save();
@@ -375,14 +375,14 @@ function drawFloatingHud(ctx: CanvasRenderingContext2D, scene: any, atSea: boole
   ctx.fillText("W", cx - cr + 11, cy);
   ctx.fillText("E", cx + cr - 11, cy);
 
-  // 依原版方向角旋轉羅盤指針 (港內 0..3 = N/E/S/W; 海上 0..7 = N/NE/E/SE/S/SW/W/NW)
+  // 依原版方向角旋转罗盘指针 (港内 0..3 = N/E/S/W; 海上 0..7 = N/NE/E/SE/S/SW/W/NW)
   const rawNeedle = scene.needle === 0xff ? 0 : scene.needle;
   const angle = atSea
     ? ((rawNeedle & 7) * Math.PI) / 4
     : ((rawNeedle & 3) * Math.PI) / 2;
   ctx.translate(cx, cy);
   ctx.rotate(angle);
-  // 北向金紅箭頭
+  // 北向金红箭头
   ctx.beginPath();
   ctx.moveTo(0, -18);
   ctx.lineTo(5, 2);
@@ -391,7 +391,7 @@ function drawFloatingHud(ctx: CanvasRenderingContext2D, scene: any, atSea: boole
   ctx.closePath();
   ctx.fillStyle = "#e85c4a";
   ctx.fill();
-  // 南向銀白尾針
+  // 南向银白尾针
   ctx.beginPath();
   ctx.moveTo(0, 16);
   ctx.lineTo(4, 1);
@@ -399,14 +399,14 @@ function drawFloatingHud(ctx: CanvasRenderingContext2D, scene: any, atSea: boole
   ctx.closePath();
   ctx.fillStyle = "#d8e4f2";
   ctx.fill();
-  // 中心鉚釘
+  // 中心铆钉
   ctx.beginPath();
   ctx.arc(0, 0, 3, 0, Math.PI * 2);
   ctx.fillStyle = "#f4d78e";
   ctx.fill();
   ctx.restore();
 
-  // ---------------- 4. 右下懸浮 4 枚主指令按鈕 (情報 / 經營 / 命令 / 航海術) ----------------
+  // ---------------- 4. 右下悬浮 4 枚主指令按钮 (情报 / 经营 / 命令 / 航海术) ----------------
   const mx = c.sys?.mouse?.vx ?? -1;
   const my = c.sys?.mouse?.vy ?? -1;
   const rects = getCommandButtonRects();
@@ -443,7 +443,7 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
   if (!M || !art) return;
   const sheetName = portScene.chipSetName || "portchip_0";
 
-  // 以主角世界座標為中心計算 16:9 相機視窗 (夾限於 96×96 港口地圖內)
+  // 以主角世界座标为中心计算 16:9 相机窗口 (夹限于 96×96 港口地图内)
   const heroWX = portScene.vx + portScene.hx;
   const heroWY = portScene.vy + portScene.hy;
   const camX = Math.max(0, Math.min(P_MAP_W - Math.floor(VIEW_W / TILE), heroWX - Math.floor(VIEW_W / TILE / 2) + 1));
@@ -465,7 +465,7 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
     }
   }
 
-  // 繪製白天行人與站立 NPC
+  // 绘制白天行人与站立 NPC
   if (!portScene.night()) {
     for (let i = 0; i < 8; i++) {
       const n = portScene.npc(i);
@@ -479,7 +479,7 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
     }
   }
 
-  // 繪製主角
+  // 绘制主角
   const hDir = portScene._lastDir ?? 2;
   const hPhase = portScene.phase ? 1 : 0;
   const heroSpriteIdx = portScene.st.hero * 8 + hDir * 2 + hPhase;
@@ -487,11 +487,11 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
   const hyPx = (heroWY - camY) * TILE;
   drawSheetTileDirect(ctx, art, "chars", heroSpriteIdx, hxPx, hyPx, TILE * 2, TILE * 2, scr, false);
 
-  // 懸浮現代 HUD（所有日夜時段色調直接由原版 16 色調色盤呈現，無人工打燈覆層）
+  // 悬浮现代 HUD（所有日夜时段色调直接由原版 16 色调色盘呈现，无人工打灯覆层）
   drawFloatingHud(ctx, portScene, false);
 }
 
-// 全球 24×24 海域圖塊無縫快取（90×45 格 = 2160×1080 全球經度環繞，徹底消除跨 72×72 / 720 格邊界的相機卡頓與跳變）
+// 全球 24×24 海域图块无缝缓存（90×45 格 = 2160×1080 全球经度环绕，彻底消除跨 72×72 / 720 格边界的相机卡顿与跳变）
 const SEA_WORLD_W = 0x870; // 2160
 const SEA_WORLD_H = 0x438; // 1080
 const seaChunkCache = new Map<number, Uint8Array>();
@@ -546,12 +546,12 @@ function getGlobalSeaTile(seaScene: any, wx: number, wy: number): number {
   return chunk[(wy % 24) * 24 + (gwx % 24)];
 }
 
-/** 16:9 全球無縫海面渲染器 */
+/** 16:9 全球无缝海面渲染器 */
 export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene: any) {
   const art = seaScene.c.art;
   if (!art || !seaScene.wm) return;
 
-  // 若新發現港口或發現物則自動失效海域塊快取，確保海面立即顯示新發現的港口與遺跡
+  // 若新发现港口或发现物则自动失效海域块缓存，确保海面立即显示新发现的港口与遗迹
   const discSig = calcSeaDiscoverySig(seaScene.st);
   if (discSig !== seaChunkDiscSig) {
     seaChunkCache.clear();
@@ -601,7 +601,7 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
     }
   }
 
-  // 繪製可見艦隊 (主角 + 海上其他艦隊)
+  // 绘制可见舰队 (主角 + 海上其他舰队)
   const st = seaScene.st;
   const w = st.u8(DS.WEATHER) & 15;
   const Tdir = seaScene.SJ.tab.shipDir;

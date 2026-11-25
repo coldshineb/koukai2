@@ -1,5 +1,5 @@
-// newgame_tests.js — 開始新航海 差分測試 (先載入 x86emu/dosenv/harness/harness_menu/boot_title 與 tools/work/ui_bundle.js)
-// 以同一按鍵腳本分別驅動原版 (模擬器, 從標題選單狀態開始) 與移植版, 在每次送鍵時截圖比對; 最後比對 16949 之後的遊戲狀態
+// newgame_tests.js — 开始新航海 差分测试 (先加载 x86emu/dosenv/harness/harness_menu/boot_title 与 tools/work/ui_bundle.js)
+// 以同一按键脚本分别驱动原版 (模拟器, 从标题菜单状态开始) 与移植版, 在每次送键时截屏比对; 最后比对 16949 之后的游戏状态
 (async function () {
 const fs = require("fs"), S = session, U = S.UI, f = S.files;
 const K = { down: [0x50, 0], up: [0x48, 0], left: [0x4b, 0], right: [0x4d, 0], enter: [0x1c, 0x0d], esc: [0x01, 0x1b], n1: [0x02, 0x31], n3: [0x04, 0x33] };
@@ -12,7 +12,7 @@ function runEmu() {
   const env = S.titleEnv, c = env.cpu, shots = [], dacs = [];
   let rng0 = null, done = false, st = null, rt = null;
   const sc = S.makeScript(KEYS);
-  const saveEnv = S.env, sH16 = S._H16, sH33 = S._H33; S.env = env; S._H16 = S._H33 = undefined;   // installEmuServices 會快取原始 INT16/33 處理
+  const saveEnv = S.env, sH16 = S._H16, sH33 = S._H33; S.env = env; S._H16 = S._H33 = undefined;   // installEmuServices 会缓存原始 INT16/33 处理
   S.etr = [];
   { const h16 = c.hooks[0x16], h33 = c.hooks[0x33]; S._wrapEmu = () => { const a = c.hooks[0x16]._orig || c.hooks[0x16], b = c.hooks[0x33]._orig || c.hooks[0x33]; c.hooks[0x16] = cpu => { if ((cpu.r[0] >> 8) === 1) S.etr.push('K'); a(cpu); }; c.hooks[0x33] = cpu => { if (cpu.r[0] === 3) S.etr.push('M'); b(cpu); }; c.hooks[0x16]._orig = a; c.hooks[0x33]._orig = b; }; }
   S.installEmuServices(sc, () => {
@@ -91,10 +91,10 @@ const rep = [];
 const n = Math.min(E.shots.length, J.frames.length);
 rep.push(`keys=${KEYS.length} emuShots=${E.shots.length} jsFrames=${J.frames.length} emuReachedInit=${E.done}`);
 for (let i = 0; i < n; i++) {
-  E.shots[i][399 * 640 + 639] = J.frames[i][399 * 640 + 639];   // 原版軟體游標 (滑鼠在 27F,18F) 畫在 VRAM
+  E.shots[i][399 * 640 + 639] = J.frames[i][399 * 640 + 639];   // 原版软件光标 (鼠标在 27F,18F) 画在 VRAM
   const d = S.cmp(E.shots[i], J.frames[i]);
   if (d.n) { fs.writeFileSync(S.W + `/uw2_remake/tools/work/ng_emu_${i}.idx`, Buffer.from(E.shots[i])); fs.writeFileSync(S.W + `/uw2_remake/tools/work/ng_js_${i}.idx`, Buffer.from(J.frames[i])); }
-  // DAC: 原版 VGA DAC 為 6 位元 RGB, 移植版 raw 為 4 位元 (B,R,G)
+  // DAC: 原版 VGA DAC 为 6 比特 RGB, 移植版 raw 为 4 比特 (B,R,G)
   const ed = E.dacs[i], jd = J.dacs[i]; let dd = 0;
   for (let c = 0; c < 16; c++) { const [r, g, b] = [ed[c * 3], ed[c * 3 + 1], ed[c * 3 + 2]]; if (r !== jd[c * 3 + 1] * 4 || g !== jd[c * 3 + 2] * 4 || b !== jd[c * 3] * 4) dd++; }
   rep.push(`${d.n === 0 ? "OK  " : "FAIL"} shot#${String(i).padStart(2)} before key ${JSON.stringify(KEYS[i])} diff=${d.n}${d.first ? " @" + d.first : ""} dacDiffColors=${dd}`);

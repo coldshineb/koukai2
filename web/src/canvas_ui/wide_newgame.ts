@@ -1,5 +1,5 @@
-// canvas_ui/wide_newgame.ts — Stage 4: 原生 16:9 (1280×720) 現代 Canvas 2D 主角選擇畫廊
-// 展示全部 6 位主角 HD 頭像、原版姓名、年齡、能力值、技能與介紹文字，零 DOM、100% 原版文本。
+// canvas_ui/wide_newgame.ts — Stage 4: 原生 16:9 (1280×720) 现代 Canvas 2D 主角选择画廊
+// 展示全部 6 位主角 HD 头像、原版姓名、年龄、能力值、技能与介绍文字，零 DOM、100% 原版文本。
 import { VIEW_W, VIEW_H } from "../core/screen.js";
 
 export interface WideHeroCard {
@@ -56,7 +56,7 @@ export function renderWideNewGame(
   statLabels: string[],
 ) {
   ctx.save();
-  // 深海星夜漸層背景
+  // 深海星夜渐层背景
   const bg = ctx.createLinearGradient(0, 0, 0, VIEW_H);
   bg.addColorStop(0, "#081428");
   bg.addColorStop(0.5, "#102848");
@@ -64,7 +64,7 @@ export function renderWideNewGame(
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 
-  // 左側 3×2 主角畫廊卡片
+  // 左侧 3×2 主角画廊卡片
   for (let i = 0; i < heroes.length; i++) {
     const h = heroes[i];
     const r = getHeroCardRect(i);
@@ -85,7 +85,7 @@ export function renderWideNewGame(
     ctx.lineWidth = isSel ? 2.2 : 1.2;
     ctx.stroke();
 
-    // 頭像 (64×80 -> 128×160)
+    // 头像 (64×80 -> 128×160)
     const px = r.x + Math.round((r.w - 128) / 2);
     const py = r.y + 16;
     ctx.fillStyle = "#08111e";
@@ -107,7 +107,7 @@ export function renderWideNewGame(
     ctx.fillText(h.name, r.x + r.w / 2, r.y + 206, r.w - 16);
   }
 
-  // 右側主角詳情面板
+  // 右侧主角详情面板
   const cur = heroes[selected] || heroes[0];
   if (cur) {
     const dx = 678, dy = 92, dw = VIEW_W - dx - 48, dh = 494;
@@ -125,7 +125,7 @@ export function renderWideNewGame(
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    // 詳情頁大頭像
+    // 详情页大头像
     const px = dx + 26, py = dy + 26;
     ctx.fillStyle = "#08111e";
     ctx.fillRect(px, py, 112, 140);
@@ -137,7 +137,7 @@ export function renderWideNewGame(
     ctx.strokeStyle = "rgba(214, 174, 96, 0.8)";
     ctx.strokeRect(px, py, 112, 140);
 
-    // 姓名 + 年齡 + 技能
+    // 姓名 + 年龄 + 技能
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
     ctx.font = '700 22px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
@@ -148,7 +148,7 @@ export function renderWideNewGame(
     ctx.fillStyle = "#d8c394";
     ctx.fillText(`${cur.age}   ${cur.skill}`, dx + 158, dy + 64, dw - 180);
 
-    // 7 項能力值
+    // 7 项能力值
     for (let i = 0; i < cur.stats.length; i++) {
       const col = i % 2, row = Math.floor(i / 2);
       const sx = dx + 158 + col * 180;
@@ -163,14 +163,14 @@ export function renderWideNewGame(
       ctx.fillText(String(cur.stats[i]), sx + 148, sy);
     }
 
-    // 分隔線
+    // 分隔线
     ctx.strokeStyle = "rgba(214, 174, 96, 0.35)";
     ctx.beginPath();
     ctx.moveTo(dx + 24, dy + 226);
     ctx.lineTo(dx + dw - 24, dy + 226);
     ctx.stroke();
 
-    // 原版主角介紹文字
+    // 原版主角介绍文字
     ctx.font = '500 16px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
     ctx.fillStyle = "#f2ead8";
     ctx.textAlign = "left";

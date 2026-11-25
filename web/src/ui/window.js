@@ -1,23 +1,23 @@
-// window.js — 原版視窗繪製 (MAIN.EXE seg0:7358 / 74f7 / 773c / 7779)
-// 外框圖形來自 DATA1.LZW 第 14 項 (載入 MAIN.EXE 的緩衝區 [0c86], seg0:1743c), 位移:
-//   2c20 左上  2c40 右上  2c60 左下  2c80 右下 (各 8x8, 平面交錯)
-//   2ca0 + style*0x80: +00 上邊 +20 左邊 +40 右邊 +60 下邊 (8 行平鋪圖樣)
-// x / w 以 8 像素欄為單位, y / h 以像素為單位。
+// window.js — 原版窗口绘制 (MAIN.EXE seg0:7358 / 74f7 / 773c / 7779)
+// 外框图形来自 DATA1.LZW 第 14 项 (加载 MAIN.EXE 的缓冲区 [0c86], seg0:1743c), 位移:
+//   2c20 左上  2c40 右上  2c60 左下  2c80 右下 (各 8x8, 平面交错)
+//   2ca0 + style*0x80: +00 上边 +20 左边 +40 右边 +60 下边 (8 行平铺图样)
+// x / w 以 8 像素栏为单位, y / h 以像素为单位。
 export const FRAME_TL = 0x2c20, FRAME_TR = 0x2c40, FRAME_BL = 0x2c60, FRAME_BR = 0x2c80, FRAME_EDGES = 0x2ca0;
 export const WINDOW_FILL = 7;
-// DS:8b4a / 8b52 / 8b5a 陰影圖樣 (2 行 x 4 平面), 以 AND 模式 (seg0:034d) 疊加
+// DS:8b4a / 8b52 / 8b5a 阴影图样 (2 行 x 4 平面), 以 AND 模式 (seg0:034d) 叠加
 const SHADOW_A = Uint8Array.of(0xfa, 0xfa, 0xfa, 0xfa, 0xf5, 0xf5, 0xf5, 0xf5);
 const SHADOW_B = Uint8Array.of(0xaa, 0xaa, 0xaa, 0xaa, 0x55, 0x55, 0x55, 0x55);
 const SHADOW_C = Uint8Array.of(0xaf, 0xaf, 0xaf, 0xaf, 0x5f, 0x5f, 0x5f, 0x5f);
 
 export class WindowSystem {
-  // gfx: DATA1 第 14 項位元組; con: TextConsole; wait(n): 原版 seg0:5998 延遲
-  // sys: 滑鼠游標隱藏/顯示 (seg0:4ee7 / 4ecf); 50c4, 7358, 796d, 7a8e 都在開頭隱藏、結尾顯示游標
+  // gfx: DATA1 第 14 项字节; con: TextConsole; wait(n): 原版 seg0:5998 延迟
+  // sys: 鼠标光标隐藏/显示 (seg0:4ee7 / 4ecf); 50c4, 7358, 796d, 7a8e 都在开头隐藏、结尾显示光标
   constructor(scr, con, gfx, { wait = () => {}, options = { animate: true }, sys = null } = {}) {
     this.scr = scr; this.con = con; this.gfx = gfx; this.wait = wait; this.options = options; this.sys = sys;
-    this.stack = [];          // 原版 [0c88] 緩衝區 + 堆疊頂 [0536]
+    this.stack = [];          // 原版 [0c88] 缓冲区 + 堆栈顶 [0536]
   }
-  // seg0:50c4 保存視窗底下的畫面 (x,w 欄; y,h 像素) — 同時保存 fb 與 HD 2D 真彩圖層
+  // seg0:50c4 保存窗口底下的画面 (x,w 栏; y,h 像素) — 同时保存 fb 与 HD 2D 真彩图层
   save(x, y, w, h) {
     this.sys?.mouseHide();
     const snap = this.scr.saveRegion(x * 8, y, w * 8, h);
@@ -27,7 +27,7 @@ export class WindowSystem {
   restoreRows(win, fromRow, toY, rows) {
     this.scr.restoreRegion(win.snap, fromRow, toY, rows);
   }
-  // seg0:796d 關閉最上層視窗; 高度>16 且開啟動畫時, 由上下兩端每次各還原 8 行向中間收合
+  // seg0:796d 关闭最上层窗口; 高度>16 且打开动画时, 由上下两端每次各还原 8 行向中间收合
   async close() {
     this.sys?.mouseHide();
     const win = this.stack.pop(); if (!win) { this.sys?.mouseShow(); return; }
@@ -42,7 +42,7 @@ export class WindowSystem {
     } else this.restoreRows(win, 0, win.y, win.h);
     this.sys?.mouseShow();
   }
-  // seg0:7a8e 關閉最上層視窗 (永不動畫)
+  // seg0:7a8e 关闭最上层窗口 (永不动画)
   closeNow() {
     this.sys?.mouseHide();
     const win = this.stack.pop();
@@ -52,11 +52,11 @@ export class WindowSystem {
     }
     this.sys?.mouseShow();
   }
-  // 取出一塊畫面但不放入堆疊 (seg0:50c4 後立即 [0536]-=size 的用法, 例: 等待游標)
+  // 取出一块画面但不放入堆栈 (seg0:50c4 后立即 [0536]-=size 的用法, 例: 等待光标)
   grab(x, y, w, h) { this.save(x, y, w, h); return this.stack.pop(); }
-  // seg0:042f 把 grab/save 的畫面放回
+  // seg0:042f 把 grab/save 的画面放回
   putBack(win) { this.restoreRows(win, 0, win.y, win.h); }
-  // seg0:7849 保存 (w+1)x(h+4) 背景後畫帶陰影視窗
+  // seg0:7849 保存 (w+1)x(h+4) 背景后画带阴影窗口
   shadowedSaved(x, y, w, h, style = 0) {
     this.save(x, y, w + 1, h + 4);
     const top = this.stack[this.stack.length - 1];
@@ -64,8 +64,8 @@ export class WindowSystem {
     this.shadowed(x, y, w, h, style);
   }
   put(col, y, off) { this.scr.putPlanar(col, y, 1, 8, this.gfx, off); }
-  // seg0:7925 標籤框 (x, w 欄; y, h 像素): 文字區 x+2..x+w−3、游標 (x+2, y+8) → 50c4 保存 → 7878: 以 DS:8b52 (AA×4 / 55×4) 每 2 行逐欄
-  //   AND 疊加 (03ca → 02a7 模式 2 = 034d, 底圖變暗), 再以 7264 (水平 / 垂直線 = 09aa 填矩形) 畫 下邊、右邊 色 0, 上邊、左邊 色 7 (3119b「請指定目的地」)
+  // seg0:7925 标签框 (x, w 栏; y, h 像素): 文字区 x+2..x+w−3、光标 (x+2, y+8) → 50c4 保存 → 7878: 以 DS:8b52 (AA×4 / 55×4) 每 2 行逐栏
+  //   AND 叠加 (03ca → 02a7 模式 2 = 034d, 底图变暗), 再以 7264 (水平 / 垂直线 = 09aa 填矩形) 画 下边、右边 色 0, 上边、左边 色 7 (3119b「请指定目的地」)
   labelBox(x, y, w, h) {
     const c = this.con, s = this.scr;
     c.right = w + x - 3; c.left = x + 2; c.setCursor(x + 2, y + 8);
@@ -77,7 +77,7 @@ export class WindowSystem {
     s.fillRectPx(X0, y, X1, y, 7);
     s.fillRectPx(X0, y, X0, Y1, 7);
   }
-  // AND 模式 2 行圖樣
+  // AND 模式 2 行图样
   andPattern(col, y, pat) {
     const s = this.scr; if (!s.inBounds(col, y, 1, 2)) return;
     for (let r = 0; r < 2; r++) {
@@ -90,7 +90,7 @@ export class WindowSystem {
     }
     s.dirty = true;
   }
-  // seg0:7358 畫視窗 (無動畫); 之後文字邊界 = x+1..x+w-2, 游標 (x+1, y+8), 文字色 黑/底 7
+  // seg0:7358 画窗口 (无动画); 之后文字边界 = x+1..x+w-2, 光标 (x+1, y+8), 文字色 黑/底 7
   frame(x, y, w, h, style = 0, { shadow = false } = {}) {
     this.sys?.mouseHide();
     const s = this.scr;
@@ -111,7 +111,7 @@ export class WindowSystem {
     c.puts(Uint8Array.of(0x1b, 0x43, 0x30, 0x1b, 0x42, 0x37, 0));       // DS:8b3b  ESC C0 ESC B7
     this.sys?.mouseShow();
   }
-  // seg0:74f7 開視窗: 若「動畫效果」開啟, 由中央向左右展開, 每步 wait(1)
+  // seg0:74f7 开窗口: 若「动画效果」打开, 由中央向左右展开, 每步 wait(1)
   async open(x, y, w, h, style = 0) {
     this.save(x, y, w, h);
     this.con.puts(Uint8Array.of(0x1b, 0x43, 0x30, 0x1b, 0x42, 0x37, 0)); // DS:8b42
@@ -148,12 +148,12 @@ export class WindowSystem {
     }
     const c = this.con; c.right = x + w - 3; c.left = x + 2; c.setCursor(x + 2, y + 16);
   }
-  // seg0:773c 視窗 + 內邊距: 文字區 x+2..x+w-3, 游標 (x+2, y+16)
+  // seg0:773c 窗口 + 内边距: 文字区 x+2..x+w-3, 光标 (x+2, y+16)
   padded(x, y, w, h, style = 0) {
     this.frame(x, y, w, h, style);
     const c = this.con; c.right = x + w - 3; c.left = x + 2; c.setCursor(x + 2, y + 16);
   }
-  // seg0:7779 帶陰影視窗
+  // seg0:7779 带阴影窗口
   shadowed(x, y, w, h, style = 0) {
     if (this.scr.hdCtx) {
       this.frame(x, y, w, h, style, { shadow: true });

@@ -1,4 +1,4 @@
-// modern/ui_strings.ts — 全部不影響存檔的固定 UI 標籤、標題、屬性名與表頭（標準簡體中文，忠實原版名詞）
+// modern/ui_strings.ts — 全部不影响存盘的固定 UI 标签、标题、属性名与表头（标准简体中文，忠实原版名词）
 export const UI_STR = {
   cmdButtons: ["情报", "经营", "命令", "航海术"] as const,
 
@@ -56,7 +56,7 @@ export const UI_STR = {
   remodelTabs: ["船首像", "武装", "积载比例变更", "船名变更"] as const,
   itemShopTabs: ["买进", "卖出"] as const,
   settingsTitle: "环境设定",
-  settingsLabels: ["动画效果", "背景音乐", "滑鼠灵敏度", "海上移动值", "海上速度"] as const,
+  settingsLabels: ["动画效果", "背景音乐", "鼠标灵敏度", "海上移动值", "海上速度"] as const,
 
   listTitles: {
     0: "选择舰船",

@@ -1,4 +1,4 @@
-// canvas_ui/wide_numpad.ts — 原生 16:9 (1280×720) 現代 Canvas 2D 數值滑桿與步進輸入器 (零 DOM)
+// canvas_ui/wide_numpad.ts — 原生 16:9 (1280×720) 现代 Canvas 2D 数值滑杆与步进输入器 (零 DOM)
 import { VIEW_W, VIEW_H } from "../core/screen.js";
 
 export interface WideNumPadState {
@@ -62,14 +62,14 @@ export function drawWideNumPad(ctx: CanvasRenderingContext2D, s: WideNumPadState
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // 數值顯示區
+  // 数值显示区
   ctx.font = '700 26px "Cascadia Mono", "Consolas", "Microsoft YaHei UI", monospace';
   ctx.fillStyle = "#ffe5a3";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(`${s.value}  /  ${s.max}`, s.x + s.w / 2, s.y + 40);
 
-  // 滑桿軌道與填滿
+  // 滑杆轨道与填满
   const { track } = s;
   roundRect(ctx, track.x, track.y, track.w, track.h, 7);
   ctx.fillStyle = "rgba(255, 255, 255, 0.14)";
@@ -83,7 +83,7 @@ export function drawWideNumPad(ctx: CanvasRenderingContext2D, s: WideNumPadState
   ctx.fillStyle = tg;
   ctx.fill();
 
-  // 滑桿圓點
+  // 滑杆圆点
   const knobX = track.x + Math.round(track.w * ratio);
   ctx.beginPath();
   ctx.arc(knobX, track.y + track.h / 2, 10, 0, Math.PI * 2);
@@ -93,7 +93,7 @@ export function drawWideNumPad(ctx: CanvasRenderingContext2D, s: WideNumPadState
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // 按鈕
+  // 按钮
   ctx.font = '600 14px "Consolas", "Noto Serif TC", sans-serif';
   for (const b of s.btns) {
     const hov = mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h;
@@ -137,7 +137,7 @@ export async function runWideNumPad(ctx: any, min: number, max: number): Promise
   try {
     for (;;) {
       const vx = sys.mouse?.vx ?? -1, vy = sys.mouse?.vy ?? -1;
-      // 支援滑桿拖曳
+      // 支持滑杆拖拽
       if (sys.mouseLeft() && vx >= s.track.x - 10 && vx <= s.track.x + s.track.w + 10 && vy >= s.track.y - 12 && vy <= s.track.y + s.track.h + 12) {
         setFromTrack(vx);
         await sys.poll();

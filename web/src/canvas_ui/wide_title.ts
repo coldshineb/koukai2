@@ -1,4 +1,4 @@
-// canvas_ui/wide_title.ts — 原生 16:9 (1280×720) 標題底圖渲染（深海航海漸層 + 經緯底紋，供載入/選角/設定彈窗作為統一背景）
+// canvas_ui/wide_title.ts — 原生 16:9 (1280×720) 标题底图渲染（深海航海渐层 + 经纬底纹，供加载/选角/设置弹窗作为统一背景）
 import { VIEW_W, VIEW_H } from "../core/screen.js";
 
 export function renderWideTitle(ctx: CanvasRenderingContext2D, _art?: any) {
@@ -10,7 +10,7 @@ export function renderWideTitle(ctx: CanvasRenderingContext2D, _art?: any) {
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 
-  // 淡金經緯海圖線
+  // 淡金经纬海图线
   ctx.strokeStyle = "rgba(200, 162, 88, 0.06)";
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -18,7 +18,7 @@ export function renderWideTitle(ctx: CanvasRenderingContext2D, _art?: any) {
   for (let y = 48; y < VIEW_H; y += 48) { ctx.moveTo(0, y); ctx.lineTo(VIEW_W, y); }
   ctx.stroke();
 
-  // 中央淡金羅盤圓環
+  // 中央淡金罗盘圆环
   ctx.strokeStyle = "rgba(214, 174, 96, 0.14)";
   ctx.lineWidth = 1.2;
   ctx.beginPath();

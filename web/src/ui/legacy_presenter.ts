@@ -1,10 +1,10 @@
-// ui/legacy_presenter.ts — 原版 640×400 渲染管線的 IGameUI / IScenarioHost 適配器
+// ui/legacy_presenter.ts — 原版 640×400 渲染管线的 IGameUI / IScenarioHost 适配器
 import type { IGameUI, IScenarioHost, ScenarioWindowDef } from "./protocol.ts";
 import { DS } from "../model/schema_views.ts";
 import { GameConst } from "../model/flags.ts";
 import { stripEscBytes, toSimp } from "../canvas_ui/text_util.ts";
 
-/** 橋接現有 ctx (Screen / WindowSystem / MenuSystem / NumPad / ListSelect) */
+/** 桥接现有 ctx (Screen / WindowSystem / MenuSystem / NumPad / ListSelect) */
 export class LegacyGameUI implements IGameUI {
   readonly c: any;
   scene: any;
@@ -49,7 +49,7 @@ export interface LegacyScenarioDeps {
   triggerEnding: (scene: any, code: number) => Promise<void>;
 }
 
-/** 劇本 VM 的原版 640×400 宿主實作 (100% 保持原版逐像素與亂數行為) */
+/** 剧本 VM 的原版 640×400 宿主实现 (100% 保持原版逐像素与随机数行为) */
 export class LegacyScenarioHost implements IScenarioHost {
   readonly c: any;
   readonly getScene: () => any;

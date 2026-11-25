@@ -1,6 +1,6 @@
-// office.js — 事務所 (MAIN.EXE 1fd9:d40f = 線性 2d19f, 處理函式表 DS:a612[6]); 見 RE_NOTES 25
-// MENU #1 (工作介紹/各國情報), 子功能 DS:b48a = 2ce01 / 2d0b1
-// 共用劇本 SNR0 的工作狀態: globals.commonChap / commonSec / WorkDS.*
+// office.js — 事务所 (MAIN.EXE 1fd9:d40f = 线性 2d19f, 处理函数表 DS:a612[6]); 见 RE_NOTES 25
+// MENU #1 (工作介绍/各国情报), 子功能 DS:b48a = 2ce01 / 2d0b1
+// 共用剧本 SNR0 的工作状态: globals.commonChap / commonSec / WorkDS.*
 import { Scenario, ENV_COMMON } from "../game/scenario.js";
 import { GameConst, WorkDS, TreatyFlag } from "../model/flags.ts";
 import { hasDom } from "../modern/dom_ui.ts";
@@ -35,7 +35,7 @@ export class Office {
       b.after();
     } while (sel !== 0xff);
   }
-  // 劇本 2e09:5481 / 53f0 (共用 SNR0)
+  // 剧本 2e09:5481 / 53f0 (共用 SNR0)
   async event(building) {
     if (this.c.noEvents) return 0;
     const sc = (this.c.events ??= new Scenario(this.c)); sc.scene = this.b.p;
@@ -43,10 +43,10 @@ export class Office {
     await sc.run(ENV_COMMON);
     return 1;
   }
-  // 2ce01 工作介紹
+  // 2ce01 工作介绍
   async jobsMenu() {
     const b = this.b, st = this.st, m = this.m, g = m.globals;
-    if (g.commonChap) {                                                          // 正在執行工作
+    if (g.commonChap) {                                                          // 正在运行工作
       if (ofS16(st.u16(WorkDS.CUR_KIND)) < 6) {
         const tp = st.u8(WorkDS.TARGET_PORT);
         if (tp === b.port) b.greet(0x3a3); else b.greet(0x152, this.portName(tp));
@@ -55,7 +55,7 @@ export class Office {
       return this.jobHint();
     }
     if ((st.u8(WorkDS.FLAGS) & 3) === 3) {
-      b.greet(0x19a + (m.heroPerson().face & 0x0f)); this.c.message(0x3a4);      // 「某國王好像正在找你」
+      b.greet(0x19a + (m.heroPerson().face & 0x0f)); this.c.message(0x3a4);      // 「某国王好像正在找你」
       await b.wait(); return;
     }
     const kind = [], items = [];
@@ -70,7 +70,7 @@ export class Office {
       g.commonSec = 0;
     } while (!g.commonChap);
   }
-  // 2ccb8 執行工作中的提示 (只有工作種類 0x0b 且還沒拿到目標道具時)
+  // 2ccb8 运行工作中的提示 (只有工作种类 0x0b 且还没拿到目标道具时)
   async jobHint() {
     const b = this.b, st = this.st, m = this.m, { sys } = this.c;
     let dx = 1;
@@ -83,7 +83,7 @@ export class Office {
     const item = m.item(st.u8(WorkDS.TARGET_ITEM)).nameBytes;
     if (st.u8(WorkDS.TARGET_PORT) === b.port) {
       if (st.u16(WorkDS.TARGET_PERSON) === 0xff) {
-        const far = sys.rng.random(st.u16(WorkDS.RAND_RANGE) + 1) !== 0;         // 0 = 歐洲港 (< 0x2a) 的人物
+        const far = sys.rng.random(st.u16(WorkDS.RAND_RANGE) + 1) !== 0;         // 0 = 欧洲港 (< 0x2a) 的人物
         for (;;) {
           st.set16(WorkDS.TARGET_PERSON, sys.rng.random(0x29) + 0x4f);
           const q = m.person(st.u8(WorkDS.TARGET_PERSON)).stayPort;
@@ -102,7 +102,7 @@ export class Office {
     this.c.message(0x259);
     await b.wait();
   }
-  // 2d0b1 各國情報 (100 枚金幣)
+  // 2d0b1 各国情报 (100 枚金币)
   async nationInfo() {
     const b = this.b, st = this.st, m = this.m;
     b.greet(0xa2);
@@ -123,7 +123,7 @@ export class Office {
     b.greet(0x59, this.portName(st.u8(country.addr + 4)));
     await b.wait();
   }
-  // 2cf1e 國家表: 收益、主角對該國的貢獻度 (100 − 聲望, 不足 100 時以色 2 顯示)、對其他 5 國的友好關係 (30 − 值) 與同盟/封鎖
+  // 2cf1e 国家表: 收益、主角对该国的贡献度 (100 − 声望, 不足 100 时以色 2 显示)、对其他 5 国的友好关系 (30 − 值) 与同盟/封锁
   nationTable(n) {
     const m = this.m, { con, printf } = this.c, F = this.F, country = m.country(n), hd = m.heroInfo();
     con.puts(F.nColor);

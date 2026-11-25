@@ -1,5 +1,5 @@
-// canvas_ui/wide_manage.ts — 原生 16:9 (1280×720) 現代 Canvas 2D 經營/命令/設定浮窗套件
-// 涵蓋：艦隊經營表 (船長變更/水手編組/水手比例/艦船銷毀)、人事變更三職位卡、通用滑條/開關浮窗 (水手比例/糧食分配/環境設定)、通用對話提示。
+// canvas_ui/wide_manage.ts — 原生 16:9 (1280×720) 现代 Canvas 2D 经营/命令/设置浮窗套件
+// 涵盖：舰队经营表 (船长变更/水手编组/水手比例/舰船销毁)、人事变更三职位卡、通用滑条/开关浮窗 (水手比例/粮食分配/环境设置)、通用对话提示。
 import { VIEW_W, VIEW_H } from "../core/screen.js";
 import { hasDom, runDomControls, runDomList } from "../modern/dom_ui.ts";
 

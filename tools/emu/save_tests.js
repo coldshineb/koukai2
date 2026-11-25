@@ -1,4 +1,4 @@
-// save_tests.js — 現代 uw2-save-v2 JSON 存檔格式、只讀 KOUKAI2.DAT 匯入器與 SaveStore 單元測試
+// save_tests.js — 现代 uw2-save-v2 JSON 存盘格式、只读 KOUKAI2.DAT 导入器与 SaveStore 单元测试
 (function () {
   const fs = require("fs");
   const path = require("path");

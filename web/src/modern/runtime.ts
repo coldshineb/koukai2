@@ -1,4 +1,4 @@
-// modern/runtime.ts — 現代網頁引擎運行期控制器 (倍速 / 暫停 / 獨立 BGM 與 SFX 音量持久化)
+// modern/runtime.ts — 现代网页引擎运行期控制器 (倍速 / 暂停 / 独立 BGM 与 SFX 音量持久化)
 
 export type GameSpeed = 0 | 1 | 2 | 4;
 

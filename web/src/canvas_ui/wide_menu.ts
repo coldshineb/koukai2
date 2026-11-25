@@ -1,5 +1,5 @@
-// canvas_ui/wide_menu.ts — 原生 16:9 (1280×720) 現代浮動 Canvas 2D 選單 (取代原版 DOS listMenu 視窗)
-// 零 DOM、零舊版 640×400 裁切、100% 原版文本。
+// canvas_ui/wide_menu.ts — 原生 16:9 (1280×720) 现代浮动 Canvas 2D 菜单 (取代原版 DOS listMenu 窗口)
+// 零 DOM、零旧版 640×400 裁切、100% 原版文本。
 import { VIEW_W, VIEW_H } from "../core/screen.js";
 import { getCommandButtonRects } from "./wide_world.ts";
 import { BLD_CARD } from "./wide_building.ts";
@@ -9,7 +9,7 @@ export interface WideMenuState {
   items: string[];
   disabledMask: number;
   selected: number;
-  anchorCmd: number; // 0..3 對應右下 4 枚按鈕，-1 為螢幕置中
+  anchorCmd: number; // 0..3 对应右下 4 枚按钮，-1 为屏幕置中
   x: number;
   y: number;
   w: number;

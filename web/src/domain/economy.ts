@@ -1,5 +1,5 @@
-// domain/economy.ts — 純 TypeScript 經濟領域規則 (銀行 / 交易所定價 / 議價 / 物價指數波動)
-// 無任何 DOM / Canvas / 幀緩衝依賴，完整保留原版 16/32 位元整數截斷語意，便於單元測試與階段 4–5 重用。
+// domain/economy.ts — 纯 TypeScript 经济领域规则 (银行 / 交易所定价 / 议价 / 物价指数波动)
+// 无任何 DOM / Canvas / 帧缓冲依赖，完整保留原版 16/32 比特整数截断语意，便於单元测试与阶段 4–5 重用。
 
 export function domS16(v: number): number {
   return (v << 16) >> 16;
@@ -13,7 +13,7 @@ export function domUmax16(a: number, b: number): number {
   return (b & 0xffff) >= (a & 0xffff) ? b & 0xffff : a & 0xffff;
 }
 
-// ---------------- 銀行 (夏洛克銀行) ----------------
+// ---------------- 银行 (夏洛克银行) ----------------
 
 export function decodeBankBalance(quotient: number, rem: number): number {
   return (domS16(quotient) * 100 + (rem & 0xff)) | 0;
@@ -22,8 +22,8 @@ export function decodeBankBalance(quotient: number, rem: number): number {
 export type BankStoreMode = "normal" | "loan" | "repay";
 
 /**
- * 原版寫回帳戶編碼:
- * - bankQuotient = trunc(balance / 100)，貸款時若 balance < 0 再減 1，還款時若 balance !== 0 再減 1
+ * 原版写回帐户编码:
+ * - bankQuotient = trunc(balance / 100)，贷款时若 balance < 0 再减 1，还款时若 balance !== 0 再减 1
  * - bankRem = ((q & 0xff) * 0x9c + (balance & 0xff)) & 0xff (= balance - 100 * q)
  */
 export function encodeBankBalance(balance: number, mode: BankStoreMode = "normal"): { quotient: number; rem: number } {
