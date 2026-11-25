@@ -229,8 +229,16 @@ const HD_MODE_TINTS: Record<string, readonly [number, number, number]> = {
   overcast: [194, 208, 224],
 };
 
-function calcHdFadeFactor(scr: any): { mode: string; fade: number } {
-  const mode: string = scr?.atmosphere?.mode || "day";
+function portModeFromTime(time: number): string {
+  const t = time & 0xff;
+  if (t >= 24 && t < 48) return "day";
+  if (t >= 12 && t < 24) return "dawn";
+  if (t >= 48 && t < 60) return "dusk";
+  return "night";
+}
+
+function calcHdFadeFactor(scr: any, overrideMode?: string): { mode: string; fade: number } {
+  const mode: string = overrideMode || scr?.atmosphere?.mode || "day";
   const raw: Uint8Array | undefined = scr?.raw;
   let fade = 1;
   if (raw && raw.length >= 48 && DAY_REF_SUM > 0) {
@@ -244,8 +252,8 @@ function calcHdFadeFactor(scr: any): { mode: string; fade: number } {
   return { mode, fade };
 }
 
-function applyHdAtmosphereTint(ctx: CanvasRenderingContext2D, scr: any, vw: number, vh: number) {
-  const { mode, fade } = calcHdFadeFactor(scr);
+function applyHdAtmosphereTint(ctx: CanvasRenderingContext2D, scr: any, vw: number, vh: number, overrideMode?: string) {
+  const { mode, fade } = calcHdFadeFactor(scr, overrideMode);
   const baseTint = HD_MODE_TINTS[mode] || HD_MODE_TINTS.day;
   const r = Math.round(baseTint[0] * fade);
   const g = Math.round(baseTint[1] * fade);
@@ -493,6 +501,8 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
   const hyPx = Math.round(visHeroY * TILE) - camPxY;
   visibleSprites.push({ spriteIdx: heroSpriteIdx, xPx: hxPx, yPx: hyPx, w: TILE * 2, h: TILE * 2, sortY: hyPx + TILE * 2, isHero: true });
 
+  const portMode = typeof portScene.time === "number" ? portModeFromTime(portScene.time) : undefined;
+
   // 优先走《八方旅人》风格 WebGL2 HD-2D 实时光影/法线/阴影/波光水面/移轴景深管线
   if (useHd) {
     const sheetMeta = art.sheet?.(sheetName);
@@ -506,7 +516,7 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
     if (sheetMeta && charsMeta && ready(albSheet) && ready(nrmSheet) && ready(matSheet) && ready(charsAlb) && ready(charsNrm)) {
       const glRenderer = getSharedHd2dRenderer();
       if (glRenderer) {
-        const { mode, fade } = calcHdFadeFactor(scr);
+        const { mode, fade } = calcHdFadeFactor(scr, portMode);
         const glOut = glRenderer.render({
           vw,
           vh,
@@ -517,7 +527,7 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
           camPxY,
           tilePx: TILE,
           timeSec: tNow * 0.001,
-          gameTime: portScene.m?.globals?.time ?? 30,
+          gameTime: portScene.time ?? portScene.m?.globals?.time ?? 30,
           mode,
           fade,
           heroScreenX: hxPx + TILE,
@@ -564,7 +574,7 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
   }
 
   if (usedHdMap) {
-    applyHdAtmosphereTint(wctx, scr, vw, vh);
+    applyHdAtmosphereTint(wctx, scr, vw, vh, portMode);
   }
 
   if (wideStageCanvas && wctx !== ctx) {

@@ -97,7 +97,7 @@ export class GameClock {
       while (sys.timer.get()) await sys.poll();                                      // 16b5
       return;
     }
-    if (!palette.invert) palette.setTarget(palette.T[["night", "dawn", "day", "dusk", "overcast"][palette.constructor.timeSlot(this.rt.time)]]);
+    palette.selectTimePalette(this.rt.time, false, g.weather);
     await palette.fadeToTarget();
     this.rt.time = (this.rt.time + await this.portScene.action()) & 0xff;            // 1bb07
     if (this.abort()) return;
