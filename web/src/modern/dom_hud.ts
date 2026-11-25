@@ -289,13 +289,13 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
           `<div class="uw2-bar-track" style="height:5px;"><div class="uw2-bar-fill ${cls}" style="width:${Math.max(0, Math.min(100, pct))}%"></div></div>` +
           `</div>`;
         pmEl.innerHTML =
-          barRow("转向", `${ss.turn}`, ss.turn) +
-          barRow("推进", `${ss.prop}`, ss.prop) +
-          barRow("耐久", `${ss.minDur}`, ss.minDur, ss.minDur < 40 ? "red" : "green") +
-          barRow("吃水", `${ss.loadPct}%`, ss.loadPct, ss.loadPct >= 90 ? "red" : "") +
-          barRow("瞭望", `${ss.sightPct}%`, ss.sightPct) +
+          barRow("转向力", `${ss.turn}`, ss.turn) +
+          barRow("推进力", `${ss.prop}`, ss.prop) +
+          barRow("耐久度", `${ss.minDur}`, ss.minDur, ss.minDur < 40 ? "red" : "green") +
+          barRow("吃水量", `${ss.loadPct}%`, ss.loadPct, ss.loadPct >= 90 ? "red" : "") +
+          barRow("瞭望范围", `${ss.sightPct}%`, ss.sightPct) +
           barRow("水手", `${ss.crewSum}/${ss.maxCrewSum}`, crewPct, crewPct < 40 ? "red" : "green") +
-          barRow("状态", `${ss.morale}`, ss.morale, ss.morale < 40 ? "red" : "green");
+          barRow("船舰状态", `${ss.morale}`, ss.morale, ss.morale < 40 ? "red" : "green");
       }
     } else {
       pmEl.style.display = "none";
