@@ -513,6 +513,7 @@ export class SeaScene extends PortScene {
     await this.c.menu.waitRelease();                                   // 0fea:3343 = 131e3
     const init = (Math.imul(0x18, seaS16(st.u16(F + OFF.FLEET.Y) - this.vy1008)) - this.vx1006 + st.u16(F)) & 0xffff;
     const si = await this.cellSel().select(0x60, 8, 0x18, 0x10, 0x10, 0x18, seaS16(init));
+    if (sys.mouse) sys.mouse.lastClick = null;
     if (!deleg && !isWide) await win.close();
     sys.mouseShow();
     if (si === -1) return 0;

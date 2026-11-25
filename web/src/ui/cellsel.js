@@ -220,6 +220,8 @@ export class CellSelect {
       if (idx >= 0) scr.wideOverlays.splice(idx, 1);
       scr.dirty = true;
       await m.waitRelease();
+      if (sys.mouse) sys.mouse.lastClick = null;
+      sys.flush();
       sys.mouseHide();
     }
     return result;
