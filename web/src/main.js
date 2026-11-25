@@ -129,7 +129,9 @@ function frame() {
 }
 
 (async () => {
-  const opening = new Opening(ctx, await loadOpeningData(ASSETS, loadJSON));
+  const opening = new Opening(ctx, await loadOpeningData(ASSETS, loadBinary, loadJSON, ctx.art));
+  ctx.scr.full = opening.full;
+  ctx.scr.setPaletteRaw(new Uint8Array(48));
   requestAnimationFrame(frame);
   await opening.run();
   if (ctx.halted) return;
@@ -141,8 +143,8 @@ function frame() {
   } catch (e) {
     if (!(e instanceof MainExit)) throw e;
     ctx.bgm.optionOff = null;
-    const end = await loadEndingData(ASSETS, loadJSON);
-    await new Ending(ctx, end).run(e.params);
+    const end = await loadEndingData(ASSETS, loadBinary, loadJSON, ctx.art);
+    await new Ending({ scr, sys, bgm: ctx.bgm, font: ctx.font }, end).run(e.params);
     ctx.halted = true;
   }
 })();
