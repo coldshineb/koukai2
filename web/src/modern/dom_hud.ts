@@ -14,12 +14,12 @@ let lastTrKey = "";
 let lastBlKey = "";
 let currentSys: any = null;
 
-// 4 枚主指令按鈕對應的 port.js / sea.js 掃描碼 (F1-F4: 0x2b / 0x2a / 0x2f / 0x3d)
+// 4 枚主指令按鈕對應的 PC BIOS F1-F4 掃描碼 (keymap.js: 0x3b / 0x3c / 0x3d / 0x3e)
 const CMD_DEFS: [string, number][] = [
-  ["情报", 0x2b],
-  ["经营", 0x2a],
-  ["命令", 0x2f],
-  ["航海术", 0x3d],
+  ["情报", 0x3b],
+  ["经营", 0x3c],
+  ["命令", 0x3d],
+  ["航海术", 0x3e],
 ];
 
 const DIR_LABELS = ["北", "东北", "东", "东南", "南", "西南", "西", "西北"];
@@ -52,7 +52,7 @@ function ensureHudRoot(): HTMLElement | null {
     btn.addEventListener("click", e => {
       e.stopPropagation();
       if (document.body.dataset.uw2Modal === "open") return;
-      currentSys?.pushKey?.(scan);
+      currentSys?.pushKey?.(scan, 0);
     });
     brEl.appendChild(btn);
   }

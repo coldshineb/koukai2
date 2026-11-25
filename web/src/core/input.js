@@ -13,16 +13,11 @@ function browserReserved(e) {
 }
 
 export function bindInput(canvas, sys) {
-  // 滑鼠在遊戲畫面 (canvas) 外時, 鍵盤完全交給瀏覽器 (不送進遊戲、不 preventDefault)。
-  // 初值為 true: 載入時滑鼠可能已在畫面上而尚未觸發 pointerenter。
-  let inside = true;
-  canvas.addEventListener("pointerenter", () => { inside = true; });
-  canvas.addEventListener("pointerleave", () => { inside = false; });
   addEventListener("keydown", e => {
     if (document.body?.dataset.uw2Modal === "open") return;
     const tag = e.target?.tagName;
     if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-    if (!inside || browserReserved(e)) return;
+    if (browserReserved(e)) return;
     const k = keyToBios(e); if (!k) return;
     e.preventDefault();
     sys.pushKey(k[0], k[1]);
