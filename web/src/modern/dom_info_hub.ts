@@ -10,8 +10,8 @@ import { createDomModal, getPersonPortraitSrc, preserveScroll } from "./dom_ui.t
 const s16 = (v: number) => (v << 16) >> 16;
 const umin = (a: number, b: number) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);
 
-/** 將世界航海圖內嵌繪製到任意 DOM 容器中（支援滑鼠懸停顯示港名，點擊不會關閉） */
-export function mountDomWorldChart(container: HTMLElement, c: any) {
+/** 將世界航海圖內嵌繪製到任意 DOM 容器中（支援懸停港名 + 點擊放大檢視 72×72 局部真實海域地形圖與漫遊） */
+export function mountDomWorldChart(container: HTMLElement, c: any, scene?: any) {
   const st = c.state, art = c.art;
   const dec = (bts: Uint8Array) => decodeCleanCstr(c.codec, bts);
 
@@ -21,8 +21,11 @@ export function mountDomWorldChart(container: HTMLElement, c: any) {
   wrap.className = "uw2-action-box";
   wrap.style.cssText = "align-items:center;gap:10px;";
 
+  const topBar = document.createElement("div");
+  topBar.style.cssText = "width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:30px;";
+
   const stage = document.createElement("div");
-  stage.style.cssText = `position:relative;width:${mapW}px;max-width:100%;aspect-ratio:${mapW}/${mapH};border-radius:8px;overflow:hidden;border:1px solid var(--uw2-gold);background:#0a1b32;`;
+  stage.style.cssText = `position:relative;width:${mapW}px;max-width:100%;aspect-ratio:${mapW}/${mapH};border-radius:8px;overflow:hidden;border:1px solid var(--uw2-gold);background:#0a1b32;cursor:crosshair;`;
 
   const cv = document.createElement("canvas");
   cv.width = mapW;
@@ -35,10 +38,9 @@ export function mountDomWorldChart(container: HTMLElement, c: any) {
   stage.appendChild(tip);
 
   const legend = document.createElement("div");
-  legend.style.cssText = "display:flex;gap:18px;font-size:13px;color:var(--uw2-ink-muted);align-items:center;";
-  legend.innerHTML = `<span><b style="color:#ff4d4d;">●</b> 当前舰队</span><span><b style="color:#d49d2a;">■</b> 港口</span><span><b style="color:#3898d8;">■</b> 补给港</span><span>移动鼠标查看港口名称</span>`;
+  legend.style.cssText = "display:flex;gap:18px;font-size:13px;color:var(--uw2-ink-muted);align-items:center;flex-wrap:wrap;justify-content:center;";
 
-  wrap.append(stage, legend);
+  wrap.append(topBar, stage, legend);
   container.appendChild(wrap);
 
   const F = DS.TBL_FLEET + st.u8(st.personRecord(st.hero) + 0x2c) * 0x85;
@@ -46,19 +48,74 @@ export function mountDomWorldChart(container: HTMLElement, c: any) {
   const toX = (wx: number) => (((wx / 24) + 30) % 90) * cw;
   const toY = (wy: number) => (wy / 24) * ch;
 
-  const ports: { x: number; y: number; name: string; supply: boolean }[] = [];
+  const ports: { wx: number; wy: number; x: number; y: number; name: string; supply: boolean }[] = [];
   for (let p = 0; p < 130; p++) {
     const R = DS.TBL_PORT + p * 0x16;
     if (!(st.u8(R + OFF.PORT.REGION) & 0x40)) continue;
-    ports.push({ x: toX(st.u16(R)), y: toY(st.u16(R + 2)), name: dec(st.cstr(R + OFF.PORT.NAME)), supply: p >= 100 });
+    const wx = st.u16(R), wy = st.u16(R + 2);
+    ports.push({ wx, wy, x: toX(wx), y: toY(wy), name: dec(st.cstr(R + OFF.PORT.NAME)), supply: p >= 100 });
   }
 
   const mapEntry = art?.graphEntry?.("GRAPH.DAT", 0x19);
   const mapUrl = mapEntry ? `${art.baseUrl}/${mapEntry.path}` : null;
+  const seaMeta = art?.sheet?.("seachip");
+  const wm = scene?.wm ?? null;
+  const localBuf = new Uint8Array(0x2400);
 
-  const draw = () => {
+  let mode: "world" | "local" = "world";
+  let hoverCell: { wcol: number; row: number } | null = null;
+  // 局部放大模式：左上海域格 (0..89, 0..42)
+  let zoomCol = 0;
+  let zoomRow = 0;
+
+  const isCellSeen = (wcol: number, row: number) => {
+    if (row < 0 || row >= 45) return false;
+    const c0 = ((wcol % 90) + 90) % 90;
+    return !!(st.u8(WorkDS.EXPLORE_MAP + 12 * row + (c0 >> 3)) & (0x80 >> (c0 & 7)));
+  };
+
+  const renderTopAndLegend = () => {
+    topBar.innerHTML = "";
+    if (mode === "world") {
+      const hint = document.createElement("span");
+      hint.style.cssText = "font-size:13px;color:var(--uw2-ink-muted);font-weight:600;";
+      hint.textContent = wm ? "点击任意已探索海域，放大查看局部真实地形图" : "移动鼠标查看已知港口";
+      topBar.appendChild(hint);
+      legend.innerHTML = `<span><b style="color:#ff4d4d;">●</b> 当前舰队</span><span><b style="color:#d49d2a;">■</b> 港口</span><span><b style="color:#3898d8;">■</b> 补给港</span>`;
+    } else {
+      const backBtn = document.createElement("button");
+      backBtn.className = "uw2-btn uw2-btn-primary";
+      backBtn.style.padding = "5px 14px";
+      backBtn.textContent = "← 返回世界图";
+      backBtn.addEventListener("click", () => { mode = "world"; tip.style.display = "none"; renderAll(); });
+
+      const nav = document.createElement("div");
+      nav.className = "uw2-step-row";
+      const pan = (dc: number, dr: number) => {
+        zoomCol = (zoomCol + dc + 90) % 90;
+        zoomRow = Math.max(0, Math.min(42, zoomRow + dr));
+        renderAll();
+      };
+      for (const [lb, dc, dr] of [["←", -1, 0], ["↑", 0, -1], ["↓", 0, 1], ["→", 1, 0]] as const) {
+        const b = document.createElement("button");
+        b.className = "uw2-step-btn";
+        b.textContent = lb;
+        b.addEventListener("click", () => pan(dc, dr));
+        nav.appendChild(b);
+      }
+      topBar.append(backBtn, nav);
+      legend.innerHTML = `<span>局部 3×3 海域真实地形（72×72 格）</span><span>使用方向按钮可平移查看周边海域</span>`;
+    }
+  };
+
+  const drawWorld = () => {
     const ctx = cv.getContext("2d");
     if (!ctx) return;
+    cv.width = mapW;
+    cv.height = mapH;
+    stage.style.width = `${mapW}px`;
+    stage.style.aspectRatio = `${mapW}/${mapH}`;
+
     ctx.fillStyle = "#0a1b32";
     ctx.fillRect(0, 0, mapW, mapH);
 
@@ -75,8 +132,7 @@ export function mountDomWorldChart(container: HTMLElement, c: any) {
     for (let row = 0; row < 45; row++) {
       for (let col = 0; col < 90; col++) {
         const wcol = (col - 30 + 90) % 90;
-        const seen = st.u8(WorkDS.EXPLORE_MAP + 12 * row + (wcol >> 3)) & (0x80 >> (wcol & 7));
-        if (seen) continue;
+        if (isCellSeen(wcol, row)) continue;
         ctx.fillStyle = "rgba(8, 18, 34, 0.84)";
         ctx.fillRect(col * cw, row * ch, cw, ch);
       }
@@ -89,6 +145,15 @@ export function mountDomWorldChart(container: HTMLElement, c: any) {
     }
     for (let row = 0; row <= 45; row += 9) {
       ctx.beginPath(); ctx.moveTo(0, row * ch); ctx.lineTo(mapW, row * ch); ctx.stroke();
+    }
+
+    // 懸停 3×3 放大預覽框
+    if (hoverCell && wm) {
+      const sc = ((hoverCell.wcol + 30) % 90) - 1;
+      const sr = Math.max(0, Math.min(42, hoverCell.row - 1));
+      ctx.strokeStyle = "rgba(255, 224, 130, 0.9)";
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(sc * cw, sr * ch, cw * 3, ch * 3);
     }
 
     for (const pt of ports) {
@@ -106,15 +171,140 @@ export function mountDomWorldChart(container: HTMLElement, c: any) {
     ctx.stroke();
   };
 
-  draw();
+  const drawLocal = () => {
+    const ctx = cv.getContext("2d");
+    if (!ctx || !wm) return;
+    const tilePx = 6; // 72×6 = 432×432 清晰真實海域圖
+    const sz = 72 * tilePx;
+    cv.width = sz;
+    cv.height = sz;
+    stage.style.width = `${sz}px`;
+    stage.style.aspectRatio = "1/1";
+
+    ctx.fillStyle = "#08182e";
+    ctx.fillRect(0, 0, sz, sz);
+
+    const sheetImg = seaMeta ? art.getImage(art.sheetUrl("seachip")) : null;
+    const scaleX = sheetImg && seaMeta ? (sheetImg.naturalWidth || seaMeta.w) / seaMeta.w : 1;
+    const scaleY = sheetImg && seaMeta ? (sheetImg.naturalHeight || seaMeta.h) / seaMeta.h : 1;
+    ctx.imageSmoothingEnabled = false;
+
+    // 逐海域格 (3×3) 解碼，支援跨大區 (item 0/1/2) 與全球環繞
+    const decodedItems = new Map<string, Uint8Array>();
+    for (let dr = 0; dr < 3; dr++) {
+      const rCell = zoomRow + dr;
+      if (rCell < 0 || rCell >= 45) continue;
+      for (let dc = 0; dc < 3; dc++) {
+        const wcol = (zoomCol + dc + 90) % 90;
+        if (!isCellSeen(wcol, rCell)) {
+          ctx.fillStyle = "#091628";
+          ctx.fillRect(dc * 24 * tilePx, dr * 24 * tilePx, 24 * tilePx, 24 * tilePx);
+          continue;
+        }
+        const item = Math.trunc(wcol / 30);
+        const colInItem = wcol % 30;
+        // 取包含 (colInItem, rCell) 的合法 3×3 解碼起點
+        const c0 = Math.max(0, Math.min(27, colInItem));
+        const r0 = Math.max(0, Math.min(42, rCell));
+        const key = `${item}_${r0}_${c0}`;
+        let buf = decodedItems.get(key);
+        if (!buf) {
+          buf = new Uint8Array(0x2400);
+          wm.decode(st, item, r0 * 30 + c0, buf);
+          decodedItems.set(key, buf);
+        }
+        const offC = (colInItem - c0) * 24;
+        const offR = (rCell - r0) * 24;
+        if (sheetImg && seaMeta) {
+          for (let y = 0; y < 24; y++) {
+            const rowOff = (offR + y) * 96 + offC;
+            for (let x = 0; x < 24; x++) {
+              const t = buf[rowOff + x];
+              if (t < 0 || t >= seaMeta.count) continue;
+              const sx = (t % seaMeta.cols) * seaMeta.tileW * scaleX;
+              const sy = Math.floor(t / seaMeta.cols) * seaMeta.tileH * scaleY;
+              ctx.drawImage(
+                sheetImg,
+                sx, sy, seaMeta.tileW * scaleX, seaMeta.tileH * scaleY,
+                (dc * 24 + x) * tilePx, (dr * 24 + y) * tilePx, tilePx, tilePx,
+              );
+            }
+          }
+        }
+      }
+    }
+
+    // 標註區域內的已知港口與名稱
+    const baseWX = zoomCol * 24;
+    const baseWY = zoomRow * 24;
+    ctx.font = `700 12px ${UI_FONT}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    for (const pt of ports) {
+      let dx = pt.wx - baseWX;
+      if (dx < -1080) dx += 2160;
+      else if (dx > 1080) dx -= 2160;
+      const dy = pt.wy - baseWY;
+      if (dx < 0 || dx >= 72 || dy < 0 || dy >= 72) continue;
+      const px = dx * tilePx + tilePx / 2;
+      const py = dy * tilePx + tilePx / 2;
+      ctx.fillStyle = pt.supply ? "#80d4ff" : "#ffe082";
+      ctx.beginPath();
+      ctx.arc(px, py, 4, 0, Math.PI * 2);
+      ctx.fill();
+      const tw = ctx.measureText(pt.name).width + 10;
+      const lx = Math.min(sz - tw / 2 - 4, Math.max(tw / 2 + 4, px));
+      const ly = Math.max(12, py - 14);
+      ctx.fillStyle = "rgba(8, 18, 34, 0.88)";
+      ctx.fillRect(lx - tw / 2, ly - 9, tw, 18);
+      ctx.strokeStyle = "rgba(232, 194, 114, 0.9)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(lx - tw / 2, ly - 9, tw, 18);
+      ctx.fillStyle = "#fff4d6";
+      ctx.fillText(pt.name, lx, ly + 1);
+    }
+
+    // 若主角艦隊在區域內則繪製紅點
+    let hdx = fx - baseWX;
+    if (hdx < -1080) hdx += 2160;
+    else if (hdx > 1080) hdx -= 2160;
+    const hdy = fy - baseWY;
+    if (hdx >= 0 && hdx < 72 && hdy >= 0 && hdy < 72) {
+      ctx.fillStyle = "#ff4d4d";
+      ctx.beginPath();
+      ctx.arc(hdx * tilePx + tilePx, hdy * tilePx + tilePx, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  };
+
+  const renderAll = () => {
+    renderTopAndLegend();
+    if (mode === "world") drawWorld();
+    else drawLocal();
+  };
+
+  renderAll();
   if (mapUrl && !art?.getImage?.(mapUrl)) {
-    void art?.loadImage?.(mapUrl).then(() => draw()).catch(() => {});
+    void art?.loadImage?.(mapUrl).then(() => { if (mode === "world") drawWorld(); }).catch(() => {});
+  }
+  if (seaMeta && !art?.getImage?.(art.sheetUrl("seachip"))) {
+    void art?.loadImage?.(art.sheetUrl("seachip")).then(() => { if (mode === "local") drawLocal(); }).catch(() => {});
   }
 
   cv.addEventListener("mousemove", e => {
+    if (mode !== "world") return;
     const r = cv.getBoundingClientRect();
     const mx = ((e.clientX - r.left) / (r.width || 1)) * mapW;
     const my = ((e.clientY - r.top) / (r.height || 1)) * mapH;
+    const col = Math.max(0, Math.min(89, Math.floor(mx / cw)));
+    const row = Math.max(0, Math.min(44, Math.floor(my / ch)));
+    const wcol = (col - 30 + 90) % 90;
+    hoverCell = { wcol, row };
+    drawWorld();
+
     let best: typeof ports[0] | null = null;
     let bestD = 12;
     for (const pt of ports) {
@@ -130,10 +320,34 @@ export function mountDomWorldChart(container: HTMLElement, c: any) {
       tip.style.display = "none";
     }
   });
-  cv.addEventListener("mouseleave", () => { tip.style.display = "none"; });
+  cv.addEventListener("mouseleave", () => {
+    if (mode !== "world") return;
+    hoverCell = null;
+    tip.style.display = "none";
+    drawWorld();
+  });
+  cv.addEventListener("click", e => {
+    if (mode !== "world" || !wm) return;
+    const r = cv.getBoundingClientRect();
+    const mx = ((e.clientX - r.left) / (r.width || 1)) * mapW;
+    const my = ((e.clientY - r.top) / (r.height || 1)) * mapH;
+    const col = Math.max(0, Math.min(89, Math.floor(mx / cw)));
+    const row = Math.max(0, Math.min(44, Math.floor(my / ch)));
+    const wcol = (col - 30 + 90) % 90;
+    // 若點擊區域（含周圍 3×3）任一格已探索即可放大檢視
+    let anySeen = false;
+    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) if (isCellSeen(wcol + dc, row + dr)) anySeen = true;
+    if (!anySeen) return;
+    zoomCol = (wcol - 1 + 90) % 90;
+    zoomRow = Math.max(0, Math.min(42, row - 1));
+    mode = "local";
+    tip.style.display = "none";
+    renderAll();
+  });
+  void localBuf;
 }
 
-/** 將海港地圖內嵌繪製到任意 DOM 容器中（點擊不會關閉） */
+/** 將完整海港地圖 (全港 96×96 格) 內嵌繪製到任意 DOM 容器中（點擊不會關閉） */
 export function mountDomPortMap(container: HTMLElement, c: any, p: any) {
   const st = c.state, art = c.art;
   const dec = (bts: Uint8Array) => decodeCleanCstr(c.codec, bts);
@@ -142,13 +356,8 @@ export function mountDomPortMap(container: HTMLElement, c: any, p: any) {
   const lab = c.menuItems(0x3a);
 
   const X = p.hx + p.vx, Y = p.hy + p.vy;
-  let di = Math.trunc(X / 24), si = Math.trunc(Y / 24);
-  if (X % 24 < 12 ? di !== 0 : di === 3) di--;
-  if (Y % 24 < 12 ? si !== 0 : si === 3) si--;
-  const startCol = Math.max(0, Math.min(48, di * 24));
-  const startRow = Math.max(0, Math.min(48, si * 24));
-  const tilePx = 10;
-  const mapPx = 48 * tilePx; // 480×480
+  const tilePx = 5;
+  const mapPx = 96 * tilePx; // 全港 96×96 格 = 480×480
 
   const wrap = document.createElement("div");
   wrap.className = "uw2-action-box";
@@ -177,11 +386,10 @@ export function mountDomPortMap(container: HTMLElement, c: any, p: any) {
       const scaleX = (sheetImg.naturalWidth || meta.w) / meta.w;
       const scaleY = (sheetImg.naturalHeight || meta.h) / meta.h;
       const M = p.map;
-      for (let r = 0; r < 48; r++) {
-        const mr = startRow + r;
-        for (let col = 0; col < 48; col++) {
-          const mc = startCol + col;
-          const t = M[mr * 96 + mc];
+      for (let r = 0; r < 96; r++) {
+        const rowOff = r * 96;
+        for (let col = 0; col < 96; col++) {
+          const t = M[rowOff + col];
           if (t < 0 || t >= meta.count) continue;
           const sx = (t % meta.cols) * meta.tileW * scaleX;
           const sy = Math.floor(t / meta.cols) * meta.tileH * scaleY;
@@ -190,33 +398,33 @@ export function mountDomPortMap(container: HTMLElement, c: any, p: any) {
       }
     }
 
-    const hx = (X - startCol) * tilePx + tilePx / 2;
-    const hy = (Y - startRow) * tilePx + tilePx / 2;
+    const hx = X * tilePx + tilePx;
+    const hy = Y * tilePx + tilePx;
     ctx.fillStyle = "#ff4d4d";
     ctx.beginPath();
-    ctx.arc(hx, hy, 6, 0, Math.PI * 2);
+    ctx.arc(hx, hy, 5.5, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    ctx.font = `700 12px ${UI_FONT}`;
+    ctx.font = `700 11px ${UI_FONT}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     for (let k = 0; k < 12; k++) {
       if (k === 7) continue;
       const dx = p.door[k * 2], dy = p.door[k * 2 + 1];
-      if (dx < startCol || dx >= startCol + 48 || dy < startRow || dy >= startRow + 48) continue;
+      if ((!dx && !dy) || dx >= 96 || dy >= 96) continue;
       const text = dec(lab[k]);
       if (!text) continue;
-      const lx = (dx - startCol) * tilePx + tilePx / 2;
-      const ly = Math.max(12, (dy - startRow) * tilePx - 10);
-      const tw = ctx.measureText(text).width + 12;
+      const tw = ctx.measureText(text).width + 10;
+      const lx = Math.min(mapPx - tw / 2 - 3, Math.max(tw / 2 + 3, dx * tilePx + tilePx / 2));
+      const ly = Math.max(11, dy * tilePx - 8);
       ctx.fillStyle = "rgba(8, 18, 34, 0.88)";
-      ctx.fillRect(lx - tw / 2, ly - 9, tw, 18);
+      ctx.fillRect(lx - tw / 2, ly - 8, tw, 16);
       ctx.strokeStyle = "rgba(232, 194, 114, 0.9)";
       ctx.lineWidth = 1;
-      ctx.strokeRect(lx - tw / 2, ly - 9, tw, 18);
+      ctx.strokeRect(lx - tw / 2, ly - 8, tw, 16);
       ctx.fillStyle = "#fff4d6";
       ctx.fillText(text, lx, ly + 1);
     }
@@ -228,10 +436,10 @@ export function mountDomPortMap(container: HTMLElement, c: any, p: any) {
   }
 }
 
-export function runDomWorldChartModal(c: any, title: string): Promise<void> {
+export function runDomWorldChartModal(c: any, title: string, scene?: any): Promise<void> {
   return new Promise(resolve => {
     const h = createDomModal({ title, size: "wide", cancelable: true, closeLabel: "关闭", onCancel: () => resolve() });
-    mountDomWorldChart(h.body, c);
+    mountDomWorldChart(h.body, c, scene);
   });
 }
 
@@ -310,7 +518,7 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
         else if (activeTab === 4) renderCargoShipTab(h.body);
         else if (activeTab === 5) renderCargoSummaryTab(h.body);
         else if (activeTab === 6) renderDiscoveryTab(h.body);
-        else if (activeTab === 7) mountDomWorldChart(h.body, c);
+        else if (activeTab === 7) mountDomWorldChart(h.body, c, p);
         else if (activeTab === 8) renderLogTab(h.body);
         else if (activeTab === 9) mountDomPortMap(h.body, c, p);
       }, keepScroll);
