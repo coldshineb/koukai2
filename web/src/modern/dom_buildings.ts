@@ -215,7 +215,7 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
           const btnAud = document.createElement("button");
           btnAud.className = "uw2-btn uw2-btn-primary";
           btnAud.style.cssText = "padding:10px 20px;align-self:flex-start;";
-          btnAud.textContent = "晋见国王（敕命 / 封爵）";
+          btnAud.textContent = decodeCleanCstr(codec, c.menuItems(MenuId.PALACE)[0]).replace(/\s+/g, "");
           btnAud.addEventListener("click", () => {
             pendingAction = "royal_event";
             done();
@@ -224,7 +224,7 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
           const btnSit = document.createElement("button");
           btnSit.className = "uw2-btn";
           btnSit.style.cssText = "padding:9px 18px;align-self:flex-start;";
-          btnSit.textContent = "查看本国势力状况";
+          btnSit.textContent = decodeCleanCstr(codec, c.menuItems(MenuId.PALACE_AUDIENCE)[0]).replace(/\s+/g, "");
           btnSit.addEventListener("click", () => { tab = 1; render(); });
 
           box.append(btnAud, btnSit);
@@ -271,7 +271,7 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
           // 1. 私掠許可證
           const lomBtn = document.createElement("button");
           lomBtn.className = "uw2-row-card";
-          lomBtn.textContent = "申请私掠许可证";
+          lomBtn.textContent = decodeCleanCstr(codec, c.menuItems(MenuId.PALACE_AUDIENCE)[1]).replace(/\s+/g, "");
           lomBtn.addEventListener("click", () => {
             const target = (palace.nation + 0x1d) & 0xff;
             const slot = palace.invSlot(target);
@@ -294,7 +294,7 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
           const tfBtn = document.createElement("button");
           tfBtn.className = "uw2-row-card";
           tfBtn.disabled = !palace.same();
-          tfBtn.textContent = tfCostW > 0 ? `申请免税证（需 ${tfCostW} 块金块）` : "申请免税证（免费）";
+          tfBtn.textContent = decodeCleanCstr(codec, c.menuItems(MenuId.PALACE_AUDIENCE)[2]).replace(/\s+/g, "");
           tfBtn.addEventListener("click", () => {
             const slot = palace.invSlot(tfTarget);
             if (slot === -1) { notice = capMsg(c, 0x368); render(); return; }
@@ -313,7 +313,7 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
           const natBtn = document.createElement("button");
           natBtn.className = "uw2-row-card";
           natBtn.disabled = !canNaturalize;
-          natBtn.textContent = same ? "已为本国国籍" : "申请归化入籍";
+          natBtn.textContent = decodeCleanCstr(codec, c.menuItems(MenuId.PALACE)[1]).replace(/\s+/g, "");
           natBtn.addEventListener("click", () => {
             const hero = m.heroPerson();
             const oldNat = hero.face & 7, newNat = palace.nation;
@@ -344,8 +344,7 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
 
           const fundsBtn = document.createElement("button");
           fundsBtn.className = "uw2-row-card";
-          const v = country.aidMoneyK;
-          fundsBtn.textContent = v ? `领取资金援助（${(v * 1000).toLocaleString()} 金币）` : "资金援助（暂无）";
+          fundsBtn.textContent = decodeCleanCstr(codec, c.menuItems(MenuId.PALACE)[2]).replace(/\s+/g, "");
           fundsBtn.addEventListener("click", () => {
             if (!country.aidMoneyK) { notice = capMsg(c, 0x1cd); render(); return; }
             if (((palace.money + country.aidMoneyK * 1000) | 0) > GameConst.MAX_CASH) { notice = capMsg(c, 0x212); render(); return; }
@@ -359,9 +358,7 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
 
           const shipBtn = document.createElement("button");
           shipBtn.className = "uw2-row-card";
-          shipBtn.textContent = country.aidShipCount
-            ? `领取船舶援助（${decodeCleanCstr(codec, m.ship(country.aidShipType + 40).nameBytes)}）`
-            : "船舶援助（暂无）";
+          shipBtn.textContent = decodeCleanCstr(codec, c.menuItems(MenuId.PALACE)[3]).replace(/\s+/g, "");
           shipBtn.addEventListener("click", () => {
             if (!country.aidShipCount) { notice = capMsg(c, 0x1cd); render(); return; }
             pendingAction = "ship_aid";
@@ -704,7 +701,7 @@ export async function runDomOfficeWorkbench(office: any): Promise<void> {
             left.appendChild(list);
             const tip = document.createElement("div");
             tip.style.cssText = "font-size:14px;color:var(--uw2-ink-muted);";
-            tip.textContent = "点击左侧委托即可听取详情并决定是否接受。";
+            tip.textContent = initGreet;
             box.appendChild(tip);
           }
           right.appendChild(box);
@@ -933,15 +930,12 @@ export async function runDomInnWorkbench(b: any): Promise<void> {
         } else {
           const box = document.createElement("div");
           box.className = "uw2-action-box";
-          const p = document.createElement("div");
-          p.style.cssText = "font-size:14px;color:var(--uw2-ink);";
-          p.textContent = "在旅馆休息至次日清晨。";
           const btn = document.createElement("button");
           btn.className = "uw2-btn uw2-btn-primary";
           btn.style.alignSelf = "flex-start";
           btn.textContent = tabLabels[2] || "就寝";
           btn.addEventListener("click", () => { doSleep = true; done(); });
-          box.append(p, btn);
+          box.append(btn);
           shell.h.body.appendChild(box);
         }
       });
@@ -1307,18 +1301,13 @@ export async function runDomTavernWorkbench(b: any, drinkNameBytes: Uint8Array, 
 
           const box = document.createElement("div");
           box.className = "uw2-action-box";
-          const p = document.createElement("div");
-          p.style.cssText = "font-size:14px;color:var(--uw2-ink);";
-          p.textContent = tab === 0
-            ? (hiredToday ? "今日已在本港招募过水手。" : "前往酒馆柜台招募各舰水手。")
-            : "选择要解雇水手的舰船与人数。";
           const btn = document.createElement("button");
           btn.className = "uw2-btn uw2-btn-primary";
           btn.style.alignSelf = "flex-start";
           btn.disabled = (tab === 0 && (hiredToday || !hasFleet)) || (tab === 1 && !hasFleet);
-          btn.textContent = tabLabels[tab] || (tab === 0 ? "雇用水手" : "解雇水手");
+          btn.textContent = tabLabels[tab] || (tab === 0 ? "水手雇用" : "水手解雇");
           btn.addEventListener("click", () => { pending = { kind: tab === 0 ? "hire" : "dismiss" }; done(); });
-          box.append(p, btn);
+          box.append(btn);
           right.appendChild(box);
 
           split.append(left, right);
@@ -1435,15 +1424,12 @@ export async function runDomTavernWorkbench(b: any, drinkNameBytes: Uint8Array, 
         } else {
           const box = document.createElement("div");
           box.className = "uw2-action-box";
-          const p = document.createElement("div");
-          p.style.cssText = "font-size:14px;color:var(--uw2-ink);";
-          p.textContent = "在酒馆赌桌参与 21 点或骰子赌局。";
           const btn = document.createElement("button");
           btn.className = "uw2-btn uw2-btn-primary";
           btn.style.alignSelf = "flex-start";
           btn.textContent = tabLabels[5] || "赌博";
           btn.addEventListener("click", () => { pending = { kind: "gamble" }; done(); });
-          box.append(p, btn);
+          box.append(btn);
           shell.h.body.appendChild(box);
         }
       });
