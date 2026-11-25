@@ -3,6 +3,9 @@
 //   → KOUKAI2.COM 執行 END.EXE (game/ending.js)。網頁版以 MainExit 例外帶著同樣的參數離開遊戲迴圈, 由 main.js 接著執行結局。
 import { Commands } from "../scenes/commands.js";
 import { GameConst, OptionFlag } from "../model/flags.ts";
+import { hasDom, runDomStoryCard } from "../modern/dom_ui.ts";
+import { hideDomBattleHud } from "../modern/dom_battle.ts";
+import { captureConsoleText, toSimp } from "../canvas_ui/text_util.ts";
 
 export class MainExit extends Error {
   constructor(code, params) { super("main exit " + code); Object.defineProperty(this, "name", { value: "MainExit" }); this.mainExit = true; this.code = code; this.params = params; }
@@ -17,12 +20,23 @@ export async function mainEnding(scene, code) {
   scr.clear(0);
   con.setCursor(0, 0); con.puts(Uint8Array.of(0x1b, 0x43, 0x37, 0x1b, 0x42, 0x30, 0));
   while (win.stack.length) await win.close();                       // 796d 直到 [0536] = 0
+  scr.wideRenderer = null;
+  scr._battleHudActive = false;
+  scr.wideDialog = null;
+  scr.wideOverlays.length = 0;
+  c.sys._battleViewport = null;
+  hideDomBattleHud();
   scr.clear(0);                                                     // 07f7
-  await palette.fadeToTarget();                                     // 99e8
-  await win.open(0x17, 0x78, 0x22, 0x78, 1);                        // 74f7(0x17, 0x78, 0x22, 0x78, 1)
-  message(0x2ea);
-  await menu.waitPrompt();                                          // 147ab
-  await win.close();                                                // 796d
+  if (hasDom() && c.codec) {
+    const txt = toSimp(captureConsoleText(c, () => message(0x2ea)));
+    await runDomStoryCard(c.art, null, txt, "伟大航程的终点", "保存通关存档");
+  } else {
+    await palette.fadeToTarget();                                   // 99e8
+    await win.open(0x17, 0x78, 0x22, 0x78, 1);                      // 74f7(0x17, 0x78, 0x22, 0x78, 1)
+    message(0x2ea);
+    await menu.waitPrompt();                                        // 147ab
+    await win.close();                                              // 796d
+  }
   if (g.port !== GameConst.EMPTY_SLOT) g.lastPort = 0x82;
   g.options &= ~OptionFlag.ENDING_READY;
   if (code !== 0x0f) g.options &= ~OptionFlag.SCENARIO;

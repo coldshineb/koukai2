@@ -21,8 +21,8 @@ import { Land } from "./land.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
 import { renderWideSea, hitWideCommandButton } from "../canvas_ui/wide_world.ts";
-import { hasDom, runDomInfoLines } from "../modern/dom_ui.ts";
-import { decodeCleanCstr, toSimp } from "../canvas_ui/text_util.ts";
+import { hasDom, runDomInfoLines, runDomStoryCard } from "../modern/dom_ui.ts";
+import { captureConsoleText, decodeCleanCstr, toSimp } from "../canvas_ui/text_util.ts";
 
 const seaHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const seaS16 = v => (v << 16) >> 16;
@@ -930,7 +930,8 @@ export class SeaScene extends PortScene {
     sys.mouseHide();
     this.drawMap();
     const l = con.left, r = con.right;
-    win.shadowedSaved(0x10, 0xa0, 0x24, 0x80, 0);                      // 30b1e
+    if (this.c.scr.wideRenderer) this.b.beginWideTalk(null);
+    else win.shadowedSaved(0x10, 0xa0, 0x24, 0x80, 0);                      // 30b1e
     con.puts(this.SS.captain);
     if (kind === 0) {
       printf(this.SS.foundPort, st.cstr(DS.TBL_PORT + id * 0x16 + 4));
@@ -961,10 +962,12 @@ export class SeaScene extends PortScene {
       const l = con.left, r = con.right;                               // [8a20] / [8a22]
       sfx?.voice(0x0c44); sfx?.note(0x30); await sys.waitTicks(0x1e); sfx?.off(); await sys.waitTicks(0x14);
       sfx?.voice(0x0c44); sfx?.note(0x30); await sys.waitTicks(0x1e); sfx?.off();
-      win.shadowedSaved(0x10, 0xa0, 0x24, 0x80, 0);                    // 30b1e
+      if (this.c.scr.wideRenderer) this.b.beginWideTalk(null);
+      else win.shadowedSaved(0x10, 0xa0, 0x24, 0x80, 0);                    // 30b1e
       con.puts(this.SS.seaEvent); await menu.waitPrompt(); await win.close();   // DS:b777, 490b, 796d
       for (let i = 0; i < 2; i++) {
-        win.shadowedSaved(0x10, 0xa0, 0x24, 0x80, 0);
+        if (this.c.scr.wideRenderer) this.b.beginWideTalk(null);
+        else win.shadowedSaved(0x10, 0xa0, 0x24, 0x80, 0);
         message((((n & 0xff) + 0xff) * 2 + i) & 0xffff); await menu.waitPrompt(); await win.close();   // 3377e
       }
       con.left = l; con.right = r;
@@ -1045,7 +1048,12 @@ export class SeaScene extends PortScene {
     st.set8(DS.WEATHER, st.u8(DS.WEATHER) | 0x10);
   }
   async seaNotice(pic, msg) {
-    const { sys, graph, message, menu, win } = this.c;
+    const { sys, graph, message, menu, win, scr } = this.c;
+    if (scr.wideRenderer && hasDom() && this.c.codec) {
+      const txt = toSimp(captureConsoleText(this.c, () => message(msg)));
+      await runDomStoryCard(this.c.art, pic, txt, "海上事件");
+      return;
+    }
     sys.mouseHide(); this.clearCache(); graph.draw(pic, 0xa0, 0x10);
     this.b.crewSpeaks(); message(msg); await menu.waitPrompt(); await win.close(); sys.mouseShow();
   }
@@ -1070,7 +1078,8 @@ export class SeaScene extends PortScene {
     if (crew && n) return;
     if (palette.ending) return;
     sys.mouseHide();
-    win.shadowedSaved(0x12, 0x80, 0x22, 0x60, 0);
+    if (this.c.scr.wideRenderer) this.b.beginWideTalk(null);
+    else win.shadowedSaved(0x12, 0x80, 0x22, 0x60, 0);
     message(n ? 0x1ba : 0x1ba + 0x87); await menu.waitPrompt(); await win.close();
     sys.mouseHide();
     await palette.fadeBlack();

@@ -6,6 +6,9 @@
 //   9f5e + 8k 精靈畫布第 k 格的 x, y, w, h (word)   a01e + 7k 裝備 (k = 0 是 9d44, 1 是 9d46): +0 武器 +1 防具 +2 武器種類 +3 武器值 +5 防具值
 import { PlanarBuf, LsFile, frameHeader } from "../gfx/duelanim.js";
 import { DS } from "../model/schema_views.ts";
+import { hasDom } from "../modern/dom_ui.ts";
+import { renderWideDuel, hideDomDuelHud, runDomDuelMove } from "../modern/dom_duel.ts";
+import { decodeCleanCstr } from "../canvas_ui/text_util.ts";
 
 const duHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const duS16 = v => (v << 16) >> 16;
@@ -53,7 +56,11 @@ export class Duel {
   // ================= 12998 本體 =================
   async body() {
     const { con, sys, scr } = this.c;
-    if (scr) { scr.wideRenderer = null; scr.wideDialog = null; scr.wideOverlays.length = 0; }
+    if (scr) {
+      scr.wideDialog = null;
+      scr.wideOverlays.length = 0;
+      scr.wideRenderer = hasDom() ? (ctx, s) => renderWideDuel(ctx, s, this) : null;
+    }
     this.alloc();                                                       // 111ce
     const l = con.left, r = con.right;
     con.left = 0; con.right = 0x4f;
@@ -88,7 +95,7 @@ export class Duel {
     this.data = new Uint8Array(0x10000);                                // [03ee]
     this.c.win.stack.length = 0;
   }
-  free() { this.c.win.stack.length = 0; this.main = this.spr = this.data = null; }
+  free() { hideDomDuelHud(); this.c.win.stack.length = 0; this.main = this.spr = this.data = null; }
 
   // ================= 12612 畫面 =================
   async screen() {
@@ -296,6 +303,10 @@ export class Duel {
     this.set8(p, (this.u8(p) << 2) | r);
   }
   async ask(si, title, items) {
+    if (this.c.scr?.wideRenderer && hasDom() && this.c.codec) {
+      const labels = items.map(b => decodeCleanCstr(this.c.codec, b));
+      return (await runDomDuelMove(Math.trunc(si / 2) + 1, this.side === 0, labels)) & 0xff;
+    }
     const { con, printf, menu } = this.c;
     this.msgClear();
     printf(this.ds(title), Math.trunc(si / 2) + 1);

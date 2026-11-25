@@ -2,6 +2,9 @@
 // 圖形: DATA1.LZW 第 9 項 (assets/gfx/gamble.bin, 0x15c0 bytes) 每次進入賭博時重新載入到 [c2ec]:
 //   撲克牌 花色 k (牌 / 13) 於 0x300×k (k = 4 為背面), 4 欄 × 48 行平面交錯; 骰子 v (0..5) 於 0xf00 + 0x120×v, 3 欄 × 24 行
 // 文字與格式字串: port.json gamble (tools/extract_port.py)
+import { hasDom } from "../modern/dom_ui.ts";
+import { runDomGamble } from "../modern/dom_gamble.ts";
+
 const gHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 
 export class Gamble {
@@ -26,6 +29,10 @@ export class Gamble {
   async run() {
     const { message, menu, palette, graph } = this.c;
     if (this.money === 0) { this.b.randomTalk(); message(0x3f2); await this.b.wait(); await this.b.closeTalk(); return; }
+    if (this.c.scr.wideRenderer && hasDom()) {
+      await runDomGamble(this);
+      return;
+    }
     let sel;
     do {
       await palette.fadeBlack();                                                    // seg0:99f2

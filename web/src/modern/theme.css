@@ -693,7 +693,9 @@ html, body {
   display: flex;
   gap: 14px;
   align-items: flex-start;
-  margin-bottom: 6px;
+  margin-bottom: 56px;
+  position: relative;
+  z-index: 45;
 }
 .uw2-dialog-floating-text {
   flex: 1 1 auto;
@@ -1050,4 +1052,128 @@ body[data-uw2-battle="1"] .uw2-dialog-floating {
 /* 防止任何彈窗內部出現多餘的橫向捲軸 */
 .uw2-modal-body {
   overflow-x: hidden !important;
+}
+
+/* 16:9 單挑羊皮紙 HUD 與招式欄 */
+.uw2-duel-hud {
+  position: absolute;
+  inset: 16px 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+  z-index: 20;
+}
+.uw2-duel-top, .uw2-duel-bot {
+  pointer-events: auto;
+  padding: 12px 18px;
+}
+.uw2-duel-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.uw2-duel-fighter {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.uw2-duel-fighter.right {
+  text-align: right;
+}
+.uw2-duel-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.uw2-duel-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--uw2-ink);
+}
+.uw2-duel-eq {
+  font-size: 12px;
+  color: var(--uw2-ink-muted);
+}
+.uw2-duel-hp {
+  font-size: 22px;
+  font-weight: 700;
+  min-width: 48px;
+  text-align: center;
+  color: var(--uw2-ink);
+  font-variant-numeric: tabular-nums;
+}
+.uw2-duel-vs {
+  font-family: var(--uw2-font-serif);
+  font-size: 18px;
+  font-weight: 700;
+  color: #8a5d17;
+  padding: 0 8px;
+}
+.uw2-duel-bot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.uw2-duel-prompt {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--uw2-ink);
+}
+.uw2-duel-moves {
+  display: flex;
+  gap: 12px;
+}
+
+/* 酒館賭博牌面與骰子 */
+.uw2-card-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.uw2-card-tile {
+  width: 58px;
+  height: 82px;
+  border-radius: 8px;
+  border: 2px solid #9c7432;
+  background: #fffdf8;
+  color: #1c1917;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.14);
+}
+.uw2-card-tile.red { color: #b91c1c; }
+.uw2-card-tile.back {
+  background: linear-gradient(135deg, #1b365d 0%, #102138 100%);
+  color: #e6c67c;
+  font-size: 22px;
+}
+.uw2-die-tile {
+  width: 68px;
+  padding: 8px 6px;
+  border-radius: 8px;
+  border: 2px solid rgba(61, 40, 23, 0.25);
+  background: #fffdf6;
+  color: var(--uw2-ink);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+}
+.uw2-die-tile.held {
+  border-color: #9e6f1e;
+  background: rgba(200, 162, 88, 0.34);
+}
+.uw2-die-face {
+  font-size: 30px;
+  line-height: 1;
 }

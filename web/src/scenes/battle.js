@@ -2222,7 +2222,8 @@ export class NavalBattle {
       if (L.length < 0x14) item = st.u8(F + 0x1d);
     }
     const money = (((st.u16(F + OFF.FLEET.FUNDS) + 1) & 0xffff) * 100) >>> 0;
-    win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0);                       // 7849
+    if (this.c.scr.wideRenderer) b.beginWideTalk(null);
+    else win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0);                       // 7849
     message(0x230, money);
     if (item !== 0xff) {
       message(0x231, st.cstr(DS.TBL_ITEM + 0x14 * item));                    // 5cde
@@ -2271,7 +2272,8 @@ export class NavalBattle {
     let left = btUmin(0x0a - fs, btUmin(b.crewList(), n)) & 0xff;      // 12de3
     const slots = new Array(10).fill(0), P = this.c.persons;
     while (left) {
-      await this.scWin(0);
+      if (scr.wideRenderer) b.beginWideTalk(null);
+      else await this.scWin(0);
       message(0x22e, n, left);
       b.crewList(); const capt = P[0] & 0xff;                           // 12de3: 第一位人選
       let j = 0;
@@ -2285,6 +2287,12 @@ export class NavalBattle {
         await b.closeTalk();                                            // 796d
         if (sel === -1) { ok = 0; break; }
         const ship = P[sel] & 0xff;
+        if (scr._battleHudActive && hasDom()) {
+          await runDomBattleShipModal(this, slots[sel], "俘获舰船");
+          const yes = await menu.yesNo();
+          if (yes) break;
+          continue;
+        }
         if (!palette.invert) palette.stopCycle();                       // 1743
         palette.setTarget(palette.table("ships")); await palette.fadeToTarget();   // 98fe(a730), 99e8
         win.save(0x0c, 0x80, 0x30, 0xb0);                               // 50c4
@@ -2296,8 +2304,12 @@ export class NavalBattle {
         if (yes) break;
       }
       if (ok) { await this.captureShip(slots[sel], capt); list[sel] = 0; left = (left - 1) & 0xff; continue; }   // ffc1
-      await this.scWin(0); message(0x22f);
-      if (await menu.yesNo()) break;
+      if (scr.wideRenderer) b.beginWideTalk(null);
+      else await this.scWin(0);
+      message(0x22f);
+      const stopCap = await menu.yesNo();
+      if (scr.wideRenderer) await b.closeTalk();
+      if (stopCap) break;
     }
     await this.closeAllWin();                                           // 2e09:3d2b
     if (has) { b.fleetTable(); await b.distribute(types, amt); }        // 1e628 / 1fcf7

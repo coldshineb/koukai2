@@ -4,6 +4,8 @@
 // 記錄 10..15 是各國國王, 種類 FF 且港 = 0; 里斯本有種類 0 的第 0 筆在前面, 所以不會用到
 import { ListSelect } from "../ui/listsel.js";
 import { DiscoveryFlag, GameConst, NobleFlag, SkillFlag, WorkDS } from "../model/flags.ts";
+import { hasDom, runDomStoryCard } from "../modern/dom_ui.ts";
+import { captureConsoleText, toSimp } from "../canvas_ui/text_util.ts";
 
 const hsS16 = v => (v << 16) >> 16;
 const hsUmin = (a, b) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);   // seg0:4d7c
@@ -165,10 +167,15 @@ export class House {
     if (!unrep) return this.sayWait(0x1fa);
     const total = st.u16(WorkDS.EXPLORE_TOTAL);
     if (total >= 3300) {
-      await win.open(0x15, 8, 0x20, 0xb0, 1);                                   // seg0:74f7
-      graph.draw(0x3f, 0xb0, 0x10);                                             // seg0:5b5d
-      await this.sayWait(0x1fb);
-      await win.close();
+      if (this.c.scr.wideRenderer && hasDom() && this.c.codec) {
+        const txt = toSimp(captureConsoleText(this.c, () => this.c.message(0x1fb)));
+        await runDomStoryCard(this.c.art, 0x3f, txt, "世界地图完成");
+      } else {
+        await win.open(0x15, 8, 0x20, 0xb0, 1);                                 // seg0:74f7
+        graph.draw(0x3f, 0xb0, 0x10);                                           // seg0:5b5d
+        await this.sayWait(0x1fb);
+        await win.close();
+      }
       for (let r = 0; r < 45; r++) { for (let k = 0; k < 11; k++) st.set8(WorkDS.EXPLORE_MAP + r * 12 + k, 0xff); st.set8(WorkDS.EXPLORE_MAP + r * 12 + 11, 0xc0); }
     }
     const pay = Math.imul(Math.imul(hsS16(5 - (this.noble.flags & NobleFlag.REWARD_MASK)), unrep), 20);

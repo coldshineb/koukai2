@@ -2,6 +2,8 @@
 // 由 SeaScene.landExplore() 建立 (34ec7 選好位置之後, 或 seaFlags2 & LANDED_MASK 時直接呼叫)。
 // 原版執行期變數 (不在存檔內): [b8de] = sea.landFlag (34ec7 設定, 地圖格 0x59 時 0)、[b8e0] 補水可行、[bc18] 雇用的嚮導 → ctx.landRT
 import { DiscoveryFlag, GameConst, MenuId, SeaFlag2, ShipSlotFlag } from "../model/flags.ts";
+import { createDomModal, hasDom } from "../modern/dom_ui.ts";
+import { decodeCleanCstr, toSimp } from "../canvas_ui/text_util.ts";
 
 const ldS16 = v => (v << 16) >> 16;
 const ldUmin = (a, b) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);   // seg0:4d7c (無號)
@@ -160,6 +162,10 @@ export class Land {
       const r = await this.b.listSel().select(0x8a, this.b.fleetShips());   // 340e5: 0fea:2dea + 清單 0x8a
       if (r < 0) break;
       const slot = this.c.persons[r] & 0xff, S = sea.slotOf(slot);
+      if (this.c.scr.wideRenderer && hasDom()) {
+        await this.repairDom(slot, S);
+        continue;
+      }
       if (!(await this.repairWin(S))) continue;                         // 340f5
       for (;;) {
         this.repairBars(S);                                             // 341cd
@@ -171,6 +177,43 @@ export class Land {
     sea.fleetDurability(sea.fleet);                                     // 0fea:83f9
   }
   shipTypeOf(S) { const m = this.m; return m.shipType(m.ship(this.st.u8(S + 7)).type); }
+  // 340f5 現代羊皮紙上陸修理彈窗
+  async repairDom(slot, S) {
+    const st = this.st, T = this.shipTypeOf(S);
+    if (st.u8(S + 2) === st.u8(S + 3) && st.u8(S + 4) === T.turn && T.propulsion === st.u8(S + 5)) {
+      await this.talk(0x1a2);
+      return;
+    }
+    const shipRec = this.sea.shipRec(st.u8(S + 7));
+    const shipName = toSimp(decodeCleanCstr(this.c.codec, st.cstr(shipRec)));
+    for (;;) {
+      const sel = await new Promise(resolve => {
+        const h = createDomModal({
+          title: `修理 · ${shipName}`,
+          size: "sm",
+          cancelable: true,
+          closeLabel: "完成",
+          onCancel: () => resolve(-1),
+        });
+        const rows = [
+          ["耐久", st.u8(S + 2), st.u8(S + 3)],
+          ["转向", st.u8(S + 4), T.turn],
+          ["推进", st.u8(S + 5), T.propulsion],
+        ];
+        rows.forEach(([label, cur, max], idx) => {
+          const btn = document.createElement("button");
+          btn.className = "uw2-row-card";
+          const pct = max > 0 ? Math.min(100, Math.round((cur * 100) / max)) : 100;
+          btn.disabled = cur >= max;
+          btn.innerHTML = `<span style="font-weight:700;min-width:44px;">${label}</span><div class="uw2-bar-track" style="flex:1;"><div class="uw2-bar-fill ${pct < 40 ? "red" : "green"}" style="width:${pct}%"></div></div><span style="font-weight:700;min-width:58px;text-align:right;">${cur}/${max}</span>`;
+          btn.addEventListener("click", () => { h.close(); resolve(idx); });
+          h.body.appendChild(btn);
+        });
+      });
+      if (sel < 0) break;
+      await this.repairDo(slot, sel);
+    }
+  }
   // 340f5: 三項都滿 → 0x1a2 回傳 0; 否則視窗與三個長條外框
   async repairWin(S) {
     const st = this.st, { win, con } = this.c, T = this.shipTypeOf(S), cm = this.sea.commandsObj();
