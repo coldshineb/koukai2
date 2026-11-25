@@ -1,6 +1,6 @@
 // game/story_runner.ts — 语义化剧情 JSON (uw2-story-v1) 的直接执行引擎
-// 直接按结构化触发器与步骤树 (if/else/loop/block/actions) 驱动剧情演出和状态修改，无需加载原始字节码与文本索引表。
-import { GameConst, OptionFlag, ShipSlotFlag } from "../model/flags.ts";
+// 支持高层融合指令 (say / get_field / set_field / alu_field / set / calc / when) 与结构化流程树。
+import { GameConst, ShipSlotFlag } from "../model/flags.ts";
 import {
   fleetShipSlot,
   heroFleet,
@@ -11,13 +11,17 @@ import {
 import { calcCargoUsed, calcShipFreeCargo } from "../domain/fleet.ts";
 import type { IScenarioHost, ScenarioWindowDef } from "../ui/dos/protocol.ts";
 import { ScenarioMemoryAdapter, SC_STRLEN, type ScenarioEnv } from "./scenario_adapter.ts";
-import type {
-  StoryCond,
-  StoryDoc,
-  StoryHandler,
-  StoryOperand,
-  StorySection,
-  StoryStep,
+import {
+  parseFieldTarget,
+  parseOperandToken,
+  parseWhenExpr,
+  type StoryAluFn,
+  type StoryCond,
+  type StoryDoc,
+  type StoryHandler,
+  type StoryOperand,
+  type StorySection,
+  type StoryStep,
 } from "./story_schema.ts";
 
 const srS16 = (v: number): number => (v << 16) >> 16;
@@ -136,6 +140,57 @@ export class StoryRunner {
       }
     }
     return c.not ? !res : res;
+  }
+
+  private applyAlu(fn: StoryAluFn, di: number, si: number, step: StoryStep): number {
+    switch (fn) {
+      case "add": return di + si;
+      case "sub": return di - si;
+      case "mul": return Math.imul(di, si);
+      case "div":
+        if (si) return Math.trunc((di & 0xffff) / si);
+        console.error("劇本除以 0", step);
+        return 0xffff;
+      case "or": return di | si;
+      case "and": return di & si;
+      case "shr": return (di & 0xffff) >>> (si & 7);
+      case "shl": return di << (si & 7);
+    }
+  }
+
+  private resolveTargetAddr(target: string): number {
+    const parsed = parseFieldTarget(target);
+    const idx = "var" in parsed.index ? this.getVar(parsed.index.var) & 0xff : parsed.index.imm;
+    return this.mem.recordAddr(parsed.kind, idx, parsed.field);
+  }
+
+  private execMov(size: "word" | "byte" | "sys", dst: StoryOperand, src: StoryOperand): void {
+    if (size === "sys") {
+      const n = (src as { sys: number }).sys, r = this.c.rt;
+      if (n === 0) {
+        const a = this.dstAddr(dst);
+        for (let i = 0; ; i++) { const b = this.str[i]; this.wr8(a + i, b); if (!b) break; }
+        return;
+      }
+      let v = 0;
+      switch (n) {
+        case 1: { const fl = heroFleet(this.m); v = Math.trunc(srS16(fl.x) / 24) + Math.trunc(srS16(fl.y) / 24) * 90; break; }
+        case 2: v = r.year; break;
+        case 3: v = r.month; break;
+        case 4: v = r.day; break;
+        case 5: v = this.m.globals.port; break;
+        case 6: v = this.duelHpFn ? this.duelHpFn() : 0; break;
+        case 7: v = r.time; break;
+      }
+      this.setVar("var" in dst ? dst.var : (dst as { ptr: number }).ptr, v);
+      return;
+    }
+    const s = this.evalSrc(src);
+    if ("flag" in dst) { this.setFlag(dst.flag, s.w !== 0); return; }
+    const a = this.dstAddr(dst);
+    if (size === "word") this.wr16(a, s.w);
+    else if ("var" in dst) this.wr16(a, s.b);
+    else this.wr8(a, s.b);
   }
 
   // ---------------- 文本编码与 $dNN/$n/$s/$rNN 展开 ----------------
@@ -312,7 +367,8 @@ export class StoryRunner {
   private async execOne(step: StoryStep): Promise<ExecSignal> {
     switch (step.op) {
       case "if": {
-        if (this.evalCond(step.cond)) return this.execSteps(step.then);
+        const cond = step.when ? parseWhenExpr(step.when) : step.cond!;
+        if (this.evalCond(cond)) return this.execSteps(step.then);
         return step.else ? this.execSteps(step.else) : SIG_NONE;
       }
       case "loop": {
@@ -336,6 +392,77 @@ export class StoryRunner {
       case "next_section": this.nextSec = 1; return SIG_NONE;
       case "next_chapter": this.nextChap = 1; return SIG_NONE;
       case "return0": this.ret = 0; return SIG_NONE;
+
+      // 融合高层对话步骤
+      case "say": {
+        if (step.win !== undefined) this.winOpen(step.win);
+        if (this.cur >= 0) {
+          if (step.face !== undefined) this.host.drawFace(step.face & 0xff, this.W(this.cur));
+          else if (step.faceVar !== undefined) this.host.drawFace(this.getVar(step.faceVar) & 0xff, this.W(this.cur));
+        }
+        this.expandText(step.text);
+        this.host.showText(this.str);
+        if (step.wait) await this.host.waitKey();
+        return SIG_NONE;
+      }
+
+      // 融合高层字段读取/写入/原地算术
+      case "get_field": {
+        const addr = this.resolveTargetAddr(step.from);
+        const dstOp = parseOperandToken(step.to) as { var: number };
+        if (step.size === "u8_lo") {
+          this.setVar(dstOp.var, (this.getVar(dstOp.var) & 0xff00) | this.rd8(addr));
+        } else {
+          const val = step.size === "u8" ? this.rd8(addr) : this.rd16(addr);
+          this.setVar(dstOp.var, val);
+        }
+        return SIG_NONE;
+      }
+      case "set_field": {
+        const addr = this.resolveTargetAddr(step.target);
+        const srcOp = parseOperandToken(step.value);
+        const sv = this.evalSrc(srcOp);
+        if (step.size === "u8") this.wr8(addr, sv.b);
+        else this.wr16(addr, sv.w);
+        return SIG_NONE;
+      }
+      case "alu_field": {
+        const addr = this.resolveTargetAddr(step.target);
+        const srcOp = parseOperandToken(step.value);
+        const sv = this.evalSrc(srcOp);
+        const di = step.size === "u8" ? this.rd8(addr) : this.rd16(addr);
+        const si = "var" in srcOp ? sv.w : sv.b;
+        const next = this.applyAlu(step.fn, di, si, step);
+        if (step.size === "u8") this.wr8(addr, next);
+        else this.wr16(addr, next);
+        return SIG_NONE;
+      }
+
+      // 简化变量/指针操作
+      case "set": {
+        const dstOp = parseOperandToken(step.dst);
+        if (step.ptrLoad === "u8") {
+          const ptrOp = parseOperandToken(step.value) as { ptr: number };
+          const val = this.rd8(this.getVar(ptrOp.ptr));
+          this.setVar((dstOp as { var: number }).var, val);
+          return SIG_NONE;
+        }
+        const srcOp = parseOperandToken(step.value);
+        const sz: "word" | "byte" | "sys" = "sys" in srcOp ? "sys" : step.size === "u8" ? "byte" : "word";
+        this.execMov(sz, dstOp, srcOp);
+        return SIG_NONE;
+      }
+      case "calc": {
+        const dstOp = parseOperandToken(step.dst);
+        const srcOp = parseOperandToken(step.value);
+        const byteDst = "ptr" in dstOp, a = this.dstAddr(dstOp), sv = this.evalSrc(srcOp);
+        const di = byteDst ? this.rd8(a) : this.rd16(a);
+        const si = "var" in srcOp ? sv.w : sv.b;
+        const next = this.applyAlu(step.fn, di, si, step);
+        if (byteDst) this.wr8(a, next);
+        else this.wr16(a, next);
+        return SIG_NONE;
+      }
 
       case "win_open": this.winOpen(step.win); return SIG_NONE;
       case "win_close":
@@ -388,50 +515,16 @@ export class StoryRunner {
       case "addr_var":
         this.setVar(step.var, this.mem.recordAddr(step.kind, this.getVar(step.indexVar) & 0xff, step.field));
         return SIG_NONE;
-      case "mov": {
-        if (step.size === "sys") {
-          const n = (step.src as { sys: number }).sys, r = this.c.rt;
-          if (n === 0) {
-            const a = this.dstAddr(step.dst);
-            for (let i = 0; ; i++) { const b = this.str[i]; this.wr8(a + i, b); if (!b) break; }
-            return SIG_NONE;
-          }
-          let v = 0;
-          switch (n) {
-            case 1: { const fl = heroFleet(this.m); v = Math.trunc(srS16(fl.x) / 24) + Math.trunc(srS16(fl.y) / 24) * 90; break; }
-            case 2: v = r.year; break;
-            case 3: v = r.month; break;
-            case 4: v = r.day; break;
-            case 5: v = this.m.globals.port; break;
-            case 6: v = this.duelHpFn ? this.duelHpFn() : 0; break;
-            case 7: v = r.time; break;
-          }
-          this.setVar("var" in step.dst ? step.dst.var : (step.dst as { ptr: number }).ptr, v);
-          return SIG_NONE;
-        }
-        const s = this.evalSrc(step.src);
-        if ("flag" in step.dst) { this.setFlag(step.dst.flag, s.w !== 0); return SIG_NONE; }
-        const a = this.dstAddr(step.dst);
-        if (step.size === "word") this.wr16(a, s.w);
-        else if ("var" in step.dst) this.wr16(a, s.b);
-        else this.wr8(a, s.b);
+      case "mov":
+        this.execMov(step.size, step.dst, step.src);
         return SIG_NONE;
-      }
       case "alu": {
         const byteDst = "ptr" in step.dst, a = this.dstAddr(step.dst), sv = this.evalSrc(step.src);
-        let di = byteDst ? this.rd8(a) : this.rd16(a);
+        const di = byteDst ? this.rd8(a) : this.rd16(a);
         const si = "var" in step.src ? sv.w : sv.b;
-        switch (step.fn) {
-          case "add": di = di + si; break;
-          case "sub": di = di - si; break;
-          case "mul": di = Math.imul(di, si); break;
-          case "div": if (si) di = Math.trunc((di & 0xffff) / si); else { di = 0xffff; console.error("劇本除以 0", step); } break;
-          case "or": di |= si; break;
-          case "and": di &= si; break;
-          case "shr": di = (di & 0xffff) >>> (si & 7); break;
-          case "shl": di = di << (si & 7); break;
-        }
-        if (byteDst) this.wr8(a, di); else this.wr16(a, di);
+        const next = this.applyAlu(step.fn, di, si, step);
+        if (byteDst) this.wr8(a, next);
+        else this.wr16(a, next);
         return SIG_NONE;
       }
       case "random":

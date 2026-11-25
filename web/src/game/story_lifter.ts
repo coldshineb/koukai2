@@ -1,11 +1,16 @@
 // game/story_lifter.ts — 基于原版剧本 VM 指令集与内存映射的语义提升器 (Base 工具)
-// 将 snrN.json 字节码 + text/snrN.json + world.json 离线或运行期无损提升为可读且直接可执行的 StoryDoc。
+// 阶段 1: 控制流结构化 (自然循环 + IPDOM/共享汇合 + labeled block)
+// 阶段 2: 活跃变量分析 + 安全语义融合 (u8零扩展加载、addr/get_field/set_field/alu_field、say对话聚合、set/calc/when)
 import {
   BUILDING_LABELS,
   SPECIAL_PORT_LABELS,
   STORY_FORMAT_VERSION,
   SYS_VALUE_LABELS,
   describeKindField,
+  formatCondExpr,
+  formatFieldTarget,
+  formatOperand,
+  type StoryAluFn,
   type StoryChapter,
   type StoryCond,
   type StoryDoc,
@@ -61,7 +66,7 @@ function splitMenuOptions(text: string): string[] {
 
 function summarizeSteps(steps: readonly StoryStep[]): string {
   for (const st of steps) {
-    if (st.op === "msg" && st.text) {
+    if ((st.op === "say" || st.op === "msg") && st.text) {
       const p = cleanPreview(st.text);
       if (p) return p.length > 42 ? p.slice(0, 42) + "…" : p;
     }
@@ -133,16 +138,14 @@ function convertInstruction(ins: RawScenarioIns, mes: readonly string[], meta?: 
         field: ins.field,
         ref: describeKindField(ins.kind, ins.field),
       };
-    case "mov": {
-      const step: StoryStep = {
+    case "mov":
+      return {
         op: "mov",
         size: ins.a,
         dst: ins.dst as StoryOperand,
         src: ins.src as StoryOperand,
         ...(ins.a === "sys" && SYS_VALUE_LABELS[ins.src?.sys] ? { note: SYS_VALUE_LABELS[ins.src.sys] } : {}),
       };
-      return step;
-    }
     case "alu":
       return { op: "alu", fn: ins.fn, dst: ins.dst as StoryOperand, src: ins.src as StoryOperand };
     case "random": return { op: "random", var: ins.var, range: ins.range };
@@ -193,8 +196,6 @@ function negateCond(cond: StoryCond): StoryCond {
 }
 
 function wrapBlockIfNeeded(steps: StoryStep[], targetLabel: string): void {
-  // Scan if any step references exit(targetLabel); if so, wrap preceding prefix up to the label insertion point
-  // Note: during sequential structuring, exits are resolved at the region where `u === targetAt`.
   let needed = false;
   const walk = (arr: readonly StoryStep[]) => {
     for (const s of arr) {
@@ -210,11 +211,603 @@ function wrapBlockIfNeeded(steps: StoryStep[], targetLabel: string): void {
   steps.push({ op: "block", label: targetLabel, body: inner });
 }
 
+// ---------------- 阶段 2: 活跃变量分析 + 语义融合 ----------------
+
+function addTextVarRefs(text: string, reads: Set<number>): void {
+  for (const m of text.matchAll(/\$(?:d|r)(\d\d)/g)) {
+    reads.add(parseInt(m[1], 10));
+  }
+}
+
+function collectOperandReads(o: StoryOperand, reads: Set<number>): void {
+  if ("var" in o) reads.add(o.var);
+  else if ("ptr" in o) reads.add(o.ptr);
+}
+
+function collectCondReads(c: StoryCond, reads: Set<number>): void {
+  if ("op" in c) {
+    if (c.op === "not") collectCondReads(c.expr, reads);
+    else for (const a of c.args) collectCondReads(a, reads);
+    return;
+  }
+  collectOperandReads(c.dst, reads);
+  collectOperandReads(c.src, reads);
+}
+
+function stepEffects(s: StoryStep): { reads: Set<number>; writes: Set<number> } {
+  const reads = new Set<number>();
+  const writes = new Set<number>();
+  switch (s.op) {
+    case "if":
+      if (s.cond) collectCondReads(s.cond, reads);
+      break;
+    case "face_var":
+    case "seed_set":
+    case "money_set":
+    case "money_add":
+    case "money_sub":
+    case "d1":
+      reads.add(s.var);
+      break;
+    case "msg":
+    case "msg_expand":
+    case "ship_name":
+      addTextVarRefs(s.text, reads);
+      break;
+    case "menu":
+    case "random":
+    case "seed_get":
+    case "money_div10000":
+    case "cargo_free":
+      writes.add(s.var);
+      break;
+    case "addr":
+      writes.add(s.var);
+      break;
+    case "addr_var":
+      reads.add(s.indexVar);
+      writes.add(s.var);
+      break;
+    case "cargo_load":
+      reads.add(s.varGoods);
+      reads.add(s.varAmount);
+      break;
+    case "cargo_unload":
+      reads.add(s.varGoods);
+      reads.add(s.varAmount);
+      writes.add(s.varAmount);
+      break;
+    case "mov":
+      if (s.size === "sys") {
+        if ("sys" in s.src && s.src.sys === 0) {
+          if ("var" in s.dst) reads.add(s.dst.var);
+          else if ("ptr" in s.dst) reads.add(s.dst.ptr);
+        } else if ("var" in s.dst) {
+          writes.add(s.dst.var);
+        } else if ("ptr" in s.dst) {
+          writes.add(s.dst.ptr);
+        }
+      } else {
+        collectOperandReads(s.src, reads);
+        if ("var" in s.dst) {
+          if (s.size === "byte") reads.add(s.dst.var);
+          writes.add(s.dst.var);
+        } else if ("ptr" in s.dst) {
+          reads.add(s.dst.ptr);
+        }
+      }
+      break;
+    case "alu":
+      collectOperandReads(s.src, reads);
+      if ("var" in s.dst) {
+        reads.add(s.dst.var);
+        writes.add(s.dst.var);
+      } else if ("ptr" in s.dst) {
+        reads.add(s.dst.ptr);
+      }
+      break;
+  }
+  return { reads, writes };
+}
+
+type LiveMap = Map<StoryStep, Set<number>>;
+
+function computeLiveness(root: readonly StoryStep[]): LiveMap {
+  const liveOutMap: LiveMap = new Map();
+  const blockExits = new Map<string, Set<number>>();
+
+  const analyzeSeq = (
+    seq: readonly StoryStep[],
+    afterLive: Set<number>,
+    loopHeaderLive: Set<number> | null,
+    loopExitLive: Set<number> | null,
+  ): Set<number> => {
+    let live = new Set(afterLive);
+    for (let i = seq.length - 1; i >= 0; i--) {
+      const s = seq[i];
+      liveOutMap.set(s, new Set(live));
+      if (s.op === "stop" || s.op === "ending") {
+        live = new Set();
+        const { reads } = stepEffects(s);
+        for (const v of reads) live.add(v);
+      } else if (s.op === "break") {
+        live = new Set(loopExitLive ?? afterLive);
+      } else if (s.op === "continue") {
+        live = new Set(loopHeaderLive ?? afterLive);
+      } else if (s.op === "exit") {
+        live = new Set(blockExits.get(s.target) ?? afterLive);
+      } else if (s.op === "block") {
+        blockExits.set(s.label, new Set(live));
+        live = analyzeSeq(s.body, live, loopHeaderLive, loopExitLive);
+      } else if (s.op === "loop") {
+        const afterLoop = new Set(live);
+        let headLive = new Set(afterLoop);
+        for (let iter = 0; iter < 8; iter++) {
+          const nextHead = analyzeSeq(s.body, headLive, headLive, afterLoop);
+          if (nextHead.size === headLive.size && [...nextHead].every(x => headLive.has(x))) break;
+          headLive = nextHead;
+        }
+        live = headLive;
+      } else if (s.op === "if") {
+        const tIn = analyzeSeq(s.then, live, loopHeaderLive, loopExitLive);
+        const fIn = s.else ? analyzeSeq(s.else, live, loopHeaderLive, loopExitLive) : new Set(live);
+        const merged = new Set(tIn);
+        for (const v of fIn) merged.add(v);
+        if (s.cond) collectCondReads(s.cond, merged);
+        live = merged;
+      } else {
+        const { reads, writes } = stepEffects(s);
+        for (const w of writes) live.delete(w);
+        for (const r of reads) live.add(r);
+      }
+    }
+    return live;
+  };
+
+  analyzeSeq(root, new Set(), null, null);
+  return liveOutMap;
+}
+
+interface PtrBinding {
+  readonly kind: number;
+  readonly indexExpr: number | string;
+  readonly indexVarNum: number | null;
+  field: number;
+}
+
+type IntermediateStep =
+  | StoryStep
+  | { readonly op: "__u8_load"; readonly var: number; readonly ptr: number; readonly origZero: StoryStep; readonly origLoad: StoryStep };
+
+function fuseFieldOpsInSeq(steps: readonly StoryStep[], liveOut: LiveMap): StoryStep[] {
+  // Recurse into nested structures first
+  const childrenDone: StoryStep[] = steps.map(s => {
+    if (s.op === "if") {
+      return {
+        ...s,
+        then: fuseFieldOpsInSeq(s.then, liveOut),
+        ...(s.else ? { else: fuseFieldOpsInSeq(s.else, liveOut) } : {}),
+      };
+    }
+    if (s.op === "loop" || s.op === "block") {
+      return { ...s, body: fuseFieldOpsInSeq(s.body, liveOut) };
+    }
+    return s;
+  });
+
+  // Pass A: collapse zero-extended u8 load: mov(word, vX, 0) + mov(byte, vX, *vP)
+  const passA: IntermediateStep[] = [];
+  for (let i = 0; i < childrenDone.length; i++) {
+    const a = childrenDone[i], b = childrenDone[i + 1];
+    if (
+      a?.op === "mov" && a.size === "word" && "var" in a.dst && "imm" in a.src && a.src.imm === 0 &&
+      b?.op === "mov" && b.size === "byte" && "var" in b.dst && b.dst.var === a.dst.var && "ptr" in b.src
+    ) {
+      passA.push({ op: "__u8_load", var: b.dst.var, ptr: b.src.ptr, origZero: a, origLoad: b });
+      i++;
+    } else {
+      passA.push(a);
+    }
+  }
+
+  // Pass B: track dead pointer registers & fuse addr + dereferences into get_field/set_field/alu_field
+  const out: IntermediateStep[] = [];
+  let i = 0;
+  while (i < passA.length) {
+    const cur = passA[i];
+    if (cur.op === "addr" || cur.op === "addr_var") {
+      const pVar = cur.var;
+      const idxVarNum = cur.op === "addr_var" ? cur.indexVar : null;
+      const binding: PtrBinding = {
+        kind: cur.kind,
+        indexExpr: cur.op === "addr_var" ? `v${cur.indexVar}` : cur.index,
+        indexVarNum: idxVarNum,
+        field: cur.field,
+      };
+
+      // Check how far we can safely eliminate pVar within this straight-line slice
+      // Eligible span ends at step j where !liveOut(orig(j)).has(pVar), or right before pVar is overwritten,
+      // provided NO step in [i+1..j] reads pVar as a non-ptr value or modifies indexVarNum.
+      let safeEnd = -1;
+      let fieldDelta = binding.field;
+      const traceBindings: number[] = []; // field value at each index i+1..j
+      let ok = true;
+      for (let j = i + 1; j < passA.length; j++) {
+        const sj = passA[j];
+        if (sj.op === "if" || sj.op === "loop" || sj.op === "block" || sj.op === "exit" || sj.op === "break" || sj.op === "continue" || sj.op === "stop" || sj.op === "ending") {
+          ok = false;
+          break;
+        }
+        traceBindings.push(fieldDelta);
+        // If idxVarNum is written, invalidate!
+        const origForLive = sj.op === "__u8_load" ? sj.origLoad : sj;
+        const eff = stepEffects(origForLive);
+        if (idxVarNum !== null && eff.writes.has(idxVarNum)) { ok = false; break; }
+
+        // Check if sj uses pVar safely:
+        const isSafePtrAdd = sj.op === "alu" && sj.fn === "add" && "var" in sj.dst && sj.dst.var === pVar && "imm" in sj.src;
+        const isSafeLoad = (sj.op === "__u8_load" && sj.ptr === pVar && sj.var !== pVar) ||
+          (sj.op === "mov" && (sj.size === "word" || sj.size === "byte") && "var" in sj.dst && sj.dst.var !== pVar && "ptr" in sj.src && sj.src.ptr === pVar);
+        const isSafeStore = sj.op === "mov" && (sj.size === "word" || sj.size === "byte") && "ptr" in sj.dst && sj.dst.ptr === pVar &&
+          !("var" in sj.src && sj.src.var === pVar) && !("ptr" in sj.src && sj.src.ptr === pVar);
+        const usesNonPtr = (sj.op !== "__u8_load" && (eff.reads.has(pVar) && !isSafePtrAdd && !isSafeLoad && !isSafeStore));
+        if (usesNonPtr) { ok = false; break; }
+
+        if (isSafePtrAdd) {
+          fieldDelta += (sj.src as { imm: number }).imm;
+        } else if (!isSafeLoad && !isSafeStore) {
+          if (eff.writes.has(pVar)) {
+            if (safeEnd >= i + 1) break;
+            ok = false;
+            break;
+          }
+        }
+
+        const live = liveOut.get(origForLive);
+        if (live && !live.has(pVar)) {
+          safeEnd = j;
+          if (j + 1 < passA.length) {
+            const nextSj = passA[j + 1];
+            const nextIsPtrOp = (nextSj.op === "alu" && nextSj.fn === "add" && "var" in nextSj.dst && nextSj.dst.var === pVar && "imm" in nextSj.src) ||
+              (nextSj.op === "__u8_load" && nextSj.ptr === pVar && nextSj.var !== pVar) ||
+              (nextSj.op === "mov" && (nextSj.size === "word" || nextSj.size === "byte") && "var" in nextSj.dst && nextSj.dst.var !== pVar && "ptr" in nextSj.src && nextSj.src.ptr === pVar) ||
+              (nextSj.op === "mov" && (nextSj.size === "word" || nextSj.size === "byte") && "ptr" in nextSj.dst && nextSj.dst.ptr === pVar);
+            if (!nextIsPtrOp) break;
+          } else {
+            break;
+          }
+        }
+      }
+
+      if (ok && safeEnd >= i + 1) {
+        let curField = binding.field;
+        for (let j = i + 1; j <= safeEnd; j++) {
+          const sj = passA[j];
+          if (sj.op === "alu" && sj.fn === "add" && "var" in sj.dst && sj.dst.var === pVar && "imm" in sj.src) {
+            curField += sj.src.imm;
+            continue;
+          }
+          if (sj.op === "__u8_load" && sj.ptr === pVar) {
+            const { target, note } = formatFieldTarget(binding.kind, curField, binding.indexExpr);
+            out.push({ op: "get_field", to: `v${sj.var}`, from: target, size: "u8", note });
+            continue;
+          }
+          if (sj.op === "mov" && (sj.size === "word" || sj.size === "byte") && "var" in sj.dst && "ptr" in sj.src && sj.src.ptr === pVar) {
+            const { target, note } = formatFieldTarget(binding.kind, curField, binding.indexExpr);
+            out.push({ op: "get_field", to: `v${sj.dst.var}`, from: target, size: sj.size === "byte" ? "u8_lo" : "u16", note });
+            continue;
+          }
+          if (sj.op === "mov" && (sj.size === "word" || sj.size === "byte") && "ptr" in sj.dst && sj.dst.ptr === pVar) {
+            const { target, note } = formatFieldTarget(binding.kind, curField, binding.indexExpr);
+            out.push({
+              op: "set_field",
+              target,
+              value: formatOperand(sj.src),
+              size: sj.size === "byte" ? "u8" : "u16",
+              note,
+            });
+            continue;
+          }
+          out.push(sj);
+        }
+        i = safeEnd + 1;
+        continue;
+      }
+    }
+    out.push(cur);
+    i++;
+  }
+
+  // Pass C: Collapse read -> alu -> write back (`get_field -> calc -> set_field`) when tmpVar is dead
+  const passC: IntermediateStep[] = [];
+  for (let k = 0; k < out.length; k++) {
+    const s0 = out[k], s1 = out[k + 1], s2 = out[k + 2];
+    if (
+      s0?.op === "get_field" &&
+      s1?.op === "alu" && "var" in s1.dst && `v${s1.dst.var}` === s0.to &&
+      s2?.op === "set_field" && s2.target === s0.from && s2.value === s0.to && s2.size === s0.size
+    ) {
+      const tmpVar = s1.dst.var;
+      const liveAfterWrite = liveOut.get(
+        // Find original write node? Wait: `set_field` wasn't in liveOut; conservatively check if tmpVar is read in ANY remaining step in out[k+3..] OR read in outer liveOut!
+        // Even better: check if tmpVar is NEVER read in passC/out[k+3..] and check original mov step wasn't live:
+        // Wait — track origin step on set_field or compute liveOut directly on `out`!
+        s1,
+      );
+      // Since we're in the same straight-line block, let's check if tmpVar is read in out[k+3..] BEFORE being written, AND if all steps after out stop/write!
+      let readLaterInBlock = false;
+      let writtenBeforeExit = false;
+      for (let m = k + 3; m < out.length; m++) {
+        const sm = out[m];
+        if (sm.op === "if" || sm.op === "loop" || sm.op === "block" || sm.op === "exit" || sm.op === "break" || sm.op === "continue" || sm.op === "stop" || sm.op === "ending") {
+          break;
+        }
+        const origSm = sm.op === "__u8_load" ? sm.origLoad : sm;
+        const eff = stepEffects(origSm);
+        if (eff.reads.has(tmpVar)) { readLaterInBlock = true; break; }
+        if (eff.writes.has(tmpVar)) { writtenBeforeExit = true; break; }
+      }
+      // Also check liveOut after original `s1` (s1 IS original `alu` step!):
+      // Actually `liveOut.get(s1)` has tmpVar (because `s2` read it!). If `s2` only read tmpVar and tmpVar wasn't live AFTER `s2`,
+      // check if `writtenBeforeExit` or `!liveAfterBlock`: wait — if we simply run `computeLiveness` once on `out`? Let's just avoid complexity and check `!readLaterInBlock && (writtenBeforeExit || (lastStepIsTerminal(out) && ...))`!
+      // Running a quick forward scan on `out[k+3..]` up to terminal (`stop`/`ending`), OR re-running `computeLiveness` on the AST after Pass B gives EXACT `liveOut` for `s2`!!
+      passC.push(s0);
+      continue;
+    }
+    passC.push(s0);
+  }
+  return simplifyRemaining(passC);
+}
+
+// 简洁化：重新对 Pass B 结果做一次全局活跃分析，精确融合 get_field+alu+set_field 与简化 mov/alu/if/say
+function postSimplify(root: readonly StoryStep[], liveOut: LiveMap): StoryStep[] {
+  const recurse = (arr: readonly StoryStep[]): StoryStep[] => {
+    const mapped = arr.map(s => {
+      if (s.op === "if") {
+        return {
+          ...s,
+          then: recurse(s.then),
+          ...(s.else ? { else: recurse(s.else) } : {}),
+        };
+      }
+      if (s.op === "loop" || s.op === "block") return { ...s, body: recurse(s.body) };
+      return s;
+    });
+
+    // 1) Collapse get_field + alu + set_field when tmpVar is dead after set_field
+    const collapsed: StoryStep[] = [];
+    for (let i = 0; i < mapped.length; i++) {
+      const s0 = mapped[i], s1 = mapped[i + 1], s2 = mapped[i + 2];
+      if (
+        s0?.op === "get_field" && (s0.size === "u8" || s0.size === "u16") &&
+        s1?.op === "alu" && "var" in s1.dst && `v${s1.dst.var}` === s0.to &&
+        !(("var" in s1.src && s1.src.var === s1.dst.var) || ("ptr" in s1.src && s1.src.ptr === s1.dst.var)) &&
+        s2?.op === "set_field" && s2.target === s0.from && s2.value === s0.to && s2.size === s0.size
+      ) {
+        const tmpVar = s1.dst.var;
+        const idxMatch = s0.from.match(/\[(v\d+)\]/);
+        const sameIdx = idxMatch && idxMatch[1] === s0.to;
+        const liveAfterS2 = liveOut.get(s2);
+        if (!sameIdx && liveAfterS2 && !liveAfterS2.has(tmpVar)) {
+          const val = formatOperand(s1.src);
+          const symMap: Record<StoryAluFn, string> = { add: "+=", sub: "-=", mul: "*=", div: "/=", or: "|=", and: "&=", shr: ">>=", shl: "<<=" };
+          collapsed.push({
+            op: "alu_field",
+            target: s0.from,
+            fn: s1.fn,
+            value: val,
+            size: s0.size,
+            note: `${s0.note ?? s0.from} ${symMap[s1.fn]} ${val}`,
+          });
+          i += 2;
+          continue;
+        }
+      }
+      collapsed.push(s0);
+    }
+
+    // 2) Collapse (win_open w!=3)? + (face|face_var)? + msg + (wait_key)? -> say
+    const withSay: StoryStep[] = [];
+    for (let i = 0; i < collapsed.length; i++) {
+      let win: number | undefined;
+      let face: number | undefined;
+      let speaker: string | undefined;
+      let faceVar: number | undefined;
+      let j = i;
+      const cur = collapsed[j];
+      if (cur.op === "win_open" && cur.win !== 3) {
+        win = cur.win;
+        j++;
+      }
+      if (j < collapsed.length && collapsed[j].op === "face") {
+        const f = collapsed[j] as Extract<StoryStep, { op: "face" }>;
+        face = f.face;
+        speaker = f.speaker;
+        j++;
+      } else if (j < collapsed.length && collapsed[j].op === "face_var") {
+        faceVar = (collapsed[j] as Extract<StoryStep, { op: "face_var" }>).var;
+        j++;
+      }
+      if (j < collapsed.length && collapsed[j].op === "msg") {
+        const m = collapsed[j] as Extract<StoryStep, { op: "msg" }>;
+        j++;
+        let wait = false;
+        if (j < collapsed.length && collapsed[j].op === "wait_key") {
+          wait = true;
+          j++;
+        }
+        withSay.push({
+          op: "say",
+          ...(win !== undefined ? { win } : {}),
+          ...(face !== undefined ? { face } : {}),
+          ...(speaker !== undefined ? { speaker } : {}),
+          ...(faceVar !== undefined ? { faceVar } : {}),
+          msg: m.msg,
+          text: m.text,
+          ...(wait ? { wait: true } : {}),
+        });
+        i = j - 1;
+        continue;
+      }
+      withSay.push(collapsed[i]);
+    }
+
+    // 3) Format remaining mov / alu / if into clean set / calc / when
+    return withSay.map((s): StoryStep => {
+      if (s.op === "if" && s.cond) {
+        return {
+          op: "if",
+          when: formatCondExpr(s.cond),
+          then: s.then,
+          ...(s.else ? { else: s.else } : {}),
+        };
+      }
+      if (s.op === "mov") {
+        return {
+          op: "set",
+          dst: String(formatOperand(s.dst)),
+          value: formatOperand(s.src),
+          ...(s.size === "byte" ? { size: "u8" as const } : {}),
+          ...(s.note ? { note: s.note } : {}),
+        };
+      }
+      if (s.op === "alu") {
+        return {
+          op: "calc",
+          dst: String(formatOperand(s.dst)),
+          fn: s.fn,
+          value: formatOperand(s.src),
+        };
+      }
+      return s;
+    });
+  };
+  return recurse(root);
+}
+
+function simplifyRemaining(arr: readonly IntermediateStep[]): StoryStep[] {
+  return arr.map((s): StoryStep => {
+    if (s.op === "__u8_load") {
+      return {
+        op: "set",
+        dst: `v${s.var}`,
+        value: `*v${s.ptr}`,
+        ptrLoad: "u8",
+      };
+    }
+    return s;
+  });
+}
+
+function stepEffectsExtended(s: StoryStep, reads: Set<number>, writes: Set<number>): void {
+  const { reads: r0, writes: w0 } = stepEffects(s);
+  for (const x of r0) reads.add(x);
+  for (const x of w0) writes.add(x);
+
+  const scanTok = (tok: string | number, isWrite: boolean) => {
+    if (typeof tok !== "string") return;
+    if (/^v\d+$/.test(tok)) {
+      const n = parseInt(tok.slice(1), 10);
+      if (isWrite) writes.add(n);
+      else reads.add(n);
+    } else if (/^\*v\d+$/.test(tok)) {
+      reads.add(parseInt(tok.slice(2), 10));
+    }
+  };
+  const scanField = (target: string) => {
+    const m = target.match(/\[(v\d+)\]/);
+    if (m) reads.add(parseInt(m[1].slice(1), 10));
+  };
+
+  if (s.op === "get_field") {
+    scanField(s.from);
+    scanTok(s.to, true);
+  } else if (s.op === "set_field") {
+    scanField(s.target);
+    scanTok(s.value, false);
+  } else if (s.op === "alu_field") {
+    scanField(s.target);
+    scanTok(s.value, false);
+  } else if (s.op === "set") {
+    scanTok(s.value, false);
+    if (s.dst.startsWith("*")) scanTok(s.dst, false);
+    else if (s.dst.startsWith("v")) {
+      if (s.size === "u8") scanTok(s.dst, false);
+      scanTok(s.dst, true);
+    }
+  } else if (s.op === "calc") {
+    scanTok(s.value, false);
+    scanTok(s.dst, false);
+    if (s.dst.startsWith("v")) scanTok(s.dst, true);
+  } else if (s.op === "say") {
+    if (s.faceVar !== undefined) reads.add(s.faceVar);
+    addTextVarRefs(s.text, reads);
+  }
+}
+
+function computeExtendedLiveness(root: readonly StoryStep[]): LiveMap {
+  const liveOutMap: LiveMap = new Map();
+  const blockExits = new Map<string, Set<number>>();
+
+  const analyzeSeq = (
+    seq: readonly StoryStep[],
+    afterLive: Set<number>,
+    loopHeaderLive: Set<number> | null,
+    loopExitLive: Set<number> | null,
+  ): Set<number> => {
+    let live = new Set(afterLive);
+    for (let i = seq.length - 1; i >= 0; i--) {
+      const s = seq[i];
+      liveOutMap.set(s, new Set(live));
+      if (s.op === "stop" || s.op === "ending") {
+        live = new Set();
+        const w = new Set<number>();
+        stepEffectsExtended(s, live, w);
+      } else if (s.op === "break") {
+        live = new Set(loopExitLive ?? afterLive);
+      } else if (s.op === "continue") {
+        live = new Set(loopHeaderLive ?? afterLive);
+      } else if (s.op === "exit") {
+        live = new Set(blockExits.get(s.target) ?? afterLive);
+      } else if (s.op === "block") {
+        blockExits.set(s.label, new Set(live));
+        live = analyzeSeq(s.body, live, loopHeaderLive, loopExitLive);
+      } else if (s.op === "loop") {
+        const afterLoop = new Set(live);
+        let headLive = new Set(afterLoop);
+        for (let iter = 0; iter < 8; iter++) {
+          const nextHead = analyzeSeq(s.body, headLive, headLive, afterLoop);
+          if (nextHead.size === headLive.size && [...nextHead].every(x => headLive.has(x))) break;
+          headLive = nextHead;
+        }
+        live = headLive;
+      } else if (s.op === "if") {
+        const tIn = analyzeSeq(s.then, live, loopHeaderLive, loopExitLive);
+        const fIn = s.else ? analyzeSeq(s.else, live, loopHeaderLive, loopExitLive) : new Set(live);
+        const merged = new Set(tIn);
+        for (const v of fIn) merged.add(v);
+        if (s.cond) collectCondReads(s.cond, merged);
+        live = merged;
+      } else {
+        const reads = new Set<number>(), writes = new Set<number>();
+        stepEffectsExtended(s, reads, writes);
+        for (const w of writes) live.delete(w);
+        for (const r of reads) live.add(r);
+      }
+    }
+    return live;
+  };
+
+  analyzeSeq(root, new Set(), null, null);
+  return liveOutMap;
+}
+
 export function liftEntryControlFlow(
   code: readonly RawScenarioIns[],
   entryAt: number,
   mes: readonly string[],
   meta?: StoryMetadataLookup,
+  options?: { rawAstOnly?: boolean },
 ): StoryStep[] {
   const atIdx = new Map<number, number>();
   for (let i = 0; i < code.length; i++) atIdx.set(code[i].at, i);
@@ -337,7 +930,6 @@ export function liftEntryControlFlow(
     const steps: StoryStep[] = [];
     let u = uStart;
     while (u !== null && !stopSet.has(u)) {
-      // Whenever control reaches `u`, any earlier step inside `steps` targeting `exit(L_u)` needs a `block` around `steps`!
       wrapBlockIfNeeded(steps, labelFor(u));
 
       if (loops.has(u) && u !== curLoopH) {
@@ -429,7 +1021,6 @@ export function liftEntryControlFlow(
           stripTrailingMergeExit(fBranch);
         }
 
-        // Clean up: if `then` is empty while `else` is non-empty, invert condition
         if (!tBranch.length && fBranch.length) {
           steps.push({ op: "if", cond: negateCond(cond), then: fBranch });
         } else if (fBranch.length) {
@@ -459,7 +1050,13 @@ export function liftEntryControlFlow(
     return steps;
   };
 
-  return build(entryAt, new Set(), null, null, null, null);
+  const rawAst = build(entryAt, new Set(), null, null, null, null);
+  if (options?.rawAstOnly) return rawAst;
+
+  const live1 = computeLiveness(rawAst);
+  const fusedFields = fuseFieldOpsInSeq(rawAst, live1);
+  const live2 = computeExtendedLiveness(fusedFields);
+  return postSimplify(fusedFields, live2);
 }
 
 export function liftScenarioToStory(

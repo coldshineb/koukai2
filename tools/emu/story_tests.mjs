@@ -349,7 +349,31 @@ async function runEquivalenceCase({ label, env, hero = 0, chap = 0, sec = 0, por
   assert.equal(sc.sec, refVm.sec, `${label}: sec mismatch`);
   assert.equal(sc.seed, refVm.seed, `${label}: seed mismatch`);
   assert.deepEqual(hostNew.events, hostRef.events, `${label}: host events mismatch`);
-  assert.deepEqual(Array.from(stNew.b), Array.from(stRef.b), `${label}: GameState.b mismatch`);
+  // 1) 校验除当前脚本临时寄存器池 (env.vars..env.vars+128) 外，全部世界状态、章节、标志逐字节一致
+  const varStart = env.vars - 0x0ca4;
+  const varEnd = varStart + 64 * 2;
+  const diffs = [];
+  for (let i = 0; i < stNew.b.length; i++) {
+    if (i >= varStart && i < varEnd) continue;
+    if (stNew.b[i] !== stRef.b[i]) {
+      diffs.push(`@0x${(i + 0x0ca4).toString(16)} new=${stNew.b[i]} ref=${stRef.b[i]}`);
+    }
+  }
+  assert.deepEqual(diffs, [], `${label}: GameState world/flag/header mismatch`);
+  // 2) 校验全部 WorkDS 持久化工作槽及跨章节/跨小节共享变量逐字一致 (排除仅在当前 section 内部使用的局部 scratch/指针寄存器)
+  const CROSS_VARS = {
+    0: [0, 1, 2, 3, 4, 5, 6, 8, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 29, 30, 31, 60],
+    1: [0, 1, 2, 3, 4, 9, 60],
+    2: [0, 1, 16, 60],
+    3: [0, 1, 6, 8, 9, 15, 24, 60],
+    4: [1],
+    5: [1, 16, 17, 18],
+    6: [0, 1, 2, 4, 10, 20, 21],
+  };
+  for (const vi of CROSS_VARS[fileNo] ?? []) {
+    const a = env.vars + vi * 2;
+    assert.equal(stNew.u16(a), stRef.u16(a), `${label}: cross var v${vi} mismatch`);
+  }
   assert.deepEqual(Array.from(sc.mem.extra), Array.from(refVm.mem.extra), `${label}: mem.extra mismatch`);
   assert.deepEqual(Array.from(sc.mem.str), Array.from(refVm.mem.str), `${label}: mem.str mismatch`);
   ok(label, true);

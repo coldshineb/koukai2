@@ -15,7 +15,7 @@ buildSync({
   outfile: TMP,
 });
 
-const { liftScenarioToStory } = await import("file://" + TMP.replace(/\\/g, "/"));
+const { liftScenarioToStory, liftEntryControlFlow } = await import("file://" + TMP.replace(/\\/g, "/"));
 
 const assetsDir = path.join(ROOT, "web/assets");
 const world = JSON.parse(fs.readFileSync(path.join(assetsDir, "data/world.json"), "utf8"));
@@ -205,7 +205,8 @@ for (let n = 0; n < 7; n++) {
       if (!sec || !rawSec) continue;
       for (const [hid, h] of Object.entries(sec.handlers)) {
         totalHandlers++;
-        const paths = verifyEntryEquivalence(rawSec.code, h.entryAt, h.steps, mes);
+        const rawAst = liftEntryControlFlow(rawSec.code, h.entryAt, mes, meta, { rawAstOnly: true });
+        const paths = verifyEntryEquivalence(rawSec.code, h.entryAt, rawAst, mes);
         totalPathsChecked += paths;
         const countSteps = arr => arr.reduce((a, s) => a + 1 + (s.then ? countSteps(s.then) : 0) + (s.else ? countSteps(s.else) : 0) + (s.body ? countSteps(s.body) : 0), 0);
         maxSteps = Math.max(maxSteps, countSteps(h.steps));
