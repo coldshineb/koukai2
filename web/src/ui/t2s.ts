@@ -39,7 +39,7 @@ export function toSimp(text: string): string {
 
   const hit = cache.get(cleaned);
   if (hit !== undefined) return hit;
-  const fixed = cleaned.replace(SWAP_RE, ch => CHARMAP_SWAP[ch] ?? ch);
+  const fixed = cleaned.replace(SWAP_RE, ch => CHARMAP_SWAP[ch] ?? ch).replace(/金弊/g, "金幣");
   const out = converter(fixed);
   if (cache.size >= MAX_CACHE) cache.clear();
   cache.set(cleaned, out);

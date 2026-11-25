@@ -2104,7 +2104,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
           btnRow.className = "uw2-step-row";
           const hagBtn = document.createElement("button");
           hagBtn.className = "uw2-step-btn";
-          hagBtn.textContent = "还价";
+          hagBtn.textContent = "议价";
           hagBtn.disabled = opts.listPrice <= 0;
           hagBtn.addEventListener("click", () => {
             haggleOpen = true;

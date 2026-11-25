@@ -256,7 +256,7 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
             const hBtn = document.createElement("button");
             hBtn.className = "uw2-step-btn";
             hBtn.style.marginLeft = "auto";
-            hBtn.textContent = "杀价";
+            hBtn.textContent = "议价";
             hBtn.addEventListener("click", () => {
               haggleOpen = true;
               haggleOffer = Math.max(1, lo);

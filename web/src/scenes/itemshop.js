@@ -272,7 +272,7 @@ export class ItemShop {
               const hagBtn = document.createElement("button");
               hagBtn.className = "uw2-btn";
               hagBtn.style.padding = "9px 16px";
-              hagBtn.textContent = "再议价";
+              hagBtn.textContent = "议价";
               hagBtn.addEventListener("click", () => {
                 const hero = m.heroPerson();
                 if (sys.rng.random(100) <= hero.getStats(7)) {
