@@ -3,7 +3,7 @@ import { GameConst, MenuId, SkillFlag } from "../model/flags.ts";
 import { appendTradeLog, heroShipSlot } from "../model/world_helpers.ts";
 import { domS16, domUmin16, domUmax16, goodsCategory, hasTradeLicense, calcBuyPrice, calcSellPrice, calcHaggleBounds, calcBuyPriceShift, calcSellPriceShift, clampPriceIndexUp, clampPriceIndexDown } from "../domain/economy.ts";
 import { runDomTableSelect } from "../ui/modals.ts";
-import { runDomMarketWorkbench } from "../ui/workbenches.ts";
+import { runDomMarketWorkbench } from "../ui/buildings/market.ts";
 import { decodeCleanCstr } from "../ui/text_util.ts";
 
 const mHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };

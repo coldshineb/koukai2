@@ -9,9 +9,8 @@ import {
   writeShipName,
 } from "../model/world_helpers.ts";
 import { domS16, domUmin16 } from "../domain/economy.ts";
-import { createDomModal, hasDom, preserveScroll } from "../ui/modals.ts";
-import { runDomShipyardWorkbench } from "../ui/buildings_panel.ts";
-import { decodeCleanCstr, toSimp } from "../ui/text_util.ts";
+import { hasDom } from "../ui/modals.ts";
+import { runDomLeftoversModal, runDomShipyardWorkbench } from "../ui/buildings/shipyard.ts";
 
 class ShipyardMixin {
   // ================= 2 造船厂 1fd9:cc01 =================
@@ -200,124 +199,12 @@ class ShipyardMixin {
   // 0fea:e788 + 0fea:fe57 + 8ebc(2)
   async leftovers(left) {
     if (this.c.scr.wideRenderer && hasDom() && this.c.codec) {
-      await this.leftoversDom(left.goods, left.amt);
+      await runDomLeftoversModal(this, left.goods, left.amt);
       return;
     }
     this.fleetTable();
     await this.distribute(left.goods, left.amt);
     await this.p.interior(2);
-  }
-  async leftoversDom(lg, la) {
-    const m = this.m, codec = this.c.codec;
-    const dec = bts => toSimp(decodeCleanCstr(codec, bts));
-    const supNames = ["水", "食物", "资材", "炮弹"];
-    const goodsNames = this.LO?.goods ?? [];
-    let selLeft = 0;
-
-    const getLefts = () => {
-      const out = [];
-      for (let i = 0; i < lg.length; i++) {
-        if (lg[i] === 0xff || la[i] <= 0) continue;
-        const g = lg[i];
-        const name = (g & 0x80) ? (supNames[g & 0x7f] || "补给") : (goodsNames[g] ? dec(goodsNames[g]) : `货物#${g}`);
-        out.push({ idx: i, code: g, name, amt: la[i] });
-      }
-      return out;
-    };
-    const getShips = () => {
-      const out = [];
-      for (let i = 0; i < GameConst.FLEET_SHIPS; i++) {
-        const S = heroShipSlot(m, i);
-        if ((S.flags & ShipSlotFlag.STATE_MASK) !== ShipSlotFlag.ACTIVE) continue;
-        const ship = m.ship(S.ship);
-        const max = ship.maxCargo, used = this.cargoUsed(i);
-        out.push({ slot: i, name: dec(ship.nameBytes), used, max, free: Math.max(0, max - used) });
-      }
-      return out;
-    };
-    const putIntoShip = (leftItem, shipSlot) => {
-      const S = heroOrDockSlot(m, shipSlot), ship = m.ship(S.ship);
-      const free = Math.max(0, ship.maxCargo - this.cargoUsed(shipSlot));
-      if (free <= 0) return;
-      const move = Math.min(leftItem.amt, free);
-      const M = m.crewSlot(shipSlot), g = leftItem.code;
-      if (g & 0x80) {
-        const k = g & 0x7f;
-        const mult = k < 2 ? 10 : 1;
-        if (k === 0) M.water += move * mult;
-        else if (k === 1) M.food += move * mult;
-        else if (k === 2) M.material += move * mult;
-        else if (k === 3) M.ammo += move * mult;
-      } else {
-        let j = -1;
-        for (let k = 0; k < GameConst.CARGO_SLOTS; k++) {
-          const cg = M.getCargoGoods(k);
-          if (cg === g) { j = k; break; }
-          if (cg === GameConst.EMPTY_SLOT && j < 0) j = k;
-        }
-        if (j < 0) return;
-        M.setCargoGoods(j, g);
-        M.setCargoAmts(j, M.getCargoAmts(j) + move);
-      }
-      la[leftItem.idx] -= move;
-      if (la[leftItem.idx] <= 0) lg[leftItem.idx] = 0xff;
-      this.loadTotal(shipSlot);
-    };
-
-    await new Promise(resolve => {
-      const h = createDomModal({
-        title: "剩余货物分配",
-        size: "wide",
-        cancelable: true,
-        closeLabel: "完成",
-        onCancel: () => resolve(),
-      });
-      const render = () => {
-        preserveScroll(h.body, () => {
-          h.body.innerHTML = "";
-          const lefts = getLefts();
-          const ships = getShips();
-          if (!lefts.length) { h.close(); resolve(); return; }
-          if (selLeft >= lefts.length) selLeft = 0;
-
-          const split = document.createElement("div");
-          split.className = "uw2-split";
-
-          const lCol = document.createElement("div");
-          lCol.className = "uw2-pane";
-          lCol.innerHTML = `<div class="uw2-pane-title">未装载货物</div>`;
-          const lList = document.createElement("div");
-          lList.className = "uw2-list-col";
-          lefts.forEach((it, i) => {
-            const btn = document.createElement("button");
-            btn.className = `uw2-row-card ${i === selLeft ? "selected" : ""}`;
-            btn.innerHTML = `<span style="font-weight:700;">${it.name}</span><strong>${it.amt}</strong>`;
-            btn.addEventListener("click", () => { selLeft = i; render(); });
-            lList.appendChild(btn);
-          });
-          lCol.appendChild(lList);
-
-          const rCol = document.createElement("div");
-          rCol.className = "uw2-pane";
-          rCol.innerHTML = `<div class="uw2-pane-title">点击目标舰船装入「${lefts[selLeft].name}」</div>`;
-          const rList = document.createElement("div");
-          rList.className = "uw2-list-col";
-          ships.forEach(s => {
-            const btn = document.createElement("button");
-            btn.className = "uw2-row-card";
-            btn.disabled = s.free <= 0;
-            btn.innerHTML = `<span style="font-weight:700;">${s.name}</span><span>空余 ${s.free} (${s.used}/${s.max})</span>`;
-            btn.addEventListener("click", () => { putIntoShip(lefts[selLeft], s.slot); render(); });
-            rList.appendChild(btn);
-          });
-          rCol.appendChild(rList);
-
-          split.append(lCol, rCol);
-          h.body.appendChild(split);
-        }, true);
-      };
-      render();
-    });
   }
   // 1e628 舰队表 (不保存背景)
   fleetTable() {

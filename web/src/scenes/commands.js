@@ -26,7 +26,7 @@ import {
   setSeaCooldown,
   setWaterRationPct,
 } from "../model/world_helpers.ts";
-import { runDomFleetHub } from "../ui/workbenches.ts";
+import { runDomFleetHub } from "../ui/fleet_panel.ts";
 import { captureConsoleText, decodeCleanCstr, UI_FONT } from "../ui/text_util.ts";
 import {
   hasDom,
@@ -40,7 +40,7 @@ import {
 } from "../ui/modals.ts";
 import { runDomSettingsModal } from "../ui/hud.ts";
 import { UI_STR } from "../ui/strings.ts";
-import { runDomPersonInfo, runDomShipInfo } from "../ui/workbenches.ts";
+import { runDomPersonInfo, runDomShipInfo } from "../ui/fleet_panel.ts";
 import { runDomInfoHub, runDomBelongings, runDomFormation, runDomPortMapModal, runDomWorldChartModal } from "../ui/info_hub.ts";
 
 const cmHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };

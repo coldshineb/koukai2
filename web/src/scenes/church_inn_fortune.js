@@ -2,7 +2,7 @@
 import { GameConst } from "../model/flags.ts";
 import { WorldConst } from "../model/world_helpers.ts";
 import { hasDom } from "../ui/modals.ts";
-import { runDomInnWorkbench, runDomChurchWorkbench, runDomFortuneWorkbench } from "../ui/buildings_panel.ts";
+import { runDomInnWorkbench, runDomChurchWorkbench, runDomFortuneWorkbench } from "../ui/buildings/church_inn_fortune.ts";
 
 const cifHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const B_SUPPORT_FMT = Uint8Array.of(0x25, 0x2d, 0x31, 0x34, 0x73, 0x20, 0x25, 0x33, 0x64, 0x25, 0x25, 0); // DS:b0ba "%-14s %3d%%"

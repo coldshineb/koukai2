@@ -5,7 +5,7 @@ import { Scenario, ENV_COMMON } from "../game/scenario.js";
 import { GameConst, TreatyFlag } from "../model/flags.ts";
 import { getCountryExtra, getWorkState } from "../model/world_helpers.ts";
 import { hasDom } from "../ui/modals.ts";
-import { runDomOfficeWorkbench } from "../ui/buildings_panel.ts";
+import { runDomOfficeWorkbench } from "../ui/buildings/office.ts";
 
 const ofHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const ofS16 = v => (v << 16) >> 16;

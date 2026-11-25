@@ -7,7 +7,7 @@ import { getCountryExtra, getWorkState, heroShipSlot, setPortBuildDays } from ".
 import { captureConsoleText, decodeCleanCstr } from "../ui/text_util.ts";
 import { runDomInfoLines } from "../ui/modals.ts";
 import { hasDom } from "../ui/modals.ts";
-import { runDomPalaceWorkbench } from "../ui/buildings_panel.ts";
+import { runDomPalaceWorkbench } from "../ui/buildings/palace.ts";
 
 const plHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const plS16 = v => (v << 16) >> 16;

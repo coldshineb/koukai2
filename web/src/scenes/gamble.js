@@ -3,7 +3,7 @@
 //   扑克牌 花色 k (牌 / 13) 于 0x300×k (k = 4 为背面), 4 栏 × 48 行平面交错; 骰子 v (0..5) 于 0xf00 + 0x120×v, 3 栏 × 24 行
 // 文字与格式字符串: port.json gamble (tools/extract_port.py)
 import { hasDom } from "../ui/modals.ts";
-import { runDomGamble } from "../ui/gamble_panel.ts";
+import { runDomGamble } from "../ui/buildings/gamble.ts";
 import { personRawBytes } from "../model/world_helpers.ts";
 
 const gHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };

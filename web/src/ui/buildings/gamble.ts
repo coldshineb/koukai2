@@ -1,6 +1,6 @@
-// ui/gamble_panel.ts — 现代羊皮纸酒馆赌博工作台（二十一点 + 扑克骰子，含赌场插图与 NPC/主角头像，100% 沿用原版洗牌/判定/赔率）
-import { createDomModal, getComposedPortraitSrc, getGraphArtUrl, getPersonPortraitSrc, hasDom, mountBuildingBanner } from "./modals.ts";
-import { personRawBytes } from "../model/world_helpers.ts";
+// ui/buildings/gamble.ts — 现代羊皮纸酒馆赌博工作台（二十一点 + 扑克骰子，含赌场插图与 NPC/主角头像，100% 沿用原版洗牌/判定/赔率）
+import { createDomModal, getComposedPortraitSrc, getGraphArtUrl, getPersonPortraitSrc, hasDom, mountBuildingBanner } from "../modals.ts";
+import { personRawBytes } from "../../model/world_helpers.ts";
 
 const SUITS = ["♠", "♥", "♦", "♣"];
 const RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];

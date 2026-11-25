@@ -6,7 +6,7 @@ import { ListSelect } from "../ui/dos/listsel.js";
 import { DiscoveryFlag, GameConst, NobleFlag, SkillFlag } from "../model/flags.ts";
 import { getWorkState, revealEntireWorldMap, setExploreUnrep } from "../model/world_helpers.ts";
 import { hasDom, runDomStoryCard } from "../ui/modals.ts";
-import { runDomHouseWorkbench } from "../ui/buildings_panel.ts";
+import { runDomHouseWorkbench } from "../ui/buildings/house.ts";
 import { captureConsoleText, toSimp } from "../ui/text_util.ts";
 
 const hsS16 = v => (v << 16) >> 16;

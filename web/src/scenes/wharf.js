@@ -16,7 +16,7 @@ import {
 } from "../model/world_helpers.ts";
 import { domS16, domUmin16 } from "../domain/economy.ts";
 import { runDomTableSelect } from "../ui/modals.ts";
-import { runDomWharfWorkbench } from "../ui/workbenches.ts";
+import { runDomWharfWorkbench } from "../ui/buildings/wharf.ts";
 import { decodeCleanCstr } from "../ui/text_util.ts";
 
 class WharfMixin {
