@@ -19,7 +19,7 @@ import { marketTradeLog } from "./market.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
 import { hasDom } from "../modern/dom_ui.ts";
-import { BATTLE_VIEWPORT, renderWideBattle, hideDomBattleHud } from "../modern/dom_battle.ts";
+import { BATTLE_VIEWPORT, renderWideBattle, hideDomBattleHud, runDomBattleFleetModal, runDomBattlePersonModal, runDomBattleShipModal } from "../modern/dom_battle.ts";
 import { createEscStripper } from "../canvas_ui/text_util.ts";
 
 const btHex = s => Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16)));
@@ -115,6 +115,8 @@ export class NavalBattle {
     scr.wideOverlays.length = 0;
     if (hasDom()) {
       scr.wideRenderer = (ctx, s) => renderWideBattle(ctx, s, this);
+      scr._battleHudActive = true;
+      scr._battleMsg = () => this._wideMsg || "";
       sys._battleViewport = BATTLE_VIEWPORT;
       this._msgRaw = [];
       this._wideMsg = "";
@@ -617,7 +619,9 @@ export class NavalBattle {
     await menu.waitPrompt();
     b.crewSpeaks();                                                     // 909b
     message(((this.u16(0x9d40) * 3) & 0xffff) >>> 1 >= this.u16(0x9d42) ? 0x335 : 0x334);
+    menu.wideMenuTitle = "战前抉择";
     const r = await menu.popupMenu(this.c.menuItems(0x36), 0);          // 2e09:57aa(0x36) + 0fea:46ec (3 項)
+    menu.wideMenuTitle = "";
     await b.closeTalk();                                                // 796d
     if (r === 1) {
       b.crewSpeaks();
@@ -967,7 +971,9 @@ export class NavalBattle {
       this.set16(0x9bd0, this.u16(B + 4)); this.set8(0x9be4, this.u8(B + 0x0a));
       const items = this.c.menuItems(0x32);
       this.enable();                                                    // b751
+      menu.wideMenuTitle = "战斗指令";
       const r = await menu.popupMenu(items, 0);                         // 0fea:46ec (8 項, 不可取消)
+      menu.wideMenuTitle = "";
       const ax = await this.command(r);                                 // DS:8df4 遠程函式表
       if (ax) break;
     }
@@ -996,12 +1002,16 @@ export class NavalBattle {
     for (;;) {
       const items = this.c.menuItems(0x33);
       this.infoEnable();                                                // b19c
+      menu.wideMenuTitle = "情报";
       const r = await menu.popupMenu(items, 1);
+      menu.wideMenuTitle = "";
       if (r === 0xff) return 0;
       await [() => this.fleetLook(this.st.u8(DS.HERO)), () => this.infoCrew(), () => this.infoShips(), () => this.infoEnemyFleet(),
         () => this.infoEnemyPerson(), () => this.infoEnemyShip(), () => this.infoOrders()][r]();   // ad9f / ada7 / addc / ae57 / aebc / af32 / b0bc
-      this.redraw();                                                    // c608
-      await this.fadeIn();                                              // bcfa
+      if (!this.c.scr._battleHudActive) {
+        this.redraw();                                                  // c608
+        await this.fadeIn();                                            // bcfa
+      }
     }
   }
   // b19c [a14c]: bit5 主角艦隊以外沒有視窗內的活船, bit6 目前這艘之後本方沒有活船
@@ -1019,6 +1029,10 @@ export class NavalBattle {
   }
   // ad3d 指揮者 p 的艦隊一覽 (0fea:d248 = 1d0e8)
   async fleetLook(p) {
+    if (this.c.scr._battleHudActive && hasDom()) {
+      await runDomBattleFleetModal(this, p);
+      return;
+    }
     const { con, palette } = this.c, st = this.st;
     const l = con.left, r = con.right;
     con.left = 0; con.right = 0x4f;
@@ -1038,7 +1052,8 @@ export class NavalBattle {
       const r = await b.listSel().select(6, n);
       await b.closeTalk();                                              // 796d
       if (r === -1) return;
-      cm.personInfo(this.c.persons[r] & 0xff, 6, 1);                    // 0fea:c999
+      if (this.c.scr._battleHudActive && hasDom()) await runDomBattlePersonModal(this, this.c.persons[r] & 0xff);
+      else cm.personInfo(this.c.persons[r] & 0xff, 6, 1);               // 0fea:c999
     }
   }
   // addc 本方的船: 清單種類 0 → 艦船調色盤 → 1c1a3(船位, 6) → 490b → c2ee / c608 / bcfa
@@ -1050,6 +1065,10 @@ export class NavalBattle {
       const r = await b.listSel().select(0, n);
       await b.closeTalk();
       if (r === -1) return;
+      if (this.c.scr._battleHudActive && hasDom()) {
+        await runDomBattleShipModal(this, this.slot(P[r] & 0xff));
+        continue;
+      }
       if (!palette.invert) palette.stopCycle();                         // 1743
       palette.setTarget(palette.table("ships")); await palette.fadeToTarget();   // 98fe(a730), 99e8
       cm.shipInfo(P[r] & 0xff, 6);                                      // 0fea:c303
@@ -1077,12 +1096,17 @@ export class NavalBattle {
   // aebc 對方的提督資料 1c839(人物, 6, 0)
   async infoEnemyPerson() {
     const b = this.sea.b, cm = this.sea.commandsObj(), P = this.c.persons, n = this.enemyCommanders();
-    if (n === 1) { cm.personInfo(P[0] & 0xff, 6, 0); await this.c.menu.waitPrompt(); return; }
+    if (n === 1) {
+      if (this.c.scr._battleHudActive && hasDom()) await runDomBattlePersonModal(this, P[0] & 0xff);
+      else { cm.personInfo(P[0] & 0xff, 6, 0); await this.c.menu.waitPrompt(); }
+      return;
+    }
     for (;;) {
       const r = await b.listSel().select(6, n);
       await b.closeTalk();
       if (r === -1) return;
-      cm.personInfo(P[r] & 0xff, 6, 0);
+      if (this.c.scr._battleHudActive && hasDom()) await runDomBattlePersonModal(this, P[r] & 0xff);
+      else cm.personInfo(P[r] & 0xff, 6, 0);
     }
   }
   // af32 對方的船: a65e 標記 → bc37 選格 → 1c652
@@ -1095,6 +1119,11 @@ export class NavalBattle {
       this.msgArea();
       if (!B) return;
       const E = 0x97e0 + ((this.u8(B + 0x0d) & 0x30) >> 1), F = this.u16(E + 4), idx = this.u8(B + 0x0d) & 0x0f;
+      if (this.c.scr._battleHudActive && hasDom()) {
+        await runDomBattleShipModal(this, this.u16(B + 2));
+        this.redraw();
+        continue;
+      }
       if (!palette.invert) palette.stopCycle();
       palette.setTarget(palette.table("ships")); await palette.fadeToTarget();
       for (let i = 0; i < 10; i++) if (this.u16(B + 2) === ((F + OFF.FLEET.SHIPS + 9 * i) & 0xffff)) this.enemyShipInfo(i, idx, this.u8(F + OFF.FLEET.ADMIRAL));   // 0fea:c7b2
@@ -1883,12 +1912,15 @@ export class NavalBattle {
     const { scr, sys } = this.c;
     const prevWide = scr.wideRenderer;
     const prevBv = sys._battleViewport;
+    const prevActive = scr._battleHudActive;
+    scr._battleHudActive = false;
     sys._battleViewport = null;
     hideDomBattleHud();
     try {
       return await duelInBattle(this, ax, T);
     } finally {
       scr.wideRenderer = prevWide;
+      scr._battleHudActive = prevActive;
       sys._battleViewport = prevBv;
       scr.dirty = true;
     }
@@ -2314,6 +2346,8 @@ export class NavalBattle {
       this.c.con.putc = this._origBattlePutc;
       this._origBattlePutc = null;
     }
+    this.c.scr._battleHudActive = false;
+    this.c.scr._battleMsg = null;
     this.c.sys._battleViewport = null;
     hideDomBattleHud();
     await this.fadeOutField();                                          // bd26

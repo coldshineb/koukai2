@@ -1820,26 +1820,35 @@ export class SeaScene extends PortScene {
     if (scr.wideRenderer) this.cellSel().widePrompt = "请选择侦察目标";
     const c = await this.cellSel().select(0x60, 8, 0x18, 0x10, 0x10, 0x18, init);
     if (c < 0) return 0xff;
-    for (let di = 0; di < 0x82; di++) {
-      const R = DS.TBL_PORT + di * 0x16;
-      if (((st.u16(R) - (c % 0x18)) & 0xffff) !== st.u16(DS.SEA_VIEW_X) || ((st.u16(R + 2) - Math.trunc(c / 0x18)) & 0xffff) !== st.u16(DS.SEA_VIEW_Y)) continue;
-      if (!(st.u8(R + 0x15) & 0x10)) continue;
-      if (scr.wideRenderer) this.b.beginWideTalk(null);
-      else win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0);
-      printf(this.SS.scPort, st.cstr(R + 4));
-      await menu.waitPrompt(); await win.close();
-      return 0x80;
+    const cCol = c % 0x18, cRow = Math.trunc(c / 0x18);
+    // 寬螢幕下允許點擊 2×2 船隻/港口任意一格命中（優先精準格，再查相鄰 ±1 格）
+    const probes = scr.wideRenderer
+      ? [c, c - 1, c - 0x18, c - 0x19, c + 1, c + 0x18]
+      : [c];
+    for (const pc of probes) {
+      if (pc < 0 || pc >= 0x18 * 0x18) continue;
+      if (Math.abs((pc % 0x18) - cCol) > 1 || Math.abs(Math.trunc(pc / 0x18) - cRow) > 1) continue;
+      for (let di = 0; di < 0x82; di++) {
+        const R = DS.TBL_PORT + di * 0x16;
+        if (((st.u16(R) - (pc % 0x18)) & 0xffff) !== st.u16(DS.SEA_VIEW_X) || ((st.u16(R + 2) - Math.trunc(pc / 0x18)) & 0xffff) !== st.u16(DS.SEA_VIEW_Y)) continue;
+        if (!(st.u8(R + 0x15) & 0x10)) continue;
+        if (scr.wideRenderer) this.b.beginWideTalk(null);
+        else win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0);
+        printf(this.SS.scPort, st.cstr(R + 4));
+        await menu.waitPrompt(); await win.close();
+        return 0x80;
+      }
+      const n = this.fleetsAt(pc);
+      if (n === 1) return this.c.persons[0] & 0xff;
+      if (n > 1) {
+        const si = await this.b.listSel().select(0x8c, n);
+        if (si === -1) return 0x80;
+        return this.c.persons[si] & 0xff;
+      }
     }
-    const n = this.fleetsAt(c);
-    if (!n) {
-      if (scr.wideRenderer) this.b.beginWideTalk(null);
-      else win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0);
-      message(0xd7); await menu.waitPrompt(); await win.close(); return 0x80;
-    }
-    if (n === 1) return this.c.persons[0] & 0xff;
-    const si = await this.b.listSel().select(0x8c, n);
-    if (si === -1) return 0x80;
-    return this.c.persons[si] & 0xff;
+    if (scr.wideRenderer) this.b.beginWideTalk(null);
+    else win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0);
+    message(0xd7); await menu.waitPrompt(); await win.close(); return 0x80;
   }
   // 0fea:31a8 = 13048 格 c (視窗內) 上的他艦隊 (出航中、非 +29 bit4、指揮者不是主角) 的指揮者 → [0538]
   fleetsAt(c) {

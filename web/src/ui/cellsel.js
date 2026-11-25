@@ -73,17 +73,23 @@ export class CellSelect {
       };
     };
 
-    const screenToCell = (vx, vy) => {
+    const screenToCell = (vx, vy, clampToRange = false) => {
       const cam = scr._wideSeaCam;
       if (!cam || vx < 0 || vy < 0 || vx >= 1280 || vy >= 720) return -1;
-      const mx = cam.camX + Math.floor(vx / cam.tile);
-      const my = cam.camY + Math.floor(vy / cam.tile);
+      // 以游標為 2×2 瞄準框中心（減去半格偏移，點在船/港任意位置都能精準命中）
+      const mx = cam.camX + Math.floor((vx - cam.tile * 0.5) / cam.tile);
+      const my = cam.camY + Math.floor((vy - cam.tile * 0.5) / cam.tile);
       const wx = cam.baseWX + mx;
       const wy = cam.baseWY + my;
       let col = wx - cam.vx1006;
       if (col < -cam.worldW / 2) col += cam.worldW;
       else if (col > cam.worldW / 2) col -= cam.worldW;
-      const row = wy - cam.vy1008;
+      let row = wy - cam.vy1008;
+      if (clampToRange) {
+        col = Math.max(0, Math.min(cols - span, col));
+        row = Math.max(0, Math.min(rows - span, row));
+        return row * cols + col;
+      }
       if (col < 0 || col > cols - span || row < 0 || row > rows - span) return -1;
       return row * cols + col;
     };
@@ -91,6 +97,16 @@ export class CellSelect {
     const drawFn = ctx => {
       const box = cellToScreen(cur);
       ctx.save();
+      // 淡金虛線標出 24×24 有效偵察/指定範圍
+      const tl = cellToScreen(0);
+      if (tl && scr._wideSeaCam) {
+        const rangePx = cols * scr._wideSeaCam.tile;
+        ctx.strokeStyle = "rgba(230, 198, 124, 0.35)";
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([8, 6]);
+        ctx.strokeRect(tl.x, tl.y, rangePx, rangePx);
+        ctx.setLineDash([]);
+      }
       if (box) {
         const { x, y, size } = box;
         const pulse = 0.72 + 0.28 * Math.sin(performance.now() * 0.008);
@@ -129,6 +145,38 @@ export class CellSelect {
       ctx.restore();
     };
 
+    // 直接監聽 canvas 滑鼠移動與左/右鍵點擊，確保瀏覽器中 100% 即時響應（不依賴輪詢時機）
+    const canvas = scr.canvas;
+    let clickResult = null;
+    const clientToView = e => {
+      if (!canvas) return { vx: -1, vy: -1 };
+      const r = canvas.getBoundingClientRect();
+      return {
+        vx: Math.max(0, Math.min(1279, Math.floor(((e.clientX - r.left) * 1280) / r.width))),
+        vy: Math.max(0, Math.min(719, Math.floor(((e.clientY - r.top) * 720) / r.height))),
+      };
+    };
+    const onMove = e => {
+      const { vx, vy } = clientToView(e);
+      const hov = screenToCell(vx, vy, true);
+      if (hov >= 0 && hov !== cur) {
+        cur = hov;
+        scr.dirty = true;
+      }
+    };
+    const onDown = e => {
+      if (e.button === 2) { clickResult = -1; e.preventDefault(); return; }
+      if (e.button === 0) {
+        const { vx, vy } = clientToView(e);
+        const hov = screenToCell(vx, vy, true);
+        if (hov >= 0) cur = hov;
+        clickResult = cur;
+        e.preventDefault();
+      }
+    };
+    canvas?.addEventListener("mousemove", onMove);
+    canvas?.addEventListener("mousedown", onDown);
+
     scr.wideOverlays.push(drawFn);
     scr.dirty = true;
     sys.mouseShow();
@@ -136,11 +184,12 @@ export class CellSelect {
     let lastVx = -1, lastVy = -1;
     try {
       for (;;) {
+        if (clickResult !== null) { result = clickResult; break; }
         const vx = sys.mouse?.vx ?? -1;
         const vy = sys.mouse?.vy ?? -1;
         if (vx !== lastVx || vy !== lastVy) {
           lastVx = vx; lastVy = vy;
-          const hov = screenToCell(vx, vy);
+          const hov = screenToCell(vx, vy, true);
           if (hov >= 0 && hov !== cur) {
             cur = hov;
             scr.dirty = true;
@@ -150,9 +199,9 @@ export class CellSelect {
         if (k === 0x1b || k === 0x30) { result = -1; break; }
         if (k === 0x0d) {
           if (m.mouseFlag) {
-            const hov = screenToCell(vx, vy);
-            if (hov >= 0) { cur = hov; result = cur; break; }
-            result = -1; break;
+            const hov = screenToCell(vx, vy, true);
+            if (hov >= 0) cur = hov;
+            result = cur; break;
           }
           result = cur; break;
         }
@@ -165,6 +214,8 @@ export class CellSelect {
         await sys.poll();
       }
     } finally {
+      canvas?.removeEventListener("mousemove", onMove);
+      canvas?.removeEventListener("mousedown", onDown);
       const idx = scr.wideOverlays.indexOf(drawFn);
       if (idx >= 0) scr.wideOverlays.splice(idx, 1);
       scr.dirty = true;

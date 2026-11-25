@@ -1,9 +1,10 @@
-// modern/dom_battle.ts — 16:9 現代羊皮紙海戰 HUD + 戰場 Canvas 縮放渲染器
-// 左側 (20, 10, 728×700) 清晰呈現 1.75× 縮放六角格海戰場，右側以暖羊皮紙卡片呈現旗艦狀態、風向、戰術小地圖與戰況訊息。
-import { hasDom } from "./dom_ui.ts";
+// modern/dom_battle.ts — 16:9 現代羊皮紙海戰 HUD + 戰場 Canvas 縮放渲染器 + 無遮擋右側指令/確認欄 + 羊皮紙情報卡
+// 左側 (20, 10, 728×700) 清晰呈現 1.75× 縮放六角格海戰場（絕不被選單模糊遮擋），
+// 右側以暖羊皮紙卡片呈現旗艦狀態、風向、戰術小地圖，底部卡位無縫承載戰況訊息、戰鬥指令與是/否確認。
+import { createDomModal, hasDom, getPersonPortraitSrc } from "./dom_ui.ts";
 import { hideDomWorldHud } from "./dom_hud.ts";
 import { decodeCleanCstr, toSimp } from "../canvas_ui/text_util.ts";
-import { DS } from "../model/schema_views.ts";
+import { DS, OFF } from "../model/schema_views.ts";
 
 export const BATTLE_VIEWPORT = { x: 20, y: 10, w: 728, h: 700, srcW: 416, srcH: 400 };
 
@@ -15,6 +16,7 @@ let statusCard: HTMLElement | null = null;
 let miniCanvas: HTMLCanvasElement | null = null;
 let miniCtx: CanvasRenderingContext2D | null = null;
 let msgCard: HTMLElement | null = null;
+let actionCard: HTMLElement | null = null;
 let lastStatusKey = "";
 let lastMsgText = "";
 
@@ -54,15 +56,357 @@ function ensureBattleRoot(): HTMLElement | null {
   msgCard = document.createElement("div");
   msgCard.className = "uw2-card uw2-battle-card uw2-battle-msg-card";
 
-  battleRoot.append(statusCard, miniCard, msgCard);
+  actionCard = document.createElement("div");
+  actionCard.className = "uw2-card uw2-battle-card uw2-battle-action-card";
+  actionCard.style.display = "none";
+
+  battleRoot.append(statusCard, miniCard, msgCard, actionCard);
   host.appendChild(battleRoot);
   return battleRoot;
 }
 
 export function hideDomBattleHud() {
   if (battleRoot) battleRoot.style.display = "none";
+  if (actionCard) { actionCard.style.display = "none"; actionCard.innerHTML = ""; }
+  if (msgCard) msgCard.style.display = "flex";
+  if (hasDom()) delete document.body.dataset.uw2Battle;
   lastStatusKey = "";
   lastMsgText = "";
+}
+
+/** 在右側海戰 HUD 底部無遮擋呈現戰鬥指令選單（絕不模糊或蓋住左側戰場） */
+export function runDomBattleMenu(
+  labels: string[],
+  disabledMask: number,
+  cancelable: boolean,
+  title = "战斗指令",
+): Promise<number> {
+  const root = ensureBattleRoot();
+  if (!root || !actionCard || !msgCard) return Promise.resolve(cancelable ? 0xff : 0);
+
+  return new Promise(resolve => {
+    let settled = false;
+    let selected = 0;
+    for (let i = 0; i < labels.length; i++) {
+      if (!(disabledMask & (1 << i))) { selected = i; break; }
+    }
+
+    const done = (idx: number) => {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener("keydown", onKey, true);
+      if (actionCard) { actionCard.style.display = "none"; actionCard.innerHTML = ""; }
+      if (msgCard) msgCard.style.display = "flex";
+      resolve(idx);
+    };
+
+    msgCard!.style.display = "none";
+    actionCard!.style.display = "flex";
+    actionCard!.innerHTML = "";
+
+    const head = document.createElement("div");
+    head.className = "uw2-battle-action-head";
+    const tEl = document.createElement("span");
+    tEl.className = "uw2-pane-title";
+    tEl.textContent = title || "战斗指令";
+    head.appendChild(tEl);
+    if (cancelable) {
+      const backBtn = document.createElement("button");
+      backBtn.className = "uw2-step-btn";
+      backBtn.textContent = "返回";
+      backBtn.addEventListener("click", () => done(0xff));
+      head.appendChild(backBtn);
+    }
+
+    const grid = document.createElement("div");
+    grid.className = labels.length <= 3 ? "uw2-battle-cmd-row" : "uw2-battle-cmd-grid";
+    const btns: HTMLButtonElement[] = [];
+
+    labels.forEach((raw, i) => {
+      const dis = !!(disabledMask & (1 << i));
+      const btn = document.createElement("button");
+      btn.className = "uw2-battle-cmd-btn";
+      btn.disabled = dis;
+      btn.textContent = toSimp(raw);
+      btn.addEventListener("mouseenter", () => { if (!dis) { selected = i; syncSel(); } });
+      btn.addEventListener("click", () => { if (!dis) done(i); });
+      btns.push(btn);
+      grid.appendChild(btn);
+    });
+
+    const syncSel = () => {
+      btns.forEach((b, i) => b.classList.toggle("selected", i === selected));
+    };
+    syncSel();
+
+    const move = (step: number) => {
+      for (let k = 1; k <= labels.length; k++) {
+        const next = (selected + step * k + labels.length) % labels.length;
+        if (!(disabledMask & (1 << next))) { selected = next; syncSel(); break; }
+      }
+    };
+
+    const onKey = (e: KeyboardEvent) => {
+      if (document.body?.dataset.uw2Modal === "open") return;
+      if (e.key === "ArrowUp" || e.key === "ArrowLeft") { e.preventDefault(); e.stopPropagation(); move(-1); }
+      else if (e.key === "ArrowDown" || e.key === "ArrowRight") { e.preventDefault(); e.stopPropagation(); move(1); }
+      else if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault(); e.stopPropagation();
+        if (!(disabledMask & (1 << selected))) done(selected);
+      } else if (e.key === "Escape" && cancelable) {
+        e.preventDefault(); e.stopPropagation();
+        done(0xff);
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+
+    actionCard!.append(head, grid);
+  });
+}
+
+/** 在右側海戰 HUD 底部無遮擋呈現是/否確認（同時顯示完整戰況提問，絕不蓋住戰場） */
+export function runDomBattleYesNo(promptText: string, yesLabel = "是", noLabel = "否"): Promise<number> {
+  const root = ensureBattleRoot();
+  if (!root || !actionCard || !msgCard) return Promise.resolve(0);
+
+  return new Promise(resolve => {
+    let settled = false;
+    const done = (v: number) => {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener("keydown", onKey, true);
+      if (actionCard) { actionCard.style.display = "none"; actionCard.innerHTML = ""; }
+      if (msgCard) msgCard.style.display = "flex";
+      resolve(v);
+    };
+
+    msgCard!.style.display = "none";
+    actionCard!.style.display = "flex";
+    actionCard!.innerHTML = "";
+
+    const head = document.createElement("div");
+    head.className = "uw2-pane-title";
+    head.textContent = "确认";
+
+    const msg = document.createElement("div");
+    msg.className = "uw2-battle-msg-text";
+    msg.textContent = toSimp(promptText || "确定执行此操作？");
+
+    const row = document.createElement("div");
+    row.className = "uw2-dialog-actions";
+    row.style.marginTop = "auto";
+
+    const noBtn = document.createElement("button");
+    noBtn.className = "uw2-step-btn";
+    noBtn.style.padding = "7px 22px";
+    noBtn.textContent = noLabel;
+    noBtn.addEventListener("click", () => done(0));
+
+    const yesBtn = document.createElement("button");
+    yesBtn.className = "uw2-btn uw2-btn-primary";
+    yesBtn.style.padding = "7px 26px";
+    yesBtn.textContent = yesLabel;
+    yesBtn.addEventListener("click", () => done(1));
+
+    const onKey = (e: KeyboardEvent) => {
+      if (document.body?.dataset.uw2Modal === "open") return;
+      if (e.key === "Enter" || e.key === "y" || e.key === "Y") { e.preventDefault(); e.stopPropagation(); done(1); }
+      else if (e.key === "Escape" || e.key === "n" || e.key === "N") { e.preventDefault(); e.stopPropagation(); done(0); }
+    };
+    window.addEventListener("keydown", onKey, true);
+
+    row.append(noBtn, yesBtn);
+    actionCard!.append(head, msg, row);
+  });
+}
+
+/** 現代羊皮紙海戰艦隊情報彈窗（取代老 Canvas 藍底艦隊一覽） */
+export async function runDomBattleFleetModal(battle: any, personId: number): Promise<void> {
+  if (!hasDom()) return;
+  const st = battle.st, art = battle.c.art, codec = battle.c.codec;
+  const dec = (bts: Uint8Array) => toSimp(decodeCleanCstr(codec, bts));
+  const P = battle.person(personId);
+  const fId = st.u8(P + OFF.PERSON.FLEET);
+  const F = DS.TBL_FLEET + fId * 0x85;
+  const gName = dec(st.cstr(P));
+  const fName = dec(st.cstr(P + OFF.PERSON.FAMILY_NAME));
+  const fullName = fName ? `${gName}·${fName}` : gName;
+  const portraitSrc = await getPersonPortraitSrc(art, st.bytes(P, 0x32));
+
+  const ships: { name: string; typeId: number; dur: number; maxDur: number; crew: number; maxCrew: number; turn: number; prop: number; cannons: number }[] = [];
+  let totalCrew = 0, totalCannons = 0, minDur = 100, minTurn = 100, minProp = 100;
+  for (let i = 0; i < 10; i++) {
+    const S = F + OFF.FLEET.SHIPS + i * 9;
+    if ((st.u8(S + OFF.DOCK_SLOT.FLAGS) & 0x30) !== 0x10) continue;
+    const R = battle.shipRec(st.u8(S + OFF.DOCK_SLOT.SHIP));
+    const dur = st.u8(S + OFF.DOCK_SLOT.DURABILITY);
+    const maxDur = st.u8(S + OFF.DOCK_SLOT.MAX_DURABILITY);
+    const crew = st.u16(S);
+    const maxCrew = st.u16(R + 0x12);
+    const turn = st.u8(S + OFF.DOCK_SLOT.TURN);
+    const prop = st.u8(S + OFF.DOCK_SLOT.PROPULSION);
+    const cannons = st.u8(S + OFF.DOCK_SLOT.GUNS);
+    totalCrew += crew;
+    totalCannons += cannons;
+    if (dur < minDur) minDur = dur;
+    if (turn < minTurn) minTurn = turn;
+    if (prop < minProp) minProp = prop;
+    ships.push({ name: dec(st.cstr(R)), typeId: st.u8(R + 0x0f), dur, maxDur, crew, maxCrew, turn, prop, cannons });
+  }
+
+  return new Promise(resolve => {
+    const h = createDomModal({
+      title: `${fullName} 舰队`,
+      size: "wide",
+      cancelable: true,
+      closeLabel: "关闭",
+      onCancel: () => resolve(),
+    });
+
+    const top = document.createElement("div");
+    top.className = "uw2-action-box";
+    top.style.cssText = "flex-direction:row;align-items:center;gap:14px;";
+    if (portraitSrc) {
+      const img = document.createElement("img");
+      img.src = portraitSrc;
+      img.className = "uw2-portrait-img";
+      top.appendChild(img);
+    }
+    const meta = document.createElement("div");
+    meta.style.cssText = "flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:6px 14px;font-size:13px;color:var(--uw2-ink);";
+    meta.innerHTML =
+      `<div>提督：<strong>${fullName}</strong></div>` +
+      `<div>航海等级：<strong>${st.u8(P + OFF.PERSON.NAV_LEVEL)}</strong></div>` +
+      `<div>战斗等级：<strong>${st.u8(P + OFF.PERSON.BATTLE_LEVEL)}</strong></div>` +
+      `<div>舰船数量：<strong>${ships.length} 艘</strong></div>` +
+      `<div>水手总数：<strong>${totalCrew} 名</strong></div>` +
+      `<div>总炮门数：<strong>${totalCannons} 门</strong></div>` +
+      `<div>舰队耐久：<strong>${ships.length ? minDur : 0}</strong></div>` +
+      `<div>舰队转向：<strong>${ships.length ? minTurn : 0}</strong></div>` +
+      `<div>舰队推进：<strong>${ships.length ? minProp : 0}</strong></div>`;
+    top.appendChild(meta);
+
+    const grid = document.createElement("div");
+    grid.className = "uw2-list-col";
+    grid.style.maxHeight = "340px";
+    ships.forEach((s, idx) => {
+      const card = document.createElement("div");
+      card.className = "uw2-slot-card";
+      const durPct = s.maxDur > 0 ? Math.min(100, Math.round((s.dur * 100) / s.maxDur)) : 0;
+      const shipUrl = art?.shipUrl?.(s.typeId);
+      card.innerHTML =
+        `<div style="display:flex;align-items:center;gap:12px;flex:1;">` +
+          (shipUrl ? `<img src="${shipUrl}" style="width:72px;height:48px;object-fit:contain;border-radius:6px;background:#102442;border:1px solid var(--uw2-gold);image-rendering:pixelated;" />` : "") +
+          `<div style="flex:1;">` +
+            `<div class="uw2-slot-title">${idx === 0 ? "★ " : ""}${s.name}</div>` +
+            `<div class="uw2-slot-sub">水手 ${s.crew}/${s.maxCrew} · 转向 ${s.turn} · 推进 ${s.prop} · 炮门 ${s.cannons}</div>` +
+          `</div>` +
+          `<div style="width:120px;">` +
+            `<div style="font-size:12px;text-align:right;font-weight:700;margin-bottom:4px;">耐久 ${s.dur}/${s.maxDur}</div>` +
+            `<div class="uw2-bar-track"><div class="uw2-bar-fill ${durPct < 35 ? "red" : "green"}" style="width:${durPct}%"></div></div>` +
+          `</div>` +
+        `</div>`;
+      grid.appendChild(card);
+    });
+
+    h.body.append(top, grid);
+  });
+}
+
+/** 現代羊皮紙人物資料彈窗（海戰我方船員 / 敵方提督） */
+export async function runDomBattlePersonModal(battle: any, personId: number): Promise<void> {
+  if (!hasDom()) return;
+  const st = battle.st, art = battle.c.art, codec = battle.c.codec;
+  const dec = (bts: Uint8Array) => toSimp(decodeCleanCstr(codec, bts));
+  const P = battle.person(personId);
+  const gName = dec(st.cstr(P));
+  const fName = dec(st.cstr(P + OFF.PERSON.FAMILY_NAME));
+  const fullName = fName ? `${gName}·${fName}` : gName;
+  const portraitSrc = await getPersonPortraitSrc(art, st.bytes(P, 0x32));
+
+  return new Promise(resolve => {
+    const h = createDomModal({
+      title: fullName,
+      size: "md",
+      cancelable: true,
+      closeLabel: "关闭",
+      onCancel: () => resolve(),
+    });
+    const box = document.createElement("div");
+    box.className = "uw2-action-box";
+    box.style.cssText = "flex-direction:row;gap:16px;align-items:flex-start;";
+    if (portraitSrc) {
+      const img = document.createElement("img");
+      img.src = portraitSrc;
+      img.className = "uw2-portrait-img";
+      box.appendChild(img);
+    }
+    const grid = document.createElement("div");
+    grid.style.cssText = "flex:1;display:grid;grid-template-columns:repeat(2,1fr);gap:8px 16px;font-size:14px;color:var(--uw2-ink);";
+    const stats: [string, number][] = [
+      ["航海等级", st.u8(P + OFF.PERSON.NAV_LEVEL)],
+      ["战斗等级", st.u8(P + OFF.PERSON.BATTLE_LEVEL)],
+      ["统率力", st.u8(P + 0x1c)],
+      ["航海术", st.u8(P + 0x1d)],
+      ["知识", st.u8(P + 0x1e)],
+      ["直觉", st.u8(P + 0x1f)],
+      ["勇气", st.u8(P + 0x20)],
+      ["剑术", st.u8(P + 0x21)],
+      ["魅力", st.u8(P + 0x22)],
+      ["运气", st.u8(P + 0x23)],
+    ];
+    grid.innerHTML = stats.map(([k, v]) => `<div>${k}：<strong>${v}</strong></div>`).join("");
+    box.appendChild(grid);
+    h.body.appendChild(box);
+  });
+}
+
+/** 現代羊皮紙單船情報彈窗（海戰我方/敵方艦船） */
+export async function runDomBattleShipModal(battle: any, slotAddr: number, titleOverride = ""): Promise<void> {
+  if (!hasDom()) return;
+  const st = battle.st, art = battle.c.art, codec = battle.c.codec;
+  const dec = (bts: Uint8Array) => toSimp(decodeCleanCstr(codec, bts));
+  const R = battle.shipRec(st.u8(slotAddr + OFF.DOCK_SLOT.SHIP));
+  const T = battle.typeRec(st.u8(R + 0x0f));
+  const shipName = dec(st.cstr(R));
+  const shipUrl = art?.shipUrl?.(st.u8(R + 0x0f));
+  const cannons = battle.sea.commandsObj().T.cannons;
+  const cannonName = dec(cannons[st.u8(slotAddr + OFF.DOCK_SLOT.FLAGS) & 7] ?? Uint8Array.of(0));
+
+  const dur = st.u8(slotAddr + OFF.DOCK_SLOT.DURABILITY), maxDur = st.u8(slotAddr + OFF.DOCK_SLOT.MAX_DURABILITY);
+  const crew = st.u16(slotAddr), maxCrew = st.u16(R + 0x12);
+  const turn = st.u8(slotAddr + OFF.DOCK_SLOT.TURN), maxTurn = st.u8(T + 2);
+  const prop = st.u8(slotAddr + OFF.DOCK_SLOT.PROPULSION), maxProp = st.u8(T + 3);
+  const guns = st.u8(slotAddr + OFF.DOCK_SLOT.GUNS);
+
+  return new Promise(resolve => {
+    const h = createDomModal({
+      title: titleOverride || shipName,
+      size: "md",
+      cancelable: true,
+      closeLabel: "关闭",
+      onCancel: () => resolve(),
+    });
+    const box = document.createElement("div");
+    box.className = "uw2-action-box";
+    if (shipUrl) {
+      const img = document.createElement("img");
+      img.src = shipUrl;
+      img.style.cssText = "width:100%;max-height:140px;object-fit:contain;border-radius:8px;background:#0e1b30;border:1px solid var(--uw2-gold);padding:8px;image-rendering:pixelated;";
+      box.appendChild(img);
+    }
+    const grid = document.createElement("div");
+    grid.style.cssText = "display:grid;grid-template-columns:repeat(2,1fr);gap:8px 16px;font-size:14px;color:var(--uw2-ink);";
+    grid.innerHTML =
+      `<div>船名：<strong>${shipName}</strong></div>` +
+      `<div>火炮：<strong>${cannonName} (${guns}门)</strong></div>` +
+      `<div>耐久：<strong>${dur} / ${maxDur}</strong></div>` +
+      `<div>水手：<strong>${crew} / ${maxCrew}</strong></div>` +
+      `<div>转向：<strong>${turn} / ${maxTurn}</strong></div>` +
+      `<div>推进：<strong>${prop} / ${maxProp}</strong></div>`;
+    box.appendChild(grid);
+    h.body.appendChild(box);
+  });
 }
 
 export function syncDomBattleHud(battle: any) {
@@ -70,12 +414,12 @@ export function syncDomBattleHud(battle: any) {
   const root = ensureBattleRoot();
   if (!root || !statusCard || !msgCard) return;
   root.style.display = "flex";
+  document.body.dataset.uw2Battle = "1";
 
   const st = battle.st;
   const codec = battle.c.codec;
   const dec = (bts: Uint8Array) => toSimp(decodeCleanCstr(codec, bts));
 
-  // 1. 取得主角旗艦資料與雙方存活船數
   let B = 0, di = 0, R = 0, T = 0;
   let allyShips = 0, enemyShips = 0;
   const heroSideParity = battle.u16(0x9d3e) ? 0 : 1;
@@ -138,7 +482,6 @@ export function syncDomBattleHud(battle: any) {
       `</div>`;
   }
 
-  // 2. 繪製戰術小地圖 (52 × 48, 每格 4×4 像素 = 208×192)
   if (miniCtx) {
     miniCtx.fillStyle = "#163b64";
     miniCtx.fillRect(0, 0, 208, 192);
@@ -150,12 +493,10 @@ export function syncDomBattleHud(battle: any) {
         }
       }
     }
-    // 視窗框
     const ox = battle.u8(0x9bef), oy = battle.u8(0x9bf0);
     miniCtx.strokeStyle = "rgba(255, 244, 204, 0.85)";
     miniCtx.lineWidth = 1.5;
     miniCtx.strokeRect(ox * 4 + 0.75, oy * 4 + 0.75, 13 * 4 - 1.5, 12 * 4 - 1.5);
-    // 各艦隊船隻點
     for (let k = 0; k < 4; k++) {
       for (let s = battle.u16(0x97e0 + 8 * k); s; s = battle.u16(s + 8)) {
         const slot = battle.u16(s + 2);
@@ -169,7 +510,6 @@ export function syncDomBattleHud(battle: any) {
     }
   }
 
-  // 3. 戰況訊息欄
   const msg = battle._wideMsg ? toSimp(battle._wideMsg.trim()) : "";
   if (msg !== lastMsgText) {
     lastMsgText = msg;
@@ -192,7 +532,6 @@ export function renderWideBattle(ctx: CanvasRenderingContext2D, scr: any, battle
     ctx.drawImage(scr.fbCanvas, 0, 40, srcW, srcH, x, y, w, h);
   }
 
-  // 古銅金戰場邊框
   ctx.save();
   ctx.strokeStyle = "#b8904a";
   ctx.lineWidth = 2;

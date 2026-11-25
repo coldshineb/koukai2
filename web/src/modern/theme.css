@@ -991,3 +991,55 @@ html, body {
   color: var(--uw2-ink);
   white-space: pre-wrap;
 }
+
+/* 海戰模式：對話框靠左對齊戰場，絕不與右側 HUD 重疊；指令與確認停靠右側底部 */
+body[data-uw2-battle="1"] .uw2-dialog-floating {
+  position: fixed;
+  left: 24px;
+  bottom: 18px;
+  width: min(55%, 704px);
+  margin: 0;
+  z-index: 30;
+}
+.uw2-battle-action-card {
+  flex: 1;
+  min-height: 150px;
+}
+.uw2-battle-action-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.uw2-battle-cmd-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+.uw2-battle-cmd-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.uw2-battle-cmd-btn {
+  padding: 8px 12px;
+  border-radius: 7px;
+  border: 1px solid rgba(61, 40, 23, 0.24);
+  background: rgba(255, 253, 246, 0.88);
+  color: var(--uw2-ink);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.12s, border-color 0.12s;
+}
+.uw2-battle-cmd-btn:hover:not(:disabled),
+.uw2-battle-cmd-btn.selected:not(:disabled) {
+  background: rgba(200, 162, 88, 0.34);
+  border-color: #9e6f1e;
+}
+.uw2-battle-cmd-btn:disabled {
+  opacity: 0.36;
+  cursor: not-allowed;
+}

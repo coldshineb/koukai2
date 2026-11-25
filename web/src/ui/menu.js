@@ -9,6 +9,7 @@ import { createWideMenuState, drawWideMenu, hitWideMenuItem, hitWideMenuBox } fr
 import { createWideYesNoState, drawWideYesNo, hitWideYesNo } from "../canvas_ui/wide_yesno.ts";
 import { decodeCleanCstr } from "../canvas_ui/text_util.ts";
 import { hasDom, runDomMenu, runDomYesNo } from "../modern/dom_ui.ts";
+import { runDomBattleMenu, runDomBattleYesNo } from "../modern/dom_battle.ts";
 
 const HL_SOLID = 0x0000;      // 外框圖形 [0c86] 偏移 0: 640 bytes 全 FF, 用作高亮反白位圖
 const GREY_PATTERN = 0x0280;  // AA 55 交錯點陣, 用於不可選項目
@@ -305,7 +306,9 @@ export class MenuSystem {
     await this.waitRelease();
     const labels = table.map(bytes => decodeCleanCstr(this.codec, bytes));
     if (hasDom()) {
-      const r = await runDomMenu(labels, this.disabled, !!cancelable, this.wideMenuTitle || "");
+      const r = this.scr._battleHudActive
+        ? await runDomBattleMenu(labels, this.disabled, !!cancelable, this.wideMenuTitle || "战斗指令")
+        : await runDomMenu(labels, this.disabled, !!cancelable, this.wideMenuTitle || "");
       this.disabled = 0; this.lineH = 0x10; this.con.bg = 0x0f;
       await this.waitRelease();
       return r;
@@ -457,7 +460,9 @@ export class MenuSystem {
   async wideYesNo() {
     await this.waitRelease();
     if (hasDom()) {
-      const r = await runDomYesNo(this.scr.wideDialog?.text || "", "是", "否");
+      const r = this.scr._battleHudActive
+        ? await runDomBattleYesNo(this.scr._battleMsg?.() || this.scr.wideDialog?.text || "", "是", "否")
+        : await runDomYesNo(this.scr.wideDialog?.text || "", "是", "否");
       await this.waitRelease();
       return r;
     }
