@@ -517,6 +517,18 @@ const SEA_WORLD_H = 0x438; // 1080
 const seaChunkCache = new Map<number, Uint8Array>();
 let seaChunkTmp: Uint8Array | null = null;
 let seaChunkWmRef: any = null;
+let seaChunkDiscSig = -1;
+
+function calcSeaDiscoverySig(st: any): number {
+  let sig = 0;
+  for (let p = 0; p < 130; p++) {
+    if (st.u8(DS.TBL_PORT + p * 0x16 + OFF.PORT.REGION) & 0x10) sig++;
+  }
+  for (let d = 0; d < 100; d++) {
+    if (st.u8(0x7f8c + d * 7 + 6) & 0x40) sig += 256;
+  }
+  return sig;
+}
 
 function getGlobalSeaTile(seaScene: any, wx: number, wy: number): number {
   if (wy < 0 || wy >= SEA_WORLD_H) return 0;
@@ -524,7 +536,7 @@ function getGlobalSeaTile(seaScene: any, wx: number, wy: number): number {
   const wcol = Math.floor(gwx / 24);
   const wrow = Math.floor(wy / 24);
   const wm = seaScene.wm;
-  if (!wm?.decodeChart) return 0;
+  if (!wm?.decode) return 0;
   if (seaChunkWmRef !== wm) {
     seaChunkCache.clear();
     seaChunkWmRef = wm;
@@ -539,7 +551,7 @@ function getGlobalSeaTile(seaScene: any, wx: number, wy: number): number {
     if (c < 0) { c = 0; ox = 0; } else if (c > 27) { c = 27; ox = 48; }
     let r = wrow - 1, oy = 24;
     if (r < 0) { r = 0; oy = 0; } else if (r > 42) { r = 42; oy = 48; }
-    wm.decodeChart(seaScene.st, itIdx, 30 * r + c, seaChunkTmp);
+    wm.decode(seaScene.st, itIdx, 30 * r + c, seaChunkTmp);
     chunk = new Uint8Array(24 * 24);
     for (let rr = 0; rr < 24; rr++) {
       const srcOff = P_MAP_W * (oy + rr) + ox;
@@ -558,6 +570,13 @@ function getGlobalSeaTile(seaScene: any, wx: number, wy: number): number {
 export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene: any) {
   const art = seaScene.c.art;
   if (!art || !seaScene.wm) return;
+
+  // 若新發現港口或發現物則自動失效海域塊快取，確保海面立即顯示新發現的港口與遺跡
+  const discSig = calcSeaDiscoverySig(seaScene.st);
+  if (discSig !== seaChunkDiscSig) {
+    seaChunkCache.clear();
+    seaChunkDiscSig = discSig;
+  }
 
   const WORLD_W = SEA_WORLD_W;
   const F = seaScene.fleet;

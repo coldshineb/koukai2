@@ -52,7 +52,7 @@ export function mountDomWorldChart(container: HTMLElement, c: any, scene?: any) 
   const ports: { wx: number; wy: number; x: number; y: number; name: string; supply: boolean }[] = [];
   for (let p = 0; p < 130; p++) {
     const R = DS.TBL_PORT + p * 0x16;
-    if (!(st.u8(R + OFF.PORT.REGION) & 0x40)) continue;
+    if (!(st.u8(R + OFF.PORT.REGION) & 0x10)) continue;
     const wx = st.u16(R), wy = st.u16(R + 2);
     ports.push({ wx, wy, x: toX(wx), y: toY(wy), name: dec(st.cstr(R + OFF.PORT.NAME)), supply: p >= 100 });
   }
