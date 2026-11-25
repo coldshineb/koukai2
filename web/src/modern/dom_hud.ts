@@ -152,31 +152,31 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
     tlEl.innerHTML = "";
     const img = document.createElement("img");
     img.className = "uw2-portrait-img";
-    img.style.cssText = "width:54px;height:68px;";
+    img.style.cssText = "width:62px;height:78px;";
     void getPersonPortraitSrc(art, st.bytes(st.personRecord(heroId), 0x32)).then(src => { if (src) img.src = src; });
 
     const info = document.createElement("div");
-    info.style.cssText = "display:flex;flex-direction:column;gap:5px;min-width:236px;";
+    info.style.cssText = "display:flex;flex-direction:column;gap:5px;min-width:258px;";
     if (atSea && ss) {
       info.innerHTML = `
-        <div style="font-size:14px;font-weight:700;color:#7a4e10;">${dateText}</div>
-        <div style="display:flex;gap:16px;font-size:13.5px;font-weight:600;color:var(--uw2-ink);">
+        <div style="font-size:15.5px;font-weight:700;color:#7a4e10;">${dateText}</div>
+        <div style="display:flex;gap:18px;font-size:15px;font-weight:600;color:var(--uw2-ink);">
           <span>水 <b style="color:${seaWater <= 10 ? "#b83d3d" : "#2a6bb8"};">${seaWater}</b></span>
           <span>粮食 <b style="color:${seaFood <= 10 ? "#b83d3d" : "#247544"};">${seaFood}</b></span>
         </div>
-        <div style="display:flex;gap:16px;font-size:13.5px;font-weight:600;color:var(--uw2-ink);">
+        <div style="display:flex;gap:18px;font-size:15px;font-weight:600;color:var(--uw2-ink);">
           <span>物资 <b>${seaLumber}</b></span>
           <span>炮弹 <b>${seaAmmo}</b></span>
         </div>
       `;
     } else {
       info.innerHTML = `
-        <div style="font-size:14px;font-weight:700;color:#7a4e10;">${dateText}</div>
-        <div style="display:flex;gap:16px;font-size:13.5px;font-weight:600;color:var(--uw2-ink);">
+        <div style="font-size:15.5px;font-weight:700;color:#7a4e10;">${dateText}</div>
+        <div style="display:flex;gap:18px;font-size:15px;font-weight:600;color:var(--uw2-ink);">
           <span>声望 <b>${fame}</b></span>
           <span>金块 <b style="color:#8a5d17;">${bars}</b></span>
         </div>
-        <div style="font-size:13.5px;font-weight:600;color:var(--uw2-ink);">金币 <b style="color:#8a5d17;">${gold}</b></div>
+        <div style="font-size:15px;font-weight:600;color:var(--uw2-ink);">金币 <b style="color:#8a5d17;">${gold}</b></div>
       `;
     }
     tlEl.append(img, info);
@@ -202,18 +202,18 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
     if (trKey !== lastTrKey) {
       lastTrKey = trKey;
       trEl.innerHTML = `
-        <div style="display:flex;flex-direction:column;gap:4px;min-width:268px;">
+        <div style="display:flex;flex-direction:column;gap:5px;width:100%;">
           <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;">
-            <span style="font-size:17px;font-weight:700;color:var(--uw2-ink);">${portName}</span>
-            <span style="font-size:12px;font-weight:600;color:#7a4e10;">${regionName}</span>
+            <span style="font-size:19px;font-weight:700;color:var(--uw2-ink);">${portName}</span>
+            <span style="font-size:13.5px;font-weight:600;color:#7a4e10;">${regionName}</span>
           </div>
           ${E ? `
-          <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--uw2-ink);">
-            <span>商业 <b>${com}</b> <small style="color:#7a4e10;">(投资 ${comInv})</small></span>
+          <div style="display:flex;justify-content:space-between;font-size:14.5px;color:var(--uw2-ink);">
+            <span>商业 <b>${com}</b> <small style="color:#7a4e10;font-size:12.5px;">(投资 ${comInv})</small></span>
             <span>物价 <b style="color:#8a5d17;">${avgPrice}%</b></span>
           </div>
-          <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--uw2-ink);">
-            <span>工业 <b>${ind}</b> <small style="color:#7a4e10;">(投资 ${indInv})</small></span>
+          <div style="display:flex;justify-content:space-between;font-size:14.5px;color:var(--uw2-ink);">
+            <span>工业 <b>${ind}</b> <small style="color:#7a4e10;font-size:12.5px;">(投资 ${indInv})</small></span>
           </div>` : ""}
         </div>
       `;
@@ -264,18 +264,18 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
     if (trKey !== lastTrKey) {
       lastTrKey = trKey;
       const arrowSvg = (dir: number, active: boolean, color: string) => active && dir < 8
-        ? `<svg viewBox="0 0 28 28" width="26" height="26" style="display:block;margin:0 auto;">
+        ? `<svg viewBox="0 0 28 28" width="30" height="30" style="display:block;margin:2px auto;">
              <circle cx="14" cy="14" r="12" fill="rgba(255,252,244,0.9)" stroke="#b3873a" stroke-width="1.3"/>
              <g transform="rotate(${dir * 45} 14 14)">
                <polygon points="14,4 18.5,18 14,15 9.5,18" fill="${color}"/>
              </g>
            </svg>`
-        : `<svg viewBox="0 0 28 28" width="26" height="26" style="display:block;margin:0 auto;">
+        : `<svg viewBox="0 0 28 28" width="30" height="30" style="display:block;margin:2px auto;">
              <circle cx="14" cy="14" r="12" fill="rgba(255,252,244,0.75)" stroke="#b3873a" stroke-width="1.3"/>
              <circle cx="14" cy="14" r="3" fill="#8a7a62"/>
            </svg>`;
       trEl.innerHTML = `
-        <div style="display:flex;gap:12px;align-items:center;font-size:13px;color:var(--uw2-ink);width:100%;justify-content:space-between;text-align:center;">
+        <div style="display:flex;gap:12px;align-items:center;font-size:14.5px;color:var(--uw2-ink);width:100%;justify-content:space-between;text-align:center;">
           <div>
             <div style="color:var(--uw2-ink-muted);margin-bottom:2px;font-weight:600;">风向</div>
             ${arrowSvg(windDir, windStr > 0, "#247544")}
@@ -318,13 +318,13 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
       const seaPmKey = `SEA|${turn}|${prop}|${ss.minDur}|${ss.loadPct}|${sightPct}|${ss.crewSum}/${ss.maxCrewSum}|${ss.morale}`;
       pmEl.style.display = "grid";
       pmEl.style.gridTemplateColumns = "1fr 1fr";
-      pmEl.style.gap = "6px 12px";
+      pmEl.style.gap = "8px 14px";
       if (seaPmKey !== lastPmKey) {
         lastPmKey = seaPmKey;
         const barRow = (lbl: string, valTxt: string, pct: number, cls = "") =>
           `<div style="display:flex;flex-direction:column;gap:3px;">` +
-          `<div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;color:var(--uw2-ink);"><span style="color:var(--uw2-ink-muted);">${lbl}</span><span style="font-variant-numeric:tabular-nums;">${valTxt}</span></div>` +
-          `<div class="uw2-bar-track" style="height:6px;"><div class="uw2-bar-fill ${cls}" style="width:${Math.max(0, Math.min(100, pct))}%"></div></div>` +
+          `<div style="display:flex;justify-content:space-between;font-size:14px;font-weight:700;color:var(--uw2-ink);"><span style="color:var(--uw2-ink-muted);">${lbl}</span><span style="font-variant-numeric:tabular-nums;">${valTxt}</span></div>` +
+          `<div class="uw2-bar-track" style="height:7px;"><div class="uw2-bar-fill ${cls}" style="width:${Math.max(0, Math.min(100, pct))}%"></div></div>` +
           `</div>`;
         pmEl.innerHTML =
           barRow("转向力", `${turn}`, turn) +

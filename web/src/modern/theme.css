@@ -855,29 +855,29 @@ html, body {
 }
 .uw2-hud-tr-wrap .uw2-hud-card {
   position: static;
-  width: 312px;
+  width: 344px;
 }
 .uw2-hud-pm {
   pointer-events: auto;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 5px;
-  padding: 10px 12px;
+  gap: 6px;
+  padding: 11px 13px;
   border-radius: 10px;
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3);
-  width: 312px;
+  width: 344px;
 }
 .uw2-pm-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 5px;
-  padding: 5px 6px;
+  padding: 7px 6px;
   border-radius: 6px;
   border: 1px solid rgba(154, 119, 56, 0.45);
   background: rgba(255, 252, 244, 0.88);
   color: var(--uw2-ink);
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   transition: background 0.12s ease, border-color 0.12s ease;
@@ -908,8 +908,8 @@ html, body {
   position: absolute;
   left: 16px;
   bottom: 16px;
-  width: 68px;
-  height: 68px;
+  width: 78px;
+  height: 78px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -926,8 +926,9 @@ html, body {
   pointer-events: auto;
 }
 .uw2-hud-cmdbtn {
-  min-width: 90px;
-  padding: 10px 16px;
+  min-width: 102px;
+  padding: 11px 18px;
+  font-size: 16px;
   font-size: 15px;
   font-weight: 700;
   background: linear-gradient(180deg, #faf0d7, #ead5a7);
