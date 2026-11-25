@@ -2,6 +2,7 @@
 // 由 SeaScene.landExplore() 创建 (34ec7 选好位置之后, 或 seaFlags2 & LANDED_MASK 时直接调用)。
 // 原版运行期变量 (不在存盘内): [b8de] = sea.landFlag (34ec7 设置, 地图格 0x59 时 0)、[b8e0] 补水可行、[bc18] 雇用的向导 → ctx.landRT
 import { DiscoveryFlag, GameConst, MenuId, SeaFlag2, ShipSlotFlag } from "../model/flags.ts";
+import { heroShipSlot } from "../model/world_helpers.ts";
 import { createDomModal, hasDom } from "../ui/modals.ts";
 import { decodeCleanCstr, toSimp } from "../ui/text_util.ts";
 
@@ -13,10 +14,10 @@ export class Land {
     this.sea = sea; this.c = sea.c; this.st = sea.st; this.b = sea.b; this.S = sea.SS;
     this.rt = (this.c.landRT ??= { b8e0: 0, bc18: 0 });
   }
-  get m() { return this.st.model; }
+  get m() { return this.c.state.model; }
   get flag() { return this.sea.landFlag ?? 0; }                         // [b8de] (BSS 初值 0)
   disc() { return this.m.discovery(this.m.globals.discoveryId); }       // seg0:5cce
-  present(i) { return (this.st.u8(this.sea.slotOf(i) + 8) & ShipSlotFlag.STATE_MASK) === ShipSlotFlag.ACTIVE; }
+  present(i) { return (heroShipSlot(this.m, i).flags & ShipSlotFlag.STATE_MASK) === ShipSlotFlag.ACTIVE; }
   // 909b + 消息 + 490b + 796d
   async talk(n, ...a) { this.b.crewSpeaks(); this.c.message(n, ...a); await this.c.menu.waitPrompt(); await this.c.win.close(); }
   // 909b + 消息 + 0fea:47fc + 796d
@@ -83,12 +84,12 @@ export class Land {
   }
   // 348ff: 各「在」的船 水手 += (水手 × p 的低 16 比特) / −100; show 时在目前的窗口印 0x1ab (损失合计)
   crewLoss(p, show) {
-    const st = this.st; let sum = 0;
+    const m = this.m; let sum = 0;
     for (let i = 0; i < GameConst.FLEET_SHIPS; i++) {
       if (!this.present(i)) continue;
-      const S = this.sea.slotOf(i), q = ldS16(Math.imul(p, ldS16(st.u16(S))) & 0xffff);
+      const S = heroShipSlot(m, i), q = ldS16(Math.imul(p, ldS16(S.crew)) & 0xffff);
       sum = (sum + Math.trunc(q / 100)) & 0xffff;
-      st.set16(S, (st.u16(S) + Math.trunc(q / -100)) & 0xffff);
+      S.crew = (S.crew + Math.trunc(q / -100)) & 0xffff;
     }
     if (show) this.c.message(0x1ab, ldS16(sum));
   }
@@ -157,11 +158,11 @@ export class Land {
 
   // ================= 3453b 修理 =================
   async repair() {
-    const { menu, win } = this.c, sea = this.sea;
+    const { menu, win } = this.c, m = this.m, sea = this.sea;
     for (;;) {
       const r = await this.b.listSel().select(0x8a, this.b.fleetShips());   // 340e5: 0fea:2dea + 清单 0x8a
       if (r < 0) break;
-      const slot = this.c.persons[r] & 0xff, S = sea.slotOf(slot);
+      const slot = this.c.persons[r] & 0xff, S = heroShipSlot(m, slot);
       if (this.c.scr.wideRenderer && hasDom()) {
         await this.repairDom(slot, S);
         continue;
@@ -176,16 +177,15 @@ export class Land {
     }
     sea.fleetDurability(sea.fleet);                                     // 0fea:83f9
   }
-  shipTypeOf(S) { const m = this.m; return m.shipType(m.ship(this.st.u8(S + 7)).type); }
+  shipTypeOf(S) { const m = this.m; return m.shipType(m.ship(S.ship).type); }
   // 340f5 现代羊皮纸上陆修理弹窗
   async repairDom(slot, S) {
-    const st = this.st, T = this.shipTypeOf(S);
-    if (st.u8(S + 2) === st.u8(S + 3) && st.u8(S + 4) === T.turn && T.propulsion === st.u8(S + 5)) {
+    const m = this.m, T = this.shipTypeOf(S);
+    if (S.durability === S.maxDurability && S.turn === T.turn && T.propulsion === S.propulsion) {
       await this.talk(0x1a2);
       return;
     }
-    const shipRec = this.sea.shipRec(st.u8(S + 7));
-    const shipName = toSimp(decodeCleanCstr(this.c.codec, st.cstr(shipRec)));
+    const shipName = toSimp(decodeCleanCstr(this.c.codec, m.ship(S.ship).nameBytes));
     for (;;) {
       const sel = await new Promise(resolve => {
         const h = createDomModal({
@@ -196,9 +196,9 @@ export class Land {
           onCancel: () => resolve(-1),
         });
         const rows = [
-          ["耐久", st.u8(S + 2), st.u8(S + 3)],
-          ["转向", st.u8(S + 4), T.turn],
-          ["推进", st.u8(S + 5), T.propulsion],
+          ["耐久", S.durability, S.maxDurability],
+          ["转向", S.turn, T.turn],
+          ["推进", S.propulsion, T.propulsion],
         ];
         rows.forEach(([label, cur, max], idx) => {
           const btn = document.createElement("button");
@@ -216,8 +216,8 @@ export class Land {
   }
   // 340f5: 三项都满 → 0x1a2 返回 0; 否则窗口与三个长条外框
   async repairWin(S) {
-    const st = this.st, { win, con } = this.c, T = this.shipTypeOf(S), cm = this.sea.commandsObj();
-    if (st.u8(S + 2) === st.u8(S + 3) && st.u8(S + 4) === T.turn && T.propulsion === st.u8(S + 5)) { await this.talk(0x1a2); return 0; }
+    const { win, con } = this.c, T = this.shipTypeOf(S), cm = this.sea.commandsObj();
+    if (S.durability === S.maxDurability && S.turn === T.turn && T.propulsion === S.propulsion) { await this.talk(0x1a2); return 0; }
     win.shadowedSaved(0x14, 0x60, 0x18, 0x80, 0);                       // 7849(0x14, 0x60, 0x18, 0x80, 0)
     con.right = 0x2b; con.left = 0x18;
     con.setCursor(0x18, 0x70); con.puts(this.S.landDur); cm.barFrame(con.left + 2, 0x84, 1);
@@ -227,7 +227,7 @@ export class Land {
   }
   // 341cd: 三项「%3d/%3d」与长条 (91a1), 点击区 [a158] = 3 + 窗口
   repairBars(S) {
-    const st = this.st, { con, printf, menu } = this.c, T = this.shipTypeOf(S), cm = this.sea.commandsObj(), R = menu.rects;
+    const { con, printf, menu } = this.c, T = this.shipTypeOf(S), cm = this.sea.commandsObj(), R = menu.rects;
     con.left = 0x18; con.right = 0x2b;
     con.puts(this.S.landHdr);                                           // DS:b8f1
     menu.count = 3;
@@ -237,19 +237,19 @@ export class Land {
       con.setCursor(L + 0x0b, y); printf(fmt, cur, max);
       cm.bar(L + 2, y + 0x14, Math.trunc((100 * cur) / max), 1);        // 最大 = 0 时原版除以零
     };
-    row(0, 0x70, this.S.landV1, st.u8(S + 2), st.u8(S + 3));
-    row(1, 0x90, this.S.landV2, st.u8(S + 4), T.turn);
-    row(2, 0xb0, this.S.landV3, st.u8(S + 5), T.propulsion);
+    row(0, 0x70, this.S.landV1, S.durability, S.maxDurability);
+    row(1, 0x90, this.S.landV2, S.turn, T.turn);
+    row(2, 0xb0, this.S.landV3, S.propulsion, T.propulsion);
     R[3] = { x0: 0xa0, x1: 0x160, y0: 0x60, y1: 0xe0 };
   }
   // 343a6: 以资材修理 (每 1 单位 +5)
   async repairDo(slot, sel) {
-    const st = this.st, m = this.m, sea = this.sea, k = sel & 0xff;
+    const m = this.m, sea = this.sea, k = sel & 0xff;
     let total = 0;
     for (let i = 0; i < GameConst.FLEET_SHIPS; i++) if (this.present(i)) total = (total + m.crewSlot(i).material) & 0xffff;
     if (!total) return this.talk(0x1a3);
-    const S = sea.slotOf(slot), T = this.shipTypeOf(S);
-    const d = [st.u8(S + 3) - st.u8(S + 2), T.turn - st.u8(S + 4), T.propulsion - st.u8(S + 5)];
+    const S = heroShipSlot(m, slot), T = this.shipTypeOf(S);
+    const d = [S.maxDurability - S.durability, T.turn - S.turn, T.propulsion - S.propulsion];
     if (!d[k]) return this.talk(0x1a4);
     const max = ldUmin(total, Math.trunc(ldS16(d[k] + 4) / 5));
     this.b.crewSpeaks(); this.c.message(0x1a5, ldS16(max));
@@ -258,9 +258,9 @@ export class Land {
     this.takeMaterials(n);                                              // 3434d
     sea.seaPanel();                                                     // 8067
     const add = Math.imul(5, n) & 0xffff;
-    if (k === 0) st.set8(S + 2, ldUmin(st.u8(S + 3), st.u8(S + 2) + add));
-    else if (k === 1) st.set8(S + 4, ldUmin(T.turn, st.u8(S + 4) + add));
-    else if (k === 2) st.set8(S + 5, ldUmin(T.propulsion, st.u8(S + 5) + add));
+    if (k === 0) S.durability = ldUmin(S.maxDurability, S.durability + add);
+    else if (k === 1) S.turn = ldUmin(T.turn, S.turn + add);
+    else if (k === 2) S.propulsion = ldUmin(T.propulsion, S.propulsion + add);
   }
   // 3434d: 依船位顺序从「在」的船扣资材
   takeMaterials(n) {
@@ -302,7 +302,7 @@ export class Land {
     for (;;) {
       const r = await this.b.listSel().select(0x8b, this.b.fleetShips());   // 345a2
       if (r < 0) return;
-      const slot = this.c.persons[r] & 0xff, cs = m.crewSlot(slot), ship = m.ship(this.st.u8(sea.slotOf(slot) + 7));
+      const slot = this.c.persons[r] & 0xff, cs = m.crewSlot(slot), ship = m.ship(heroShipSlot(m, slot).ship);
       const free = (ship.maxCargo - this.b.cargoUsed(slot)) & 0xffff;   // 5d36
       if (!free) { await this.talk(0x1a6); continue; }
       this.b.crewSpeaks(); message(0x1a7, ship.nameBytes, ldS16(free));

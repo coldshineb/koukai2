@@ -104,6 +104,7 @@ export function getWorkState(m: WorldModel) {
   const st = m.st;
   return {
     get flags(): number { return st.u8(WorkDS.FLAGS); },
+    set flags(v: number) { st.set8(WorkDS.FLAGS, v); },
     get curKind(): number { return st.u16(WorkDS.CUR_KIND); },
     get curParam(): number { return st.u16(WorkDS.CUR_PARAM); },
     set curParam(v: number) { st.set16(WorkDS.CUR_PARAM, v); },
@@ -264,6 +265,10 @@ export function getPartySalaryUnit(m: WorldModel, slot: number): number {
   return m.st.u8(0x2e39 + slot);
 }
 
+export function setPartySalaryUnit(m: WorldModel, slot: number, v: number): void {
+  m.st.set8(0x2e39 + slot, v);
+}
+
 /** 舰队补充视图 (舰员特长槽 +0x1d..+0x20 等) */
 export function getFleetOfficer(fleet: FleetView, i: number): number {
   return fleet.st.u8(fleet.addr + 0x1d + i);
@@ -323,4 +328,26 @@ export function getPortNpc(m: WorldModel, i: number) {
 
 export function setPortNpc(m: WorldModel, i: number, field: number, v: number): void {
   m.st.set8(0x0cbc + i * 3 + field, v);
+}
+
+/** 写入港口名称字节 */
+export function writePortName(port: { st: { set8(a: number, v: number): void }; addr: number }, src: Uint8Array): void {
+  for (let i = 0; i < src.length; i++) port.st.set8(port.addr + 4 + i, src[i]);
+  if (!src.length || src[src.length - 1] !== 0) port.st.set8(port.addr + 4 + src.length, 0);
+}
+
+/** 交换两个船位 (0..39) 的船位记录 (9B) 与船员配置记录 (30B) */
+export function swapShipAndCrewSlots(m: WorldModel, a: number, b: number): void {
+  const sa = heroOrDockSlot(m, a), sb = heroOrDockSlot(m, b);
+  for (let k = 0; k < WorldConst.SHIP_SLOT_SIZE; k++) {
+    const t = sa.st.u8(sa.addr + k);
+    sa.st.set8(sa.addr + k, sb.st.u8(sb.addr + k));
+    sb.st.set8(sb.addr + k, t);
+  }
+  const ca = m.crewSlot(a), cb = m.crewSlot(b);
+  for (let k = 0; k < 0x1e; k++) {
+    const t = ca.st.u8(ca.addr + k);
+    ca.st.set8(ca.addr + k, cb.st.u8(cb.addr + k));
+    cb.st.set8(cb.addr + k, t);
+  }
 }

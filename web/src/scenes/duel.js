@@ -5,7 +5,8 @@
 //   9d4a / 9d4b 双方的出招历史 (每回合 << 2 | 招)  9d4c 位置  9d4e 这回合的攻方 (0 = 9d44)  9d50 / 9d52 主角那方 dx / dy  9d54 / 9d56 对手 dx / dy
 //   9f5e + 8k 精灵画布第 k 格的 x, y, w, h (word)   a01e + 7k 装备 (k = 0 是 9d44, 1 是 9d46): +0 武器 +1 防具 +2 武器种类 +3 武器值 +5 防具值
 import { PlanarBuf, LsFile, frameHeader } from "../decoders/duelanim.js";
-import { DS } from "../model/schema_views.ts";
+import { GameConst, ItemFlag } from "../model/flags.ts";
+import { personByAddr, personRawBytes } from "../model/world_helpers.ts";
 import { hasDom } from "../ui/modals.ts";
 import { renderWideDuel, hideDomDuelHud, runDomDuelMove } from "../ui/duel_hud.ts";
 import { decodeCleanCstr } from "../ui/text_util.ts";
@@ -41,17 +42,18 @@ export class Duel {
     this.scratch = (c.duelScratch ??= new Uint8Array(0x10000));          // [0c8a] 合成缓冲 (原版是共用的缓冲, 内容跨调用保留)
   }
   get st() { return this.c.state; }
-  u8(a) { a &= 0xffff; return a >= DS.OPTIONS && a < 0x8d18 ? this.st.u8(a) : this.W[a]; }
+  get m() { return this.c.state.model; }
+  u8(a) { return this.W[a & 0xffff]; }
   u16(a) { return this.u8(a) | (this.u8(a + 1) << 8); }
   s16(a) { return duS16(this.u16(a)); }
-  set8(a, v) { a &= 0xffff; if (a >= DS.OPTIONS && a < 0x8d18) this.st.set8(a, v); else this.W[a] = v & 0xff; }
+  set8(a, v) { this.W[a & 0xffff] = v & 0xff; }
   set16(a, v) { this.set8(a, v & 0xff); this.set8(a + 1, (v >> 8) & 0xff); }
   ds(a) { let e = a; while (this.W[e]) e++; return this.W.subarray(a, e + 1); }    // DS 上的 C 字符串
   rnd(n) { n &= 0xffff; return n ? this.c.sys.rng.random(n) & 0xffff : 0; }         // seg0:4dc4 (n = 0 时不取随机数)
   get h() { return this.u16(0x9d48); }                                                // 1 = 电脑发起
   get side() { return (this.u16(0x9d4e) + this.h) % 2; }                              // 0 = 主角那方是攻方
   wait(n) { return this.c.sys.waitTicks(n); }                                         // seg0:5998
-  itemName(n) { return this.st.cstr(DS.TBL_ITEM + 0x14 * (n & 0xff)); }                   // 5cde
+  itemName(n) { return this.m.item(n & 0xff).nameBytes; }                             // 5cde
 
   // ================= 12998 本体 =================
   async body() {
@@ -99,16 +101,17 @@ export class Duel {
 
   // ================= 12612 画面 =================
   async screen() {
-    const { scr, graph, kao, con, printf } = this.c, st = this.st, h = this.h;
-    const di = h === 0 ? this.u16(0x9d44) : this.u16(0x9d46), si = h === 0 ? this.u16(0x9d46) : this.u16(0x9d44);
+    const { scr, graph, kao, con, printf } = this.c, m = this.m, g = m.globals, h = this.h;
+    const diP = personByAddr(m, h === 0 ? this.u16(0x9d44) : this.u16(0x9d46));
+    const siP = personByAddr(m, h === 0 ? this.u16(0x9d46) : this.u16(0x9d44));
     scr.clear(0);                                                       // 07f7
     graph.draw(0x17, 0, 0);
-    if (st.u8(DS.PORT) !== 0xff) graph.draw(0x18, 0x50, 0xa8);
-    kao.drawPerson(scr, st.bytes(si, 0x32), 0x0c, 0x38);                // 7d39
-    kao.drawPerson(scr, st.bytes(di, 0x32), 0x3c, 0x38);
+    if (g.port !== GameConst.EMPTY_SLOT) graph.draw(0x18, 0x50, 0xa8);
+    kao.drawPerson(scr, personRawBytes(siP), 0x0c, 0x38);               // 7d39
+    kao.drawPerson(scr, personRawBytes(diP), 0x3c, 0x38);
     con.puts(this.ds(0xa0f3));
-    con.setCursor(0x0c, 0x18); printf(this.ds(0xa0fa), st.cstr(si), st.cstr(si + 0x0d));
-    con.setCursor(0x2a, 0x18); printf(this.ds(0xa103), st.cstr(di), st.cstr(di + 0x0d));
+    con.setCursor(0x0c, 0x18); printf(this.ds(0xa0fa), siP.givenNameBytes, siP.familyNameBytes);
+    con.setCursor(0x2a, 0x18); printf(this.ds(0xa103), diP.givenNameBytes, diP.familyNameBytes);
     this.equip();                                                       // 12490
     const k = 7 * h;
     const item = (a, x, y, f) => { const n = this.u8(a); if (n === 0xff) return; con.setCursor(x, y); printf(this.ds(f), this.itemName(n)); };
@@ -117,7 +120,7 @@ export class Duel {
     this.msgClear();                                                    // 11275
     // DATA1 (DS:09e4): 在海上 #0 / 在港 #1 → [03ee]:0 (最多 0x5a00); #2 → 5a00、#3 → 6b00 (最多 0x10e0)
     const D = this.data;
-    this.data1.decodeTo(st.u8(DS.PORT) === 0xff ? 0 : 1, D, 0, 0x5a00);
+    this.data1.decodeTo(g.port === GameConst.EMPTY_SLOT ? 0 : 1, D, 0, 0x5a00);
     this.data1.decodeTo(2, D, 0x5a00, 0x10e0);
     this.data1.decodeTo(3, D, 0x6b00, 0x10e0);
     this.main.fill(0, 0, 0x5a, 0x78, 8);                                // 110da + 23f7
@@ -127,7 +130,7 @@ export class Duel {
     this.main.maskIn(0x49, 0, 8, 0x78, D, 0x5a00, 9);
     this.main.maskIn(0x51, 0, 8, 0x78, D, 0x6b00, 9);
     this.main.maskIn(0x59, 0, 1, 0x78, D, 0x6b20, 9);
-    this.iap = new LsFile(this.P.duel.iap[st.u8(DS.HERO)]);              // [0aff] = '1' + 主角编号, [9d5a]
+    this.iap = new LsFile(this.P.duel.iap[g.hero]);                     // [0aff] = '1' + 主角编号, [9d5a]
     this.iae = new LsFile(this.P.duel.iae);                             // [9d5c]
     this.set8(0x9d58, 0);
     await this.enter();                                                 // 11cbd
@@ -150,23 +153,22 @@ export class Duel {
   }
   // 12490 装备 (RE_NOTES 30.18)
   equip() {
-    const st = this.st, k = this.h & 0xff, A = 0xa01e + 7 * k;
+    const m = this.m, k = this.h & 0xff, A = 0xa01e + 7 * k;
     this.set8(A + 2, 0); this.set8(A + 1, 0xff); this.set8(A, 0xff); this.set16(A + 5, 0); this.set16(A + 3, 0);
-    for (let i = 0; i < 0x14; i++) {
-      const n = st.u8(DS.INVENTORY + i); if (n === 0xff) continue;
-      const R = DS.TBL_ITEM + 0x14 * n; if (!(st.u8(R + 0x13) & 0x10)) continue;
-      const t = st.u8(R + 0x13) & 0x0f;
-      if (t < 4) { this.set8(A, n); this.set8(A + 2, t); this.set16(A + 3, st.u8(R + 0x12)); }
-      if (t === 6) { this.set8(A + 1, n); this.set16(A + 5, this.u16(A + 5) + st.u8(R + 0x12)); }
+    for (let i = 0; i < GameConst.INV_SLOTS; i++) {
+      const n = m.inventory(i); if (n === GameConst.EMPTY_SLOT) continue;
+      const item = m.item(n); if (!(item.kindFlags & ItemFlag.EQUIPPED)) continue;
+      const t = item.kindFlags & ItemFlag.KIND_MASK;
+      if (t < 4) { this.set8(A, n); this.set8(A + 2, t); this.set16(A + 3, item.power); }
+      if (t === 6) { this.set8(A + 1, n); this.set16(A + 5, this.u16(A + 5) + item.power); }
     }
-    const k2 = (1 - k) & 0xff, B = 0xa01e + 7 * k2, si = this.h === 0 ? this.u16(0x9d46) : this.u16(0x9d44);
-    const a = duUmin(st.u8(si + 0x25), 0x18) & 0xff, b = duUmin(st.u8(si + 0x24), 0x18) & 0xff;
+    const k2 = (1 - k) & 0xff, B = 0xa01e + 7 * k2, opp = personByAddr(m, this.h === 0 ? this.u16(0x9d46) : this.u16(0x9d44));
+    const a = duUmin(opp.battleLevel, 0x18) & 0xff, b = duUmin(opp.navLevel, 0x18) & 0xff;
     const W = [0x0f, 0x07, 0x0d, 0x0c, 0x0e, 0x0b], Ar = [0x11, 0x12, 0x13, 0x13];
-    const wi = a === 0x18 ? (st.u8(si + 0x24) % 3) + 3 : a >> 3;
-    const w = W[wi]; this.set8(B, w);
-    const R = DS.TBL_ITEM + 0x14 * w;
-    this.set8(B + 2, st.u8(R + 0x13) & 0x0f); this.set16(B + 3, st.u8(R + 0x12));
-    const ar = Ar[b >> 3]; this.set8(B + 1, ar); this.set16(B + 5, st.u8(DS.TBL_ITEM + 0x14 * ar + 0x12));
+    const wi = a === 0x18 ? (opp.navLevel % 3) + 3 : a >> 3;
+    const w = W[wi], wp = m.item(w); this.set8(B, w);
+    this.set8(B + 2, wp.kindFlags & ItemFlag.KIND_MASK); this.set16(B + 3, wp.power);
+    const ar = Ar[b >> 3]; this.set8(B + 1, ar); this.set16(B + 5, m.item(ar).power);
   }
 
   // ================= 画面的格 (RE_NOTES 30.17) =================
@@ -210,7 +212,7 @@ export class Duel {
   }
   // 11847 船舷前景 (只在海上): 主画布栏 0x48..0x59 依位置叠到 [0c8a] 的左右边
   rail(pos) {
-    if (this.st.u8(DS.PORT) !== 0xff) return;
+    if (this.m.globals.port !== GameConst.EMPTY_SLOT) return;
     const p = (pos + 7) & 0xffff, M = this.main, S = this.scratch;
     if (duS16(p) <= 8) {
       const di = (9 - p) & 0xffff, si = duUmin(di, 1);
@@ -316,14 +318,15 @@ export class Duel {
     return r & 0xff;
   }
   // 1146d 攻击力: +21 × +25 / 50 + +21 / 2
-  power(A) { const st = this.st, a = st.u8(A + 0x21); return (Math.trunc(duS16(Math.imul(st.u8(A + 0x25), a) & 0xffff) / 50) + (a >> 1)) & 0xffff; }
+  power(p) { const a = p.getStats(5); return (Math.trunc(duS16(Math.imul(p.battleLevel, a) & 0xffff) / 50) + (a >> 1)) & 0xffff; }
   // 1231f 伤害 (RE_NOTES 30.16 / 30.18)
   damage() {
-    const st = this.st, k = this.u16(0x9d4e);
-    const [ah, dh, A, D] = k === 0 ? [this.u8(0x9d4a), this.u8(0x9d4b), this.u16(0x9d44), this.u16(0x9d46)]
+    const m = this.m, k = this.u16(0x9d4e);
+    const [ah, dh, attAddr, defAddr] = k === 0 ? [this.u8(0x9d4a), this.u8(0x9d4b), this.u16(0x9d44), this.u16(0x9d46)]
       : [this.u8(0x9d4b), this.u8(0x9d4a), this.u16(0x9d46), this.u16(0x9d44)];
+    const att = personByAddr(m, attAddr), def = personByAddr(m, defAddr);
     const aPrev = (ah & 0x0c) >> 2, dPrev = (dh & 0x0c) >> 2, dCur = dh & 3, aCur = ah & 3;
-    const b14 = this.power(A), b16 = (4 - aPrev) & 0xffff;
+    const b14 = this.power(att), b16 = (4 - aPrev) & 0xffff;
     const R = 0xa01e + 7 * k;
     let si = this.u16(R + 3) >= 1 ? 0x32 : 0;
     si = (si + aCur * 0x19) & 0xffff;
@@ -333,8 +336,8 @@ export class Duel {
     const b10 = ((4 - dPrev) << 1) & 0xffff;
     const b12 = (dCur * 2 + 5) & 0xffff;
     const armor = this.u16((0xa02a - 7 * k) & 0xffff), b8 = armor >>> 1;
-    const b0a = (Math.imul(2 - dCur, 5) + armor + duUmin(st.u8(D + 0x25), 0x14)) & 0xffff;
-    const cx = this.rnd(st.u8(A + 0x25) >> 1);
+    const b0a = (Math.imul(2 - dCur, 5) + armor + duUmin(def.battleLevel, 0x14)) & 0xffff;
+    const cx = this.rnd(att.battleLevel >> 1);
     const q = Math.trunc(duS16(Math.imul(duS16((100 - b0a) & 0xffff), duS16(b0c)) & 0xffff) / 100) & 0xffff;
     let dmg = (cx + duUmin(q, 0x32)) & 0xffff;
     const roll = this.rnd(100);
@@ -432,30 +435,29 @@ export class Duel {
 
   // ================= 12a93 经验 =================
   async exp(ax) {
-    const st = this.st, { con, menu } = this.c, di = ax ? this.u16(0x9d46) : this.u16(0x9d44), H = st.personRecord(st.hero);
+    const m = this.m, { con, menu } = this.c, opp = personByAddr(m, ax ? this.u16(0x9d46) : this.u16(0x9d44)), H = m.heroPerson();
     let n;
     if ((ax === 0 && this.u8(0x9c2a) === 0) || (ax !== 0 && this.u8(0x9c2a) === 0xc8)) {
       this.msgClear(); con.puts(this.ds(0xa11c)); await menu.waitPrompt();          // 147ab
-      n = (10 * st.u8(di + 0x25)) & 0xffff;
-    } else n = (3 * st.u8(di + 0x25)) & 0xffff;
+      n = (10 * opp.battleLevel) & 0xffff;
+    } else n = (3 * opp.battleLevel) & 0xffff;
     const up = this.levelUp(H, n);                                      // 1bb9c(主角 +25, +28)
-    if (up || st.u8(di + 0x21) >= st.u8(H + 0x21)) {
-      st.set8(H + 0x21, duUmin(st.u8(H + 0x21) + this.rnd(3), 100));
-      st.set8(H + 0x20, duUmin(st.u8(H + 0x20) + this.rnd(3), 100));
+    if (up || opp.getStats(5) >= H.getStats(5)) {
+      H.setStats(5, duUmin(H.getStats(5) + this.rnd(3), 100));
+      H.setStats(4, duUmin(H.getStats(4) + this.rnd(3), 100));
     }
   }
   // 1bb9c 经验 (+28) += g; 足够时升级 (+25, 所需 = min(等级, 18)² × 30 (1bb84), 等级 100 时经验归零); 有升级时 +1c..+1f 各 + min(random(3), 100 − 值)
-  levelUp(P, g) {
-    const st = this.st;
+  levelUp(p, g) {
     let n = 0;
-    st.set16(P + 0x28, st.u16(P + 0x28) + g);
+    p.battleExp = (p.battleExp + g) & 0xffff;
     for (;;) {
-      const lv = st.u8(P + 0x25), m = duUmin(lv, 0x12) & 0xff, need = duS16(Math.imul(Math.imul(m, m) & 0xffff, 0x1e) & 0xffff);
-      if (need > duS16(st.u16(P + 0x28))) break;
-      if (lv === 0x64) { st.set16(P + 0x28, 0); break; }
-      n++; st.set16(P + 0x28, st.u16(P + 0x28) - need); st.set8(P + 0x25, lv + 1);
+      const lv = p.battleLevel, m = duUmin(lv, 0x12) & 0xff, need = duS16(Math.imul(Math.imul(m, m) & 0xffff, 0x1e) & 0xffff);
+      if (need > duS16(p.battleExp)) break;
+      if (lv === 0x64) { p.battleExp = 0; break; }
+      n++; p.battleExp = (p.battleExp - need) & 0xffff; p.battleLevel = lv + 1;
     }
-    if (n) for (let i = 0; i < 4; i++) st.set8(P + 0x1c + i, st.u8(P + 0x1c + i) + duUmin(this.rnd(3), (100 - st.u8(P + 0x1c + i)) & 0xffff));
+    if (n) for (let i = 0; i < 4; i++) p.setStats(i, p.getStats(i) + duUmin(this.rnd(3), (100 - p.getStats(i)) & 0xffff));
     return n;
   }
 }
@@ -494,18 +496,18 @@ export async function duelInBattle(b, ax, T) {
 // ================= 剧本命令 E8 (32377 → 0fea:2ca9 = 12b49) =================
 // sc: Scenario; person: 人物编号 (命令的操作数)
 export async function duelFromScenario(sc, person) {
-  const c = sc.c, st = sc.st, scene = sc.scene, P = scene?.P ?? c.portAssets;
-  const opp = st.personRecord(person & 0xff);
+  const c = sc.c, m = c.state.model, g = m.globals, scene = sc.scene, P = scene?.P ?? c.portAssets;
+  const opp = m.person(person & 0xff);
   await sc.closeAll();                                                  // 31dbb
   const d = new Duel(c, P); d.scene = scene;
   await c.palette.fadeBlack();                                          // 99f2
-  d.set16(0x9d44, st.personRecord(st.hero)); d.set16(0x9d46, opp); d.set16(0x9d48, 0);
+  d.set16(0x9d44, m.heroPerson().addr); d.set16(0x9d46, opp.addr); d.set16(0x9d48, 0);
   d.set8(0x9c2a, 0x64);
   await d.body();                                                       // 12998
   c.con.puts(d.ds(0xa127));
   await c.palette.fadeBlack();                                          // 99f2
-  if (st.u8(DS.PORT) === 0xff) { /* 84de: 海上图块常驻 (移植版不需要) */ } else scene?.loadPort?.();   // 88e9
-  c.graph.draw8(st.options & 0x80 ? 3 : 5, 0, 0);                      // 5a91 ([8b1e] 前后各反转一次, 两次相同)
+  if (g.port === GameConst.EMPTY_SLOT) { /* 84de: 海上图块常驻 (移植版不需要) */ } else scene?.loadPort?.();   // 88e9
+  c.graph.draw8(g.options & 0x80 ? 3 : 5, 0, 0);                      // 5a91 ([8b1e] 前后各反转一次, 两次相同)
   sc.panels();                                                          // 8894
   if (scene?.interior) await scene.interior(sc.b876);                  // 8ebc([b876])
   await c.palette.fadeToTarget();                                       // 99e8
