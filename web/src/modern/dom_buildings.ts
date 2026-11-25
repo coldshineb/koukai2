@@ -46,6 +46,119 @@ function createWorkbenchShell(title: string, money: number, onClose: () => void)
   return { h, moneyPill, toolbar, footer, toastEl };
 }
 
+/** 交易所「商業投資」與造船廠「工業投資」共用 1:1 統一雙欄投資面板 */
+export function renderUnifiedInvestPane(opts: {
+  container: HTMLElement;
+  leftTitle: string;
+  rightTitle: string;
+  statLabel: string;
+  statValue: number;
+  investLabel: string;
+  curInvest: number;
+  maxInvest: number;
+  amount: number;
+  blockMsg: string;
+  promptMsg: string;
+  confirmLabel: string;
+  onAmountChange: (v: number) => void;
+  onConfirm: (v: number) => void;
+}) {
+  const split = document.createElement("div");
+  split.className = "uw2-split";
+
+  const left = document.createElement("div");
+  left.className = "uw2-pane";
+  const lt = document.createElement("div");
+  lt.className = "uw2-pane-title";
+  lt.textContent = opts.leftTitle;
+  left.appendChild(lt);
+
+  const info = document.createElement("div");
+  info.className = "uw2-action-box";
+  info.innerHTML =
+    `<div class="uw2-kv-row"><span class="uw2-kv-label">${opts.statLabel}</span><span class="uw2-kv-val">${opts.statValue}</span></div>` +
+    `<div class="uw2-kv-row"><span class="uw2-kv-label">${opts.investLabel}</span><span class="uw2-kv-val">${opts.curInvest.toLocaleString()} / ${GameConst.MAX_INVEST.toLocaleString()}</span></div>`;
+  left.appendChild(info);
+
+  const right = document.createElement("div");
+  right.className = "uw2-pane";
+  const rt = document.createElement("div");
+  rt.className = "uw2-pane-title";
+  rt.textContent = opts.rightTitle;
+  right.appendChild(rt);
+
+  const box = document.createElement("div");
+  box.className = "uw2-action-box";
+  if (opts.blockMsg) {
+    const p = document.createElement("div");
+    p.className = "uw2-speech-box";
+    p.textContent = opts.blockMsg;
+    box.appendChild(p);
+  } else {
+    let cur = Math.max(0, Math.min(opts.maxInvest, Math.trunc(opts.amount || 0)));
+    if (opts.promptMsg) {
+      const p = document.createElement("div");
+      p.className = "uw2-speech-box";
+      p.textContent = opts.promptMsg;
+      box.appendChild(p);
+    }
+
+    const numInp = document.createElement("input");
+    numInp.type = "number";
+    numInp.className = "uw2-amount-input";
+    numInp.min = "0";
+    numInp.max = String(opts.maxInvest);
+    numInp.value = String(cur);
+
+    const sl = document.createElement("input");
+    sl.type = "range";
+    sl.className = "uw2-slider";
+    sl.style.width = "100%";
+    sl.min = "0";
+    sl.max = String(opts.maxInvest);
+    sl.value = String(cur);
+
+    const invBtn = document.createElement("button");
+    invBtn.className = "uw2-btn uw2-btn-primary";
+    invBtn.style.cssText = "padding:8px 28px;align-self:flex-start;";
+    invBtn.textContent = opts.confirmLabel;
+
+    const sync = (v: number) => {
+      cur = Math.max(0, Math.min(opts.maxInvest, Math.trunc(v || 0)));
+      numInp.value = String(cur);
+      sl.value = String(cur);
+      invBtn.disabled = cur <= 0 || opts.maxInvest <= 0;
+      opts.onAmountChange(cur);
+    };
+    numInp.addEventListener("input", () => sync(Number(numInp.value)));
+    sl.addEventListener("input", () => sync(Number(sl.value)));
+
+    const stepRow = document.createElement("div");
+    stepRow.className = "uw2-step-row";
+    for (const [lb, fn] of [
+      ["-5000", () => sync(cur - 5000)],
+      ["-1000", () => sync(cur - 1000)],
+      ["+1000", () => sync(cur + 1000)],
+      ["+5000", () => sync(cur + 5000)],
+      ["MAX", () => sync(opts.maxInvest)],
+    ] as const) {
+      const qb = document.createElement("button");
+      qb.className = "uw2-step-btn";
+      qb.disabled = opts.maxInvest <= 0;
+      qb.textContent = lb;
+      qb.addEventListener("click", fn);
+      stepRow.appendChild(qb);
+    }
+
+    invBtn.disabled = cur <= 0 || opts.maxInvest <= 0;
+    invBtn.addEventListener("click", () => opts.onConfirm(cur));
+    box.append(numInp, sl, stepRow, invBtn);
+  }
+  right.appendChild(box);
+  split.append(left, right);
+  opts.container.appendChild(split);
+}
+
 // ============================================================================
 // 1. 王宮一體化工作台 (Palace)
 // ============================================================================
@@ -98,14 +211,15 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
     return { ports, summary };
   };
 
+  let tab = 0; // 0: 晋见国王, 1: 势力状况, 2: 许可与归化, 3: 王室援助
+  let selRegion = 0;
+  let notice = initGreet;
+
   for (;;) {
     let pendingAction: null | "royal_event" | "ship_aid" = null;
 
     await new Promise<void>(resolve => {
       let settled = false;
-      let tab = 0; // 0: 晋见国王, 1: 势力状况, 2: 许可与归化, 3: 王室援助
-      let selRegion = 0;
-      let notice = initGreet;
 
       const done = () => {
         if (settled) return;
@@ -601,16 +715,17 @@ export async function runDomOfficeWorkbench(office: any): Promise<void> {
   const nationNames = office.nations.slice(0, 6).map((raw: Uint8Array) => decodeCleanCstr(codec, raw).replace(/\s+/g, ""));
   const initGreet = b.noEvent() ? capMsg(c, 0x55) : "";
 
+  let tab = 0; // 0: 工作介绍, 1: 各国情报
+  let selNation = 0;
+  let paidNation = -1;
+  let notice = initGreet;
+
   for (;;) {
     let pickJobIdx = -1;
     let askJobHint = false;
 
     await new Promise<void>(resolve => {
       let settled = false;
-      let tab = 0; // 0: 工作介绍, 1: 各国情报
-      let selNation = 0;
-      let paidNation = -1;
-      let notice = initGreet;
 
       const done = () => {
         if (settled) return;
@@ -824,14 +939,15 @@ export async function runDomInnWorkbench(b: any): Promise<void> {
   for (let i = 0; i < 6; i++) if (st.u8(DS.TBL_COUNTRY + i * 0x20 + 0x0a) === b.port) isCapital = true;
   const initGreet = b.noEvent() ? capMsg(c, 0x42) : "";
 
+  let tab = 0;
+  let notice = initGreet;
+
   for (;;) {
     let talkTarget = -1;
     let doSleep = false;
 
     await new Promise<void>(resolve => {
       let settled = false;
-      let tab = 0;
-      let notice = initGreet;
 
       const done = () => {
         if (settled) return;
@@ -1219,15 +1335,16 @@ export async function runDomTavernWorkbench(b: any, drinkNameBytes: Uint8Array, 
   const drinkPrice = b.T.liquorPrice[k];
   const initGreet = b.noEvent() ? capMsg(c, 0x12, drinkNameBytes) : "";
 
+  let tab = 2;
+  if (b.fleetShips() && !(st.u8(DS.DAILY_FLAGS) & 1)) tab = 0;
+  let rounds = 1;
+  let notice = initGreet;
+
   for (;;) {
     let pending: null | { kind: "hire" | "dismiss" | "drink" | "chat" | "girl" | "gamble"; arg?: number } = null;
 
     await new Promise<void>(resolve => {
       let settled = false;
-      let tab = 2; // 預設停在「飲酒敘話」或第一個可用分頁
-      if (b.fleetShips() && !(st.u8(DS.DAILY_FLAGS) & 1)) tab = 0;
-      let rounds = 1;
-      let notice = initGreet;
 
       const done = () => {
         if (settled) return;
@@ -1489,20 +1606,21 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
     specialNotice = capMsg(c, 0x10a);
   }
 
+  let tab = 0; // 0:造新船, 1:买旧船, 2:修理, 3:卖船, 4:改造, 5:工业投资
+  let selIdx = 0;
+  let rmSub = 0; // 0:船首像, 1:武装, 2:积载比例变更, 3:船名变更
+  let selFig = 1;
+  let selGun = 1;
+  let gunQty = 1;
+  let investAmt = 1000;
+  let replaceSlot = -1;
+  let notice = specialNotice || initGreet;
+
   for (;;) {
     let pending: null | { kind: "new_ship" | "deliver" | "used_ship" | "ratio"; arg?: number } = null;
 
     await new Promise<void>(resolve => {
       let settled = false;
-      let tab = 0; // 0:造新船, 1:买旧船, 2:修理, 3:卖船, 4:改造, 5:工业投资
-      let selIdx = 0;
-      let rmSub = 0; // 0:船首像, 1:武装, 2:积载比例变更, 3:船名变更
-      let selFig = 1;
-      let selGun = 1;
-      let gunQty = 1;
-      let investAmt = 1000;
-      let replaceSlot = -1;
-      let notice = specialNotice || initGreet;
 
       const done = () => {
         if (settled) return;
@@ -2021,84 +2139,28 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
           }
           right.appendChild(box);
         } else {
-          // ---- 5. 工业投资（全部就地完成，零彈窗） ----
-          const lt = document.createElement("div");
-          lt.className = "uw2-pane-title";
-          lt.textContent = "港口工业";
-          left.appendChild(lt);
-
+          // ---- 5. 工业投资（與交易所商業投資 1:1 統一面板） ----
           const curInv = st.u16(E + 6);
-          const info = document.createElement("div");
-          info.className = "uw2-action-box";
-          info.innerHTML =
-            `<div style="display:flex;justify-content:space-between;font-size:14px;"><span>工业价值</span><strong>${st.u16(E + 4)}</strong></div>` +
-            `<div style="display:flex;justify-content:space-between;font-size:14px;"><span>本月工业投资</span><strong>${curInv.toLocaleString()} / 50,000</strong></div>`;
-          left.appendChild(info);
-
-          const rt = document.createElement("div");
-          rt.className = "uw2-pane-title";
-          rt.textContent = tabLabels[5];
-          right.appendChild(rt);
-
-          const box = document.createElement("div");
-          box.className = "uw2-action-box";
-          if (b.isCapital()) {
-            box.textContent = capMsg(c, 2);
-          } else if (curInv >= 50000) {
-            box.textContent = capMsg(c, 7);
-          } else {
-            const capAmt = b.money >= 50000 ? 50000 : b.money & 0xffff;
-            const maxInv = Math.min(capAmt, 50000 - curInv);
-            if (investAmt > maxInv) investAmt = maxInv;
-
-            const p = document.createElement("div");
-            p.style.fontSize = "14px";
-            p.textContent = capMsg(c, 8);
-
-            const numInp = document.createElement("input");
-            numInp.type = "number";
-            numInp.min = "0";
-            numInp.max = String(maxInv);
-            numInp.value = String(investAmt);
-            numInp.style.cssText = "width:100%;padding:8px 12px;font-size:18px;font-weight:700;border:1px solid var(--uw2-gold);border-radius:6px;background:#fffdf6;color:var(--uw2-ink);";
-
-            const sl = document.createElement("input");
-            sl.type = "range";
-            sl.className = "uw2-slider";
-            sl.style.width = "100%";
-            sl.min = "0";
-            sl.max = String(maxInv);
-            sl.value = String(investAmt);
-
-            const syncI = (v: number) => {
-              investAmt = Math.max(0, Math.min(maxInv, Math.trunc(v || 0)));
-              numInp.value = String(investAmt);
-              sl.value = String(investAmt);
-            };
-            numInp.addEventListener("input", () => syncI(Number(numInp.value)));
-            sl.addEventListener("input", () => syncI(Number(sl.value)));
-
-            const qRow = document.createElement("div");
-            qRow.style.cssText = "display:flex;gap:8px;flex-wrap:wrap;";
-            [
-              { l: "+1,000", f: () => syncI(investAmt + 1000) },
-              { l: "+10,000", f: () => syncI(investAmt + 10000) },
-              { l: "最大", f: () => syncI(maxInv) },
-            ].forEach(q => {
-              const qb = document.createElement("button");
-              qb.className = "uw2-btn";
-              qb.textContent = q.l;
-              qb.addEventListener("click", q.f);
-              qRow.appendChild(qb);
-            });
-
-            const invBtn = document.createElement("button");
-            invBtn.className = "uw2-btn uw2-btn-primary";
-            invBtn.style.alignSelf = "flex-start";
-            invBtn.textContent = tabLabels[5];
-            invBtn.addEventListener("click", () => {
-              if (investAmt <= 0) { notice = capMsg(c, 0x0d); render(); return; }
-              const v = investAmt;
+          const capAmt = b.money >= GameConst.MAX_INVEST ? GameConst.MAX_INVEST : b.money & 0xffff;
+          const maxInv = b.isCapital() ? 0 : Math.min(capAmt, Math.max(0, GameConst.MAX_INVEST - curInv));
+          if (investAmt > maxInv) investAmt = maxInv;
+          const blockMsg = b.isCapital() ? capMsg(c, 2) : curInv >= GameConst.MAX_INVEST ? capMsg(c, 7) : "";
+          renderUnifiedInvestPane({
+            container: shell.h.body,
+            leftTitle: "港口工业",
+            rightTitle: tabLabels[5],
+            statLabel: "工业价值",
+            statValue: st.u16(E + 4),
+            investLabel: "本月工业投资",
+            curInvest: curInv,
+            maxInvest: maxInv,
+            amount: investAmt,
+            blockMsg,
+            promptMsg: capMsg(c, 8),
+            confirmLabel: tabLabels[5],
+            onAmountChange: v => { investAmt = v; },
+            onConfirm: v => {
+              if (v <= 0) { notice = capMsg(c, 0x0d); render(); return; }
               st.set16(E + 6, st.u16(E + 6) + v);
               b.investSupport(v);
               b.investOwner();
@@ -2107,10 +2169,9 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
               notice = capMsg(c, v < 500 ? 0x0e : v < 10000 ? 0x0f : 0x10);
               investAmt = 0;
               render();
-            });
-            box.append(p, numInp, sl, qRow, invBtn);
-          }
-          right.appendChild(box);
+            },
+          });
+          return;
         }
 
         split.append(left, right);

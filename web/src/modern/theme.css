@@ -1373,3 +1373,76 @@ body[data-uw2-modal="open"] .uw2-dialog-floating {
   height: 80px;
   flex-shrink: 0;
 }
+
+/* 全建築工作台統一排版與表單規格 */
+.uw2-kv-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--uw2-ink);
+}
+.uw2-kv-label {
+  color: var(--uw2-ink-muted);
+  font-weight: 600;
+}
+.uw2-kv-val {
+  font-weight: 700;
+  color: var(--uw2-ink);
+  font-variant-numeric: tabular-nums;
+}
+.uw2-amount-input {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 18px;
+  font-weight: 700;
+  border: 1px solid var(--uw2-gold);
+  border-radius: 6px;
+  background: #fffdf6;
+  color: var(--uw2-ink);
+  font-variant-numeric: tabular-nums;
+}
+.uw2-speech-box {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--uw2-ink);
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(255, 252, 242, 0.72);
+  border: 1px solid rgba(154, 119, 56, 0.24);
+}
+.uw2-detail-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--uw2-ink);
+}
+.uw2-detail-sub {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--uw2-ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+.uw2-item-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--uw2-ink);
+}
+.uw2-item-meta {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--uw2-ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+.uw2-item-price {
+  font-size: 13px;
+  font-weight: 700;
+  color: #7c5216;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.uw2-modal-footer {
+  font-size: 13px;
+  font-weight: 600;
+}

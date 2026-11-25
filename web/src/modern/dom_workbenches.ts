@@ -6,6 +6,7 @@ import { domS16, domUmin16, calcBuyPriceShift, calcSellPriceShift, clampPriceInd
 import { marketTradeLog } from "../scenes/market.js";
 import { decodeCleanCstr } from "../canvas_ui/text_util.ts";
 import { createDomModal, getPersonPortraitSrc, preserveScroll } from "./dom_ui.ts";
+import { renderUnifiedInvestPane } from "./dom_buildings.ts";
 import { UI_STR } from "./ui_strings.ts";
 
 // ============================================================================
@@ -325,52 +326,33 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
         const di = market.money >= GameConst.MAX_INVEST ? GameConst.MAX_INVEST : market.money & 0xffff;
         const maxInv = b.isCapital() ? 0 : domUmin16(di, Math.max(0, GameConst.MAX_INVEST - E.commerceInvest));
         if (investAmt > maxInv) investAmt = maxInv;
-
-        const box = document.createElement("div");
-        box.className = "uw2-action-box";
-        box.innerHTML = `<div style="display:flex;justify-content:space-between;font-weight:700;font-size:15px;"><span>${tabLabels[2]}</span><span>${domS16(E.commerce)} (${E.commerceInvest} / ${GameConst.MAX_INVEST})</span></div>`;
-        const val = document.createElement("div");
-        val.style.cssText = "font-size:28px;font-weight:700;text-align:center;color:#8a5d17;padding:6px 0;";
-        val.textContent = String(investAmt);
-
-        const row = document.createElement("div");
-        row.className = "uw2-step-row";
-        row.style.justifyContent = "center";
-        for (const [lb, fn] of [
-          ["-5000", () => { investAmt = Math.max(0, investAmt - 5000); render(); }],
-          ["-1000", () => { investAmt = Math.max(0, investAmt - 1000); render(); }],
-          ["+1000", () => { investAmt = Math.min(maxInv, investAmt + 1000); render(); }],
-          ["+5000", () => { investAmt = Math.min(maxInv, investAmt + 5000); render(); }],
-          ["MAX", () => { investAmt = maxInv; render(); }],
-        ] as const) {
-          const btn = document.createElement("button");
-          btn.className = "uw2-step-btn";
-          btn.disabled = maxInv <= 0;
-          btn.textContent = lb;
-          btn.addEventListener("click", fn);
-          row.appendChild(btn);
-        }
-        const invBtn = document.createElement("button");
-        invBtn.className = "uw2-btn uw2-btn-primary";
-        invBtn.style.alignSelf = "center";
-        invBtn.style.padding = "8px 32px";
-        invBtn.disabled = maxInv <= 0 || investAmt <= 0;
-        invBtn.textContent = tabLabels[2];
-        invBtn.addEventListener("click", () => {
-          if (b.isCapital()) { toastMsg = b.captureMessage(2); render(); return; }
-          if (E.commerceInvest >= GameConst.MAX_INVEST) { toastMsg = b.captureMessage(7); render(); return; }
-          const amt = Math.min(investAmt, maxInv);
-          if (amt <= 0) return;
-          E.commerceInvest += amt;
-          market.money = market.money - amt;
-          b.investSupport(amt, E.commerce);
-          b.investOwner();
-          b.p.panels();
-          toastMsg = b.captureMessage(amt < 500 ? 0x0e : amt < 10000 ? 0x0f : 0x10);
-          render();
+        const blockMsg = b.isCapital() ? b.captureMessage(2) : E.commerceInvest >= GameConst.MAX_INVEST ? b.captureMessage(7) : "";
+        renderUnifiedInvestPane({
+          container: h.body,
+          leftTitle: "港口商业",
+          rightTitle: tabLabels[2],
+          statLabel: "商业价值",
+          statValue: domS16(E.commerce),
+          investLabel: "本月商业投资",
+          curInvest: E.commerceInvest,
+          maxInvest: maxInv,
+          amount: investAmt,
+          blockMsg,
+          promptMsg: b.captureMessage(8),
+          confirmLabel: tabLabels[2],
+          onAmountChange: v => { investAmt = v; },
+          onConfirm: amt => {
+            if (amt <= 0) return;
+            E.commerceInvest += amt;
+            market.money = market.money - amt;
+            b.investSupport(amt, E.commerce);
+            b.investOwner();
+            b.p.panels();
+            toastMsg = b.captureMessage(amt < 500 ? 0x0e : amt < 10000 ? 0x0f : 0x10);
+            investAmt = 0;
+            render();
+          },
         });
-        box.append(val, row, invBtn);
-        h.body.appendChild(box);
       } else {
         const E = market.eco, T = market.T;
         const split = document.createElement("div");
