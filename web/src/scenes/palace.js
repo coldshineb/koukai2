@@ -4,9 +4,9 @@ import { Scenario, ENV_COMMON, ENV_HERO } from "../game/scenario.js";
 import { mainEnding } from "../game/endgame.js";
 import { GameConst, MenuId, OptionFlag, ShipSlotFlag, WorkDS } from "../model/flags.ts";
 import { captureConsoleText, decodeCleanCstr } from "../ui/text_util.ts";
-import { runDomInfoLines } from "../ui/dom_ui.ts";
-import { hasDom } from "../ui/dom_ui.ts";
-import { runDomPalaceWorkbench } from "../ui/dom_buildings.ts";
+import { runDomInfoLines } from "../ui/modals.ts";
+import { hasDom } from "../ui/modals.ts";
+import { runDomPalaceWorkbench } from "../ui/buildings_panel.ts";
 
 const plHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const plS16 = v => (v << 16) >> 16;

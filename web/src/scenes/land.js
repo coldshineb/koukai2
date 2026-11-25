@@ -2,7 +2,7 @@
 // 由 SeaScene.landExplore() 创建 (34ec7 选好位置之后, 或 seaFlags2 & LANDED_MASK 时直接调用)。
 // 原版运行期变量 (不在存盘内): [b8de] = sea.landFlag (34ec7 设置, 地图格 0x59 时 0)、[b8e0] 补水可行、[bc18] 雇用的向导 → ctx.landRT
 import { DiscoveryFlag, GameConst, MenuId, SeaFlag2, ShipSlotFlag } from "../model/flags.ts";
-import { createDomModal, hasDom } from "../ui/dom_ui.ts";
+import { createDomModal, hasDom } from "../ui/modals.ts";
 import { decodeCleanCstr, toSimp } from "../ui/text_util.ts";
 
 const ldS16 = v => (v << 16) >> 16;

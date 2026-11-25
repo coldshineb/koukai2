@@ -7,8 +7,8 @@
 // 沿用菜单引擎的状态: cur=a160 prev=a15a count=a158 mouseFlag=a14e hit=a150 bracket=a162 rects=bdcc
 
 import { captureConsoleText, decodeCleanCstr, toSimp } from "../text_util.ts";
-import { hasDom, runDomList } from "../dom_ui.ts";
-import { UI_STR } from "../ui_strings.ts";
+import { hasDom, runDomList } from "../modals.ts";
+import { UI_STR } from "../strings.ts";
 
 const lsUmin = (a, b) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);   // seg0:4d7c (无号)
 const lsDiv = (a, b) => Math.trunc(a / b);                                          // idiv

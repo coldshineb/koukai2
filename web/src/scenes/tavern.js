@@ -5,9 +5,9 @@ import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
 import { domS16, domUmin16 } from "../domain/economy.ts";
 import { captureConsoleText, decodeCleanCstr } from "../ui/text_util.ts";
-import { runDomInfoLines } from "../ui/dom_ui.ts";
-import { hasDom } from "../ui/dom_ui.ts";
-import { runDomTavernWorkbench } from "../ui/dom_buildings.ts";
+import { runDomInfoLines } from "../ui/modals.ts";
+import { hasDom } from "../ui/modals.ts";
+import { runDomTavernWorkbench } from "../ui/buildings_panel.ts";
 
 class TavernMixin {
   // 27592 / 275d2 本港的酒吧女郎 (DS:2bde, 每笔 0x13)

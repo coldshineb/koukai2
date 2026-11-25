@@ -1,4 +1,4 @@
-// modern/presenter.ts — ModernPresenter (阶段 4 现代高清 DOM/CSS 交互组件库，实现 IGameUI)
+// core/presenter.ts — ModernPresenter (阶段 4 现代高清 DOM/CSS 交互组件库，实现 IGameUI)
 // 供阶段 5 逐场景从 640×400 帧缓冲切换至现代高清界面使用。
 import type { IGameUI } from "../ui/dos/protocol.ts";
 import { stripEscBytes, toSimp } from "../ui/text_util.ts";

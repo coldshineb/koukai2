@@ -11,8 +11,8 @@ import { faFleet } from "./fleetai.js";
 import { Monthly } from "./monthly.js";
 import { mainEnding } from "./endgame.js";
 import { GameConst, OptionFlag } from "../model/flags.ts";
-import { hasDom, runDomStoryCard } from "../ui/dom_ui.ts";
-import { hideDomBattleHud } from "../ui/dom_battle.ts";
+import { hasDom, runDomStoryCard } from "../ui/modals.ts";
+import { hideDomBattleHud } from "../ui/battle_hud.ts";
 import { captureConsoleText, toSimp } from "../ui/text_util.ts";
 
 const clockWarned = new Set();

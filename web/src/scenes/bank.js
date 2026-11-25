@@ -6,8 +6,8 @@
 // 银行内的金钱增减不调用 8894 (面板要等下次菜单才重画) —— 原版如此
 import { GameConst, MenuId } from "../model/flags.ts";
 import { domS16, encodeBankBalance, calcDepositLimit, canTakeLoan, calcLoanLimit } from "../domain/economy.ts";
-import { hasDom } from "../ui/dom_ui.ts";
-import { runDomBankWorkbench } from "../ui/dom_buildings.ts";
+import { hasDom } from "../ui/modals.ts";
+import { runDomBankWorkbench } from "../ui/buildings_panel.ts";
 
 export class Bank {
   constructor(b) { this.b = b; }

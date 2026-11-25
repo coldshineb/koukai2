@@ -1,13 +1,13 @@
-// modern/dom_workbenches.ts — 与「读取进度 (save_modal.ts)」1:1 同款视觉的三大一体化工作台 + 舰船/人物情报卡
+// ui/workbenches.ts — 与「读取进度 (save_modal.ts)」1:1 同款视觉的三大一体化工作台 + 舰船/人物情报卡
 // 涵盖：交易所一体化工作台、码头补给与出航工作台、舰队经营一体化大面板、人物情报卡（修正拼合头像）、舰船情报卡。
 import { DS, OFF } from "../model/schema_views.ts";
 import { GameConst, MenuId } from "../model/flags.ts";
 import { domS16, domUmin16, calcBuyPriceShift, calcSellPriceShift, clampPriceIndexUp, clampPriceIndexDown } from "../domain/economy.ts";
 import { marketTradeLog } from "../scenes/market.js";
 import { decodeCleanCstr } from "./text_util.ts";
-import { createDomModal, getBuildingArtUrl, getPersonPortraitSrc, mountBuildingBanner, preserveScroll } from "./dom_ui.ts";
-import { renderUnifiedInvestPane } from "./dom_buildings.ts";
-import { UI_STR } from "./ui_strings.ts";
+import { createDomModal, getBuildingArtUrl, getPersonPortraitSrc, mountBuildingBanner, preserveScroll } from "./modals.ts";
+import { renderUnifiedInvestPane } from "./buildings_panel.ts";
+import { UI_STR } from "./strings.ts";
 
 // ============================================================================
 // 1. 交易所一体化工作台（买进 / 卖出 / 投资 / 物价）

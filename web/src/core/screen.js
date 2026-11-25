@@ -1,10 +1,10 @@
 // screen.js — 现代 HD 2D Canvas 混合显示模型 (兼容原版 640x400 逻辑座标 + 2x HD RGBA PNG 图层)
 // 逻辑分辨率: 640x400 (置于 640x480 画面第 40 行起)，内部以 HD_SCALE=2 (1280x960) 输出，
 // 让任何高清重绘 PNG 皆可直接以原生真彩与高分辨率绘制于 hdCanvas，并与原版文字/窗口图层无缝合成。
-import { hasDom, syncDomDialog } from "../ui/dom_ui.ts";
-import { hideDomWorldHud } from "../ui/dom_hud.ts";
-import { hideDomBattleHud } from "../ui/dom_battle.ts";
-import { hideDomDuelHud } from "../ui/dom_duel.ts";
+import { hasDom, syncDomDialog } from "../ui/modals.ts";
+import { hideDomWorldHud } from "../ui/hud.ts";
+import { hideDomBattleHud } from "../ui/battle_hud.ts";
+import { hideDomDuelHud } from "../ui/duel_hud.ts";
 import { toSimp } from "../ui/t2s.ts";
 
 export const SCREEN_W = 640;

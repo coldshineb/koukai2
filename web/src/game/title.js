@@ -1,16 +1,16 @@
 // title.js — 开机流程与标题菜单 (MAIN.EXE main 0FEA:6304, 160f1, 17546, 171a2, 170dc, 1706a, 16f68, 16b3f, 16a03, 17004, 175ca)
 // 与原版的差异: 依需求移除说明书密码确认 (main 中的 2e09:7cec)。
 import { GameState, STATE_LOAD_SIZE } from "./state.js";
-import { SaveFile, SLOTS, HEADER_SIZE } from "./savefile.js";
+import { SaveFile, SLOTS, HEADER_SIZE } from "../save/savefile.js";
 import { NewGame } from "./newgame.js";
 import { Commands, openDomSettings } from "../scenes/commands.js";
 import { loadPortAssets } from "../scenes/port.js";
 import { GameConst, MenuId, OptionFlag } from "../model/flags.ts";
 import { renderWideTitle } from "../renderer/title.ts";
 import { captureConsoleText, decodeCleanCstr } from "../ui/text_util.ts";
-import { hasDom } from "../ui/dom_ui.ts";
-import { runDomTitleMenu } from "../ui/dom_hud.ts";
-import { UI_STR } from "../ui/ui_strings.ts";
+import { hasDom } from "../ui/modals.ts";
+import { runDomTitleMenu } from "../ui/hud.ts";
+import { UI_STR } from "../ui/strings.ts";
 
 const ESC = 0x1b;
 const STR_STAR = Uint8Array.of(ESC, 0x43, 0x32, 0x2a, ESC, 0x43, 0x30, 0);   // DS:a37a  ESC C2 * ESC C0

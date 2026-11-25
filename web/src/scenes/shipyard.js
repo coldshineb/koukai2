@@ -3,8 +3,8 @@ import { ListSelect } from "../ui/dos/listsel.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
 import { domS16, domUmin16 } from "../domain/economy.ts";
-import { createDomModal, hasDom, preserveScroll } from "../ui/dom_ui.ts";
-import { runDomShipyardWorkbench } from "../ui/dom_buildings.ts";
+import { createDomModal, hasDom, preserveScroll } from "../ui/modals.ts";
+import { runDomShipyardWorkbench } from "../ui/buildings_panel.ts";
 import { decodeCleanCstr, toSimp } from "../ui/text_util.ts";
 
 class ShipyardMixin {

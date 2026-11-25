@@ -1,4 +1,4 @@
-// canvas_ui/wide_title.ts — 原生 16:9 (1280×720) 标题底图渲染（深海航海渐层 + 经纬底纹，供加载/选角/设置弹窗作为统一背景）
+// renderer/title.ts — 原生 16:9 (1280×720) 标题底图渲染（深海航海渐层 + 经纬底纹，供加载/选角/设置弹窗作为统一背景）
 import { VIEW_W, VIEW_H } from "../core/screen.js";
 
 export function renderWideTitle(ctx: CanvasRenderingContext2D, _art?: any) {

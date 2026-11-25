@@ -1,4 +1,4 @@
-// canvas_ui/text_util.ts — 统一原版控制码清理、文字截取、繁转简与高清晰度字体常数
+// ui/text_util.ts — 统一原版控制码清理、文字截取、繁转简与高清晰度字体常数
 // 精确对应 console.js 的所有 ESC 控制串行，彻底消除 64 / 01 / 51 / 2 等残留色码字符。
 import { toSimp } from "./t2s.ts";
 export { toSimp };

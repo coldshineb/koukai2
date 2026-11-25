@@ -4,10 +4,10 @@
 //   9c2a 体力条 (0..200, 100 起; + = [9d44] 那方占优)  9c2c 上一场的对手  9d44 / 9d46 双方 (人物记录地址)  9d48 = 1 电脑发起
 //   9d4a / 9d4b 双方的出招历史 (每回合 << 2 | 招)  9d4c 位置  9d4e 这回合的攻方 (0 = 9d44)  9d50 / 9d52 主角那方 dx / dy  9d54 / 9d56 对手 dx / dy
 //   9f5e + 8k 精灵画布第 k 格的 x, y, w, h (word)   a01e + 7k 装备 (k = 0 是 9d44, 1 是 9d46): +0 武器 +1 防具 +2 武器种类 +3 武器值 +5 防具值
-import { PlanarBuf, LsFile, frameHeader } from "../gfx/duelanim.js";
+import { PlanarBuf, LsFile, frameHeader } from "../decoders/duelanim.js";
 import { DS } from "../model/schema_views.ts";
-import { hasDom } from "../ui/dom_ui.ts";
-import { renderWideDuel, hideDomDuelHud, runDomDuelMove } from "../ui/dom_duel.ts";
+import { hasDom } from "../ui/modals.ts";
+import { renderWideDuel, hideDomDuelHud, runDomDuelMove } from "../ui/duel_hud.ts";
 import { decodeCleanCstr } from "../ui/text_util.ts";
 
 const duHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };

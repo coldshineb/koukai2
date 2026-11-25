@@ -1,8 +1,8 @@
-// modern/dom_battle.ts — 16:9 现代羊皮纸海战 HUD + 战场 Canvas 缩放渲染器 + 无遮挡右侧指令/确认栏 + 羊皮纸情报卡
+// ui/battle_hud.ts — 16:9 现代羊皮纸海战 HUD + 战场 Canvas 缩放渲染器 + 无遮挡右侧指令/确认栏 + 羊皮纸情报卡
 // 左侧 (20, 10, 728×700) 清晰呈现 1.75× 缩放六角格海战场（绝不被菜单模糊遮挡），
 // 右侧以暖羊皮纸卡片呈现旗舰状态、风向、战术小地图，底部卡位无缝承载战况消息、战斗指令与是/否确认。
-import { createDomModal, hasDom, getPersonPortraitSrc, preserveScroll } from "./dom_ui.ts";
-import { hideDomWorldHud } from "./dom_hud.ts";
+import { createDomModal, hasDom, getPersonPortraitSrc, preserveScroll } from "./modals.ts";
+import { hideDomWorldHud } from "./hud.ts";
 import { decodeCleanCstr, toSimp } from "./text_util.ts";
 import { DS, OFF } from "../model/schema_views.ts";
 

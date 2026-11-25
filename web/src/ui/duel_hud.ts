@@ -1,7 +1,7 @@
-// modern/dom_duel.ts — 16:9 现代羊皮纸单挑 (一骑打) HUD + 缩放动画舞台 + 底部招式栏
-import { hasDom, getPersonPortraitSrc } from "./dom_ui.ts";
-import { hideDomWorldHud } from "./dom_hud.ts";
-import { hideDomBattleHud } from "./dom_battle.ts";
+// ui/duel_hud.ts — 16:9 现代羊皮纸单挑 (一骑打) HUD + 缩放动画舞台 + 底部招式栏
+import { hasDom, getPersonPortraitSrc } from "./modals.ts";
+import { hideDomWorldHud } from "./hud.ts";
+import { hideDomBattleHud } from "./battle_hud.ts";
 import { decodeCleanCstr, toSimp } from "./text_util.ts";
 
 let duelRoot: HTMLElement | null = null;

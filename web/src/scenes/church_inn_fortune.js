@@ -1,8 +1,8 @@
 // church_inn_fortune.js — 旅馆 (4) / 教会 (10) / 占卜师 (11)
 import { DS, OFF } from "../model/schema_views.ts";
 import { domS16, domUmin16 } from "../domain/economy.ts";
-import { hasDom } from "../ui/dom_ui.ts";
-import { runDomInnWorkbench, runDomChurchWorkbench, runDomFortuneWorkbench } from "../ui/dom_buildings.ts";
+import { hasDom } from "../ui/modals.ts";
+import { runDomInnWorkbench, runDomChurchWorkbench, runDomFortuneWorkbench } from "../ui/buildings_panel.ts";
 
 const cifHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const B_SUPPORT_FMT = Uint8Array.of(0x25, 0x2d, 0x31, 0x34, 0x73, 0x20, 0x25, 0x33, 0x64, 0x25, 0x25, 0); // DS:b0ba "%-14s %3d%%"

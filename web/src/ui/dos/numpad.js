@@ -3,7 +3,7 @@
 //   seg0:5597 计算机本体: 0-9 + - * / = (含先乘除), ',' 正负号, '>' 清除, '?' 最大值, 'B' 滑杆, Enter 确定
 //   seg0:54d2 显示 (滑杆 + "%9ld")   seg0:527a 鼠标点击   seg0:542e 取得按键 ('.' 视为 '=')
 // 32 比特算术: 乘法取低 32 比特 (_lmul), 除法向零取整 (_ldiv), 与原版相同
-import { hasDom, runDomNumPad } from "../dom_ui.ts";
+import { hasDom, runDomNumPad } from "../modals.ts";
 
 const NP_KEYS = "789*?456/>123-,0=+\r";                      // DS:8aa0
 const NP_STR_COLOR = Uint8Array.of(0x1b, 0x43, 0x30, 0x1b, 0x42, 0x37, 0);   // DS:8ab3

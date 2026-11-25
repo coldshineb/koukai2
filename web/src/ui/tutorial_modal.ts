@@ -1,5 +1,5 @@
-// modern/tutorial_modal.ts — 独立游戏内「航海教程」页面（完整收录《大航海时代外传》42 篇建筑老人/醉汉/船爱好者教程 + 60 条航海小贴士）
-import { createDomModal } from "./dom_ui.ts";
+// ui/tutorial_modal.ts — 独立游戏内「航海教程」页面（完整收录《大航海时代外传》42 篇建筑老人/醉汉/船爱好者教程 + 60 条航海小贴士）
+import { createDomModal } from "./modals.ts";
 
 interface TutorialSegment {
   t: string;

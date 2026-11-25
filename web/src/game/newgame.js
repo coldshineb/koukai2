@@ -8,9 +8,9 @@ import { DS } from "../model/schema_views.ts";
 import { DiscoveryFlag, FleetFlag, WorkDS } from "../model/flags.ts";
 import { renderWideTitle } from "../renderer/title.ts";
 import { captureConsoleText, decodeCleanCstr } from "../ui/text_util.ts";
-import { hasDom } from "../ui/dom_ui.ts";
-import { runDomNewGameSelect, hideDomWorldHud } from "../ui/dom_hud.ts";
-import { UI_STR } from "../ui/ui_strings.ts";
+import { hasDom } from "../ui/modals.ts";
+import { runDomNewGameSelect, hideDomWorldHud } from "../ui/hud.ts";
+import { UI_STR } from "../ui/strings.ts";
 
 const ngHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const ngDiv8 = v => (v < 0 ? -((-v) >> 3) : v >> 3);

@@ -1,7 +1,7 @@
-// modern/save_modal.ts — 现代无限槽位存盘工作台（IndexedDB 本地保存 + 导出 JSON + 导入 JSON/原版 KOUKAI2.DAT 自由选槽）
+// ui/save_modal.ts — 现代无限槽位存盘工作台（IndexedDB 本地保存 + 导出 JSON + 导入 JSON/原版 KOUKAI2.DAT 自由选槽）
 import type { SaveSlotV2 } from "../save/format.ts";
 import type { InspectedImport } from "../save/store.ts";
-import { createDomModal, preserveScroll } from "./dom_ui.ts";
+import { createDomModal, preserveScroll } from "./modals.ts";
 
 export interface SaveModalBridge {
   getSlots: () => Promise<Array<SaveSlotV2 | null>>;

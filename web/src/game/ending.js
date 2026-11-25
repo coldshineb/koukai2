@@ -12,7 +12,7 @@
 // 音乐: END.EXE 内嵌 2 曲 (0771:0002, 00ecb 以 AH=00 登记); 359f(k) → AH=01 AL=k+1, 网页版以 BGM playSong(k+1) (assets/data/bgm.json "ending")。
 
 import { cprintf } from "../ui/dos/printf.js";
-import { decodeGraph } from "../gfx/graphdec.js";
+import { decodeGraph } from "../decoders/graphdec.js";
 // 剧本结局序幕 (DS:0e00 far 函数表)
 import { PROLOGUES } from "./ending_pro.js";
 

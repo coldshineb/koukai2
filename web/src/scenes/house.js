@@ -4,8 +4,8 @@
 // 记录 10..15 是各国国王, 种类 FF 且港 = 0; 里斯本有种类 0 的第 0 笔在前面, 所以不会用到
 import { ListSelect } from "../ui/dos/listsel.js";
 import { DiscoveryFlag, GameConst, NobleFlag, SkillFlag, WorkDS } from "../model/flags.ts";
-import { hasDom, runDomStoryCard } from "../ui/dom_ui.ts";
-import { runDomHouseWorkbench } from "../ui/dom_buildings.ts";
+import { hasDom, runDomStoryCard } from "../ui/modals.ts";
+import { runDomHouseWorkbench } from "../ui/buildings_panel.ts";
 import { captureConsoleText, toSimp } from "../ui/text_util.ts";
 
 const hsS16 = v => (v << 16) >> 16;

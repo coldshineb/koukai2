@@ -1,10 +1,10 @@
-// modern/scenario_host.ts — 阶段 5 现代高清剧情对话宿主 (实现 IScenarioHost)
+// core/scenario_host.ts — 阶段 5 现代高清剧情对话宿主 (实现 IScenarioHost)
 // 保留原版事件插图 (EVENT*.DAT)、一骑打、音乐与结局，将剧情对话窗口、头像、菜单与是/否改以现代高清羊皮纸卡片呈现。
 import type { IScenarioHost, ScenarioWindowDef } from "../ui/dos/protocol.ts";
 import { DS } from "../model/schema_views.ts";
 import { GameConst } from "../model/flags.ts";
 import { stripEscBytes, toSimp } from "../ui/text_util.ts";
-import { runDomMenu, runDomYesNo } from "../ui/dom_ui.ts";
+import { runDomMenu, runDomYesNo } from "../ui/modals.ts";
 
 export interface ModernScenarioDeps {
   runDuel: (scenario: any, person: number) => Promise<void>;

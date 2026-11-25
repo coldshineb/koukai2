@@ -1,4 +1,4 @@
-// modern/shell.ts — 阶段 4 现代高清 DOM/CSS 壳层 (倍速 / 暂停 / 独立音量 / 存盘管理 / 全屏幕)
+// ui/shell.ts — 阶段 4 现代高清 DOM/CSS 壳层 (倍速 / 暂停 / 独立音量 / 存盘管理 / 全屏幕)
 import type { GameRuntime, GameSpeed } from "../core/runtime.ts";
 import { ModernSaveModal } from "./save_modal.ts";
 import type { SaveModalBridge } from "./save_modal.ts";

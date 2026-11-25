@@ -4,8 +4,8 @@ import { marketTradeLog } from "./market.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
 import { domS16, domUmin16 } from "../domain/economy.ts";
-import { runDomTableSelect } from "../ui/dom_ui.ts";
-import { runDomWharfWorkbench } from "../ui/dom_workbenches.ts";
+import { runDomTableSelect } from "../ui/modals.ts";
+import { runDomWharfWorkbench } from "../ui/workbenches.ts";
 import { decodeCleanCstr } from "../ui/text_util.ts";
 
 class WharfMixin {

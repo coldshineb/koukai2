@@ -12,7 +12,7 @@ import { Title } from "../game/title.js";
 import { PortMove } from "./portmove.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
-import { runDomFleetHub } from "../ui/dom_workbenches.ts";
+import { runDomFleetHub } from "../ui/workbenches.ts";
 import { captureConsoleText, decodeCleanCstr, UI_FONT } from "../ui/text_util.ts";
 import {
   hasDom,
@@ -23,11 +23,11 @@ import {
   runDomLordInfo,
   runDomInfoLines,
   runDomLogBook,
-} from "../ui/dom_ui.ts";
-import { runDomSettingsModal } from "../ui/dom_hud.ts";
-import { UI_STR } from "../ui/ui_strings.ts";
-import { runDomPersonInfo, runDomShipInfo } from "../ui/dom_workbenches.ts";
-import { runDomInfoHub, runDomBelongings, runDomFormation, runDomPortMapModal, runDomWorldChartModal } from "../ui/dom_info_hub.ts";
+} from "../ui/modals.ts";
+import { runDomSettingsModal } from "../ui/hud.ts";
+import { UI_STR } from "../ui/strings.ts";
+import { runDomPersonInfo, runDomShipInfo } from "../ui/workbenches.ts";
+import { runDomInfoHub, runDomBelongings, runDomFormation, runDomPortMapModal, runDomWorldChartModal } from "../ui/info_hub.ts";
 
 const cmHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const cmStrlen = s => { let n = 0; while (n < s.length && s[n]) n++; return n; };

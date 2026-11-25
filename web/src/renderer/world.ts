@@ -1,7 +1,7 @@
-// canvas_ui/wide_world.ts — 16:9 (1280×720) 全屏 Canvas 2D 港口/海面视口渲染器
+// renderer/world.ts — 16:9 (1280×720) 全屏 Canvas 2D 港口/海面视口渲染器
 import { DS, OFF } from "../model/schema_views.ts";
 import { VIEW_W, VIEW_H } from "../core/screen.js";
-import { syncDomWorldHud } from "../ui/dom_hud.ts";
+import { syncDomWorldHud } from "../ui/hud.ts";
 
 const TILE = 32; // 40×23 格 = 1280×736，无黑边铺满整个 16:9 画面
 const COLS = Math.ceil(VIEW_W / TILE) + 1;

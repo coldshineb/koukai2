@@ -6,9 +6,9 @@
 import { GameConst, ItemFlag, ItemKind, MenuId } from "../model/flags.ts";
 import { DS } from "../model/schema_views.ts";
 import { captureConsoleText, decodeCleanCstr, toSimp } from "../ui/text_util.ts";
-import { runDomInfoLines } from "../ui/dom_ui.ts";
-import { createDomModal, getBuildingArtUrl, hasDom, mountBuildingBanner, preserveScroll } from "../ui/dom_ui.ts";
-import { UI_STR } from "../ui/ui_strings.ts";
+import { runDomInfoLines } from "../ui/modals.ts";
+import { createDomModal, getBuildingArtUrl, hasDom, mountBuildingBanner, preserveScroll } from "../ui/modals.ts";
+import { UI_STR } from "../ui/strings.ts";
 
 const isHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const isS16 = v => (v << 16) >> 16;

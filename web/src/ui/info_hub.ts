@@ -1,12 +1,12 @@
-// modern/dom_info_hub.ts — F1「情报中心」一体化多标签页工作台 +「随身物」一体化面板
+// ui/info_hub.ts — F1「情报中心」一体化多标签页工作台 +「随身物」一体化面板
 // 与「读取进度 (save_modal.ts)」1:1 同套暖羊皮纸视觉，彻底消灭多层嵌套菜单，并完整呈现所有原版插图
 // （发现物插图、道具插图、高清船图、船首像、具名与 5 层拼合人物头像）。100% 原版游戏文本。
 import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
 import { ListSelect } from "./dos/listsel.js";
 import { captureConsoleText, decodeCleanCstr, toSimp, UI_FONT } from "./text_util.ts";
-import { createDomModal, getPersonPortraitSrc, preserveScroll } from "./dom_ui.ts";
-import { UI_STR } from "./ui_strings.ts";
+import { createDomModal, getPersonPortraitSrc, preserveScroll } from "./modals.ts";
+import { UI_STR } from "./strings.ts";
 
 const s16 = (v: number) => (v << 16) >> 16;
 const umin = (a: number, b: number) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);

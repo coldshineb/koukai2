@@ -1,11 +1,11 @@
-// ui/index.js — 创建原版 UI 系统 (文字主控台 + 窗口 + 菜单 + GRAPH 图像 + 头像)
+// ui/dos/index.js — 创建原版 UI 系统 (文字主控台 + 窗口 + 菜单 + GRAPH 图像 + 头像)
 import { loadBinary, loadJSON } from "../../core/assets.js";
 import { TextConsole } from "./console.js";
 import { WindowSystem } from "./window.js";
 import { MenuSystem } from "./menu.js";
 import { Graph } from "./graph.js";
 import { cprintf } from "./printf.js";
-import { Kao } from "../../gfx/kao.js";
+import { Kao } from "../../decoders/kao.js";
 
 export async function createUI(ctx) {
   const gfx = await loadBinary(ctx.ASSETS + "/gfx/ui_frame.bin");

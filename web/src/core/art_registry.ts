@@ -1,4 +1,4 @@
-// modern/assets_art.ts — 现代标准 PNG 美术资源注册表 (对应 web/assets/art/manifest.json)
+// core/art_registry.ts — 现代标准 PNG 美术资源注册表 (对应 web/assets/art/manifest.json)
 // 任何单张 PNG (头像/建筑/船型/船首像/发现物/剧情插图/背景) 皆可直接替换为高清重绘版本，无需重新打包二进位档。
 import { loadJSON } from "./assets.js";
 

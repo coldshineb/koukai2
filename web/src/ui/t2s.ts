@@ -1,4 +1,4 @@
-// modern/t2s.ts — 统一繁体转简体中文转换器 (基于 opencc-js/t2cn，按需加载体积小、含缓存)
+// ui/t2s.ts — 统一繁体转简体中文转换器 (基于 opencc-js/t2cn，按需加载体积小、含缓存)
 // 同时修正 build_charmap.py 透过 Unifont 字形比对产生的 5 组相邻对调字：
 //   速↔连 (0x9F75/0x9F76)、散↔敢 (0xA072/0xA073)、髯↔发 (0xA8A0/0xA8A1)、
 //   匾↔区 (0x9D4A/0x9D4B)、缍↔缓 (0xA7C1/0xA7C2)

@@ -1,4 +1,4 @@
-// ui/protocol.ts — 语意化 UI 与剧本宿主交互界面 (解耦业务逻辑与 640×400 / 现代高清渲染)
+// ui/dos/protocol.ts — 语意化 UI 与剧本宿主交互界面 (解耦业务逻辑与 640×400 / 现代高清渲染)
 
 export interface ScenarioWindowDef {
   readonly x: number;

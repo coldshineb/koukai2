@@ -1,4 +1,4 @@
-// canvas_ui/wide_building.ts — 原生 16:9 (1280×720) 现代港内浮动建筑窗口
+// renderer/building.ts — 原生 16:9 (1280×720) 现代港内浮动建筑窗口
 // 紧凑平衡的双栏建筑卡片：左侧高清建筑插画、右侧交互菜单/表格区，底部与精简对话条对齐，零黑屏过场。
 import { VIEW_W, VIEW_H } from "../core/screen.js";
 import { renderWidePort } from "./world.ts";

@@ -1,4 +1,4 @@
-// ui/legacy_presenter.ts — 原版 640×400 渲染管线的 IGameUI / IScenarioHost 适配器
+// ui/dos/legacy_presenter.ts — 原版 640×400 渲染管线的 IGameUI / IScenarioHost 适配器
 import type { IGameUI, IScenarioHost, ScenarioWindowDef } from "./protocol.ts";
 import { DS } from "../../model/schema_views.ts";
 import { GameConst } from "../../model/flags.ts";

@@ -1,9 +1,9 @@
-// modern/dom_hud.ts — 16:9 港口/海面主界面羊皮纸现代 HTML/CSS HUD + 新建游戏选角界面
+// ui/hud.ts — 16:9 港口/海面主界面羊皮纸现代 HTML/CSS HUD + 新建游戏选角界面
 // 与「读取进度 (save_modal.ts)」1:1 同套暖羊皮纸 + 古铜金边视觉，彻底取代老 Canvas 黑蓝框 HUD 与黑底选角页。
 import { DS } from "../model/schema_views.ts";
 import { decodeCleanCstr, toSimp } from "./text_util.ts";
-import { createDomModal, hasDom, getPersonPortraitSrc } from "./dom_ui.ts";
-import { hideDomBattleHud } from "./dom_battle.ts";
+import { createDomModal, hasDom, getPersonPortraitSrc } from "./modals.ts";
+import { hideDomBattleHud } from "./battle_hud.ts";
 import { PortMove } from "../scenes/portmove.js";
 
 let hudRoot: HTMLElement | null = null;

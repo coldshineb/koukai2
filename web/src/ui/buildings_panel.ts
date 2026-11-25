@@ -1,12 +1,12 @@
-// modern/dom_buildings.ts — 与交易所 / 码头 / 道具店 1:1 统一规格的六大建筑一体化工作台
+// ui/buildings_panel.ts — 与交易所 / 码头 / 道具店 1:1 统一规格的六大建筑一体化工作台
 // 涵盖：王宫 (Palace)、银行 (Bank)、事务所 (Office)、旅馆 (Inn)、教会 (Church)、占卜师 (Fortune)
 // 统一结构：createDomModal(wide) + headerRight(.uw2-pill + 关闭) + .uw2-modal-toolbar(.uw2-tab-btn) + .uw2-split + .uw2-modal-footer
 import { DS, OFF } from "../model/schema_views.ts";
 import { DiscoveryFlag, GameConst, NobleFlag, OptionFlag, SkillFlag, TreatyFlag, WorkDS } from "../model/flags.ts";
 import { domS16, calcDepositLimit, canTakeLoan, calcLoanLimit } from "../domain/economy.ts";
 import { captureConsoleText, decodeCleanCstr, toSimp } from "./text_util.ts";
-import { createDomModal, getBuildingArtUrl, getPersonPortraitSrc, mountBuildingBanner, preserveScroll, runDomStoryCard } from "./dom_ui.ts";
-import { UI_STR } from "./ui_strings.ts";
+import { createDomModal, getBuildingArtUrl, getPersonPortraitSrc, mountBuildingBanner, preserveScroll, runDomStoryCard } from "./modals.ts";
+import { UI_STR } from "./strings.ts";
 import { ENV_COMMON, ENV_HERO } from "../game/scenario.js";
 import { mainEnding } from "../game/endgame.js";
 import { ListSelect } from "./dos/listsel.js";
