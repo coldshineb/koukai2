@@ -3,7 +3,8 @@
 //   找本港的第一笔 → DS:b4e4[种类]: 0 = 2d803 (发现物收购), 1 = 2dcae (地图制作), 2 = 2ddb6 (测量技术), 3 = 2def5 (砲术); 没有 → 船员说 0x3a5 (这房子锁着)
 // 记录 10..15 是各国国王, 种类 FF 且港 = 0; 里斯本有种类 0 的第 0 笔在前面, 所以不会用到
 import { ListSelect } from "../ui/dos/listsel.js";
-import { DiscoveryFlag, GameConst, NobleFlag, SkillFlag, WorkDS } from "../model/flags.ts";
+import { DiscoveryFlag, GameConst, NobleFlag, SkillFlag } from "../model/flags.ts";
+import { getWorkState, revealEntireWorldMap, setExploreUnrep } from "../model/world_helpers.ts";
 import { hasDom, runDomStoryCard } from "../ui/modals.ts";
 import { runDomHouseWorkbench } from "../ui/buildings_panel.ts";
 import { captureConsoleText, toSimp } from "../ui/text_util.ts";
@@ -144,7 +145,7 @@ export class House {
     for (let i = 0; i < 20; i++) { const n = m.noble(i); if (n.kind === 1) n.flags &= ~NobleFlag.CONTRACTED; }
     this.noble.flags |= NobleFlag.CONTRACTED;
     await this.sayWait(0x1f4);
-    st.set16(WorkDS.EXPLORE_UNREP, 0);
+    setExploreUnrep(m, 0);
   }
   // 学费 = min((5000 / (主角 +22 / 5 + 1) + 200) × 100 (16 比特), 60000)
   fee() { return hsUmin(Math.imul(Math.trunc(5000 / (Math.trunc(this.m.heroPerson().getStats(6) / 5) + 1)) + 200, 100), 60000); }
@@ -164,10 +165,10 @@ export class House {
   }
   // 2da2a 地理报告: 酬金 = (5 − 等级) × [1010] × 20; [100e] ≥ 3300 时世界地图完成 (GRAPH.DAT #0x3f, 清除 DS:0de8 的 45×12 地图记录)
   async geoReport() {
-    const st = this.st, m = this.m, { win, graph } = this.c;
-    const unrep = st.u16(WorkDS.EXPLORE_UNREP);
+    const m = this.m, { win, graph } = this.c, w = getWorkState(m);
+    const unrep = w.exploreUnrep;
     if (!unrep) return this.sayWait(0x1fa);
-    const total = st.u16(WorkDS.EXPLORE_TOTAL);
+    const total = w.exploreTotal;
     if (total >= 3300) {
       if (this.c.scr.wideRenderer && hasDom() && this.c.codec) {
         const txt = toSimp(captureConsoleText(this.c, () => this.c.message(0x1fb)));
@@ -178,7 +179,7 @@ export class House {
         await this.sayWait(0x1fb);
         await win.close();
       }
-      for (let r = 0; r < 45; r++) { for (let k = 0; k < 11; k++) st.set8(WorkDS.EXPLORE_MAP + r * 12 + k, 0xff); st.set8(WorkDS.EXPLORE_MAP + r * 12 + 11, 0xc0); }
+      revealEntireWorldMap(m);
     }
     const pay = Math.imul(Math.imul(hsS16(5 - (this.noble.flags & NobleFlag.REWARD_MASK)), unrep), 20);
     await this.sayWait(0x1fc, pay);
@@ -187,7 +188,7 @@ export class House {
     hd.adventureFame = (hd.adventureFame + hsUmin((GameConst.MAX_FAME - hd.adventureFame) & 0xffff, Math.imul(5, unrep))) & 0xffff;
     const room = (GameConst.MAX_CASH - this.money) | 0;
     this.money = (this.money + (room > pay ? pay : room)) | 0;
-    st.set16(WorkDS.EXPLORE_UNREP, 0);
+    w.exploreUnrep = 0;
   }
   // 2db6d 地图确认 (藏宝图 0x50..0x59 鉴定, 2 万金币): 位置以 5 度为单位, 各加 random(2) 格误差; 付钱后不重画面板 (原版如此)
   async appraise() {

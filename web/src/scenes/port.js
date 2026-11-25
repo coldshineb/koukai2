@@ -16,6 +16,7 @@ import { Scenario, ENV_COMMON, ENV_HERO } from "../game/scenario.js";
 import { loadDuelAssets } from "./duel.js";
 import { PortMove } from "./portmove.js";
 import { GameConst, OptionFlag, TreatyFlag } from "../model/flags.ts";
+import { getPortNpc, getWorkState, setPortNpc } from "../model/world_helpers.ts";
 import { renderWidePort, hitWideCommandButton } from "../renderer/world.ts";
 import { renderWideBuilding } from "../renderer/building.ts";
 import { hasDom } from "../ui/modals.ts";
@@ -89,8 +90,8 @@ export class PortScene {
   get vy() { return pS16(this.m.globals.portViewY); } set vy(v) { this.m.globals.portViewY = v; }
   get hx() { return pS16(this.m.globals.heroWinX); } set hx(v) { this.m.globals.heroWinX = v; }
   get hy() { return pS16(this.m.globals.heroWinY); } set hy(v) { this.m.globals.heroWinY = v; }
-  npc(i) { const a = 0x0cbc + i * 3; return { x: this.st.u8(a), y: this.st.u8(a + 1), d: this.st.u8(a + 2) }; }
-  setNpc(i, k, v) { this.st.set8(0x0cbc + i * 3 + k, v); }
+  npc(i) { return getPortNpc(this.m, i); }
+  setNpc(i, k, v) { setPortNpc(this.m, i, k, v); }
   get time() { return this.c.rt.time; }
 
   // ================= 进港 seg0:8c53 =================
@@ -116,7 +117,7 @@ export class PortScene {
     this.toggle = 0;
     this.c.scr.clear(0);
     this.bdba = this.vy * P_MAP_W + this.vx;
-    palette.selectTimePalette(this.time, false, st.weather);          // 0fea:98ce = 1976e (先设置目标调色盘供 HD 文字取色)
+    palette.selectTimePalette(this.time, false, g.weather);          // 0fea:98ce = 1976e (先设置目标调色盘供 HD 文字取色)
     this.redraw();                                                    // 0fea:b303 = 1b1a3
     this.panels();                                                    // 8894
     this.c.scr.setAtmosphere?.({ active: true, atSea: false });
@@ -195,7 +196,7 @@ export class PortScene {
     this.drawTileAt(M[i + 0x60], dx, dy + 16);
     this.drawTileAt(M[i + 0x61], dx + 16, dy + 16);
     const localIdx = Math.floor(off / 0x280);
-    const globalIdx = localIdx < 8 ? this.st.hero * 8 + localIdx : 48 + (localIdx - 8);
+    const globalIdx = localIdx < 8 ? this.m.globals.hero * 8 + localIdx : 48 + (localIdx - 8);
     this.c.art?.drawSheetTile(this.c.scr, "chars", globalIdx, dx, dy, { transparent: true });
     this.invalidate(y * P_VIEW + x);
   }
@@ -494,7 +495,7 @@ export class PortScene {
     if (!this.c.noEvents) {
       const sc = (this.c.events ??= new Scenario(this.c)); sc.scene = this;       // ctx.scenario 是剧本档编号 (newgame.js)
       if (await sc.check(ENV_COMMON, this.port, k)) r1 = await sc.run(ENV_COMMON);
-      if (!this.st.u16(0x0de6) && await sc.check(ENV_HERO, this.port, k)) r2 = await sc.run(ENV_HERO);
+      if (!getWorkState(this.m).commonEvent && await sc.check(ENV_HERO, this.port, k)) r2 = await sc.run(ENV_HERO);
     }
     sys.mouseShow();
     if (!((r1 && r2) || k === 4)) { sys.mouseHide(); this.portBgm(); this.redraw(); sys.mouseShow(); return cost; }   // 1b7ef → 1b8ab

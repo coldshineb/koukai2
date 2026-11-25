@@ -2,7 +2,8 @@
 // MENU #16 共 5 项, 但原版只传 4 项 (bl = 4) 给菜单, 所以「密会」不会出现 (DS:b258 也只有 4 个处理函数 2a523 / 2a5f6 / 2a713 / 2a79b)
 import { Scenario, ENV_COMMON, ENV_HERO } from "../game/scenario.js";
 import { mainEnding } from "../game/endgame.js";
-import { GameConst, MenuId, OptionFlag, ShipSlotFlag, WorkDS } from "../model/flags.ts";
+import { GameConst, MenuId, OptionFlag, ShipSlotFlag } from "../model/flags.ts";
+import { getCountryExtra, getWorkState, heroShipSlot, setPortBuildDays } from "../model/world_helpers.ts";
 import { captureConsoleText, decodeCleanCstr } from "../ui/text_util.ts";
 import { runDomInfoLines } from "../ui/modals.ts";
 import { hasDom } from "../ui/modals.ts";
@@ -81,7 +82,7 @@ export class Palace {
       return this.arrest();
     }
     if (hd.rank === 0 && (m.heroPerson().face & 0x0f) !== 6) {                   // 平民
-      if (!this.same() || !(st.u8(WorkDS.FLAGS) & 6)) return this.gw(0x54);
+      if (!this.same() || !(getWorkState(m).flags & 6)) return this.gw(0x54);
     }
     if (hasDom() && this.c.codec) {
       await runDomPalaceWorkbench(this);
@@ -95,8 +96,8 @@ export class Palace {
     let sel;
     do {
       const items = this.c.menuItems(MenuId.PALACE).slice(0, 4);
-      const c5e = g.commonChap, same = this.same(7);
-      if (same || (c5e !== 0 && c5e !== 0xff && plS16(st.u16(WorkDS.CUR_KIND)) >= 6) || (st.u8(WorkDS.FLAGS) & 6)) menu.disabled = 2;
+      const c5e = g.commonChap, same = this.same(7), w = getWorkState(m);
+      if (same || (c5e !== 0 && c5e !== 0xff && plS16(w.curKind) >= 6) || (w.flags & 6)) menu.disabled = 2;
       if (!same) menu.disabled |= 0x0c;
       sel = await b.menu(items);
       if (sel !== 0xff) {
@@ -133,9 +134,9 @@ export class Palace {
 
   // ================= 晋见国王 2a523 =================
   async audience() {
-    const b = this.b, st = this.st, g = this.m.globals, { menu } = this.c;
-    if (this.same() && (st.u8(WorkDS.FLAGS) & 2)) {
-      g.commonChap = st.u8(WorkDS.ROYAL_CHAP); g.commonSec = 0;
+    const b = this.b, g = this.m.globals, w = getWorkState(this.m), { menu } = this.c;
+    if (this.same() && (w.flags & 2)) {
+      g.commonChap = w.royalChap; g.commonSec = 0;
       await this.event(ENV_COMMON, 5);
     }
     if (!(await this.event(ENV_HERO, 0x15))) return;
@@ -289,9 +290,9 @@ export class Palace {
     const oldNat = hero.face & 7, newNat = this.nation;
     hero.face = (hero.face & 0xf0) | newNat;
     m.fleet(hero.fleet).homePort = b.port;
-    const country = m.country(newNat);
-    if (st.u8(country.addr + 2) === 7) st.set8(country.addr + 2, 6);
-    country.aidMoneyK = 0; st.set8(country.addr + 6, 0); country.aidShipType = 0;
+    const country = m.country(newNat), cx = getCountryExtra(country);
+    if (cx.rival === 7) cx.rival = 6;
+    country.aidMoneyK = 0; cx.clearAidExtra(); country.aidShipType = 0;
     const oldVal = hd.getCountryStanding(oldNat);
     if (oldVal >= 30) hd.setCountryStanding(oldNat, (oldVal - 30) & 0xff);
     hd.setCountryStanding(newNat, plUmax(100, plUmin(hd.getCountryStanding(newNat) + 10, 200)));
@@ -321,7 +322,7 @@ export class Palace {
     country.aidShipCount--;
     for (let i = 0; i < 40; i++) {
       if (m.crewSlot(i).captain !== tag || b.slotState(i) !== ShipSlotFlag.BUILDING) continue;
-      const ship = m.ship(this.st.u8(b.fleetSlot(i) + 7));
+      const ship = m.ship(heroShipSlot(m, i).ship);
       b.greet(0x22b);
       const ni = b.nameInput();
       ni.prompt(2, 7);                                                          // 2e09:29a0
@@ -345,14 +346,14 @@ export class Palace {
   }
   // 2e09:44bc = 3254c 援助船 (船型 t): 放在第一个空的舰队位, 状态 0x20 (在造船所保管), 船员配置 captain = 本港 | 0x80
   makeShip(t) {
-    const st = this.st, m = this.m, b = this.b, T = m.shipType(t), tmpl = m.ship(t + 40);
+    const m = this.m, b = this.b, T = m.shipType(t), tmpl = m.ship(t + 40);
     let i = 0; for (; i < GameConst.FLEET_SHIPS; i++) { const f = b.slotState(i); if (f !== ShipSlotFlag.ACTIVE && f !== ShipSlotFlag.BUILDING) break; }
-    const S = b.fleetSlot(0) + 9 * i;                                           // 找不到空位时 S 指到第 10 格之后 (原版如此)
+    const S = heroShipSlot(m, i);                                                // 找不到空位时 S 指到第 10 格之后 (原版如此)
     let n = 0; for (let k = 0; k < 40; k++) if (m.ship(k).type === GameConst.EMPTY_SLOT) { n = k; break; }
     const d = Math.trunc((9 * T.durability) / 10) & 0xff;
-    st.set8(S + 3, d); st.set8(S + 2, d);
-    st.set8(S + 4, T.turn); st.set8(S + 5, T.propulsion); st.set8(S + 6, 0); st.set16(S, 0);
-    st.set8(S + 7, n); st.set8(S + 8, ShipSlotFlag.BUILDING);
+    S.maxDurability = d; S.durability = d;
+    S.turn = T.turn; S.propulsion = T.propulsion; S.guns = 0; S.crew = 0;
+    S.ship = n; S.flags = ShipSlotFlag.BUILDING;
     if (i >= GameConst.FLEET_SHIPS) console.warn("援助船: 艦隊沒有空位 (原版會寫到 DS:0000)");
     else {
       const cs = m.crewSlot(i);
@@ -364,6 +365,6 @@ export class Palace {
     R.maxGuns = tmpl.maxGuns; R.type = t; R.flags = tmpl.flags;
     R.maxCrew = tmpl.maxCrew;
     R.maxCargo = (T.capacity - R.maxGuns - R.maxCrew) & 0xffff;
-    st.set8(b.eco + 0x23, 0);                                                   // [c2dc] +23
+    setPortBuildDays(m.currentPortEconomy(), 0);                                 // [c2dc] +23
   }
 }

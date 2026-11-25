@@ -1,6 +1,7 @@
 // scenes/negotiate.js — 海上 命令 交涉 (MAIN.EXE 20a6d → 20127, 工作「找持有地图的人」2614f)
 // 依 docs/RE_NOTES.md 第 30.1 节。交涉没有能力 / 好感判定, 结果完全由对方舰队的任务 (fleet.mission) 决定; 任务 3 / 4 / 11 谈完直接开战 (10f7e)。
-import { DiscoveryFlag, GameConst, WorkDS } from "../model/flags.ts";
+import { DiscoveryFlag, GameConst } from "../model/flags.ts";
+import { getWorkState } from "../model/world_helpers.ts";
 
 const negHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 
@@ -17,13 +18,13 @@ export async function seaNegotiate(sc) {
 
 // 20127(p = 对方指挥者)
 async function ngTalk(sc, p) {
-  const st = sc.st, m = st.model, g = m.globals, { message, menu } = sc.c, b = sc.b, hero = g.hero;
+  const m = sc.st.model, g = m.globals, w = getWorkState(m), { message, menu } = sc.c, b = sc.b, hero = g.hero;
   const nations = (sc.negNations ??= sc.P.data.nations.map(negHex));      // DS:08de
   const nation = n => nations[m.person(n).face & 0x0f];
   const fleet = m.fleet(m.person(p).fleet);
   let task = fleet.mission;
   const target = fleet.target;
-  if (g.commonChap && st.u16(WorkDS.CUR_KIND) === 0x0b && st.u8(WorkDS.TARGET_PERSON) === p) {   // 工作中、种类 0x0b、对象 (只比低字节)
+  if (g.commonChap && w.curKind === 0x0b && (w.targetPerson & 0xff) === p) {   // 工作中、种类 0x0b、对象 (只比低字节)
     b.talkPerson(p);                                                     // seg0:7f06
     await ngSellMap(sc);                                                 // 2614f
     await b.closeTalk();                                                 // seg0:796d
@@ -60,7 +61,7 @@ async function ngTalk(sc, p) {
 
 // 2614f 卖地图 (工作 0x0b: TARGET_ITEM = 地图的道具编号)
 async function ngSellMap(sc) {
-  const st = sc.st, m = st.model, g = m.globals, { message, menu } = sc.c, b = sc.b, it = st.u8(WorkDS.TARGET_ITEM);
+  const m = sc.st.model, g = m.globals, { message, menu } = sc.c, b = sc.b, it = getWorkState(m).targetItem;
   const end = async msg => { message(msg); await menu.waitPrompt(); };
   for (let i = 0; i < GameConst.INV_SLOTS; i++) if (((m.inventory(i) - it) & 0xff) === 0xf6) return end(0x36f);
   message(0x25c, m.item(it).nameBytes);

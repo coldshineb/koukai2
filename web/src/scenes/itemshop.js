@@ -4,7 +4,6 @@
 // 随身物: DS:2e57 (20 格, FF = 空), 道具记录 items (+0 名称, +10 价格/100, +12 数值, +13 低 4 位 种类 / bit4 已装备)
 // 原版怪行为 (照搬): 问候判断夜市用的是 12 ≤ [0535] < 18 (而营业时间是 2:00–3:00 = 6..8 与 8:00–20:00), 所以「夜市」问候 0x2fc 实际上不会出现
 import { GameConst, ItemFlag, ItemKind, MenuId } from "../model/flags.ts";
-import { DS } from "../model/schema_views.ts";
 import { captureConsoleText, decodeCleanCstr, toSimp } from "../ui/text_util.ts";
 import { runDomInfoLines } from "../ui/modals.ts";
 import { createDomModal, getBuildingArtUrl, hasDom, mountBuildingBanner, preserveScroll } from "../ui/modals.ts";
@@ -182,8 +181,7 @@ export class ItemShop {
           const it = listIds[selIdx];
           const item = m.item(it);
           const name = decodeCleanCstr(codec, item.nameBytes);
-          const R = DS.TBL_ITEM + it * 0x14;
-          const imgUrl = art?.discoveryUrl?.(this.st.u8(R + 0x0f) + 0x55) ?? null;
+          const imgUrl = art?.discoveryUrl?.(item.icon + 0x55) ?? null;
           const infoLines = captureConsoleText(this.c, () => b.itemInfo(it, 0)).split("\n").map(s => toSimp(s.trim())).filter(Boolean);
 
           const head = document.createElement("div");
@@ -336,10 +334,9 @@ export class ItemShop {
       if (owned) { b.greet(0x14c); await b.wait(); continue; }
       const price = Math.imul(100, isS16(item.priceDiv100));
       if (this.c.scr.wideRenderer && this.c.codec) {
-        const R = DS.TBL_ITEM + it * 0x14;
         const infoLines = captureConsoleText(this.c, () => b.itemInfo(it, 0)).split("\n").filter(Boolean);
         const ask = captureConsoleText(this.c, () => { message(0xf0, item.nameBytes); printf(this.F.ld, price); message(0xf1); });
-        const imgUrl = this.c.art?.discoveryUrl?.(this.st.u8(R + 0x0f) + 0x55) ?? null;
+        const imgUrl = this.c.art?.discoveryUrl?.(item.icon + 0x55) ?? null;
         const ok = await runDomInfoLines(decodeCleanCstr(this.c.codec, item.nameBytes), [...infoLines, "", ask], ["是", "否"], imgUrl);
         if (ok !== 0) continue;
       } else {
@@ -369,9 +366,8 @@ export class ItemShop {
       let price = Math.imul(isS16(Math.trunc(isS16(item.priceDiv100) / 2)), 100);
       if (item.power === 0) { b.greet(0x3a1); await b.wait(); continue; }
       if (this.c.scr.wideRenderer && this.c.codec) {
-        const R = DS.TBL_ITEM + it * 0x14;
         const infoLines = captureConsoleText(this.c, () => b.itemInfo(it, 0)).split("\n").filter(Boolean);
-        const imgUrl = this.c.art?.discoveryUrl?.(this.st.u8(R + 0x0f) + 0x55) ?? null;
+        const imgUrl = this.c.art?.discoveryUrl?.(item.icon + 0x55) ?? null;
         const ask1 = captureConsoleText(this.c, () => { message(0xf5, item.nameBytes); printf(this.F.ld2, price); message(0xf7); });
         if ((await runDomInfoLines(decodeCleanCstr(this.c.codec, item.nameBytes), [...infoLines, "", ask1], ["是", "否"], imgUrl)) !== 0) {
           const hero = m.heroPerson();

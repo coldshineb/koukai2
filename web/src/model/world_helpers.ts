@@ -59,6 +59,11 @@ export function heroFleet(m: WorldModel): FleetView {
   return m.fleet(m.heroPerson().fleet);
 }
 
+/** 主角舰队船位 (0..9) */
+export function heroShipSlot(m: WorldModel, slot: number): ShipSlotView {
+  return fleetShipSlot(heroFleet(m), slot);
+}
+
 /** 主角舰队船位 (0..9) 或船坞寄存船位 (10..39) */
 export function heroOrDockSlot(m: WorldModel, slot: number): ShipSlotView {
   return slot < 10 ? fleetShipSlot(heroFleet(m), slot) : m.dockSlot(slot - 10);
@@ -98,15 +103,22 @@ export function isWorldCellExplored(m: WorldModel, col: number, row: number): bo
 export function getWorkState(m: WorldModel) {
   const st = m.st;
   return {
-    flags: st.u8(WorkDS.FLAGS),
-    curKind: st.u16(WorkDS.CUR_KIND),
-    curParam: st.u16(WorkDS.CUR_PARAM),
-    targetPort: st.u16(WorkDS.TARGET_PORT),
-    targetPerson: st.u16(WorkDS.TARGET_PERSON),
-    targetItem: st.u8(WorkDS.TARGET_ITEM),
-    royalChap: st.u8(WorkDS.ROYAL_CHAP),
-    exploreTotal: st.u16(WorkDS.EXPLORE_TOTAL),
-    exploreUnrep: st.u16(WorkDS.EXPLORE_UNREP),
+    get flags(): number { return st.u8(WorkDS.FLAGS); },
+    get curKind(): number { return st.u16(WorkDS.CUR_KIND); },
+    get curParam(): number { return st.u16(WorkDS.CUR_PARAM); },
+    set curParam(v: number) { st.set16(WorkDS.CUR_PARAM, v); },
+    get targetPort(): number { return st.u16(WorkDS.TARGET_PORT); },
+    set targetPort(v: number) { st.set16(WorkDS.TARGET_PORT, v); },
+    get targetPerson(): number { return st.u16(WorkDS.TARGET_PERSON); },
+    set targetPerson(v: number) { st.set16(WorkDS.TARGET_PERSON, v); },
+    get targetItem(): number { return st.u8(WorkDS.TARGET_ITEM); },
+    get randRange(): number { return st.u16(WorkDS.RAND_RANGE); },
+    get royalChap(): number { return st.u8(WorkDS.ROYAL_CHAP); },
+    get commonEvent(): number { return st.u16(0x0de6); },
+    get heroEvent(): number { return st.u16(0x0d5c); },
+    get exploreTotal(): number { return st.u16(WorkDS.EXPLORE_TOTAL); },
+    get exploreUnrep(): number { return st.u16(WorkDS.EXPLORE_UNREP); },
+    set exploreUnrep(v: number) { st.set16(WorkDS.EXPLORE_UNREP, v); },
     kindAt: (i: number) => st.u16(WorkDS.KINDS + i * 2),
     paramAt: (i: number) => st.u16(WorkDS.PARAMS + i * 2),
   };
@@ -275,4 +287,40 @@ export function getCountryMonthlyExtra(country: CountryView) {
 /** 读人物任意偏移字节 (仅限未命名字节如 +0x1b, 待后续具名化) */
 export function getPersonByte(p: PersonView, off: number): number {
   return p.st.u8(p.addr + off);
+}
+
+/** 写入一笔航海日志到 48 笔环形缓冲 (满时整体前移) */
+export function appendTradeLog(
+  m: WorldModel,
+  rt: { year: number; month: number; day: number },
+  kind: number,
+  g: number,
+  price: number,
+  amount: number,
+  a6 = 0,
+): void {
+  const st = m.st, B = DS.TRADE_LOGS, N = 48;
+  let i = 0;
+  while (i < N && st.u16(B + i * 16) !== 0xffff) i++;
+  if (i === N) {
+    st.b.copyWithin(B - DS.STATE_BASE, B - DS.STATE_BASE + 16, B - DS.STATE_BASE + 0x300);
+    i = N - 1;
+  }
+  const a = B + i * 16;
+  st.set16(a, (((((12 * rt.year) & 0xffff) + rt.month) * 31) & 0xffff) + rt.day);
+  st.set16(a + 2, kind);
+  st.set16(a + 4, g);
+  st.set16(a + 6, a6);
+  st.set16(a + 8, price);
+  st.set16(a + 10, amount);
+}
+
+/** 港内 NPC 坐标/朝向 (DS:0x0cbc + i * 3) */
+export function getPortNpc(m: WorldModel, i: number) {
+  const a = 0x0cbc + i * 3;
+  return { x: m.st.u8(a), y: m.st.u8(a + 1), d: m.st.u8(a + 2) };
+}
+
+export function setPortNpc(m: WorldModel, i: number, field: number, v: number): void {
+  m.st.set8(0x0cbc + i * 3 + field, v);
 }

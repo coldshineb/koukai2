@@ -1,6 +1,6 @@
 // market.js — 交易所 (MAIN.EXE 1fd9:5569 = 252f9; MENU #6 子功能 DS:aed8 = 买进 24bd9 / 卖出 24dbf / 投资 250b6 / 物价 252cf), 见 RE_NOTES 21
-import { DS } from "../model/schema_views.ts";
 import { GameConst, MenuId, SkillFlag } from "../model/flags.ts";
+import { appendTradeLog, heroShipSlot } from "../model/world_helpers.ts";
 import { domS16, domUmin16, domUmax16, goodsCategory, hasTradeLicense, calcBuyPrice, calcSellPrice, calcHaggleBounds, calcBuyPriceShift, calcSellPriceShift, clampPriceIndexUp, clampPriceIndexDown } from "../domain/economy.ts";
 import { runDomTableSelect } from "../ui/modals.ts";
 import { runDomMarketWorkbench } from "../ui/workbenches.ts";
@@ -13,12 +13,7 @@ const mS16 = domS16, mUmin = domUmin16, mUmax = domUmax16;
 //   参数 (AX 种类, DX, BX, 堆栈 2 个): +0 日期 ((12×年 + 月) × 31 + 日)  +2 种类 (AX)  +4 DX  +6 BX  +8 / +a 堆栈的两个值
 //   交易所买进 = 种类 0x0c (+4 商品, +6 0, +8 价格, +a 数量); 出港 = 1 (+4 补给天数, +6 港口); 发现港口 = 9 (+4 港口)
 export function marketTradeLog(st, rt, kind, g, price, amount, a6 = 0) {
-  const B = DS.TRADE_LOGS, N = GameConst.TRADE_LOG_COUNT;
-  let i = 0; while (i < N && st.u16(B + i * 16) !== 0xffff) i++;
-  if (i === N) { st.b.copyWithin(B - DS.STATE_BASE, B - DS.STATE_BASE + 16, B - DS.STATE_BASE + 0x300); i = N - 1; }
-  const a = B + i * 16;
-  st.set16(a, (((((12 * rt.year) & 0xffff) + rt.month) * 31) & 0xffff) + rt.day);
-  st.set16(a + 2, kind); st.set16(a + 4, g); st.set16(a + 6, a6); st.set16(a + 8, price); st.set16(a + 10, amount);
+  appendTradeLog(st.model, rt, kind, g, price, amount, a6);
 }
 
 export class Market {
@@ -64,13 +59,13 @@ export class Market {
   regionBuy(g) { const R = this.reg; for (let i = 0; i < 9; i++) if (R.getBuyGoods(i) === g) return this.price(i); return 0; }
   // 24340 船位 slot: bit0 = 尚有载货空间, bit1 = 有空的货物栏
   room(slot) {
-    const m = this.m, b = this.b, cs = m.crewSlot(slot), shipId = this.st.u8(b.fleetSlot(slot) + 7), used = b.cargoUsed(slot);
+    const m = this.m, b = this.b, cs = m.crewSlot(slot), shipId = heroShipSlot(m, slot).ship, used = b.cargoUsed(slot);
     let r = mS16(m.ship(shipId).maxCargo) > mS16(used) ? 1 : 0;
     for (let j = 0; j < GameConst.CARGO_SLOTS; j++) if (cs.getCargoGoods(j) === GameConst.EMPTY_SLOT) { r |= 2; break; }
     return r;
   }
   // 0fea:e3e5 交易记录 (见 marketTradeLog)
-  tradeLog(kind, g, price, amount) { marketTradeLog(this.st, this.c.rt, kind, g, price, amount); }
+  tradeLog(kind, g, price, amount) { appendTradeLog(this.m, this.c.rt, kind, g, price, amount); }
 
   // ================= 入口 252f9 =================
   async run() {
@@ -196,7 +191,7 @@ export class Market {
       if (this.room(slot) === 3) break;
     }
     this.greet(9);
-    const shipId = this.st.u8(b.fleetSlot(slot) + 7);
+    const shipId = heroShipSlot(m, slot).ship;
     const byMoney = Math.floor((this.money >>> 0) / (price || 1));
     const free = mS16(m.ship(shipId).maxCargo) - mS16(b.cargoUsed(slot));
     const v = await b.numpad.input(0, free <= byMoney ? free : byMoney);
