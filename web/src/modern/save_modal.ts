@@ -52,6 +52,7 @@ export class ModernSaveModal {
       const backdrop = document.createElement("div");
       backdrop.className = "uw2-modal-backdrop";
       backdrop.addEventListener("click", e => { if (e.target === backdrop) this.close(null); });
+      backdrop.addEventListener("contextmenu", e => { e.preventDefault(); e.stopPropagation(); this.close(null); });
 
       const modal = document.createElement("div");
       modal.className = "uw2-card uw2-modal";

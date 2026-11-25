@@ -941,6 +941,11 @@ export function runDomFleetHub(cmd: any): Promise<void> {
       if (e.key === "Escape") { e.preventDefault(); tryClose(); }
     };
     window.addEventListener("keydown", onEsc);
+    h.backdrop.addEventListener("contextmenu", e => {
+      e.preventDefault();
+      e.stopPropagation();
+      tryClose();
+    });
     const origClose = h.close;
     h.close = () => { window.removeEventListener("keydown", onEsc); origClose(); };
 

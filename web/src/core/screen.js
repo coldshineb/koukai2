@@ -58,6 +58,8 @@ export class Screen {
       this.ctx = canvas.getContext("2d", { alpha: false });
       this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
       this.ctx.imageSmoothingEnabled = true;
+      this.ctx.fillStyle = "#070f1c";
+      this.ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 
       // HD RGBA 美術層 (1280x800, 對應邏輯 640x400 遊戲區)
       this.hdCanvas = document.createElement("canvas");

@@ -95,6 +95,7 @@ export function runDomBattleMenu(
       if (settled) return;
       settled = true;
       window.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("contextmenu", onCtx, true);
       if (actionCard) { actionCard.style.display = "none"; actionCard.innerHTML = ""; }
       if (msgCard) msgCard.style.display = "flex";
       resolve(idx);
@@ -158,7 +159,12 @@ export function runDomBattleMenu(
         done(0xff);
       }
     };
+    const onCtx = (e: MouseEvent) => {
+      if (document.body?.dataset.uw2Modal === "open") return;
+      if (cancelable) { e.preventDefault(); e.stopPropagation(); done(0xff); }
+    };
     window.addEventListener("keydown", onKey, true);
+    window.addEventListener("contextmenu", onCtx, true);
 
     actionCard!.append(head, grid);
   });
@@ -175,6 +181,7 @@ export function runDomBattleYesNo(promptText: string, yesLabel = "是", noLabel 
       if (settled) return;
       settled = true;
       window.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("contextmenu", onCtx, true);
       if (actionCard) { actionCard.style.display = "none"; actionCard.innerHTML = ""; }
       if (msgCard) msgCard.style.display = "flex";
       resolve(v);
@@ -213,7 +220,12 @@ export function runDomBattleYesNo(promptText: string, yesLabel = "是", noLabel 
       if (e.key === "Enter" || e.key === "y" || e.key === "Y") { e.preventDefault(); e.stopPropagation(); done(1); }
       else if (e.key === "Escape" || e.key === "n" || e.key === "N") { e.preventDefault(); e.stopPropagation(); done(0); }
     };
+    const onCtx = (e: MouseEvent) => {
+      if (document.body?.dataset.uw2Modal === "open") return;
+      e.preventDefault(); e.stopPropagation(); done(0);
+    };
     window.addEventListener("keydown", onKey, true);
+    window.addEventListener("contextmenu", onCtx, true);
 
     row.append(noBtn, yesBtn);
     actionCard!.append(head, msg, row);
@@ -468,6 +480,7 @@ export function runDomBattleSignal(battle: any, cur: number): Promise<void> {
       if (settled) return;
       settled = true;
       window.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("contextmenu", onCtx, true);
       if (actionCard) { actionCard.style.display = "none"; actionCard.innerHTML = ""; }
       if (msgCard) msgCard.style.display = "flex";
       resolve();
@@ -475,7 +488,12 @@ export function runDomBattleSignal(battle: any, cur: number): Promise<void> {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" || e.key === "Enter") { e.preventDefault(); e.stopPropagation(); finish(); }
     };
+    const onCtx = (e: MouseEvent) => {
+      if (document.body?.dataset.uw2Modal === "open") return;
+      e.preventDefault(); e.stopPropagation(); finish();
+    };
     window.addEventListener("keydown", onKey, true);
+    window.addEventListener("contextmenu", onCtx, true);
 
     const render = () => {
       msgCard!.style.display = "none";
@@ -533,6 +551,7 @@ export async function runDomBattleShipOrders(battle: any, B: number): Promise<vo
         if (settled) return;
         settled = true;
         window.removeEventListener("keydown", onKey, true);
+        window.removeEventListener("contextmenu", onCtx, true);
         if (actionCard) { actionCard.style.display = "none"; actionCard.innerHTML = ""; }
         if (msgCard) msgCard.style.display = "flex";
         resolve(v);
@@ -540,7 +559,12 @@ export async function runDomBattleShipOrders(battle: any, B: number): Promise<vo
       const onKey = (e: KeyboardEvent) => {
         if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); done("done"); }
       };
+      const onCtx = (e: MouseEvent) => {
+        if (document.body?.dataset.uw2Modal === "open") return;
+        e.preventDefault(); e.stopPropagation(); done("done");
+      };
       window.addEventListener("keydown", onKey, true);
+      window.addEventListener("contextmenu", onCtx, true);
 
       msgCard!.style.display = "none";
       actionCard!.style.display = "flex";

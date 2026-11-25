@@ -126,10 +126,13 @@ function frame() {
   scr.present();
   if (!ctx.halted) requestAnimationFrame(frame);
 }
-requestAnimationFrame(frame);
 
 (async () => {
-  await new Opening(ctx, await loadOpeningData(ASSETS, loadBinary, loadJSON)).run();
+  const opening = new Opening(ctx, await loadOpeningData(ASSETS, loadBinary, loadJSON));
+  ctx.scr.full = opening.full;
+  ctx.scr.setPaletteRaw(new Uint8Array(48));
+  requestAnimationFrame(frame);
+  await opening.run();
   if (ctx.halted) return;
   if (hasDom() && ctx.codec) {
     ctx.scr.wideRenderer = c2d => renderWideTitle(c2d, ctx.art);

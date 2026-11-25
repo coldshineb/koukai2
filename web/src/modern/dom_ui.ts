@@ -3,6 +3,7 @@
 // 嚴格遵守：100% 原版遊戲文本、支援多層巢狀彈窗 (modalDepth)、Node 測試環境自動回退無副作用。
 
 let modalDepth = 0;
+const modalStack: HTMLElement[] = [];
 const composedCache = new Map<string, string>();
 
 export function hasDom(): boolean {
@@ -146,6 +147,8 @@ export function createDomModal(opts: {
     if (closed) return;
     closed = true;
     window.removeEventListener("keydown", onKey, true);
+    const idx = modalStack.lastIndexOf(backdrop);
+    if (idx >= 0) modalStack.splice(idx, 1);
     backdrop.remove();
     popModalLock();
   };
@@ -161,8 +164,18 @@ export function createDomModal(opts: {
     });
   }
 
+  // 原版大航海時代 II 右鍵返回/關閉手感：在最頂層彈窗內任意處右鍵即等同 Esc 返回
+  backdrop.addEventListener("contextmenu", e => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (cancelable && modalStack[modalStack.length - 1] === backdrop) {
+      doClose();
+      opts.onCancel?.();
+    }
+  });
+
   const onKey = (e: KeyboardEvent) => {
-    if (e.key === "Escape" && cancelable) {
+    if (e.key === "Escape" && cancelable && modalStack[modalStack.length - 1] === backdrop) {
       e.preventDefault();
       e.stopImmediatePropagation();
       doClose();
@@ -176,6 +189,7 @@ export function createDomModal(opts: {
   body.className = "uw2-modal-body";
   modal.append(header, body);
   backdrop.appendChild(modal);
+  modalStack.push(backdrop);
   document.body.appendChild(backdrop);
 
   return { backdrop, modal, header, headerRight, titleEl, body, close: doClose };
