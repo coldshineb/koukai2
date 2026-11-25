@@ -1853,6 +1853,8 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
   let lastNameKey = "";
   let offerPrice = -1;
   let lastPriceKey = "";
+  let haggleOpen = false;
+  let haggleAccRand = 5;
   let notice = specialNotice || initGreet;
 
   const hexToU8 = (s: string) => Uint8Array.from([...(s.match(/../g) || []).map(h => parseInt(h, 16)), 0]);
@@ -2062,9 +2064,13 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
         }
         const avail = (b.money + (opts.tradeInSlot >= 0 ? Math.trunc(b.shipPrice(opts.tradeInSlot) / 2) : 0)) | 0;
         const maxOffer = Math.max(0, Math.min(avail, opts.listPrice));
-        if (lastPriceKey !== opts.priceKey || offerPrice < 0 || offerPrice > maxOffer) {
+        if (lastPriceKey !== opts.priceKey) {
           offerPrice = maxOffer;
           lastPriceKey = opts.priceKey;
+          haggleOpen = false;
+          haggleAccRand = rng.random(10);
+        } else if (offerPrice < 0 || offerPrice > maxOffer) {
+          offerPrice = maxOffer;
         }
         const floor = Math.trunc(Math.imul(500 - hero.getStats(6), opts.listPrice) / 500) | 0;
 
@@ -2084,16 +2090,43 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
 
         const priceWrap = document.createElement("div");
         priceWrap.style.cssText = "display:flex;flex-direction:column;gap:6px;padding:8px 10px;border-radius:8px;background:rgba(255,253,246,0.7);border:1px solid rgba(154,119,56,0.28);";
+        const origAsk = capMsg(c, opts.priceKey.startsWith("new_") ? 0x100 : 0xc2, opts.listPrice);
         const topLine = document.createElement("div");
-        topLine.style.cssText = "display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:700;";
-        const acc = b.roleMember(4);
-        const accHint = acc !== GameConst.EMPTY_SLOT
-          ? (m.person(acc).skills & SkillFlag.ACCOUNTING ? floor : Math.trunc(Math.imul(98, floor) / 100) | 0)
-          : -1;
+        topLine.style.cssText = "display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;font-weight:700;flex-wrap:wrap;";
         const pInfo = document.createElement("span");
         pInfo.style.color = "var(--uw2-ink)";
-        const origAsk = capMsg(c, opts.priceKey.startsWith("new_") ? 0x100 : 0xc2, opts.listPrice);
-        pInfo.textContent = accHint >= 0 ? `${origAsk} ${capMsg(c, 0xc4, accHint)}` : origAsk;
+
+        if (!haggleOpen) {
+          pInfo.textContent = origAsk;
+          topLine.appendChild(pInfo);
+
+          const btnRow = document.createElement("div");
+          btnRow.className = "uw2-step-row";
+          const hagBtn = document.createElement("button");
+          hagBtn.className = "uw2-step-btn";
+          hagBtn.textContent = "还价";
+          hagBtn.disabled = opts.listPrice <= 0;
+          hagBtn.addEventListener("click", () => {
+            haggleOpen = true;
+            haggleAccRand = rng.random(10);
+            offerPrice = maxOffer;
+            render();
+          });
+          const buyFullBtn = document.createElement("button");
+          buyFullBtn.className = "uw2-btn uw2-btn-primary";
+          buyFullBtn.style.marginLeft = "auto";
+          buyFullBtn.textContent = `${opts.submitLabel}（${opts.listPrice.toLocaleString()} 金币）`;
+          buyFullBtn.addEventListener("click", () => opts.onCommit(opts.listPrice, avail, nameInp.value));
+          btnRow.append(hagBtn, buyFullBtn);
+          priceWrap.append(topLine, btnRow);
+          opts.box.appendChild(priceWrap);
+          return;
+        }
+
+        const acc = b.roleMember(4);
+        const accK = acc !== GameConst.EMPTY_SLOT && (m.person(acc).skills & SkillFlag.ACCOUNTING) ? 5 : haggleAccRand;
+        const accHint = acc !== GameConst.EMPTY_SLOT ? (Math.trunc(Math.imul(accK + 95, floor) / 100) | 0) : -1;
+        pInfo.textContent = accHint >= 0 ? `${capMsg(c, 0xc3)} ${capMsg(c, 0xc4, accHint)}` : capMsg(c, 0xc3);
         const offerReadout = document.createElement("span");
         offerReadout.style.color = "#7c5216";
         topLine.append(pInfo, offerReadout);
@@ -2120,7 +2153,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
         const syncOffer = (val: number) => {
           offerPrice = Math.max(0, Math.min(maxOffer, Math.trunc(val) || 0));
           sl.value = String(offerPrice);
-          offerReadout.textContent = `出价 ${offerPrice.toLocaleString()} 金币`;
+          offerReadout.textContent = `${offerPrice.toLocaleString()} 金币`;
           goBtn.textContent = `${opts.submitLabel}（${offerPrice.toLocaleString()} 金币）`;
           goBtn.disabled = avail < opts.listPrice && offerPrice <= 0;
         };

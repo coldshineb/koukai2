@@ -1,10 +1,10 @@
 // ui/workbenches.ts — 与「读取进度 (save_modal.ts)」1:1 同款视觉的三大一体化工作台 + 舰船/人物情报卡
 // 涵盖：交易所一体化工作台、码头补给与出航工作台、舰队经营一体化大面板、人物情报卡（修正拼合头像）、舰船情报卡。
-import { GameConst, SeaFlag2, ShipSlotFlag } from "../model/flags.ts";
+import { GameConst, SeaFlag2, ShipSlotFlag, SkillFlag } from "../model/flags.ts";
 import { WorldConst, fleetByAddr, heroOrDockSlot, personRawBytes, setDaysAtSea } from "../model/world_helpers.ts";
-import { domS16, domUmin16, calcBuyPriceShift, calcSellPriceShift, clampPriceIndexUp, clampPriceIndexDown } from "../domain/economy.ts";
+import { domS16, domUmin16, domUmax16, calcHaggleBounds, calcBuyPriceShift, calcSellPriceShift, clampPriceIndexUp, clampPriceIndexDown } from "../domain/economy.ts";
 import { marketTradeLog } from "../scenes/market.js";
-import { decodeCleanCstr } from "./text_util.ts";
+import { decodeCleanCstr, toSimp } from "./text_util.ts";
 import { createDomModal, getBuildingArtUrl, getPersonPortraitSrc, mountBuildingBanner, preserveScroll } from "./modals.ts";
 import { renderUnifiedInvestPane } from "./buildings_panel.ts";
 import { UI_STR } from "./strings.ts";
@@ -28,8 +28,12 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
     let qty = 0;
     let investAmt = 1000;
     let investReply = "";
+    let haggleOpen = false;
+    let haggleOffer = 0;
+    let agreedUnit: { code: number; price: number } | null = null;
     const hero = market.m.heroPerson();
-    let toastMsg = b.captureMessage(market.m.heroInfo().tradeFame >= 1000 ? 1 : 0, hero.givenNameBytes, hero.familyNameBytes);
+    const capMsg = (id: number, ...args: any[]) => toSimp(b.captureMessage(id, ...args).trim());
+    let toastMsg = capMsg(market.m.heroInfo().tradeFame >= 1000 ? 1 : 0, hero.givenNameBytes, hero.familyNameBytes);
 
     const h = createDomModal({
       title: `${portName} · ${marketTitle}`,
@@ -91,8 +95,8 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
       return out;
     };
 
-    const computeBuyMax = (good: any, ship: any) => {
-      if (!good || !ship || good.price <= 0) return 0;
+    const computeBuyMax = (good: any, ship: any, unitPrice = good?.price ?? 0) => {
+      if (!good || !ship || unitPrice <= 0) return 0;
       const cs = market.m.crewSlot(ship.slot);
       let hasSlot = false;
       for (let j = 0; j < GameConst.CARGO_SLOTS; j++) {
@@ -100,7 +104,7 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
         if (cg === GameConst.EMPTY_SLOT || cg === good.code) { hasSlot = true; break; }
       }
       if (!hasSlot) return 0;
-      return Math.max(0, Math.min(ship.free, Math.floor((market.money >>> 0) / good.price)));
+      return Math.max(0, Math.min(ship.free, Math.floor((market.money >>> 0) / unitPrice)));
     };
 
     const mountMarketQtyDock = (opts: {
@@ -189,7 +193,7 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
         btn.className = `uw2-btn uw2-tab-btn ${i === activeTab ? "active" : ""}`;
         btn.disabled = (i === 0 || i === 1) && ships.length === 0;
         btn.textContent = lb;
-        btn.addEventListener("click", () => { activeTab = i; qty = 0; selCargoIdx = 0; render(false); });
+        btn.addEventListener("click", () => { activeTab = i; qty = 0; selCargoIdx = 0; haggleOpen = false; agreedUnit = null; render(false); });
         toolbar.appendChild(btn);
       });
 
@@ -211,7 +215,7 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
           const row = document.createElement("button");
           row.className = `uw2-row-card ${i === selGoodIdx ? "selected" : ""}`;
           row.innerHTML = `<span class="uw2-item-name" style="${g.isSpec ? "color:#9e5a00;" : ""}">${g.name}</span><span class="uw2-item-price">${g.price} <small class="uw2-item-meta">(${g.idx}%)</small></span>`;
-          row.addEventListener("click", () => { selGoodIdx = i; qty = 0; render(); });
+          row.addEventListener("click", () => { selGoodIdx = i; qty = 0; haggleOpen = false; agreedUnit = null; render(); });
           glist.appendChild(row);
         });
         left.append(lt, glist);
@@ -232,11 +236,77 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
 
         const selGood = goods[selGoodIdx];
         const selShip = ships[selShipIdx];
-        const maxQty = computeBuyMax(selGood, selShip);
+        if (agreedUnit && (!selGood || agreedUnit.code !== selGood.code)) agreedUnit = null;
+        const unitPrice = agreedUnit ? agreedUnit.price : (selGood?.price ?? 0);
+        const maxQty = computeBuyMax(selGood, selShip, unitPrice);
         if (qty > maxQty) qty = maxQty;
         if (qty === 0 && maxQty > 0) qty = Math.min(10, maxQty);
 
         right.append(slist);
+        if (selGood && selGood.price > 1 && !agreedUnit) {
+          const bonus = (((market.port.region & 7) ^ hero.face) & 0x0f) === 0 ? market.m.heroInfo().rank : 0;
+          const { lo, mid } = calcHaggleBounds(selGood.price, bonus);
+          const hRow = document.createElement("div");
+          hRow.className = "uw2-step-row";
+          hRow.style.cssText = "padding:6px 10px;border-radius:8px;background:rgba(255,253,246,0.75);border:1px solid rgba(154,119,56,0.28);";
+          if (!haggleOpen) {
+            const askTxt = document.createElement("span");
+            askTxt.style.cssText = "font-size:13px;font-weight:700;color:var(--uw2-ink);";
+            askTxt.textContent = capMsg(0x96, market.goodsName(selGood.code), selGood.price);
+            const hBtn = document.createElement("button");
+            hBtn.className = "uw2-step-btn";
+            hBtn.style.marginLeft = "auto";
+            hBtn.textContent = "杀价";
+            hBtn.addEventListener("click", () => {
+              haggleOpen = true;
+              haggleOffer = Math.max(1, lo);
+              render();
+            });
+            hRow.append(askTxt, hBtn);
+          } else {
+            if (haggleOffer < 1 || haggleOffer >= selGood.price) haggleOffer = Math.max(1, lo);
+            const hSl = document.createElement("input");
+            hSl.type = "range";
+            hSl.min = "1";
+            hSl.max = String(selGood.price - 1);
+            hSl.value = String(haggleOffer);
+            hSl.style.flex = "1";
+            const hVal = document.createElement("span");
+            hVal.style.cssText = "font-size:13px;font-weight:700;min-width:56px;text-align:right;font-variant-numeric:tabular-nums;";
+            hVal.textContent = String(haggleOffer);
+            hSl.addEventListener("input", () => { haggleOffer = Number(hSl.value); hVal.textContent = String(haggleOffer); });
+            const bidBtn = document.createElement("button");
+            bidBtn.className = "uw2-step-btn";
+            bidBtn.textContent = "出价";
+            bidBtn.addEventListener("click", () => {
+              if (haggleOffer >= mid) {
+                agreedUnit = { code: selGood.code, price: haggleOffer };
+                haggleOpen = false;
+                toastMsg = capMsg(0x0a);
+                render();
+                return;
+              }
+              const acc = b.roleMember(4);
+              const autoCut = (hero.skills & SkillFlag.NEGOTIATE) || (acc !== GameConst.EMPTY_SLOT && (market.m.person(acc).skills & SkillFlag.ACCOUNTING));
+              if (autoCut) {
+                agreedUnit = { code: selGood.code, price: lo };
+                haggleOpen = false;
+                toastMsg = `${capMsg(0x353, lo)} ${capMsg(0x354, lo)}`.trim();
+                render();
+                return;
+              }
+              if (!(((mid - lo) & 0xffff) & 0xfffe)) {
+                toastMsg = capMsg(0x0b);
+                render();
+                return;
+              }
+              toastMsg = capMsg(0x0c, domUmax16(lo, (selGood.price - (((mid - lo) & 0xffff) >>> 1)) & 0xffff));
+              render();
+            });
+            hRow.append(hSl, hVal, bidBtn);
+          }
+          right.appendChild(hRow);
+        }
         mountMarketQtyDock({
           parent: right,
           label: selGood && selShip ? `${selGood.name} → ${selShip.name}` : "",
@@ -244,25 +314,27 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
           initialQty: qty,
           actionLabel: tabLabels[0],
           disabled: !selGood || !selShip,
-          formatReadout: n => `${n} / ${maxQty} (${selGood ? n * selGood.price : 0})`,
+          formatReadout: n => `${n} / ${maxQty} (${selGood ? n * unitPrice : 0})`,
           onCommit: committedQty => {
             if (!selGood || !selShip) return;
             const E = market.eco, cs = market.m.crewSlot(selShip.slot);
             let j = 0;
             while (j < GameConst.CARGO_SLOTS && cs.getCargoGoods(j) !== GameConst.EMPTY_SLOT && cs.getCargoGoods(j) !== selGood.code) j++;
             if (j >= GameConst.CARGO_SLOTS) return;
-            market.tradeLog(0x0c, selGood.code, selGood.price, committedQty);
-            market.money = market.money - committedQty * selGood.price;
+            market.tradeLog(0x0c, selGood.code, unitPrice, committedQty);
+            market.money = market.money - committedQty * unitPrice;
             cs.setCargoGoods(j, selGood.code);
             cs.setCargoAmts(j, cs.getCargoAmts(j) + committedQty);
             const cat = market.cat(selGood.code);
-            const { catDelta: d, allDelta: t } = calcBuyPriceShift(committedQty * selGood.price, E.commerce);
+            const { catDelta: d, allDelta: t } = calcBuyPriceShift(committedQty * unitPrice, E.commerce);
             E.setPrices(cat, clampPriceIndexUp(E.getPrices(cat), d));
             for (let i = 0; i < 10; i++) E.setPrices(i, clampPriceIndexUp(E.getPrices(i), t));
             b.loadTotal(selShip.slot);
             b.p.panels();
             toastMsg = `${selGood.name} ×${committedQty} → ${selShip.name}`;
             qty = 0;
+            agreedUnit = null;
+            haggleOpen = false;
             render();
           },
         });
