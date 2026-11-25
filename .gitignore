@@ -1,7 +1,5 @@
 # 分析與測試的工作檔 (原版檔案副本、反組譯輸出、測試截圖), 可隨時以 tools/emu/prep_local.py 等重建
 tools/work/
-# PS 版音樂 (122 MB, 由使用者另外提供)
-web/bgm/
 __pycache__/
 *.pyc
 node_modules/

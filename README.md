@@ -16,7 +16,7 @@
 | **资源加载方式** | 直接加载原版二进制平面/压缩包（`GRAPH.DAT`、`KAO.LZW`、`MESSAGE.DAT`、`portchip.bin` 等），前端实时 LS11 解压与图像解码 | 离线预提取与高清化后的 `web/assets/art/` 索引图集与文本 JSON |
 | **剧情虚拟机** | `Scenario` VM 直接解释底层反编译剧本 `snr0..6.json`（搭配 `ScenarioMemoryAdapter` 对接 `DS` 地址空间） | 提升至结构化高阶剧本 `story0..6.json`（`uw2-story-v1`） |
 | **运行节奏控制** | `cpucost.js` 虚拟时钟耗时记帐模型，还原原版 DOSBox `cycles=10500` 的指令耗时与画面延迟呈现（支持 `?cycles=N` / `?cycles=0`） | 现代 `requestAnimationFrame` 帧率驱动循环 |
-| **背景音乐** | PS 版 MP3 音轨（`web/bgm/` 需另行提供，未纳入 git 追踪） | 仓库内附带 PS1 版与 30 周年 CD 版双音源实时切换 |
+| **背景音乐** | 仓库内附带 PS1 版 MP3 音轨（`web/bgm/ps1_01..27.mp3`） | 仓库内附带 PS1 版与 30 周年 CD 版双音源实时切换 |
 | **开发与回归工具** | 保留 `web/dev/` 资源查看器与 UI 沙盒；支持基于 x86 + VGA 模拟器的 `test:fast` / `test:all` 差分回归 | 移除 `web/dev/`，以纯 JS/TS 领域、剧本与存档单元测试为主 |
 
 ---
@@ -37,7 +37,7 @@
 - **港内直达扩展**：保留可选扩展指令「港内移动」（`scenes/portmove.js`），可通过 `?portmove=0` 关闭以严格对齐原版。
 
 ### 4. 原生 OPL2 音效合成与 PS1 版音乐
-- **BGM 播放**（`web/src/core/audio.js`、`web/assets/data/bgm.json`）：按原版曲目表 `DS:8c20` 映射至 PS1 版 MP3（`web/bgm/ps1_01..27.mp3`，支持淡出等待与一次性短曲）。由于音频体积较大，`.gitignore` 排除了 `web/bgm/`，需自行准备对应 MP3 放入该目录。
+- **BGM 播放**（`web/src/core/audio.js`、`web/assets/data/bgm.json`）：按原版曲目表 `DS:8c20` 映射至内置 PS1 版 MP3（`web/bgm/ps1_01..27.mp3`，支持淡出等待与一次性短曲）。
 - **OPL2 FM 音效**（`web/src/core/opl.js`、`sfx.js`、`sfx_worklet.js`）：使用 Web Audio `AudioWorklet` 实时合成原版 `FMDRV` 航行、暴风雨与战斗音效，支持 `?sfxvol=N` 调节输出增益。
 
 ### 5. 现代 JSON 存档与原版存档迁移
@@ -51,7 +51,6 @@
 ### 环境要求
 - **Node.js**（建议 18+）与 **npm**
 - 若需运行 `test:prep`、差分回归或从原版文件重新解包资源，需 **Python 3**
-- 若需开启游戏背景音乐，请将 PS1 版音轨 `ps1_01.mp3`..`ps1_27.mp3` 放入 `web/bgm/`
 
 ### 启动开发服务器
 > 注意：本分支源码已混合使用 `.ts` 与 `.js`（ES Modules），**必须通过 Vite 开发服务器或先构建后预览运行**，无法直接用纯静态文件服务器运行未转译的 `.ts` 模块。
@@ -125,7 +124,7 @@ uw2_remake/
 │   └── RE_NOTES.md              DOS 原版完整逆向技术手册
 ├── web/                         前端应用（游戏主体）
 │   ├── index.html               4:3 原版像素画布入口
-│   ├── bgm/                     PS1 版背景音乐 MP3（.gitignore 排除，需自备）
+│   ├── bgm/                     PS1 版背景音乐 MP3（ps1_01..27.mp3，已纳入版本管理）
 │   ├── dev/                     开发辅助页（viewer / ui_test / data）
 │   ├── assets/                  解包提取的原版静态与二进制资源
 │   │   ├── data/                世界、港口、航道、风向海流、BGM 映射等数据
@@ -174,6 +173,6 @@ python tools/gen_model.py
 
 ## 提交规范
 
-- `.gitignore` 已排除 `tools/work/`、`web/bgm/`、`node_modules/` 与 `dist/`。
+- 已追踪全部 `web/bgm/ps1_01..27.mp3` 音频资源，`.gitignore` 仅排除 `tools/work/`、`node_modules/`、`dist/` 及 Python 缓存文件。
 - 提交前建议至少运行：
   `npm run typecheck && npm run build && npm run test:domain && npm run test:save`
