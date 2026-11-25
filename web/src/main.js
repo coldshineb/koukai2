@@ -71,10 +71,13 @@ const shell = new ModernShell({
   saveBridge: {
     getSlots: async () => (await ensureSaveFile()).store?.bundle.slots ?? [],
     getAutoSave: async () => (await ensureSaveFile()).store?.bundle.autoSave ?? null,
+    deleteSlot: async (slotIndex) => (await ensureSaveFile()).deleteSlot(slotIndex),
     exportJson: async (slotIndex, stripCompat = false) => {
       const f = await ensureSaveFile();
       return f.exportJson({ pretty: true, stripCompat, ...(typeof slotIndex === "number" ? { slotIndex } : {}) });
     },
+    inspectImportBuffer: async (buf) => (await ensureSaveFile()).inspectImportBuffer(buf),
+    importSlots: async (items, heroId) => (await ensureSaveFile()).importSlots(items, heroId),
     importBuffer: async (buf, targetSlot) => (await ensureSaveFile()).importBuffer(buf, targetSlot),
   },
 });
@@ -134,11 +137,7 @@ function frame() {
   requestAnimationFrame(frame);
   await opening.run();
   if (ctx.halted) return;
-  if (hasDom() && ctx.codec) {
-    ctx.scr.wideRenderer = c2d => renderWideTitle(c2d, ctx.art);
-    ctx.scr.dirty = true;
-  }
-  await ctx.bgm.stopped();
+  if (!(hasDom() && ctx.codec)) await ctx.bgm.stopped();
   const r = await new Title(ctx).run();
   if (ctx.halted || r !== 1) return;
   try {

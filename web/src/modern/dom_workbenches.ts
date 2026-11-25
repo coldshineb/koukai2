@@ -27,6 +27,7 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
     let selPriceCat = 0;
     let qty = 0;
     let investAmt = 1000;
+    let investReply = "";
     const hero = market.m.heroPerson();
     let toastMsg = b.captureMessage(market.m.heroInfo().tradeFame >= 1000 ? 1 : 0, hero.givenNameBytes, hero.familyNameBytes);
 
@@ -323,11 +324,12 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
         split.append(left, right);
         h.body.appendChild(split);
       } else if (activeTab === 2) {
+        toastEl.textContent = "";
         const E = market.eco;
         const di = market.money >= GameConst.MAX_INVEST ? GameConst.MAX_INVEST : market.money & 0xffff;
         const maxInv = b.isCapital() ? 0 : domUmin16(di, Math.max(0, GameConst.MAX_INVEST - E.commerceInvest));
         if (investAmt > maxInv) investAmt = maxInv;
-        const blockMsg = b.isCapital() ? b.captureMessage(2) : E.commerceInvest >= GameConst.MAX_INVEST ? b.captureMessage(7) : "";
+        const blockMsg = b.isCapital() ? b.captureMessage(2) : E.commerceInvest >= GameConst.MAX_INVEST ? (investReply || b.captureMessage(7)) : "";
         renderUnifiedInvestPane({
           container: h.body,
           leftTitle: "港口商业",
@@ -339,7 +341,7 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
           maxInvest: maxInv,
           amount: investAmt,
           blockMsg,
-          promptMsg: b.captureMessage(8),
+          promptMsg: investReply || b.captureMessage(8),
           confirmLabel: tabLabels[2],
           onAmountChange: v => { investAmt = v; },
           onConfirm: amt => {
@@ -349,7 +351,7 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
             b.investSupport(amt, E.commerce);
             b.investOwner();
             b.p.panels();
-            toastMsg = b.captureMessage(amt < 500 ? 0x0e : amt < 10000 ? 0x0f : 0x10);
+            investReply = b.captureMessage(amt < 500 ? 0x0e : amt < 10000 ? 0x0f : 0x10);
             investAmt = 0;
             render();
           },

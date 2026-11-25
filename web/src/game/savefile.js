@@ -68,7 +68,7 @@ export class SaveFile {
   writeSlot(i, header15, state) {
     if (this.store) {
       this.store.saveSlot(i, state.subarray(0, SLOT_SIZE), header15);
-      this.b.set(header15, HEADER_OFF + i * HEADER_SIZE);
+      if (i >= 0 && i < SLOTS) this.b.set(header15, HEADER_OFF + i * HEADER_SIZE);
       return;
     }
     this.b.set(header15, HEADER_OFF + i * HEADER_SIZE);
@@ -76,9 +76,28 @@ export class SaveFile {
     this.flush();
   }
 
+  deleteSlot(i) {
+    if (!this.store) return;
+    this.store.deleteSlot(i);
+    this.b.set(this.store.buildLegacyHeaders(), HEADER_OFF);
+  }
+
   exportJson(opts) {
     if (!this.store) throw new Error("SaveFile 尚未連接 JSON SaveStore");
     return this.store.exportJson(opts);
+  }
+
+  inspectImportBuffer(data) {
+    if (!this.store) throw new Error("SaveFile 尚未連接 JSON SaveStore");
+    return this.store.inspectImportBuffer(data);
+  }
+
+  importSlots(items, heroId) {
+    if (!this.store) throw new Error("SaveFile 尚未連接 JSON SaveStore");
+    const count = this.store.importSlots(items, heroId);
+    this.b[0] = this.store.bundle.heroId & 0xff;
+    this.b.set(this.store.buildLegacyHeaders(), HEADER_OFF);
+    return count;
   }
 
   importBuffer(data, targetSlot) {

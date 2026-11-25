@@ -1624,6 +1624,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
   let selGun = 1;
   let gunQty = 1;
   let investAmt = 1000;
+  let investReply = "";
   let replaceSlot = -1;
   let notice = specialNotice || initGreet;
 
@@ -2163,11 +2164,12 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
           right.appendChild(box);
         } else {
           // ---- 5. 工业投资（與交易所商業投資 1:1 統一面板） ----
+          shell.toastEl.textContent = "";
           const curInv = st.u16(E + 6);
           const capAmt = b.money >= GameConst.MAX_INVEST ? GameConst.MAX_INVEST : b.money & 0xffff;
           const maxInv = b.isCapital() ? 0 : Math.min(capAmt, Math.max(0, GameConst.MAX_INVEST - curInv));
           if (investAmt > maxInv) investAmt = maxInv;
-          const blockMsg = b.isCapital() ? capMsg(c, 2) : curInv >= GameConst.MAX_INVEST ? capMsg(c, 7) : "";
+          const blockMsg = b.isCapital() ? capMsg(c, 2) : curInv >= GameConst.MAX_INVEST ? (investReply || capMsg(c, 7)) : "";
           renderUnifiedInvestPane({
             container: shell.h.body,
             leftTitle: "港口工业",
@@ -2179,17 +2181,17 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
             maxInvest: maxInv,
             amount: investAmt,
             blockMsg,
-            promptMsg: capMsg(c, 8),
+            promptMsg: investReply || capMsg(c, 8),
             confirmLabel: tabLabels[5],
             onAmountChange: v => { investAmt = v; },
             onConfirm: v => {
-              if (v <= 0) { notice = capMsg(c, 0x0d); render(); return; }
+              if (v <= 0) { investReply = capMsg(c, 0x0d); render(); return; }
               st.set16(E + 6, st.u16(E + 6) + v);
               b.investSupport(v);
               b.investOwner();
               b.money = (b.money - v) | 0;
               b.p.panels();
-              notice = capMsg(c, v < 500 ? 0x0e : v < 10000 ? 0x0f : 0x10);
+              investReply = capMsg(c, v < 500 ? 0x0e : v < 10000 ? 0x0f : 0x10);
               investAmt = 0;
               render();
             },

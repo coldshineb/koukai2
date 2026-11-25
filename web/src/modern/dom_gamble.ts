@@ -63,27 +63,35 @@ export async function runDomGamble(gamble: any): Promise<void> {
 
   return new Promise(resolve => {
     const h = createDomModal({
-      title: "酒馆赌博",
-      size: "md",
+      title: "酒馆 · 赌博",
+      size: "wide",
       cancelable: true,
-      closeLabel: "离开",
+      closeLabel: "关闭",
       onCancel: () => resolve(),
     });
 
-    const cashBadge = document.createElement("span");
-    cashBadge.className = "uw2-badge";
-    h.headerRight.prepend(cashBadge);
+    const cashPill = document.createElement("span");
+    cashPill.className = "uw2-pill";
+    h.headerRight.prepend(cashPill);
 
     const toolbar = document.createElement("div");
     toolbar.className = "uw2-modal-toolbar";
     h.modal.insertBefore(toolbar, h.body);
 
+    const footer = document.createElement("div");
+    footer.className = "uw2-modal-footer";
+    const toastEl = document.createElement("span");
+    toastEl.style.cssText = "font-size:13px;font-weight:600;color:#247544;";
+    footer.appendChild(toastEl);
+    h.modal.appendChild(footer);
+
     const render = () => {
-      cashBadge.textContent = `金块 ${gamble.bars} · 金币 ${gamble.gold}`;
+      cashPill.textContent = `金块 ${gamble.bars}  ·  金币 ${gamble.gold}`;
+      toastEl.textContent = activeTab === 0 ? bjMsg : dcMsg;
       toolbar.innerHTML = "";
       ["二十一点", "扑克骰子"].forEach((lb, i) => {
         const b = document.createElement("button");
-        b.className = `uw2-btn uw2-tab-btn ${i === activeTab ? "active" : ""}`;
+        b.className = `uw2-tab-btn ${i === activeTab ? "active" : ""}`;
         b.textContent = lb;
         b.addEventListener("click", () => {
           activeTab = i;
@@ -102,13 +110,12 @@ export async function runDomGamble(gamble: any): Promise<void> {
           bjBet = Math.max(10, Math.min(maxBet, bjBet));
           const box = document.createElement("div");
           box.className = "uw2-action-box";
-          box.innerHTML = `<div style="font-weight:700;color:var(--uw2-ink);">${bjMsg}</div>`;
           if (maxBet < 10) {
-            box.innerHTML += `<div style="color:var(--uw2-danger);">金币不足 10，无法继续下注。</div>`;
+            box.innerHTML = `<div class="uw2-speech-box" style="color:var(--uw2-danger);">金币不足 10，无法继续下注。</div>`;
           } else {
             const label = document.createElement("div");
-            label.style.cssText = "display:flex;justify-content:space-between;font-weight:700;";
-            label.innerHTML = `<span>下注金额</span><span>${bjBet} 金币（上限 ${maxBet}）</span>`;
+            label.className = "uw2-kv-row";
+            label.innerHTML = `<span class="uw2-kv-label">下注金额</span><span class="uw2-item-price">${bjBet.toLocaleString()} 金币（上限 ${maxBet.toLocaleString()}）</span>`;
             const slider = document.createElement("input");
             slider.type = "range";
             slider.className = "uw2-slider";
@@ -117,14 +124,31 @@ export async function runDomGamble(gamble: any): Promise<void> {
             slider.max = String(maxBet);
             slider.step = "10";
             slider.value = String(bjBet);
-            slider.addEventListener("input", () => {
-              bjBet = Number(slider.value);
-              label.innerHTML = `<span>下注金额</span><span>${bjBet} 金币（上限 ${maxBet}）</span>`;
-            });
+            const syncBet = (v: number) => {
+              bjBet = Math.max(10, Math.min(maxBet, Math.round(v / 10) * 10));
+              slider.value = String(bjBet);
+              label.innerHTML = `<span class="uw2-kv-label">下注金额</span><span class="uw2-item-price">${bjBet.toLocaleString()} 金币（上限 ${maxBet.toLocaleString()}）</span>`;
+            };
+            slider.addEventListener("input", () => syncBet(Number(slider.value)));
+            const stepRow = document.createElement("div");
+            stepRow.className = "uw2-step-row";
+            for (const [lb, fn] of [
+              ["-100", () => syncBet(bjBet - 100)],
+              ["-10", () => syncBet(bjBet - 10)],
+              ["+10", () => syncBet(bjBet + 10)],
+              ["+100", () => syncBet(bjBet + 100)],
+              ["MAX", () => syncBet(maxBet)],
+            ] as const) {
+              const qb = document.createElement("button");
+              qb.className = "uw2-step-btn";
+              qb.textContent = lb;
+              qb.addEventListener("click", fn);
+              stepRow.appendChild(qb);
+            }
             const startBtn = document.createElement("button");
             startBtn.className = "uw2-btn uw2-btn-primary";
-            startBtn.style.alignSelf = "flex-end";
-            startBtn.style.padding = "8px 24px";
+            startBtn.style.alignSelf = "flex-start";
+            startBtn.style.padding = "8px 28px";
             startBtn.textContent = "发牌";
             startBtn.addEventListener("click", () => {
               gamble.money -= bjBet;
@@ -136,26 +160,26 @@ export async function runDomGamble(gamble: any): Promise<void> {
               if (handSum(bjPlayer) === 21) finishBj();
               else render();
             });
-            box.append(label, slider, startBtn);
+            box.append(label, slider, stepRow, startBtn);
           }
           h.body.appendChild(box);
         } else {
+          const split = document.createElement("div");
+          split.className = "uw2-split";
           const dealerArea = document.createElement("div");
-          dealerArea.className = "uw2-action-box";
+          dealerArea.className = "uw2-pane";
           const dShow = bjPhase === "done";
           dealerArea.innerHTML =
             `<div class="uw2-pane-title">庄家 ${dShow ? `（${handSum(bjDealer)} 点）` : ""}</div>` +
-            `<div class="uw2-card-row">${bjDealer.map((c, idx) => cardHtml(c, !dShow && idx === 0)).join("")}</div>`;
+            `<div class="uw2-action-box"><div class="uw2-card-row">${bjDealer.map((c, idx) => cardHtml(c, !dShow && idx === 0)).join("")}</div></div>`;
 
           const playerArea = document.createElement("div");
-          playerArea.className = "uw2-action-box";
+          playerArea.className = "uw2-pane";
           playerArea.innerHTML =
             `<div class="uw2-pane-title">我方（${handSum(bjPlayer)} 点 · 赌注 ${bjBet}）</div>` +
-            `<div class="uw2-card-row">${bjPlayer.map(c => cardHtml(c, false)).join("")}</div>`;
+            `<div class="uw2-action-box"><div class="uw2-card-row">${bjPlayer.map(c => cardHtml(c, false)).join("")}</div></div>`;
 
-          const msgEl = document.createElement("div");
-          msgEl.style.cssText = "font-weight:700;font-size:15px;color:var(--uw2-ink);padding:4px 2px;";
-          msgEl.textContent = bjMsg;
+          split.append(dealerArea, playerArea);
 
           const actions = document.createElement("div");
           actions.className = "uw2-dialog-actions";
@@ -185,20 +209,19 @@ export async function runDomGamble(gamble: any): Promise<void> {
             againBtn.addEventListener("click", () => { bjPhase = "bet"; bjMsg = "请下注后开始发牌。"; render(); });
             actions.appendChild(againBtn);
           }
-          h.body.append(dealerArea, playerArea, msgEl, actions);
+          h.body.append(split, actions);
         }
       } else {
         if (dcPhase === "bet") {
           dcBet = Math.max(10, Math.min(maxBet, dcBet));
           const box = document.createElement("div");
           box.className = "uw2-action-box";
-          box.innerHTML = `<div style="font-weight:700;color:var(--uw2-ink);">${dcMsg}</div>`;
           if (maxBet < 10) {
-            box.innerHTML += `<div style="color:var(--uw2-danger);">金币不足 10，无法继续下注。</div>`;
+            box.innerHTML = `<div class="uw2-speech-box" style="color:var(--uw2-danger);">金币不足 10，无法继续下注。</div>`;
           } else {
             const label = document.createElement("div");
-            label.style.cssText = "display:flex;justify-content:space-between;font-weight:700;";
-            label.innerHTML = `<span>下注金额</span><span>${dcBet} 金币（上限 ${maxBet}）</span>`;
+            label.className = "uw2-kv-row";
+            label.innerHTML = `<span class="uw2-kv-label">下注金额</span><span class="uw2-item-price">${dcBet.toLocaleString()} 金币（上限 ${maxBet.toLocaleString()}）</span>`;
             const slider = document.createElement("input");
             slider.type = "range";
             slider.className = "uw2-slider";
@@ -207,14 +230,31 @@ export async function runDomGamble(gamble: any): Promise<void> {
             slider.max = String(maxBet);
             slider.step = "10";
             slider.value = String(dcBet);
-            slider.addEventListener("input", () => {
-              dcBet = Number(slider.value);
-              label.innerHTML = `<span>下注金额</span><span>${dcBet} 金币（上限 ${maxBet}）</span>`;
-            });
+            const syncBet = (v: number) => {
+              dcBet = Math.max(10, Math.min(maxBet, Math.round(v / 10) * 10));
+              slider.value = String(dcBet);
+              label.innerHTML = `<span class="uw2-kv-label">下注金额</span><span class="uw2-item-price">${dcBet.toLocaleString()} 金币（上限 ${maxBet.toLocaleString()}）</span>`;
+            };
+            slider.addEventListener("input", () => syncBet(Number(slider.value)));
+            const stepRow = document.createElement("div");
+            stepRow.className = "uw2-step-row";
+            for (const [lb, fn] of [
+              ["-100", () => syncBet(dcBet - 100)],
+              ["-10", () => syncBet(dcBet - 10)],
+              ["+10", () => syncBet(dcBet + 10)],
+              ["+100", () => syncBet(dcBet + 100)],
+              ["MAX", () => syncBet(maxBet)],
+            ] as const) {
+              const qb = document.createElement("button");
+              qb.className = "uw2-step-btn";
+              qb.textContent = lb;
+              qb.addEventListener("click", fn);
+              stepRow.appendChild(qb);
+            }
             const startBtn = document.createElement("button");
             startBtn.className = "uw2-btn uw2-btn-primary";
-            startBtn.style.alignSelf = "flex-end";
-            startBtn.style.padding = "8px 24px";
+            startBtn.style.alignSelf = "flex-start";
+            startBtn.style.padding = "8px 28px";
             startBtn.textContent = "掷骰";
             startBtn.addEventListener("click", () => {
               gamble.money -= dcBet;
@@ -227,7 +267,7 @@ export async function runDomGamble(gamble: any): Promise<void> {
               dcMsg = "点击骰子可保留，再点重掷或直接开牌。";
               render();
             });
-            box.append(label, slider, startBtn);
+            box.append(label, slider, stepRow, startBtn);
           }
           h.body.appendChild(box);
         } else {
@@ -254,14 +294,10 @@ export async function runDomGamble(gamble: any): Promise<void> {
             const oppBox = document.createElement("div");
             oppBox.className = "uw2-action-box";
             oppBox.innerHTML =
-              `<div style="display:flex;justify-content:space-between;font-size:14px;"><span>对手 A：${dcOpp1.map(v => DICE_FACE[v]).join(" ")}</span><strong>${HAND_NAMES[evalDiceRank(dcOpp1)]}</strong></div>` +
-              `<div style="display:flex;justify-content:space-between;font-size:14px;"><span>对手 B：${dcOpp2.map(v => DICE_FACE[v]).join(" ")}</span><strong>${HAND_NAMES[evalDiceRank(dcOpp2)]}</strong></div>`;
+              `<div class="uw2-kv-row"><span class="uw2-kv-label">对手 A：${dcOpp1.map(v => DICE_FACE[v]).join(" ")}</span><span class="uw2-kv-val">${HAND_NAMES[evalDiceRank(dcOpp1)]}</span></div>` +
+              `<div class="uw2-kv-row"><span class="uw2-kv-label">对手 B：${dcOpp2.map(v => DICE_FACE[v]).join(" ")}</span><span class="uw2-kv-val">${HAND_NAMES[evalDiceRank(dcOpp2)]}</span></div>`;
             h.body.appendChild(oppBox);
           }
-
-          const msgEl = document.createElement("div");
-          msgEl.style.cssText = "font-weight:700;font-size:15px;color:var(--uw2-ink);padding:4px 2px;";
-          msgEl.textContent = dcMsg;
 
           const actions = document.createElement("div");
           actions.className = "uw2-dialog-actions";
@@ -292,7 +328,7 @@ export async function runDomGamble(gamble: any): Promise<void> {
             againBtn.addEventListener("click", () => { dcPhase = "bet"; dcMsg = "请下注后掷骰。"; render(); });
             actions.appendChild(againBtn);
           }
-          h.body.append(msgEl, actions);
+          h.body.appendChild(actions);
         }
       }
     };
