@@ -110,8 +110,8 @@ export class PortScene {
       g.lastPort = this.port;
       this.talkCool = 10;
     } else this.loadZa();                                             // (移植版沒有常駐的 DS:0904, 每次進港重新取得)
-    this.loadPort();                                                  // 88e9
     await palette.fadeBlack();
+    this.loadPort();                                                  // 88e9 (先淡黑再切換港圖緩衝，避免進港瞬間閃出錯位圖塊)
     sys.mouseHide();
     this.toggle = 0;
     this.c.scr.clear(0);
@@ -572,7 +572,7 @@ export class PortScene {
   // 1b8c8 畫面按鈕: 0..3 / 4..7 = 方向 1..4; 8..11 = 指令按鈕 (scenes/commands.js), 回傳 FF
   async buttons(key) {
     const m = this.c.sys.mouse;
-    if (this.c.scr.wideRenderer && key && m?.vx !== undefined) {
+    if (this.c.scr.wideRenderer && key === 0xff && m?.vx !== undefined) {
       const cmd = hitWideCommandButton(m.vx, m.vy);
       if (cmd >= 0) {
         await (this.commands ??= new Commands(this)).button(cmd);
@@ -602,7 +602,6 @@ export class PortScene {
       if (Math.abs(mk.h) > 8 || Math.abs(mk.v) > 8) {
         if (Math.abs(mk.v) < Math.abs(mk.h)) di = mk.h >= 0 ? 2 : 4; else di = mk.v >= 0 ? 3 : 1;
       }
-      const b = await this.buttons(key);
       if (this.pmTarget !== undefined) {                              // 擴充功能 (非原版): 港內移動 — 瞬移到門口後照原版進門 (RE_NOTES 33.5)
         const k = this.pmTarget; this.pmTarget = undefined;
         sys.mouseHide(); PortMove.teleport(this, k); sys.mouseShow();
@@ -610,6 +609,7 @@ export class PortScene {
         if (r) return r;
         continue;
       }
+      const b = await this.buttons(key);
       if (b !== 0xff) di = b;
       if (this.port === 0xff) return 0;
       if (this.timeAbort()) return 0;                                 // 1b39a (讀檔後)

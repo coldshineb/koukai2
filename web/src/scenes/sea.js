@@ -375,7 +375,7 @@ export class SeaScene extends PortScene {
   async seaButton(key) {
     const { sys, con } = this.c, st = this.st, B = this.SJ.tab.buttons;
     const m = sys.mouse;
-    if (this.c.scr.wideRenderer && (this.a9c8 & 3) && m?.vx !== undefined) {
+    if (this.c.scr.wideRenderer && key === 0xff && (this.a9c8 & 3) && m?.vx !== undefined) {
       const cmd = hitWideCommandButton(m.vx, m.vy);
       if (cmd >= 0) {
         sys.mouseHide();

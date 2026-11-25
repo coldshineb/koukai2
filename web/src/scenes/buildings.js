@@ -254,7 +254,7 @@ export class Buildings {
   talkGirl(face, rec) {
     const { kao, scr, printf, codec } = this.c;
     if (scr.wideRenderer && codec) {
-      const nm = toSimp(codec.decode(this.dstr(rec)).replace(/\0.*$/, "").trim());
+      const nm = decodeCleanCstr(codec, this.dstr(rec));
       this.beginWideTalk(face, nm);
       return;
     }
