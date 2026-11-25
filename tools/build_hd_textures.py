@@ -494,6 +494,22 @@ def extract_outer_ground(tile_idx: np.ndarray, set_idx: int, t_id: int, p2: int,
         ms, a_s = flood_group({10, 11, 15})
         if int(np.sum(ms)) >= 12 and {11, 15}.issubset(a_s) and int(np.sum(ms & (tile_idx == 11))) >= 4 and int(np.sum(ms & (tile_idx == 15))) >= 4:
             outer_sand |= ms
+    elif not np.any(tile_idx == 9) and 2 in edge_map and {11, 15}.issubset(edge_map[2]) and set(tile_idx[15, :].tolist()).issubset({11, 15}):
+        # 码头马赛克墙体下缘 (如 set 0: 108、set 2: 81) 自带 2px 纯 {11,15} 沙底带：剥离为地平沙砖以消除墙底突兀亮条
+        ms2 = np.zeros_like(tile_idx, dtype=bool)
+        q2 = deque()
+        for x in range(16):
+            ms2[15, x] = True
+            q2.append((15, x))
+        while q2:
+            cy, cx = q2.popleft()
+            for dy, dx in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                ny, nx = cy + dy, cx + dx
+                if 0 <= ny < 16 and 0 <= nx < 16 and not ms2[ny, nx] and int(tile_idx[ny, nx]) in (11, 15):
+                    ms2[ny, nx] = True
+                    q2.append((ny, nx))
+        if int(np.sum(ms2)) >= 16:
+            outer_sand |= ms2
 
     return outer_sand, outer_grass
 
@@ -584,12 +600,14 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats, water_
             is_walk = (t_id < p2) and not is_arch_walk
             is_tree_tile = (t_id >= p2) and (int(np.sum((tile_idx == 13) | (tile_idx == 14))) >= 120) and not np.any(is_water) and (c0_cnt >= 8)
             is_shore_tile = (t_id >= p2) and np.any(is_water) and (int(np.sum((tile_idx == 13) | (tile_idx == 14))) >= 18)
+            water_px = int(np.sum(is_water))
             is_flat_beach = (t_id >= p2) and (
                 (
                     np.any(is_water)
                     and (
                         c0_cnt <= 20
                         or (c0_cnt <= 36 and int(np.sum((tile_idx == 8) | (tile_idx == 10) | (tile_idx == 11) | (tile_idx == 13) | (tile_idx == 14) | (tile_idx == 15))) >= 150)
+                        or (water_px >= 90 and (c0_cnt <= 38 or (c0_cnt <= 44 and water_px >= 160)))
                     )
                 )
                 or (
@@ -658,6 +676,8 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats, water_
                 pairs = pairs | {(8, 11), (11, 8), (8, 10), (10, 8)}
             tile_pal = MODERN_GROUND_PAL if (is_walk or is_tree_tile or is_shore_tile or is_flat_beach or is_ground_stair) else MODERN_ARCH_PAL
             base_16 = dedither_tile_rgb(tile_idx, tile_pal, pairs, is_water=is_water, wrap_edges=(is_walk and t_id < p1 and not is_ground_shadow_tile and not is_road_curb))
+            if is_flat_beach and set_idx == 1 and np.any((tile_idx == 8) & (sem == 2)):
+                base_16[(tile_idx == 8) & (sem == 2)] = stone_ref
             if not (is_walk or is_tree_tile or is_shore_tile or is_flat_beach) and np.any(outer_bg):
                 ext_pairs = GROUND_DITHER_PAIRS | {(8, 11), (11, 8), (8, 10), (10, 8)}
                 base_ext = dedither_tile_rgb(tile_idx, MODERN_GROUND_PAL, ext_pairs, is_water=is_water, wrap_edges=False)
