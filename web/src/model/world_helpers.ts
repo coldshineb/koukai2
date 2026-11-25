@@ -132,8 +132,43 @@ export function getWorkState(m: WorldModel) {
   };
 }
 
+export interface ExtraTradeLogRecord {
+  dateWord: number;
+  type: number;
+  arg4: number;
+  arg6: number;
+  arg8: number;
+  arg10: number;
+}
+
+export interface TradeLogEntryView {
+  dateWord: number;
+  type: number;
+  argU8: (off: number) => number;
+  argU16: (off: number) => number;
+  argI32HiLo: (off: number) => number;
+}
+
+function makeExtraTradeLogAccessor(rec: ExtraTradeLogRecord): TradeLogEntryView {
+  const words = [rec.arg4, rec.arg6, rec.arg8, rec.arg10];
+  return {
+    dateWord: rec.dateWord & 0xffff,
+    type: rec.type & 0xffff,
+    argU8: (off: number) => {
+      const w = words[off >> 1] ?? 0;
+      return (off & 1 ? w >> 8 : w) & 0xff;
+    },
+    argU16: (off: number) => (words[off >> 1] ?? 0) & 0xffff,
+    argI32HiLo: (off: number) => {
+      const hi = words[off >> 1] ?? 0;
+      const lo = words[(off >> 1) + 1] ?? 0;
+      return ((lo | (hi << 16)) | 0);
+    },
+  };
+}
+
 /** 航海日志第 index 笔 (0..47) */
-export function getTradeLogEntry(m: WorldModel, index: number) {
+export function getTradeLogEntry(m: WorldModel, index: number): TradeLogEntryView {
   const base = DS.TRADE_LOGS + index * 16;
   const st = m.st;
   return {
@@ -143,6 +178,24 @@ export function getTradeLogEntry(m: WorldModel, index: number) {
     argU16: (off: number) => st.u16(base + 4 + off),
     argI32HiLo: (off: number) => ((st.u16(base + 4 + off + 2) | (st.u16(base + 4 + off) << 16)) | 0),
   };
+}
+
+/** 按时间顺序返回全部航海日志（解锁上限时先含超出 48 笔的历史记录，再接最近 48 笔环形槽） */
+export function collectTradeLogEntries(m: WorldModel): TradeLogEntryView[] {
+  const extra: ExtraTradeLogRecord[] = (m.st as any).extraTradeLogs ?? [];
+  const out = extra.map(makeExtraTradeLogAccessor);
+  for (let i = 0; i < GameConst.TRADE_LOG_COUNT; i++) {
+    const e = getTradeLogEntry(m, i);
+    if (e.dateWord === 0xffff) break;
+    out.push(e);
+  }
+  return out;
+}
+
+/** 是否存在至少一笔航海日志 */
+export function hasTradeLogEntries(m: WorldModel): boolean {
+  const extra: ExtraTradeLogRecord[] = (m.st as any).extraTradeLogs ?? [];
+  return extra.length > 0 || getTradeLogEntry(m, 0).dateWord !== 0xffff;
 }
 
 /** 有符号 16 位转换 */
@@ -332,7 +385,7 @@ export function getPersonByte(p: PersonView, off: number): number {
   return p.st.u8(p.addr + off);
 }
 
-/** 写入一笔航海日志到 48 笔环形缓冲 (满时整体前移) */
+/** 写入一笔航海日志（默认使用 48 笔环形缓冲，开启 unlockTradeLogCap 时将溢出记录保留到扩展历史列表） */
 export function appendTradeLog(
   m: WorldModel,
   rt: { year: number; month: number; day: number },
@@ -342,10 +395,21 @@ export function appendTradeLog(
   amount: number,
   a6 = 0,
 ): void {
-  const st = m.st, B = DS.TRADE_LOGS, N = 48;
+  const st = m.st as any, B = DS.TRADE_LOGS, N = 48;
   let i = 0;
   while (i < N && st.u16(B + i * 16) !== 0xffff) i++;
   if (i === N) {
+    if (st._prefs?.unlockTradeLogCap) {
+      const list: ExtraTradeLogRecord[] = (st.extraTradeLogs ??= []);
+      list.push({
+        dateWord: st.u16(B),
+        type: st.u16(B + 2),
+        arg4: st.u16(B + 4),
+        arg6: st.u16(B + 6),
+        arg8: st.u16(B + 8),
+        arg10: st.u16(B + 10),
+      });
+    }
     st.b.copyWithin(B - DS.STATE_BASE, B - DS.STATE_BASE + 16, B - DS.STATE_BASE + 0x300);
     i = N - 1;
   }

@@ -137,9 +137,29 @@
     const prefs = U.createDefaultPrefs();
     eq("default prefs bgmPack == ps1", prefs.bgmPack, "ps1");
     eq("default prefs all rule toggles off",
-      prefs.unlock1552 || prefs.unlockCashCap || prefs.fixItemShopNight || prefs.fixPalaceHeroCaptain || prefs.fixScoutSpeedArgs,
+      prefs.unlock1552 || prefs.unlockCashCap || prefs.fixItemShopNight || prefs.fixPalaceHeroCaptain || prefs.fixScoutSpeedArgs || prefs.unlockTradeLogCap,
       false);
     eq("default prefs experimental smooth toggles off", prefs.smoothMove || prefs.smoothCamera, false);
+    {
+      const [mHdr, cHdr] = U.splitLordHeader("所持金     贡献度");
+      eq("splitLordHeader money", mHdr, "所持金");
+      eq("splitLordHeader contrib", cHdr, "贡献度");
+      const initEmptyLogs = st => { for (let i = 0; i < 48; i++) st.set16(U.DS.TRADE_LOGS + i * 16, 0xffff); };
+      const stCapOff = new U.GameState();
+      initEmptyLogs(stCapOff);
+      stCapOff._prefs = { ...prefs, unlockTradeLogCap: false };
+      for (let k = 0; k < 55; k++) U.appendTradeLog(stCapOff.model, { year: 22, month: 0, day: 0 }, 9, k, 0, 0);
+      eq("trade log cap default stays at 48", U.collectTradeLogEntries(stCapOff.model).length, 48);
+      eq("trade log cap default keeps newest at tail", U.collectTradeLogEntries(stCapOff.model)[47].argU16(0), 54);
+      const stCapOn = new U.GameState();
+      initEmptyLogs(stCapOn);
+      stCapOn._prefs = { ...prefs, unlockTradeLogCap: true };
+      for (let k = 0; k < 55; k++) U.appendTradeLog(stCapOn.model, { year: 22, month: 0, day: 0 }, 9, k, 0, 0);
+      const allLogs = U.collectTradeLogEntries(stCapOn.model);
+      eq("trade log cap unlocked preserves 55 entries", allLogs.length, 55);
+      eq("trade log cap unlocked preserves oldest #0", allLogs[0].argU16(0), 0);
+      eq("trade log cap unlocked preserves newest #54", allLogs[54].argU16(0), 54);
+    }
     eq("cash cap default == 600M", U.getCashCap({ prefs }), 600_000_000);
     eq("addCashClamped default clamps to 600M", U.addCashClamped(590_000_000, 50_000_000, { prefs }), 600_000_000);
     const unlocked = { prefs: { ...prefs, unlockCashCap: true } };

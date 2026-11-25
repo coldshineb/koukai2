@@ -65,9 +65,14 @@ export class SaveFile {
     return this.b.subarray(SLOT_OFF + i * SLOT_SIZE, SLOT_OFF + (i + 1) * SLOT_SIZE);
   }
 
-  writeSlot(i, header15, state) {
+  slotExtraTradeLogs(i) {
+    if (this.store) return i === "auto" ? this.store.loadAutoExtraTradeLogs() : this.store.loadSlotExtraTradeLogs(i);
+    return [];
+  }
+
+  writeSlot(i, header15, state, extraTradeLogs = undefined) {
     if (this.store) {
-      this.store.saveSlot(i, state.subarray(0, SLOT_SIZE), header15);
+      this.store.saveSlot(i, state.subarray(0, SLOT_SIZE), header15, extraTradeLogs);
       if (i >= 0 && i < SLOTS) this.b.set(header15, HEADER_OFF + i * HEADER_SIZE);
       return;
     }

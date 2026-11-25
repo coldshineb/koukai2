@@ -48,6 +48,7 @@ const initState = encodeState(world, schema, codec);
 const state = new GameState(initState, schema);
 
 const prefs = loadPrefs();
+state._prefs = prefs;
 const bgm = await new BGM(ASSETS).init();
 bgm.pack = prefs.bgmPack;
 

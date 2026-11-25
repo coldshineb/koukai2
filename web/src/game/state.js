@@ -13,6 +13,7 @@ export class GameState {
     this.schema = schema;
     this.T = schema ? Object.fromEntries(schema.tables.map(t => [t.name, t])) : {};
     this._model = null;
+    this.extraTradeLogs = [];
   }
   /** 强类型具名状态访问层 (零拷贝代理到底层 Uint8Array) */
   get model() { return (this._model ??= new WorldModel(this)); }
@@ -23,10 +24,11 @@ export class GameState {
     this.b.set(slot.subarray(0, STATE_LOAD_SIZE));
     const tail = slot.slice(STATE_LOAD_SIZE);
     this.b.set(tail, STATE_LOAD_SIZE);
+    this.extraTradeLogs = [];
     return tail;
   }
   /** 重置为初始游戏状态快照 */
-  resetFromSnapshot(initState) { this.b.set(initState.subarray(0, this.b.length)); }
+  resetFromSnapshot(initState) { this.b.set(initState.subarray(0, this.b.length)); this.extraTradeLogs = []; }
   // ---- 以下保留供 scenario_adapter / schema_views / emulator 回归脚本兼容 ----
   rec(table, i) { const t = this.T[table]; if (!t || i < 0 || i >= t.count) throw new Error(`${table}[${i}]`); return t.ds + i * t.stride; }
   // 以字段名读写数值字段 (u8 / u16, 数组字段用 k)

@@ -4,21 +4,22 @@
 import { DiscoveryFlag, GameConst, ShipSlotFlag, SkillFlag } from "../model/flags.ts";
 import {
   WorldConst,
+  collectTradeLogEntries,
   fleetShipSlot,
-  getTradeLogEntry,
   getWorkState,
+  hasTradeLogEntries,
   heroFleet,
   heroOrDockSlot,
   personRawBytes,
 } from "../model/world_helpers.ts";
 import { ListSelect } from "./dos/listsel.js";
 import { captureConsoleText, decodeCleanCstr } from "./text_util.ts";
-import { createDomModal, getPersonPortraitSrc, preserveScroll } from "./modals.ts";
+import { createDomModal, getPersonPortraitSrc, preserveScroll, splitLordHeader } from "./modals.ts";
 import { UI_STR } from "./strings.ts";
 import { mountDomPortMap, mountDomWorldChart, runDomPortMapModal, runDomWorldChartModal } from "./info_maps.ts";
 import { runDomBelongings, runDomFormation } from "./info_modals.ts";
 
-export { mountDomPortMap, mountDomWorldChart, runDomPortMapModal, runDomWorldChartModal, runDomBelongings, runDomFormation };
+export { mountDomPortMap, mountDomWorldChart, runDomPortMapModal, runDomWorldChartModal, runDomBelongings, runDomFormation, splitLordHeader };
 
 const s16 = (v: number) => (v << 16) >> 16;
 const umin = (a: number, b: number) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);
@@ -34,7 +35,7 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
   const hasShips = () => b.fleetShips() > 0;
   const hasDisc = () => !!cmd.discList(1);
   const hasWorld = () => !!getWorkState(m).exploreTotal;
-  const hasLog = () => getTradeLogEntry(m, 0).dateWord !== 0xffff;
+  const hasLog = () => hasTradeLogEntries(m);
   const inPort = () => m.globals.port !== GameConst.EMPTY_SLOT;
 
   const isDisabled = (idx: number): boolean => {
@@ -362,10 +363,14 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
         img.className = "uw2-portrait-img";
         void getPersonPortraitSrc(art, personRawBytes(heroP)).then(src => { if (src) img.src = src; });
         topCard.appendChild(img);
+        const [moneyHdr, contribHdr] = splitLordHeader(cap(() => c.message(0x38e)));
         const mCol = document.createElement("div");
         mCol.style.cssText = "display:flex;flex-direction:column;gap:4px;font-size:15px;font-weight:600;";
+        const mh = document.createElement("div");
+        mh.className = "uw2-pane-title";
+        mh.textContent = moneyHdr;
+        mCol.appendChild(mh);
         for (const ml of [
-          cap(() => c.message(0x38e)),
           cap(() => c.message(0x38f, money % 10000)),
           cap(() => c.message(0x390, Math.trunc(money / 10000))),
         ]) {
@@ -392,6 +397,10 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
 
         const right = document.createElement("div");
         right.className = "uw2-action-box";
+        const ch = document.createElement("div");
+        ch.className = "uw2-pane-title";
+        ch.textContent = contribHdr;
+        right.appendChild(ch);
         for (let i = 0; i < WorldConst.TOTAL_COUNTRIES; i++) {
           const v = hd.getCountryStanding(i), diff = v - 100;
           const row = document.createElement("div");
@@ -591,8 +600,8 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
       const renderLogTab = (root: HTMLElement) => {
         const S = cmd.S;
         const entries: { date: string; text: string }[] = [];
-        for (let i = 0; i < GameConst.TRADE_LOG_COUNT; i++) {
-          const e = getTradeLogEntry(m, i), w = e.dateWord;
+        for (const e of collectTradeLogEntries(m)) {
+          const w = e.dateWord;
           if (w === 0xffff) break;
           const d = Math.trunc(w / 31), mon = Math.trunc(d / 12);
           const date = cap(() => c.printf(S.logDate, mon + 1501, d % 12 + 1, w % 31 + 1));

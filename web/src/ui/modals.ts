@@ -654,13 +654,21 @@ export function runDomInfoLines(
   });
 }
 
+/** 原版消息 #0x38e 把「所持金」与「贡献度」放在同一行，拆成左右栏独立标题 */
+export function splitLordHeader(raw: string): [string, string] {
+  const parts = raw.trim().split(/\s+/).filter(Boolean);
+  return [parts[0] || "所持金", parts[1] || "贡献度"];
+}
+
 // ---------------- 6. 现代主公情报弹窗 ----------------
 export function runDomLordInfo(data: {
   title: string;
   portraitUrl: string | null;
+  moneyHeader?: string;
   moneyLines: string[];
   fameHeader: string;
   fameLines: { label: string; value: number }[];
+  contribHeader?: string;
   nations: { label: string; value: number; rawText: string }[];
 }): Promise<void> {
   return new Promise(resolve => {
@@ -683,6 +691,12 @@ export function runDomLordInfo(data: {
     }
     const mCol = document.createElement("div");
     mCol.style.cssText = "display:flex;flex-direction:column;gap:4px;font-size:15px;font-weight:600;";
+    if (data.moneyHeader) {
+      const mh = document.createElement("div");
+      mh.className = "uw2-pane-title";
+      mh.textContent = data.moneyHeader;
+      mCol.appendChild(mh);
+    }
     for (const ml of data.moneyLines) {
       const d = document.createElement("div");
       d.textContent = ml;
@@ -719,6 +733,12 @@ export function runDomLordInfo(data: {
     right.className = "uw2-pane";
     const natBox = document.createElement("div");
     natBox.className = "uw2-action-box";
+    if (data.contribHeader) {
+      const ch = document.createElement("div");
+      ch.className = "uw2-pane-title";
+      ch.textContent = data.contribHeader;
+      natBox.appendChild(ch);
+    }
     for (const nat of data.nations) {
       const row = document.createElement("div");
       row.style.cssText = "display:flex;flex-direction:column;gap:4px;";

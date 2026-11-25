@@ -188,7 +188,7 @@ export class Title {
       if (pick === null) return 0;
       const bytes = pick === "auto" ? f.store?.loadAutoBytes() : f.slot(pick);
       if (!bytes) return 0;
-      this.applyLoad(bytes);
+      this.applyLoad(bytes, f.slotExtraTradeLogs?.(pick));
       await this.afterLoad();
       return 1;
     }
@@ -201,7 +201,7 @@ export class Title {
       if (hdr[sel * HEADER_SIZE]) {
         await win.open(0x18, 0x100, 0x20, 0x30, 1);
         con.setCursor(0x1a, 0x110); this.c.message(0x3b8);
-        if (await menu.yesNo()) { this.applyLoad(f.slot(sel)); await win.close(); await this.afterLoad(); await win.close(); return 1; }
+        if (await menu.yesNo()) { this.applyLoad(f.slot(sel), f.slotExtraTradeLogs?.(sel)); await win.close(); await this.afterLoad(); await win.close(); return 1; }
         await win.close();
       } else {
         await win.open(0x19, 0x100, 0x1e, 0x30, 1);
@@ -212,9 +212,10 @@ export class Title {
     }
   }
   // 16c02..16c96
-  applyLoad(slot) {
+  applyLoad(slot, extraTradeLogs = undefined) {
     const st = this.c.state, g = st.model.globals;
     this.c.buf0c8e = st.loadSaveBytes(slot);                      // 读入缓冲 [0c8e] 的 0x300 bytes
+    if (Array.isArray(extraTradeLogs)) st.extraTradeLogs = extraTradeLogs;
     let o = g.options;
     if (!(o & (OptionFlag.SCENARIO | OptionFlag.ENDING_READY))) { g.heroChap = GameConst.EMPTY_SLOT; g.heroSec = 0; }
     else if (!(o & OptionFlag.ENDING_READY)) { o = (o | OptionFlag.SCENARIO) & ~OptionFlag.ENDING_READY; g.commonChap = 0; g.commonSec = 0; }

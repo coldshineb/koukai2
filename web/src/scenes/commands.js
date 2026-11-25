@@ -13,12 +13,13 @@ import { PortMove } from "./portmove.js";
 import { FleetFlag, GameConst, ItemFlag, OptionFlag, SeaFlag2, ShipSlotFlag, SkillFlag } from "../model/flags.ts";
 import {
   WorldConst,
+  collectTradeLogEntries,
   fleetByAddr,
   getFoodRationPct,
   getPartySalaryUnit,
-  getTradeLogEntry,
   getWaterRationPct,
   getWorkState,
+  hasTradeLogEntries,
   heroShipSlot,
   personRawBytes,
   setFoodRationPct,
@@ -35,6 +36,7 @@ import {
   runDomPersonnelSelect,
   runDomControls,
   runDomLordInfo,
+  splitLordHeader,
   runDomInfoLines,
   runDomLogBook,
 } from "../ui/modals.ts";
@@ -183,7 +185,7 @@ export class Commands {
     do {
       if (!b.fleetShips()) menu.disabled |= 0x33; else if (!cargo) menu.disabled |= 0x30;
       if (!w.exploreTotal) menu.disabled |= 0x80;
-      if (getTradeLogEntry(m, 0).dateWord === 0xffff) menu.disabled |= 0x100;
+      if (!hasTradeLogEntries(m)) menu.disabled |= 0x100;
       if (g.port === GameConst.EMPTY_SLOT) menu.disabled |= 0x200;
       if (!this.discList(1)) menu.disabled |= 0x40;
       const r = await this.popMenu(0x30, items);
@@ -560,11 +562,12 @@ export class Commands {
     const fames = [H.tradeFame, H.pirateFame, H.adventureFame];
     if (scr.wideRenderer && this.c.codec) {
       const faceId = m.heroPerson().portrait & 0xff;
+      const [moneyHeader, contribHeader] = splitLordHeader(this.cap(() => message(0x38e)));
       await runDomLordInfo({
-        title: title || this.cap(() => message(0x38e)),
+        title: title || moneyHeader,
         portraitUrl: art?.portraitUrl?.(faceId) ?? null,
+        moneyHeader,
         moneyLines: [
-          this.cap(() => message(0x38e)),
           this.cap(() => message(0x38f, money % 10000)),
           this.cap(() => message(0x390, Math.trunc(money / 10000))),
         ],
@@ -573,6 +576,7 @@ export class Commands {
           label: this.cap(() => message(0x392, lab[i], fames[i])),
           value: fames[i],
         })),
+        contribHeader,
         nations: [0, 1, 2, 3, 4, 5].map(i => {
           const v = H.getCountryStanding(i);
           const diff = v - 100;
@@ -691,10 +695,11 @@ export class Commands {
       // 0x180 的 %ld 由堆栈上相邻的两个字组成: 低字 = +8, 高字 = +6 (原版依 +10, +6, +8 的顺序推入, 照搬)
       else if (t === 0x0c) message(0x180, this.p.goods[entry.argU16(0)], entry.argI32HiLo(2), entry.argU16(6));
     };
+    const allEntries = collectTradeLogEntries(m);
     if (scr.wideRenderer && this.c.codec) {
       const entries = [];
-      for (let i = 0; i < GameConst.TRADE_LOG_COUNT; i++) {
-        const entry = getTradeLogEntry(m, i), w = entry.dateWord;
+      for (const entry of allEntries) {
+        const w = entry.dateWord;
         if (w === 0xffff) break;
         const d = Math.trunc(w / 31), mo = Math.trunc(d / 12);
         const date = this.cap(() => printf(S.logDate, mo + 0x5dd, d % 12 + 1, w % 31 + 1));
@@ -706,14 +711,15 @@ export class Commands {
     }
     win.shadowedSaved(0x0f, 0x20, 0x2a, 0x140, 0);
     con.left = 0x1c; con.right--;
-    let n = 0; while (n < GameConst.TRADE_LOG_COUNT && getTradeLogEntry(m, n).dateWord !== 0xffff) n++;
+    const n = allEntries.length;
     const last = Math.trunc((n - Math.sign(n)) / 6);                    // seg0:4dde 符号
     let page = last;
     con.lineH = 0x10;
     for (;;) {
       for (let di = 0; di < 6; di++) {
-        const entry = getTradeLogEntry(m, 6 * page + di), w = entry.dateWord;
-        if (w === 0xffff) break;
+        const entry = allEntries[6 * page + di];
+        if (!entry || entry.dateWord === 0xffff) break;
+        const w = entry.dateWord;
         con.setCursor(0x11, di * 0x30 + 0x28);
         const d = Math.trunc(w / 31), mo = Math.trunc(d / 12);
         printf(S.logDate, mo + 0x5dd, d % 12 + 1, w % 31 + 1);
@@ -1917,7 +1923,7 @@ export class Commands {
       if (sel === null || typeof sel !== "number") return 0;
       const h = makeHeader();
       flushClock();
-      f.writeSlot(sel, h, m.st.exportSaveBytes());
+      f.writeSlot(sel, h, m.st.exportSaveBytes(), m.st.extraTradeLogs);
       this.c.shell.showToast(`已保存到槽位 ${sel + 1}`);
       return 1;
     }
@@ -1932,7 +1938,7 @@ export class Commands {
       if (!await menu.yesNo()) { await win.close(); continue; }
       const h = makeHeader();
       flushClock();
-      f.writeSlot(sel, h, m.st.exportSaveBytes());
+      f.writeSlot(sel, h, m.st.exportSaveBytes(), m.st.extraTradeLogs);
       await win.close(); await win.close();
       return 1;
     }

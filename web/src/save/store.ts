@@ -1,6 +1,7 @@
 // save/store.ts — 现代无限槽位 JSON 存盘保存管理 (IndexedDB 主保存 + localStorage 备援 + 导入槽位选择 + 导出 JSON)
 import { createEmptyBundleV2, createSaveSlotV2, isSaveBundleV2, parseSaveJsonV2, slotV2ToLegacyHeader, v2ToStateBytes, SAVE_SLOTS_COUNT } from "./format.ts";
 import type { SaveBundleV2, SaveSlotV2 } from "./format.ts";
+import type { ExtraTradeLogRecord } from "../model/world_helpers.ts";
 import { importLegacySave, isLegacyKoukaiDat } from "./legacy_import.ts";
 
 export const SAVE_STORAGE_KEY_V2 = "uw2.saves.v2";
@@ -178,9 +179,14 @@ export class SaveStore {
     }
   }
 
-  saveSlot(i: number, stateBytes: Uint8Array, header15?: Uint8Array): SaveSlotV2 {
+  saveSlot(
+    i: number,
+    stateBytes: Uint8Array,
+    header15?: Uint8Array,
+    extraTradeLogs?: ExtraTradeLogRecord[],
+  ): SaveSlotV2 {
     this.ensureSlotCapacity(i);
-    const slot = createSaveSlotV2(i, stateBytes, header15, this.schema, this.codec);
+    const slot = createSaveSlotV2(i, stateBytes, header15, this.schema, this.codec, { extraTradeLogs });
     this.bundle.slots[i] = slot;
     this.persist();
     return slot;
@@ -195,8 +201,8 @@ export class SaveStore {
     this.persist();
   }
 
-  saveAuto(stateBytes: Uint8Array, header15?: Uint8Array): SaveSlotV2 {
-    const slot = createSaveSlotV2("auto", stateBytes, header15, this.schema, this.codec);
+  saveAuto(stateBytes: Uint8Array, header15?: Uint8Array, extraTradeLogs?: ExtraTradeLogRecord[]): SaveSlotV2 {
+    const slot = createSaveSlotV2("auto", stateBytes, header15, this.schema, this.codec, { extraTradeLogs });
     this.bundle.autoSave = slot;
     this.persist();
     return slot;
@@ -208,9 +214,17 @@ export class SaveStore {
     return v2ToStateBytes(slot.state, this.schema, this.codec, this.baseState);
   }
 
+  loadSlotExtraTradeLogs(i: number): ExtraTradeLogRecord[] {
+    return (this.bundle.slots[i]?.state.extraTradeLogs ?? []).map(r => ({ ...r }));
+  }
+
   loadAutoBytes(): Uint8Array | null {
     if (!this.bundle.autoSave) return null;
     return v2ToStateBytes(this.bundle.autoSave.state, this.schema, this.codec, this.baseState);
+  }
+
+  loadAutoExtraTradeLogs(): ExtraTradeLogRecord[] {
+    return (this.bundle.autoSave?.state.extraTradeLogs ?? []).map(r => ({ ...r }));
   }
 
   /** 产生原版 150-byte 头部表 (供阶段 3 原版读档/存盘画面显示) */

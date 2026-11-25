@@ -11,6 +11,7 @@ export interface UserPrefs {
   fixItemShopNight: boolean;
   fixPalaceHeroCaptain: boolean;
   fixScoutSpeedArgs: boolean;
+  unlockTradeLogCap: boolean;
   smoothMove: boolean;
   smoothCamera: boolean;
 }
@@ -24,6 +25,7 @@ export const DEFAULT_PREFS: Readonly<UserPrefs> = Object.freeze({
   fixItemShopNight: false,
   fixPalaceHeroCaptain: false,
   fixScoutSpeedArgs: false,
+  unlockTradeLogCap: false,
   smoothMove: false,
   smoothCamera: false,
 });
@@ -45,6 +47,7 @@ export function loadPrefs(): UserPrefs {
     out.fixItemShopNight = Boolean(parsed.fixItemShopNight);
     out.fixPalaceHeroCaptain = Boolean(parsed.fixPalaceHeroCaptain);
     out.fixScoutSpeedArgs = Boolean(parsed.fixScoutSpeedArgs);
+    out.unlockTradeLogCap = Boolean(parsed.unlockTradeLogCap);
     out.smoothMove = Boolean(parsed.smoothMove);
     out.smoothCamera = Boolean(parsed.smoothCamera);
   } catch {
@@ -105,6 +108,11 @@ export const RULE_TOGGLES: readonly RuleToggleMeta[] = [
     key: "fixScoutSpeedArgs",
     label: "修复侦察船速参数顺序",
     hint: "纠正侦察情报计算船速时风向/风力与海流方向/强度传反的原版缺陷",
+  },
+  {
+    key: "unlockTradeLogCap",
+    label: "解锁航海日志上限",
+    hint: "取消原版 48 笔环形覆盖限制，保留全部历史航海日志并随现代存档保存",
   },
 ];
 

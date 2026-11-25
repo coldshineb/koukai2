@@ -7,6 +7,7 @@
 import { decodeState, encodeState } from "../game/data.js";
 import { DS } from "../model/schema_views.ts";
 import { GameConst } from "../model/flags.ts";
+import type { ExtraTradeLogRecord } from "../model/world_helpers.ts";
 
 export const SAVE_FORMAT_V2 = "uw2-save-v2" as const;
 export const SAVE_VERSION_V2 = 2 as const;
@@ -38,6 +39,7 @@ export interface SaveCompatLayer {
 export interface SaveStateV2 {
   globals: Record<string, number>;
   tables: Record<string, Record<string, unknown>[]>;
+  extraTradeLogs?: ExtraTradeLogRecord[];
   _compat?: SaveCompatLayer;
 }
 
@@ -238,9 +240,12 @@ export function createSaveSlotV2(
   header15: Uint8Array | undefined,
   schema: any,
   codec: any,
-  opts: { includeCompat?: boolean; savedAt?: string } = {},
+  opts: { includeCompat?: boolean; savedAt?: string; extraTradeLogs?: ExtraTradeLogRecord[] } = {},
 ): SaveSlotV2 {
   const state = stateBytesToV2(stateBytes, schema, codec, { includeCompat: opts.includeCompat ?? true });
+  if (opts.extraTradeLogs?.length) {
+    state.extraTradeLogs = opts.extraTradeLogs.map(r => ({ ...r }));
+  }
   const summary = buildSaveSummary(state, header15, opts.savedAt);
   return {
     slotIndex,
