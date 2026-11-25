@@ -411,12 +411,12 @@ def compute_portmap_context(meta: dict):
                 break
     return water_adj, open_edges
 
-# 排除纯米白石膏墙体/招牌图块被误判为沙地（如 s2 城墙、各图集行业招牌/纯墙砖）
+# 排除纯米白石膏墙体/招牌图块被误判为沙地（教堂顶十字架 s0:205/s1:53/s3:88 与清真寺尖塔 s2:155..178 均保留外围沙地剥离）
 WALL_PLAQUE_SKIP_SAND = {
-    0: {83, 205},
-    1: {53},
-    2: {22, 23, 27, 56, 76, 84, 86, 95, 97, 155, 156, 163, 166, 175, 178},
-    3: {88, 89, 169, 181, 189},
+    0: {83},
+    1: set(),
+    2: {22, 23, 27, 56, 76, 84, 86, 95, 97, 219, 234, 235},
+    3: {89, 169, 181, 189},
     4: {44, 45, 46, 47, 110},
     5: {54, 62, 97},
     6: {56, 77, 78, 79, 87, 88, 89, 97, 98, 99, 157},
@@ -549,6 +549,10 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats, water_
             is_walk = (t_id < p2) and not is_arch_walk
             is_tree_tile = (t_id >= p2) and (int(np.sum((tile_idx == 13) | (tile_idx == 14))) >= 120) and not np.any(is_water) and (c0_cnt >= 8)
             is_shore_tile = (t_id >= p2) and np.any(is_water) and (int(np.sum((tile_idx == 13) | (tile_idx == 14))) >= 18)
+            is_flat_beach = (t_id >= p2) and np.any(is_water) and (
+                c0_cnt <= 20
+                or (c0_cnt <= 32 and int(np.sum((tile_idx == 8) | (tile_idx == 10) | (tile_idx == 11) | (tile_idx == 13) | (tile_idx == 14) | (tile_idx == 15))) >= 150)
+            )
 
             outer_sand, outer_grass = extract_outer_ground(
                 tile_idx, set_idx, t_id, p2, open_edge_map.get(t_id, {}), is_water, t_id in water_adj_set
@@ -581,11 +585,14 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats, water_
                 outer_bg = outer_grass
                 sem[outer_grass] = 3
             else:
-                if np.any(is_water):
+                if is_flat_beach:
+                    sem[((tile_idx == 13) | (tile_idx == 14)) & ~is_water] = 3
+                    sem[((tile_idx == 8) | (tile_idx == 10) | (tile_idx == 11) | (tile_idx == 15)) & ~is_water] = 2
+                elif np.any(is_water):
                     sem[((tile_idx == 13) | (tile_idx == 14)) & ~is_water] = 3
                     blk_pad = np.pad((tile_idx == 0).astype(np.int32), ((1, 1), (1, 1)), mode="edge")
                     blk_near = sum(blk_pad[dy:dy + tile_sz, dx:dx + tile_sz] for dy in range(3) for dx in range(3))
-                    sem[((tile_idx == 10) | (tile_idx == 11)) & (blk_near == 0) & ~is_water] = 2
+                    sem[((tile_idx == 10) | (tile_idx == 11) | (tile_idx == 15)) & (blk_near == 0) & ~is_water] = 2
                 if np.any(outer_sand):
                     sem[outer_sand] = 2
                 if np.any(outer_grass):
@@ -594,13 +601,19 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats, water_
                 sem[tile_idx == 0] = 0
             sem[is_water] = 1
 
-            # 1) Albedo: 地面、海岸草坡与树格使用地面色盘；道具/船/沙漠屋顶的外围裸露地面也使用地面色盘以无缝衔接铺石
-            pairs = GROUND_DITHER_PAIRS if (is_walk or is_shore_tile or is_tree_tile) else ARCH_DITHER_PAIRS
-            tile_pal = MODERN_GROUND_PAL if (is_walk or is_tree_tile or is_shore_tile) else MODERN_ARCH_PAL
+            # 1) Albedo: 地面、平坦海岸线与树格使用地面色盘；道具/船/尖塔/十字架/沙漠屋顶的外围裸露地面也使用地面色盘以无缝衔接铺石
+            pairs = GROUND_DITHER_PAIRS if (is_walk or is_shore_tile or is_flat_beach or is_tree_tile) else ARCH_DITHER_PAIRS
+            if is_flat_beach:
+                pairs = pairs | {(8, 11), (11, 8), (8, 10), (10, 8)}
+            tile_pal = MODERN_GROUND_PAL if (is_walk or is_tree_tile or is_shore_tile or is_flat_beach) else MODERN_ARCH_PAL
             base_16 = dedither_tile_rgb(tile_idx, tile_pal, pairs, is_water=is_water, wrap_edges=(is_walk and t_id < p1 and not is_ground_shadow_tile and not is_road_curb))
-            if not (is_walk or is_tree_tile or is_shore_tile) and np.any(outer_bg):
+            if not (is_walk or is_tree_tile or is_shore_tile or is_flat_beach) and np.any(outer_bg):
                 ext_pairs = GROUND_DITHER_PAIRS | {(8, 11), (11, 8), (8, 10), (10, 8)}
                 base_ext = dedither_tile_rgb(tile_idx, MODERN_GROUND_PAL, ext_pairs, is_water=is_water, wrap_edges=False)
+                if set_idx == 3 and np.any(outer_sand & (tile_idx == 8)):
+                    # 清除 set 3 旱坞船体 (114/125) 与椰树 (235) 左侧原版 1993 灰格假影，由 WebGL2 实时光线统一投射斜影
+                    clean_sand = MODERN_GROUND_PAL[11] * 0.48 + MODERN_GROUND_PAL[15] * 0.52
+                    base_ext[outer_sand & ((tile_idx == 8) | (tile_idx == 10))] = clean_sand
                 base_16 = np.where(outer_bg[:, :, None], base_ext, base_16)
             if is_ground_shadow_tile and not is_stone_shadow_tile:
                 if is_grass_shadow_tile:
@@ -698,7 +711,7 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats, water_
                         void_16 |= vm
             void_64 = np.repeat(np.repeat(void_16, 4, axis=0), 4, axis=1)
 
-            if (is_walk and not is_arch_walk) or pure_water_ripple_tile or is_road_curb:
+            if (is_walk and not is_arch_walk) or pure_water_ripple_tile or is_road_curb or is_flat_beach:
                 tile_elev = np.zeros_like(micro_height)
             elif is_tree_tile:
                 # 仅树木剪影内部填洞隆起（绝不到图块方框边！）
