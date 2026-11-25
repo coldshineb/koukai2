@@ -1480,3 +1480,175 @@ body[data-uw2-modal="open"] .uw2-dialog-floating {
   border: 2px solid var(--uw2-gold);
   background: #141c2b;
 }
+
+
+/* ---------------- 独立游戏内「航海教程」页面（源自《大航海时代外传》原始文本） ---------------- */
+.uw2-tut-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 400px;
+}
+
+.uw2-tut-split {
+  display: grid;
+  grid-template-columns: 248px 1fr;
+  gap: 16px;
+  min-height: 400px;
+}
+
+.uw2-tut-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 430px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.uw2-tut-item {
+  appearance: none;
+  text-align: left;
+  padding: 9px 12px;
+  border-radius: 7px;
+  border: 1px solid rgba(140, 108, 52, 0.32);
+  background: rgba(255, 252, 244, 0.72);
+  color: var(--uw2-ink);
+  font-family: var(--uw2-font-ui);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.14s, border-color 0.14s;
+}
+
+.uw2-tut-item:hover {
+  background: rgba(242, 224, 180, 0.85);
+  border-color: var(--uw2-gold);
+}
+
+.uw2-tut-item.active {
+  background: #142847;
+  color: #f6e7c4;
+  border-color: #c8a258;
+}
+
+.uw2-tut-reader {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 22px;
+  border-radius: 10px;
+  background: rgba(255, 252, 244, 0.86);
+  border: 1px solid rgba(168, 130, 62, 0.4);
+}
+
+.uw2-tut-greet {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 7px;
+  background: rgba(226, 204, 156, 0.45);
+  border-left: 3px solid #a87c2d;
+  font-size: 13.5px;
+  color: #5b4322;
+}
+
+.uw2-tut-npc {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #142847;
+  color: #f2d89b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.uw2-tut-title {
+  margin: 0;
+  font-family: var(--uw2-font-serif);
+  font-size: 20px;
+  color: var(--uw2-ink);
+  border-bottom: 1px solid rgba(168, 130, 62, 0.35);
+  padding-bottom: 8px;
+}
+
+.uw2-tut-body {
+  margin: 0;
+  flex: 1 1 auto;
+  font-size: 15.5px;
+  line-height: 1.9;
+  color: var(--uw2-ink);
+  letter-spacing: 0.3px;
+}
+
+.uw2-tut-hi {
+  color: #a9382b;
+  font-weight: 700;
+}
+
+.uw2-tut-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 10px;
+  border-top: 1px solid rgba(168, 130, 62, 0.28);
+}
+
+.uw2-tut-counter {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--uw2-ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.uw2-tut-search-row {
+  display: flex;
+}
+
+.uw2-tut-search {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 14px;
+}
+
+.uw2-tut-tips-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 390px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.uw2-tut-tip-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(255, 252, 244, 0.85);
+  border: 1px solid rgba(168, 130, 62, 0.3);
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--uw2-ink);
+}
+
+.uw2-tut-tip-num {
+  flex: 0 0 26px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #7a4e10;
+  background: rgba(200, 162, 88, 0.25);
+  border-radius: 4px;
+  padding: 2px 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.uw2-tut-empty {
+  padding: 36px;
+  text-align: center;
+  color: var(--uw2-ink-muted);
+  font-size: 14px;
+}

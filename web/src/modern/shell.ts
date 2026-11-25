@@ -2,6 +2,7 @@
 import type { GameRuntime, GameSpeed } from "./runtime.ts";
 import { ModernSaveModal } from "./save_modal.ts";
 import type { SaveModalBridge } from "./save_modal.ts";
+import { openTutorialModal } from "./tutorial_modal.ts";
 
 export interface ModernShellDeps {
   runtime: GameRuntime;
@@ -87,6 +88,11 @@ export class ModernShell {
     const utilGroup = document.createElement("div");
     utilGroup.className = "uw2-group";
 
+    const tutBtn = document.createElement("button");
+    tutBtn.className = "uw2-btn";
+    tutBtn.textContent = "航海教程";
+    tutBtn.addEventListener("click", () => { void openTutorialModal(); });
+
     const saveBtn = document.createElement("button");
     saveBtn.className = "uw2-btn uw2-btn-primary";
     saveBtn.textContent = "存档管理";
@@ -100,7 +106,7 @@ export class ModernShell {
       else document.exitFullscreen?.().catch(() => {});
     });
 
-    utilGroup.append(saveBtn, fsBtn);
+    utilGroup.append(tutBtn, saveBtn, fsBtn);
     controls.append(speedGroup, bgmWrap, sfxWrap, utilGroup);
     bar.replaceChildren(brand, controls);
 
