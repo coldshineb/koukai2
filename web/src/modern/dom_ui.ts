@@ -9,6 +9,19 @@ export function hasDom(): boolean {
   return typeof document !== "undefined" && !!document.body;
 }
 
+/** 重繪彈窗內容時自動保留所有清單與捲動區的位置，避免點擊項目後跳回頂部 */
+export function preserveScroll(root: HTMLElement, fn: () => void, keep = true) {
+  const sel = ".uw2-list-col, .uw2-slot-list, .uw2-pane";
+  const bodyTop = keep ? root.scrollTop : 0;
+  const saved = keep ? Array.from(root.querySelectorAll<HTMLElement>(sel)).map(el => el.scrollTop) : [];
+  fn();
+  if (keep) {
+    root.scrollTop = bodyTop;
+    const next = root.querySelectorAll<HTMLElement>(sel);
+    for (let i = 0; i < Math.min(saved.length, next.length); i++) next[i].scrollTop = saved[i];
+  }
+}
+
 /** 渲染 5 層拼合隨機頭像 (kao_parts_a..e.png)，快取命中時同步回傳 dataURL */
 export function getComposedPortraitCached(type: number, parts: number): string | null {
   const s = Math.max(0, Math.min(6, type & 0xffff));

@@ -6,7 +6,7 @@ import { WorkDS } from "../model/flags.ts";
 import { ListSelect } from "../ui/listsel.js";
 import { captureConsoleText, decodeCleanCstr } from "../canvas_ui/text_util.ts";
 import { runWideWorldChart } from "../canvas_ui/wide_panels.ts";
-import { createDomModal, getPersonPortraitSrc } from "./dom_ui.ts";
+import { createDomModal, getPersonPortraitSrc, preserveScroll } from "./dom_ui.ts";
 
 const s16 = (v: number) => (v << 16) >> 16;
 const umin = (a: number, b: number) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);
@@ -17,7 +17,7 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
   const dec = (bts: Uint8Array) => decodeCleanCstr(c.codec, bts);
   const cap = (fn: () => void) => captureConsoleText(c, fn);
   const tabLabels: string[] = c.menuItems(0x1a).slice(0, 10).map(dec);
-  const infoTitle = c.menuItems(0x19)?.[0] ? dec(c.menuItems(0x19)[0]) : tabLabels[0];
+  const infoTitle = "情報";
 
   const hasShips = () => b.fleetShips() > 0;
   const hasCargo = () => !!cmd.anyCargo();
@@ -65,7 +65,7 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
       toolbar.className = "uw2-modal-toolbar";
       h.modal.insertBefore(toolbar, h.body);
 
-      const render = () => {
+      const render = (keepScroll = true) => {
         if (isDisabled(activeTab)) activeTab = hasShips() ? 0 : 3;
 
         toolbar.innerHTML = "";
@@ -78,21 +78,22 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
             if (i === 7) { done("world"); return; }
             if (i === 9) { done("portMap"); return; }
             activeTab = i;
-            render();
+            render(false);
           });
           toolbar.appendChild(btn);
         });
 
-        h.body.innerHTML = "";
-
-        if (activeTab === 0) renderFleetTab(h.body);
-        else if (activeTab === 1) renderShipTab(h.body);
-        else if (activeTab === 2) renderPersonTab(h.body);
-        else if (activeTab === 3) renderLordTab(h.body);
-        else if (activeTab === 4) renderCargoShipTab(h.body);
-        else if (activeTab === 5) renderCargoSummaryTab(h.body);
-        else if (activeTab === 6) renderDiscoveryTab(h.body);
-        else if (activeTab === 8) renderLogTab(h.body);
+        preserveScroll(h.body, () => {
+          h.body.innerHTML = "";
+          if (activeTab === 0) renderFleetTab(h.body);
+          else if (activeTab === 1) renderShipTab(h.body);
+          else if (activeTab === 2) renderPersonTab(h.body);
+          else if (activeTab === 3) renderLordTab(h.body);
+          else if (activeTab === 4) renderCargoShipTab(h.body);
+          else if (activeTab === 5) renderCargoSummaryTab(h.body);
+          else if (activeTab === 6) renderDiscoveryTab(h.body);
+          else if (activeTab === 8) renderLogTab(h.body);
+        }, keepScroll);
       };
 
       // ---- Tab 0: 自艦隊情報 ----
@@ -663,66 +664,68 @@ export async function runDomBelongings(cmd: any): Promise<void> {
       });
 
       const render = () => {
-        h.body.innerHTML = "";
-        const split = document.createElement("div");
-        split.className = "uw2-split narrow-left";
+        preserveScroll(h.body, () => {
+          h.body.innerHTML = "";
+          const split = document.createElement("div");
+          split.className = "uw2-split narrow-left";
 
-        const left = document.createElement("div");
-        left.className = "uw2-list-col";
-        itemIds.forEach((it, i) => {
+          const left = document.createElement("div");
+          left.className = "uw2-list-col";
+          itemIds.forEach((it, i) => {
+            const R = DS.TBL_ITEM + it * 0x14;
+            const eq = !!(st.u8(R + 0x13) & 0x10);
+            const btn = document.createElement("button");
+            btn.className = `uw2-row-card ${i === selIdx ? "selected" : ""}`;
+            btn.innerHTML = `<span style="font-weight:700;">${dec(st.cstr(R))}</span><span style="color:#8a5d17;font-weight:700;">${eq ? "★" : ""}</span>`;
+            btn.addEventListener("click", () => { selIdx = i; render(); });
+            left.appendChild(btn);
+          });
+
+          const right = document.createElement("div");
+          right.className = "uw2-action-box";
+          const it = itemIds[selIdx];
           const R = DS.TBL_ITEM + it * 0x14;
-          const eq = !!(st.u8(R + 0x13) & 0x10);
-          const btn = document.createElement("button");
-          btn.className = `uw2-row-card ${i === selIdx ? "selected" : ""}`;
-          btn.innerHTML = `<span style="font-weight:700;">${dec(st.cstr(R))}</span><span style="color:#8a5d17;font-weight:700;">${eq ? "★" : ""}</span>`;
-          btn.addEventListener("click", () => { selIdx = i; render(); });
-          left.appendChild(btn);
-        });
+          const imgUrl = art?.discoveryUrl?.(st.u8(R + 0x0f) + 0x55);
+          const lines = cap(() => b.itemInfo(it, 1)).split("\n").filter(Boolean);
 
-        const right = document.createElement("div");
-        right.className = "uw2-action-box";
-        const it = itemIds[selIdx];
-        const R = DS.TBL_ITEM + it * 0x14;
-        const imgUrl = art?.discoveryUrl?.(st.u8(R + 0x0f) + 0x55);
-        const lines = cap(() => b.itemInfo(it, 1)).split("\n").filter(Boolean);
+          const head = document.createElement("div");
+          head.style.cssText = "display:flex;gap:16px;align-items:flex-start;";
+          if (imgUrl) {
+            const img = document.createElement("img");
+            img.src = imgUrl;
+            img.style.cssText = "width:96px;height:96px;object-fit:contain;border-radius:8px;border:1px solid var(--uw2-gold);background:#141c2b;image-rendering:pixelated;flex-shrink:0;";
+            head.appendChild(img);
+          }
+          const col = document.createElement("div");
+          col.style.cssText = "flex:1;display:flex;flex-direction:column;gap:6px;";
+          lines.forEach((l, idx) => {
+            const d = document.createElement("div");
+            d.style.cssText = idx === 0 ? "font-size:18px;font-weight:700;color:var(--uw2-ink);" : "font-size:14px;line-height:1.65;color:var(--uw2-ink);";
+            d.textContent = l;
+            col.appendChild(d);
+          });
+          head.appendChild(col);
 
-        const head = document.createElement("div");
-        head.style.cssText = "display:flex;gap:16px;align-items:flex-start;";
-        if (imgUrl) {
-          const img = document.createElement("img");
-          img.src = imgUrl;
-          img.style.cssText = "width:96px;height:96px;object-fit:contain;border-radius:8px;border:1px solid var(--uw2-gold);background:#141c2b;image-rendering:pixelated;flex-shrink:0;";
-          head.appendChild(img);
-        }
-        const col = document.createElement("div");
-        col.style.cssText = "flex:1;display:flex;flex-direction:column;gap:6px;";
-        lines.forEach((l, idx) => {
-          const d = document.createElement("div");
-          d.style.cssText = idx === 0 ? "font-size:18px;font-weight:700;color:var(--uw2-ink);" : "font-size:14px;line-height:1.65;color:var(--uw2-ink);";
-          d.textContent = l;
-          col.appendChild(d);
-        });
-        head.appendChild(col);
+          const btnRow = document.createElement("div");
+          btnRow.className = "uw2-dialog-actions";
+          const eqBtn = document.createElement("button");
+          eqBtn.className = "uw2-btn uw2-btn-primary";
+          eqBtn.style.padding = "8px 22px";
+          eqBtn.textContent = actLabels[0];
+          eqBtn.addEventListener("click", () => done({ type: "equip", it }));
 
-        const btnRow = document.createElement("div");
-        btnRow.className = "uw2-dialog-actions";
-        const eqBtn = document.createElement("button");
-        eqBtn.className = "uw2-btn uw2-btn-primary";
-        eqBtn.style.padding = "8px 22px";
-        eqBtn.textContent = actLabels[0];
-        eqBtn.addEventListener("click", () => done({ type: "equip", it }));
+          const useBtn = document.createElement("button");
+          useBtn.className = "uw2-step-btn";
+          useBtn.style.padding = "8px 22px";
+          useBtn.textContent = actLabels[1];
+          useBtn.addEventListener("click", () => done({ type: "use", it }));
 
-        const useBtn = document.createElement("button");
-        useBtn.className = "uw2-step-btn";
-        useBtn.style.padding = "8px 22px";
-        useBtn.textContent = actLabels[1];
-        useBtn.addEventListener("click", () => done({ type: "use", it }));
+          btnRow.append(eqBtn, useBtn);
+          right.append(head, btnRow);
 
-        btnRow.append(eqBtn, useBtn);
-        right.append(head, btnRow);
-
-        split.append(left, right);
-        h.body.appendChild(split);
+          split.append(left, right);
+          h.body.appendChild(split);
+        }, true);
       };
 
       render();

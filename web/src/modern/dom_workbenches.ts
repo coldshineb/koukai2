@@ -5,7 +5,7 @@ import { GameConst, MenuId } from "../model/flags.ts";
 import { domS16, domUmin16, calcBuyPriceShift, calcSellPriceShift, clampPriceIndexUp, clampPriceIndexDown } from "../domain/economy.ts";
 import { marketTradeLog } from "../scenes/market.js";
 import { decodeCleanCstr } from "../canvas_ui/text_util.ts";
-import { createDomModal, getPersonPortraitSrc } from "./dom_ui.ts";
+import { createDomModal, getPersonPortraitSrc, preserveScroll } from "./dom_ui.ts";
 
 // ============================================================================
 // 1. 交易所一體化工作台（買進 / 賣出 / 投資 / 物價）
@@ -102,7 +102,7 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
       return Math.max(0, Math.min(ship.free, Math.floor((market.money >>> 0) / good.price)));
     };
 
-    const render = () => {
+    const render = (keepScroll = true) => {
       const money = market.money;
       moneyPill.textContent = `金塊 ${Math.trunc(money / 10000)}  ·  金幣 ${money % 10000}`;
       toastEl.textContent = toastMsg;
@@ -118,10 +118,11 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
         btn.className = `uw2-btn uw2-tab-btn ${i === activeTab ? "active" : ""}`;
         btn.disabled = (i === 0 || i === 1) && ships.length === 0;
         btn.textContent = lb;
-        btn.addEventListener("click", () => { activeTab = i; qty = 0; selCargoIdx = 0; render(); });
+        btn.addEventListener("click", () => { activeTab = i; qty = 0; selCargoIdx = 0; render(false); });
         toolbar.appendChild(btn);
       });
 
+      preserveScroll(h.body, () => {
       h.body.innerHTML = "";
 
       if (activeTab === 0) {
@@ -386,9 +387,10 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
         split.append(left, right);
         h.body.appendChild(split);
       }
+      }, keepScroll);
     };
 
-    render();
+    render(false);
   });
 }
 
@@ -486,7 +488,7 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
         const n = b.fleetShips();
         curShips = n;
         let noDriver = false, crewT = 0, waterT = 0, foodT = 0;
-        const ships = [];
+        const ships: any[] = [];
         for (let i = 0; i < n; i++) {
           const slot = c.persons[i] & 0xff, M = b.crewData(slot), S = b.fleetSlot(slot), ship = b.shipOf(slot);
           const crew = domS16(st.u16(S));
@@ -510,6 +512,7 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
         toastEl.textContent = toastMsg;
         departBtn.disabled = n === 0;
 
+        preserveScroll(h.body, () => {
         h.body.innerHTML = "";
         const hdr = document.createElement("div");
         hdr.className = "uw2-wharf-row";
@@ -550,6 +553,7 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
           grid.appendChild(row);
         }
         h.body.appendChild(grid);
+        }, true);
       };
 
       render();
@@ -602,7 +606,7 @@ export function runDomFleetHub(cmd: any): Promise<void> {
     };
 
     const h = createDomModal({
-      title: `${m1b[0].slice(0, 2)} / ${m1b[1].slice(0, 2)}`,
+      title: "經營",
       size: "wide",
       cancelable: false,
     });
@@ -692,7 +696,7 @@ export function runDomFleetHub(cmd: any): Promise<void> {
       render();
     };
 
-    const render = () => {
+    const render = (keepScroll = true) => {
       poolPill.style.display = pool > 0 ? "inline-flex" : "none";
       poolPill.textContent = `${dec(cmd.S.slRest)}: ${pool}`;
       toastEl.textContent = toastMsg;
@@ -702,7 +706,7 @@ export function runDomFleetHub(cmd: any): Promise<void> {
         const btn = document.createElement("button");
         btn.className = `uw2-btn uw2-tab-btn ${i === activeTab ? "active" : ""}`;
         btn.textContent = lb;
-        btn.addEventListener("click", () => { activeTab = i; render(); });
+        btn.addEventListener("click", () => { activeTab = i; render(false); });
         toolbar.appendChild(btn);
       });
 
@@ -710,6 +714,7 @@ export function runDomFleetHub(cmd: any): Promise<void> {
       if (selShipIdx >= ships.length) selShipIdx = Math.max(0, ships.length - 1);
       const curShip = ships[selShipIdx];
 
+      preserveScroll(h.body, () => {
       h.body.innerHTML = "";
       const split = document.createElement("div");
       split.className = "uw2-split narrow-left";
@@ -890,9 +895,10 @@ export function runDomFleetHub(cmd: any): Promise<void> {
 
       split.append(left, right);
       h.body.appendChild(split);
+      }, keepScroll);
     };
 
-    render();
+    render(false);
   });
 }
 
