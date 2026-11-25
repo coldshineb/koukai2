@@ -370,7 +370,10 @@ export class SeaScene extends PortScene {
         cy = (dyw - cam.camY) * cam.tile + cam.tile;
       }
       const dx = vx - cx, dy = vy - cy;
-      if (Math.hypot(dx, dy) < 20) return 0;
+      if (Math.hypot(dx, dy) < 36) {
+        this.a9c8 &= 0xfd;
+        return 0x35;                    // 點擊主角船隻自身 = 按 '5' 指定目的地
+      }
       const deg = ((Math.atan2(dy, dx) * 180) / Math.PI + 90 + 360) % 360;
       const oct = Math.floor(((deg + 22.5) % 360) / 45);
       this.a9c8 &= 0xfd;
@@ -444,11 +447,11 @@ export class SeaScene extends PortScene {
     const p = sys.mousePos(); this.btnX = p.x; this.btnY = p.y;
     let di = 13;
     if (key && key !== 0xff) {
-      for (let i = 9; i < 13; i++) {
+      for (let i = 0; i < 13; i++) {
         if (key === B[i * 9 + 8]) { di = i; break; }
       }
     }
-    if (di === 13) {
+    if (di === 13 && !this.c.scr.wideRenderer) {
       di = 0;
       for (; di < 13; di++) {
         const o = di * 9, i16 = k => seaS16(B[o + k] | (B[o + k + 1] << 8)), x0 = i16(0), y0 = i16(2), w = i16(4), h = i16(6);
