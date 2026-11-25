@@ -1,5 +1,5 @@
-// modern/dom_gamble.ts — 現代羊皮紙酒館賭博工作台（二十一點 + 撲克骰子，100% 沿用原版洗牌/判定/賠率）
-import { createDomModal, hasDom } from "./dom_ui.ts";
+// modern/dom_gamble.ts — 現代羊皮紙酒館賭博工作台（二十一點 + 撲克骰子，含賭場插圖與 NPC/主角頭像，100% 沿用原版洗牌/判定/賠率）
+import { createDomModal, getComposedPortraitSrc, getGraphArtUrl, getPersonPortraitSrc, hasDom, mountBuildingBanner } from "./dom_ui.ts";
 
 const SUITS = ["♠", "♥", "♦", "♣"];
 const RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
@@ -61,6 +61,21 @@ export async function runDomGamble(gamble: any): Promise<void> {
 
   const rollFive = () => Array.from({ length: 5 }, () => gamble.rng.random(6) + 1);
 
+  const art = gamble.c?.art;
+  const heroRec = gamble.st.bytes(gamble.b.hero, 0x32);
+  let heroPortraitUrl: string | null = null;
+  let dealerPortraitUrl: string | null = null;
+  let opp1PortraitUrl: string | null = null;
+  let opp2PortraitUrl: string | null = null;
+
+  const genRandomFace = () => ({
+    type: gamble.rng.random(7),
+    parts: (gamble.rng.random(0x3fff) | 0xc000) & 0xffff,
+  });
+  const dealerFace = genRandomFace();
+  const opp1Face = genRandomFace();
+  const opp2Face = genRandomFace();
+
   return new Promise(resolve => {
     const h = createDomModal({
       title: "酒馆 · 赌博",
@@ -74,9 +89,7 @@ export async function runDomGamble(gamble: any): Promise<void> {
     cashPill.className = "uw2-pill";
     h.headerRight.prepend(cashPill);
 
-    const toolbar = document.createElement("div");
-    toolbar.className = "uw2-modal-toolbar";
-    h.modal.insertBefore(toolbar, h.body);
+    const toolbar = mountBuildingBanner(h.modal, h.body, getGraphArtUrl(gamble.c, 0x1b));
 
     const footer = document.createElement("div");
     footer.className = "uw2-modal-footer";
@@ -84,6 +97,13 @@ export async function runDomGamble(gamble: any): Promise<void> {
     toastEl.style.cssText = "font-size:13px;font-weight:600;color:#247544;";
     footer.appendChild(toastEl);
     h.modal.appendChild(footer);
+
+    void Promise.all([
+      getPersonPortraitSrc(art, heroRec).then(u => { heroPortraitUrl = u; }),
+      getComposedPortraitSrc(art, dealerFace.type, dealerFace.parts).then(u => { dealerPortraitUrl = u; }),
+      getComposedPortraitSrc(art, opp1Face.type, opp1Face.parts).then(u => { opp1PortraitUrl = u; }),
+      getComposedPortraitSrc(art, opp2Face.type, opp2Face.parts).then(u => { opp2PortraitUrl = u; }),
+    ]).then(() => render());
 
     const render = () => {
       cashPill.textContent = `金块 ${gamble.bars}  ·  金币 ${gamble.gold}`;
@@ -170,13 +190,19 @@ export async function runDomGamble(gamble: any): Promise<void> {
           dealerArea.className = "uw2-pane";
           const dShow = bjPhase === "done";
           dealerArea.innerHTML =
-            `<div class="uw2-pane-title">庄家 ${dShow ? `（${handSum(bjDealer)} 点）` : ""}</div>` +
+            `<div class="uw2-gamble-actor">` +
+              (dealerPortraitUrl ? `<img class="uw2-gamble-portrait" src="${dealerPortraitUrl}">` : "") +
+              `<div class="uw2-pane-title" style="margin:0;">庄家 ${dShow ? `（${handSum(bjDealer)} 点）` : ""}</div>` +
+            `</div>` +
             `<div class="uw2-action-box"><div class="uw2-card-row">${bjDealer.map((c, idx) => cardHtml(c, !dShow && idx === 0)).join("")}</div></div>`;
 
           const playerArea = document.createElement("div");
           playerArea.className = "uw2-pane";
           playerArea.innerHTML =
-            `<div class="uw2-pane-title">我方（${handSum(bjPlayer)} 点 · 赌注 ${bjBet}）</div>` +
+            `<div class="uw2-gamble-actor">` +
+              (heroPortraitUrl ? `<img class="uw2-gamble-portrait" src="${heroPortraitUrl}">` : "") +
+              `<div class="uw2-pane-title" style="margin:0;">我方（${handSum(bjPlayer)} 点 · 赌注 ${bjBet}）</div>` +
+            `</div>` +
             `<div class="uw2-action-box"><div class="uw2-card-row">${bjPlayer.map(c => cardHtml(c, false)).join("")}</div></div>`;
 
           split.append(dealerArea, playerArea);
@@ -274,9 +300,11 @@ export async function runDomGamble(gamble: any): Promise<void> {
           const playerBox = document.createElement("div");
           playerBox.className = "uw2-action-box";
           const pRank = evalDiceRank(dcPlayer);
-          const pTitle = document.createElement("div");
-          pTitle.className = "uw2-pane-title";
-          pTitle.textContent = `我方 · ${HAND_NAMES[pRank]}（赌注 ${dcBet} · 剩余重掷 ${dcRerolls} 次）`;
+          const pActor = document.createElement("div");
+          pActor.className = "uw2-gamble-actor";
+          pActor.innerHTML =
+            (heroPortraitUrl ? `<img class="uw2-gamble-portrait" src="${heroPortraitUrl}">` : "") +
+            `<div class="uw2-pane-title" style="margin:0;">我方 · ${HAND_NAMES[pRank]}（赌注 ${dcBet} · 剩余重掷 ${dcRerolls} 次）</div>`;
           const dRow = document.createElement("div");
           dRow.className = "uw2-card-row";
           dcPlayer.forEach((v, idx) => {
@@ -287,15 +315,15 @@ export async function runDomGamble(gamble: any): Promise<void> {
             btn.addEventListener("click", () => { dcHold[idx] = !dcHold[idx]; render(); });
             dRow.appendChild(btn);
           });
-          playerBox.append(pTitle, dRow);
+          playerBox.append(pActor, dRow);
           h.body.appendChild(playerBox);
 
           if (dcPhase === "done") {
             const oppBox = document.createElement("div");
             oppBox.className = "uw2-action-box";
             oppBox.innerHTML =
-              `<div class="uw2-kv-row"><span class="uw2-kv-label">对手 A：${dcOpp1.map(v => DICE_FACE[v]).join(" ")}</span><span class="uw2-kv-val">${HAND_NAMES[evalDiceRank(dcOpp1)]}</span></div>` +
-              `<div class="uw2-kv-row"><span class="uw2-kv-label">对手 B：${dcOpp2.map(v => DICE_FACE[v]).join(" ")}</span><span class="uw2-kv-val">${HAND_NAMES[evalDiceRank(dcOpp2)]}</span></div>`;
+              `<div class="uw2-kv-row"><span style="display:flex;align-items:center;gap:10px;">${opp1PortraitUrl ? `<img class="uw2-gamble-portrait" style="width:40px;height:50px;" src="${opp1PortraitUrl}">` : ""}<span class="uw2-kv-label">对手 A：${dcOpp1.map(v => DICE_FACE[v]).join(" ")}</span></span><span class="uw2-kv-val">${HAND_NAMES[evalDiceRank(dcOpp1)]}</span></div>` +
+              `<div class="uw2-kv-row"><span style="display:flex;align-items:center;gap:10px;">${opp2PortraitUrl ? `<img class="uw2-gamble-portrait" style="width:40px;height:50px;" src="${opp2PortraitUrl}">` : ""}<span class="uw2-kv-label">对手 B：${dcOpp2.map(v => DICE_FACE[v]).join(" ")}</span></span><span class="uw2-kv-val">${HAND_NAMES[evalDiceRank(dcOpp2)]}</span></div>`;
             h.body.appendChild(oppBox);
           }
 

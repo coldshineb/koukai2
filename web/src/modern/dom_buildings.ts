@@ -5,7 +5,7 @@ import { DS, OFF } from "../model/schema_views.ts";
 import { DiscoveryFlag, GameConst, NobleFlag, OptionFlag, SkillFlag, TreatyFlag, WorkDS } from "../model/flags.ts";
 import { domS16, calcDepositLimit, canTakeLoan, calcLoanLimit } from "../domain/economy.ts";
 import { captureConsoleText, decodeCleanCstr, toSimp } from "../canvas_ui/text_util.ts";
-import { createDomModal, getPersonPortraitSrc, preserveScroll, runDomStoryCard } from "./dom_ui.ts";
+import { createDomModal, getBuildingArtUrl, getPersonPortraitSrc, mountBuildingBanner, preserveScroll, runDomStoryCard } from "./dom_ui.ts";
 import { UI_STR } from "./ui_strings.ts";
 import { ENV_COMMON, ENV_HERO } from "../game/scenario.js";
 import { mainEnding } from "../game/endgame.js";
@@ -20,7 +20,7 @@ const plS16 = (v: number) => (v << 16) >> 16;
 const plUmin = (a: number, b: number) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);
 const plUmax = (a: number, b: number) => ((b & 0xffff) >= (a & 0xffff) ? b & 0xffff : a & 0xffff);
 
-function createWorkbenchShell(title: string, money: number, onClose: () => void) {
+function createWorkbenchShell(title: string, money: number, onClose: () => void, artUrl: string | null = null) {
   const h = createDomModal({
     title,
     size: "wide",
@@ -33,9 +33,7 @@ function createWorkbenchShell(title: string, money: number, onClose: () => void)
   moneyPill.textContent = fmtMoneyPill(money);
   h.headerRight.prepend(moneyPill);
 
-  const toolbar = document.createElement("div");
-  toolbar.className = "uw2-modal-toolbar";
-  h.modal.insertBefore(toolbar, h.body);
+  const toolbar = mountBuildingBanner(h.modal, h.body, artUrl);
 
   const footer = document.createElement("div");
   footer.className = "uw2-modal-footer";
@@ -229,7 +227,7 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
         resolve();
       };
 
-      const shell = createWorkbenchShell(`${portName} · 王宫`, palace.money, done);
+      const shell = createWorkbenchShell(`${portName} · 王宫`, palace.money, done, getBuildingArtUrl(c, 5, b.p));
 
       const render = () => preserveScroll(shell.h.body, () => {
         shell.moneyPill.textContent = fmtMoneyPill(palace.money);
@@ -539,7 +537,7 @@ export function runDomBankWorkbench(bank: any): Promise<void> {
       resolve();
     };
 
-    const shell = createWorkbenchShell(`${portName} · 银行`, bank.money, done);
+    const shell = createWorkbenchShell(`${portName} · 银行`, bank.money, done, getBuildingArtUrl(c, 8, b.p));
 
     const getLimitAndBlock = (): { max: number; blockMsg: string } => {
       const bal = bank.bal;
@@ -735,7 +733,7 @@ export async function runDomOfficeWorkbench(office: any): Promise<void> {
         resolve();
       };
 
-      const shell = createWorkbenchShell(`${portName} · 事务所`, b.money, done);
+      const shell = createWorkbenchShell(`${portName} · 事务所`, b.money, done, getBuildingArtUrl(c, 6, b.p));
 
       const render = () => preserveScroll(shell.h.body, () => {
         shell.moneyPill.textContent = fmtMoneyPill(b.money);
@@ -957,7 +955,7 @@ export async function runDomInnWorkbench(b: any): Promise<void> {
         resolve();
       };
 
-      const shell = createWorkbenchShell(`${portName} · 旅馆`, b.money, done);
+      const shell = createWorkbenchShell(`${portName} · 旅馆`, b.money, done, getBuildingArtUrl(c, 4, b.p));
 
       const render = () => preserveScroll(shell.h.body, () => {
         shell.moneyPill.textContent = fmtMoneyPill(b.money);
@@ -1098,7 +1096,7 @@ export function runDomChurchWorkbench(b: any, base: number): Promise<void> {
       resolve();
     };
 
-    const shell = createWorkbenchShell(`${portName} · ${b.mosque ? "清真寺" : "教会"}`, b.money, done);
+    const shell = createWorkbenchShell(`${portName} · ${b.mosque ? "清真寺" : "教会"}`, b.money, done, getBuildingArtUrl(c, 10, b.p));
 
     const render = () => preserveScroll(shell.h.body, () => {
       shell.moneyPill.textContent = fmtMoneyPill(b.money);
@@ -1224,7 +1222,7 @@ export function runDomFortuneWorkbench(b: any): Promise<void> {
       resolve();
     };
 
-    const shell = createWorkbenchShell(`${portName} · 占卜师`, b.money, done);
+    const shell = createWorkbenchShell(`${portName} · 占卜师`, b.money, done, getBuildingArtUrl(c, 11, b.p));
 
     const render = () => preserveScroll(shell.h.body, () => {
       shell.moneyPill.textContent = fmtMoneyPill(b.money);
@@ -1354,7 +1352,7 @@ export async function runDomTavernWorkbench(b: any, drinkNameBytes: Uint8Array, 
         resolve();
       };
 
-      const shell = createWorkbenchShell(`${portName} · 酒馆`, b.money, done);
+      const shell = createWorkbenchShell(`${portName} · 酒馆`, b.money, done, getBuildingArtUrl(c, 1, b.p));
 
       const render = () => preserveScroll(shell.h.body, () => {
         shell.moneyPill.textContent = fmtMoneyPill(b.money);
@@ -1641,7 +1639,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
         resolve();
       };
 
-      const shell = createWorkbenchShell(`${portName} · 造船厂`, b.money, done);
+      const shell = createWorkbenchShell(`${portName} · 造船厂`, b.money, done, getBuildingArtUrl(c, 2, b.p));
 
       const getFleetSlots = () => {
         const n = b.fleetShips();
@@ -2272,7 +2270,7 @@ export async function runDomHouseWorkbench(house: any): Promise<void> {
         resolve(story);
       };
 
-      const shell = createWorkbenchShell(`${portName} · 住宅`, house.money, () => finish(null));
+      const shell = createWorkbenchShell(`${portName} · 住宅`, house.money, () => finish(null), getBuildingArtUrl(c, 7, b.p));
 
       const hasTreasureMap = () => {
         for (let i = 0; i < GameConst.INV_SLOTS; i++) {

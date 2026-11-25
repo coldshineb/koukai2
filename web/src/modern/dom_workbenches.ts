@@ -5,7 +5,7 @@ import { GameConst, MenuId } from "../model/flags.ts";
 import { domS16, domUmin16, calcBuyPriceShift, calcSellPriceShift, clampPriceIndexUp, clampPriceIndexDown } from "../domain/economy.ts";
 import { marketTradeLog } from "../scenes/market.js";
 import { decodeCleanCstr } from "../canvas_ui/text_util.ts";
-import { createDomModal, getPersonPortraitSrc, preserveScroll } from "./dom_ui.ts";
+import { createDomModal, getBuildingArtUrl, getPersonPortraitSrc, mountBuildingBanner, preserveScroll } from "./dom_ui.ts";
 import { renderUnifiedInvestPane } from "./dom_buildings.ts";
 import { UI_STR } from "./ui_strings.ts";
 
@@ -43,9 +43,7 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
     moneyPill.className = "uw2-pill";
     h.headerRight.prepend(moneyPill);
 
-    const toolbar = document.createElement("div");
-    toolbar.className = "uw2-modal-toolbar";
-    h.modal.insertBefore(toolbar, h.body);
+    const toolbar = mountBuildingBanner(h.modal, h.body, getBuildingArtUrl(c, 0, b.p));
 
     const footer = document.createElement("div");
     footer.className = "uw2-modal-footer";
@@ -559,9 +557,7 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
       moneyPill.className = "uw2-pill";
       h.headerRight.prepend(daysPill, moneyPill);
 
-      const toolbar = document.createElement("div");
-      toolbar.className = "uw2-modal-toolbar";
-      h.modal.insertBefore(toolbar, h.body);
+      const toolbar = mountBuildingBanner(h.modal, h.body, getBuildingArtUrl(c, 3, b.p));
 
       const footer = document.createElement("div");
       footer.className = "uw2-modal-footer";

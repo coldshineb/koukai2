@@ -7,7 +7,7 @@ import { GameConst, ItemFlag, ItemKind, MenuId } from "../model/flags.ts";
 import { DS } from "../model/schema_views.ts";
 import { captureConsoleText, decodeCleanCstr, toSimp } from "../canvas_ui/text_util.ts";
 import { runWideInfoLinesModal } from "../canvas_ui/wide_panels.ts";
-import { createDomModal, hasDom, preserveScroll } from "../modern/dom_ui.ts";
+import { createDomModal, getBuildingArtUrl, hasDom, mountBuildingBanner, preserveScroll } from "../modern/dom_ui.ts";
 import { UI_STR } from "../modern/ui_strings.ts";
 
 const isHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
@@ -72,9 +72,7 @@ export class ItemShop {
       moneyPill.className = "uw2-pill";
       h.headerRight.prepend(moneyPill);
 
-      const toolbar = document.createElement("div");
-      toolbar.className = "uw2-modal-toolbar";
-      h.modal.insertBefore(toolbar, h.body);
+      const toolbar = mountBuildingBanner(h.modal, h.body, getBuildingArtUrl(this.c, 9, b.p));
 
       const footer = document.createElement("div");
       footer.className = "uw2-modal-footer";

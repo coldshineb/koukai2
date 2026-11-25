@@ -114,6 +114,42 @@ export interface DomModalHandle {
   close: () => void;
 }
 
+/** 取得原版 GRAPH.DAT 建築內景插圖 URL（含殖民地清真寺 #0x14 判定） */
+export function getGraphArtUrl(c: any, picId: number): string | null {
+  const art = c?.art;
+  if (!art?.graphEntry) return null;
+  const entry = art.graphEntry("GRAPH.DAT", picId);
+  return entry ? `${art.baseUrl}/${entry.path}` : null;
+}
+
+export function getBuildingArtUrl(c: any, buildingKind: number, portScene?: any): string | null {
+  const picId = buildingKind === 10 && portScene?.colonyChurch?.() ? 0x14 : buildingKind + 6;
+  return getGraphArtUrl(c, picId);
+}
+
+/** 在彈窗頂部掛載「建築插畫 + 頁籤工具列」一體橫幅，回傳頁籤容器 toolbar */
+export function mountBuildingBanner(modal: HTMLElement, body: HTMLElement, artUrl: string | null): HTMLElement {
+  if (!artUrl) {
+    const toolbar = document.createElement("div");
+    toolbar.className = "uw2-modal-toolbar";
+    modal.insertBefore(toolbar, body);
+    return toolbar;
+  }
+  const banner = document.createElement("div");
+  banner.className = "uw2-bld-banner";
+  const img = document.createElement("img");
+  img.className = "uw2-bld-art";
+  img.src = artUrl;
+  const main = document.createElement("div");
+  main.className = "uw2-bld-banner-main";
+  const toolbar = document.createElement("div");
+  toolbar.className = "uw2-bld-banner-tabs";
+  main.appendChild(toolbar);
+  banner.append(img, main);
+  modal.insertBefore(banner, body);
+  return toolbar;
+}
+
 export function createDomModal(opts: {
   title: string;
   size?: "sm" | "md" | "wide";
