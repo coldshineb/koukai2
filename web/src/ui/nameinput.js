@@ -32,6 +32,7 @@ export class NameInput {
   // 30a30 提示視窗: kind 0..3 = 名字？/姓氏？/船名？/暱稱？, n 字
   prompt(kind, n) {
     this._lastKind = kind;
+    if (this.c.modernUI) return;
     const { win, con } = this.c;
     this.y0 = 0x130;
     this.col0 = 0x1d - n * 2;

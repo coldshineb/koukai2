@@ -6,6 +6,7 @@ import { domS16, domUmin16, calcBuyPriceShift, calcSellPriceShift, clampPriceInd
 import { marketTradeLog } from "../scenes/market.js";
 import { decodeCleanCstr } from "../canvas_ui/text_util.ts";
 import { createDomModal, getPersonPortraitSrc, preserveScroll } from "./dom_ui.ts";
+import { UI_STR } from "./ui_strings.ts";
 
 // ============================================================================
 // 1. 交易所一體化工作台（買進 / 賣出 / 投資 / 物價）
@@ -13,9 +14,8 @@ import { createDomModal, getPersonPortraitSrc, preserveScroll } from "./dom_ui.t
 export function runDomMarketWorkbench(market: any): Promise<void> {
   const c = market.c, b = market.b, codec = c.codec;
   const dec = (bts: Uint8Array) => decodeCleanCstr(codec, bts);
-  const tabLabels = c.menuItems(MenuId.MARKET).slice(0, 4).map(dec);
-  const bldLabels = c.menuItems(0x3a);
-  const marketTitle = bldLabels?.[0] ? dec(bldLabels[0]) : "";
+  const tabLabels = [...UI_STR.marketTabs];
+  const marketTitle = "交易所";
   const portName = dec(market.port.nameBytes);
 
   return new Promise(resolve => {
@@ -400,12 +400,11 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
 export async function runDomWharfWorkbench(b: any): Promise<number> {
   const c = b.c, st = b.st, codec = c.codec;
   const dec = (bts: Uint8Array) => decodeCleanCstr(codec, bts);
-  const bldLabels = c.menuItems(0x3a);
-  const wharfTitle = bldLabels?.[3] ? dec(bldLabels[3]) : "码头";
+  const wharfTitle = UI_STR.wharfTitle;
   const portName = dec(st.model.port(b.port).nameBytes);
-  const wharfMenu = c.menuItems(9).map(dec);
-  const dockMenu = c.menuItems(8).map(dec); // 保管 / 配备 / 交换
-  const supNames = dec(b.WF.supplyHdr).split(/\s+/).filter(Boolean).slice(0, 4);
+  const wharfMenu = [UI_STR.wharfDepart, ...UI_STR.wharfTabs];
+  const dockMenu = [...UI_STR.dockActions];
+  const supNames = [...UI_STR.supplies];
 
   const unitPrice = (item: number) => {
     if (item === 0) return 0;
@@ -930,9 +929,9 @@ export function runDomFleetHub(cmd: any): Promise<void> {
   const c = cmd.c, st = cmd.st, b = cmd.b, { codec, art } = c;
   const dec = (bts: Uint8Array) => decodeCleanCstr(codec, bts);
   const m1b = c.menuItems(0x1b).slice(0, 6).map(dec);
-  const tabLabels = [m1b[0], m1b[3], m1b[1], m1b[5]];
+  const tabLabels = [...UI_STR.fleetHubTabs];
   const statLabels = c.menuItems(0x29).slice(0, 7).map(dec);
-  const roleLabels = [dec(b.T.crewRoles[3]), dec(b.T.crewRoles[4]), dec(b.T.crewRoles[5])];
+  const roleLabels = [...UI_STR.crewPosts];
 
   return new Promise(resolve => {
     let activeTab = 0;

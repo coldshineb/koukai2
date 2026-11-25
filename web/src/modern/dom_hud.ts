@@ -186,23 +186,29 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
   }
 }
 
-/** 現代羊皮紙「新建遊戲 — 選擇主角」介面 */
+/** 現代羊皮紙「新建遊戲 — 選擇主角 + 可選改名」一體化介面 */
 export function runDomNewGameSelect(
-  heroes: { id: number; name: string; age: number; stats: number[]; skill: string; intro: string; portraitUrl: string | null }[],
+  heroes: { id: number; name: string; given: string; family: string; age: number; stats: number[]; skill: string; intro: string; portraitUrl: string | null }[],
   statLabels: string[],
   cancelable: boolean,
-): Promise<number> {
+): Promise<{ id: number; given: string; family: string } | null> {
   return new Promise(resolve => {
     let selected = 0;
     let settled = false;
-    const done = (v: number) => { if (settled) return; settled = true; h.close(); resolve(v); };
+    const customNames = heroes.map(h => ({ given: h.given, family: h.family }));
+    const done = (v: { id: number; given: string; family: string } | null) => {
+      if (settled) return;
+      settled = true;
+      h.close();
+      resolve(v);
+    };
 
     const h = createDomModal({
       title: "开始新航海",
       size: "wide",
       cancelable,
       closeLabel: "×",
-      onCancel: () => done(-1),
+      onCancel: () => done(null),
     });
 
     const footer = document.createElement("div");
@@ -210,8 +216,11 @@ export function runDomNewGameSelect(
     const okBtn = document.createElement("button");
     okBtn.className = "uw2-btn uw2-btn-primary";
     okBtn.style.padding = "8px 28px";
-    okBtn.textContent = "确定";
-    okBtn.addEventListener("click", () => done(selected));
+    okBtn.textContent = "开始航海";
+    okBtn.addEventListener("click", () => {
+      const nm = customNames[selected];
+      done({ id: selected, given: nm.given.trim(), family: nm.family.trim() });
+    });
     footer.appendChild(okBtn);
     h.modal.appendChild(footer);
 
@@ -238,11 +247,11 @@ export function runDomNewGameSelect(
         nm.textContent = hero.name;
         card.appendChild(nm);
         card.addEventListener("click", () => { selected = i; render(); });
-        card.addEventListener("dblclick", () => done(i));
         grid.appendChild(card);
       });
 
       const cur = heroes[selected];
+      const curName = customNames[selected];
       const detail = document.createElement("div");
       detail.className = "uw2-action-box";
       detail.style.gap = "10px";
@@ -250,6 +259,27 @@ export function runDomNewGameSelect(
       const head = document.createElement("div");
       head.style.cssText = "display:flex;justify-content:space-between;align-items:baseline;";
       head.innerHTML = `<span style="font-size:19px;font-weight:700;color:var(--uw2-ink);">${cur.name}</span><span style="font-size:13px;color:#7a4e10;font-weight:600;">${cur.age}岁 · ${cur.skill}</span>`;
+
+      const nameRow = document.createElement("div");
+      nameRow.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:8px;";
+      const mkField = (label: string, val: string, onChange: (v: string) => void) => {
+        const box = document.createElement("label");
+        box.style.cssText = "display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--uw2-ink-muted);";
+        const span = document.createElement("span");
+        span.textContent = label;
+        const inp = document.createElement("input");
+        inp.type = "text";
+        inp.maxLength = 6;
+        inp.value = val;
+        inp.style.cssText = "flex:1;min-width:0;padding:4px 8px;font-size:13px;font-weight:600;border:1px solid var(--uw2-gold);border-radius:6px;background:#fffdf6;color:var(--uw2-ink);";
+        inp.addEventListener("input", () => onChange(inp.value));
+        box.append(span, inp);
+        return box;
+      };
+      nameRow.append(
+        mkField("名字", curName.given, v => { curName.given = v; }),
+        mkField("姓氏", curName.family, v => { curName.family = v; }),
+      );
 
       const intro = document.createElement("div");
       intro.style.cssText = "font-size:14px;line-height:1.65;color:var(--uw2-ink);padding:8px 10px;background:rgba(255,252,242,0.7);border-radius:6px;border:1px solid rgba(154,119,56,0.25);";
@@ -263,7 +293,7 @@ export function runDomNewGameSelect(
         statsGrid.appendChild(row);
       });
 
-      detail.append(head, intro, statsGrid);
+      detail.append(head, nameRow, intro, statsGrid);
       split.append(grid, detail);
       h.body.appendChild(split);
     };

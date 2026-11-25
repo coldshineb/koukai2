@@ -10,6 +10,7 @@ import { renderWideNewGame, hitWideHeroCard } from "../canvas_ui/wide_newgame.ts
 import { captureConsoleText, decodeCleanCstr } from "../canvas_ui/text_util.ts";
 import { hasDom } from "../modern/dom_ui.ts";
 import { runDomNewGameSelect, hideDomWorldHud } from "../modern/dom_hud.ts";
+import { UI_STR } from "../modern/ui_strings.ts";
 
 const ngHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const ngDiv8 = v => (v < 0 ? -((-v) >> 3) : v >> 3);
@@ -54,6 +55,8 @@ export class NewGame {
         return {
           id: i,
           name: this.captureMessage(0x3a6, p.givenNameBytes, p.familyNameBytes),
+          given: dec(p.givenNameBytes),
+          family: dec(p.familyNameBytes),
           age: p.age,
           stats: Array.from({ length: 7 }, (_, k) => p.getStats(k)),
           skill: dec(this.skillNames[this.d.heroSkill[i]]),
@@ -63,34 +66,26 @@ export class NewGame {
       };
       const heroes = Array.from({ length: 6 }, (_, i) => buildHero(i));
       await Promise.all(heroes.map(h => h.portraitUrl ? art.loadImage(h.portraitUrl).catch(() => {}) : null));
-      const splitCols = id => this.captureMessage(id).split(/\s{3,}/).map(s => s.replace(/\s+/g, "")).filter(Boolean);
-      const statLabels = [
-        ...splitCols(0x3a7).slice(1), // 統禦力, 航海術 (略過「年齡」)
-        ...splitCols(0x3a8),          // 知識, 直覺
-        ...splitCols(0x3a9).slice(1), // 勇氣, 劍術 (略過「技能」)
-        ...splitCols(0x3aa),          // 魅力
-      ].slice(0, 7);
+      const statLabels = [...UI_STR.heroStats];
 
       if (hasDom()) {
         hideDomWorldHud();
         scr.wideRenderer = null;
         scr.clear(0);
-        for (;;) {
-          const picked = await runDomNewGameSelect(heroes, statLabels, di < 1);
-          if (picked < 0) return -1;
-          this.m.globals.hero = picked;
-          const saved = this.st.bytes(this.personDS, 26).slice();
-          await this.rename();
-          heroes[picked] = buildHero(picked);
-          scr.wideDialog = { text: dec(this.S.all) + this.captureMessage(0x3b3), portraitId: picked, waiting: false };
-          scr.dirty = true;
-          const ok = await menu.yesNo();
-          scr.wideDialog = null;
-          scr.dirty = true;
-          if (ok) return picked;
-          this.st.b.set(saved, this.personDS - DS.STATE_BASE);
-          heroes[picked] = buildHero(picked);
-        }
+        const res = await runDomNewGameSelect(heroes, statLabels, di < 1);
+        if (!res) return -1;
+        this.m.globals.hero = res.id;
+        const writeIfChanged = (dest, origStr, newStr, maxBytes) => {
+          if (!newStr || newStr === origStr) return;
+          try {
+            const bts = this.c.font.encode(newStr).subarray(0, maxBytes);
+            for (let i = 0; i < bts.length; i++) this.st.set8(dest + i, bts[i]);
+            this.st.set8(dest + bts.length, 0);
+          } catch { /* 若輸入含字庫未收錄字元則保留原名 */ }
+        };
+        writeIfChanged(this.personDS, heroes[res.id].given, res.given, 12);
+        writeIfChanged(this.personDS + 13, heroes[res.id].family, res.family, 12);
+        return res.id;
       }
 
       let selected = 0;

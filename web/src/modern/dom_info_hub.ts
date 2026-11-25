@@ -6,6 +6,7 @@ import { WorkDS } from "../model/flags.ts";
 import { ListSelect } from "../ui/listsel.js";
 import { captureConsoleText, decodeCleanCstr, UI_FONT } from "../canvas_ui/text_util.ts";
 import { createDomModal, getPersonPortraitSrc, preserveScroll } from "./dom_ui.ts";
+import { UI_STR } from "./ui_strings.ts";
 
 const s16 = (v: number) => (v << 16) >> 16;
 const umin = (a: number, b: number) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);
@@ -453,8 +454,8 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
   const c = cmd.c, st = cmd.st, b = cmd.b, p = cmd.p, art = c.art;
   const dec = (bts: Uint8Array) => decodeCleanCstr(c.codec, bts);
   const cap = (fn: () => void) => captureConsoleText(c, fn);
-  const tabLabels: string[] = c.menuItems(0x1a).slice(0, 10).map(dec);
-  const infoTitle = "情报";
+  const tabLabels = [...UI_STR.infoTabs];
+  const infoTitle = UI_STR.cmdButtons[0];
 
   const hasShips = () => b.fleetShips() > 0;
   const hasDisc = () => !!cmd.discList(1);
@@ -665,7 +666,7 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
                 topRow.appendChild(fImg);
               }
             }
-            const supNames = b.LO?.supplies ? b.LO.supplies.map(dec) : dec(b.WF.supplyHdr).split(/\s+/).filter(Boolean).slice(0, 4);
+            const supNames = UI_STR.supplies;
             const supGrid = document.createElement("div");
             supGrid.style.cssText = "flex:1;display:grid;grid-template-columns:repeat(2,1fr);gap:6px;";
             for (let k = 0; k < 4; k++) {
@@ -1061,9 +1062,8 @@ export async function runDomBelongings(cmd: any): Promise<void> {
   const c = cmd.c, st = cmd.st, b = cmd.b, art = c.art;
   const dec = (bts: Uint8Array) => decodeCleanCstr(c.codec, bts);
   const cap = (fn: () => void) => captureConsoleText(c, fn);
-  const navMenu = c.menuItems(0x1d);
-  const title = navMenu?.[4] ? dec(navMenu[4]) : "";
-  const actLabels = c.menuItems(0x21).slice(0, 2).map(dec);
+  const title = UI_STR.belongingsTitle;
+  const actLabels = [...UI_STR.belongingsActions];
 
   let selIdx = 0;
 
