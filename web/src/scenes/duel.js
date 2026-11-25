@@ -1,15 +1,11 @@
 // scenes/duel.js — 一骑打 (MAIN.EXE 12998 以下; docs/RE_NOTES.md 30.16..30.18)
 // 入口: 海战 0fea:2d1a = 12bba → NavalBattle.duel(ax, T) → duelInBattle();  剧本命令 E8 0fea:2ca9 = 12b49 → duelFromScenario()
-// 状态都在 DS (以原版地址存放在海战的 DS 镜像 ctx.battleDS, 方便与模拟器逐字节比对; 0ca4..8d17 走 GameState):
-//   9c2a 体力条 (0..200, 100 起; + = [9d44] 那方占优)  9c2c 上一场的对手  9d44 / 9d46 双方 (人物记录地址)  9d48 = 1 电脑发起
-//   9d4a / 9d4b 双方的出招历史 (每回合 << 2 | 招)  9d4c 位置  9d4e 这回合的攻方 (0 = 9d44)  9d50 / 9d52 主角那方 dx / dy  9d54 / 9d56 对手 dx / dy
-//   9f5e + 8k 精灵画布第 k 格的 x, y, w, h (word)   a01e + 7k 装备 (k = 0 是 9d44, 1 是 9d46): +0 武器 +1 防具 +2 武器种类 +3 武器值 +5 防具值
-import { PlanarBuf, LsFile, frameHeader } from "../decoders/duelanim.js";
+// 状态都在 DS (以原版地址存放在海战的 DS 镜像 ctx.battleDS; 0ca4..8d17 走 GameState)，画面由 ArtRegistry 标准 PNG 精灵表绘制。
 import { GameConst, ItemFlag } from "../model/flags.ts";
 import { personByAddr, personRawBytes } from "../model/world_helpers.ts";
-import { hasDom } from "../ui/modals.ts";
+import { hasDom, runDomStoryCard } from "../ui/modals.ts";
 import { renderWideDuel, hideDomDuelHud, runDomDuelMove } from "../ui/duel_hud.ts";
-import { decodeCleanCstr } from "../ui/text_util.ts";
+import { decodeCleanCstr, toSimp } from "../ui/text_util.ts";
 
 const duHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const duS16 = v => (v << 16) >> 16;
@@ -19,11 +15,10 @@ const DU_DS0 = 0x9d44;
 const DU_ANIM = [[0x06, 0x01, 0x07, 0x08, 0x00, 0x01], [0x06, 0x07, 0x08, 0x09, 0x00, 0x01], [0x06, 0x07, 0x08, 0x08, 0x00, 0x01],
   [0x01, 0x16, 0x17, 0x17, 0x18, 0x11], [0x01, 0x16, 0x17, 0x17, 0x18, 0x11], [0x06, 0x17, 0x27, 0x28, 0x28, 0x21]];
 
-// 加载资源 (tools/extract_duel.py): DATA1.LZW、IAP1..6.LZW、IAE1.LZW、data/duel.json
-export async function loadDuelAssets(A, loadBinary, loadJSON) {
-  const names = ["DATA1", "IAE1", "IAP1", "IAP2", "IAP3", "IAP4", "IAP5", "IAP6"];
-  const [J, ...bins] = await Promise.all([loadJSON(A + "/data/duel.json"), ...names.map(n => loadBinary(A + "/gfx/duel/" + n + ".LZW"))]);
-  return { J, data1: bins[0], iae: bins[1], iap: bins.slice(2) };
+// 加载文字常数 (data/duel.json)；精灵图形由 ArtRegistry 下的 web/assets/art/duel/*.png 提供
+export async function loadDuelAssets(A, _loadBinary, loadJSON) {
+  const J = await loadJSON(A + "/data/duel.json");
+  return { J };
 }
 
 export class Duel {
@@ -38,8 +33,8 @@ export class Duel {
     this.W = c.battleDS;
     if (!c.duelDSInit) { const h = this.J.ds["9d44"]; for (let i = 0; i < h.length / 2; i++) this.W[DU_DS0 + i] = parseInt(h.substr(2 * i, 2), 16); c.duelDSInit = 1; }
     this.atk = this.J.attack.map(duHex); this.def = this.J.defend.map(duHex);
-    this.data1 = new LsFile(D.data1);
-    this.scratch = (c.duelScratch ??= new Uint8Array(0x10000));          // [0c8a] 合成缓冲 (原版是共用的缓冲, 内容跨调用保留)
+    this.curAction = [0, 0];
+    this.viewState = null;
   }
   get st() { return this.c.state; }
   get m() { return this.c.state.model; }
@@ -92,12 +87,14 @@ export class Duel {
   }
   // 111ce: [0c88] (窗口保存区) 释放后配置 4 块缓冲; 11236: 释放, 重新配置 [0c88], [0536] = 0 (保存堆栈清空)
   alloc() {
-    this.main = new PlanarBuf(0x2a30, 0x5a);
-    this.spr = [0, 1, 2].map(() => new PlanarBuf(0x18c0, 0x48));
-    this.data = new Uint8Array(0x10000);                                // [03ee]
     this.c.win.stack.length = 0;
   }
-  free() { hideDomDuelHud(); this.c.win.stack.length = 0; this.main = this.spr = this.data = null; }
+  free() { hideDomDuelHud(); this.c.win.stack.length = 0; this.viewState = null; }
+  isAtSea() { return this.m.globals.port === GameConst.EMPTY_SLOT; }
+  weaponKind(sideIdx) {
+    const k = 7 * this.h;
+    return sideIdx === 0 ? this.u8(0xa020 + k) : this.u8(0xa027 - k);
+  }
 
   // ================= 12612 画面 =================
   async screen() {
@@ -118,20 +115,6 @@ export class Duel {
     item(0xa025 - k, 0x19, 0x38, 0xa10c); item(0xa026 - k, 0x19, 0x50, 0xa10f);
     item(0xa01e + k, 0x29, 0x38, 0xa112); item(0xa01f + k, 0x29, 0x50, 0xa117);
     this.msgClear();                                                    // 11275
-    // DATA1 (DS:09e4): 在海上 #0 / 在港 #1 → [03ee]:0 (最多 0x5a00); #2 → 5a00、#3 → 6b00 (最多 0x10e0)
-    const D = this.data;
-    this.data1.decodeTo(g.port === GameConst.EMPTY_SLOT ? 0 : 1, D, 0, 0x5a00);
-    this.data1.decodeTo(2, D, 0x5a00, 0x10e0);
-    this.data1.decodeTo(3, D, 0x6b00, 0x10e0);
-    this.main.fill(0, 0, 0x5a, 0x78, 8);                                // 110da + 23f7
-    for (const s of this.spr) s.fill(0, 0, 0x48, 0x58, 8);              // 11192(k) + 23f7
-    this.main.copyIn(0, 0, 0x30, 0x78, D, 0);                           // 2461 背景
-    this.main.maskIn(0x48, 0, 1, 0x78, D, 0x5a20, 9);                   // 22f9 船舷前景
-    this.main.maskIn(0x49, 0, 8, 0x78, D, 0x5a00, 9);
-    this.main.maskIn(0x51, 0, 8, 0x78, D, 0x6b00, 9);
-    this.main.maskIn(0x59, 0, 1, 0x78, D, 0x6b20, 9);
-    this.iap = new LsFile(this.P.duel.iap[g.hero]);                     // [0aff] = '1' + 主角编号, [9d5a]
-    this.iae = new LsFile(this.P.duel.iae);                             // [9d5c]
     this.set8(0x9d58, 0);
     await this.enter();                                                 // 11cbd
   }
@@ -171,87 +154,30 @@ export class Duel {
     const ar = Ar[b >> 3]; this.set8(B + 1, ar); this.set16(B + 5, m.item(ar).power);
   }
 
-  // ================= 画面的格 (RE_NOTES 30.17) =================
-  sprBuf(k) { return this.spr[Math.trunc(duS16(k) / 8)]; }             // 11192(k / 8)
-  // 117b7 动作 n 的两层 (身体 5n、武器 5n + 种类 + 1) 解到 [03ee]
-  loadAnim(side, n) {
-    const D = this.data, k = 7 * this.h;
-    if (!side) { this.iap.decodeTo(5 * n, D, 0); this.iap.decodeTo((5 * n + this.u8(0xa020 + k) + 1) & 0xffff, D, 0x2c90); }
-    else { this.iae.decodeTo(5 * n, D, 0x4780); this.iae.decodeTo((5 * n + this.u8(0xa027 - k) + 1) & 0xffff, D, 0x70b0); }
-  }
-  // 115f3 走路的 6 格放进精灵画布
-  cacheFrames() {
-    for (let si = 0; si < 6; si++) { this.cacheOne(si * 2, 0, si << 3); this.cacheOne(si * 2 + 1, 0x2c90, ((si + 0x592) << 3) & 0xffff); }
-    for (let si = 0; si < 6; si++) { this.cacheOne((si + 6) * 2, 0x4780, ((si + 0x8f0) << 3) & 0xffff); this.cacheOne(si * 2 + 0x0d, 0x70b0, ((si + 0xe16) << 3) & 0xffff); }
-  }
-  // 11522 第 k 格: 头部 → 9f5e + 8k; 22f9((k % 8) × 9, 0, w, h, 偏移 + 起点, [03ee], w)
-  cacheOne(k, base, p) {
-    const f = frameHeader(this.data, p), T = 0x9f5e + 8 * k;
-    this.set16(T, f.x); this.set16(T + 2, f.y); this.set16(T + 4, f.w); this.set16(T + 6, f.h);
-    this.sprBuf(k).maskIn((k % 8) * 9, 0, f.w, f.h, this.data, (f.off + base) & 0xffff, f.w);
-  }
-  // 1195f 精灵画布的第 k、k + 1 格 → [0c8a] (每列 0x18 栏)
-  sprite(k, dx, dy) {
-    for (const kk of [k, k + 1]) {
-      const T = 0x9f5e + 8 * kk;
-      const di = (((Math.imul((this.u16(T + 2) + dy) & 0xffff, 0x18) + this.u16(T) + dx) & 0xffff) << 2) & 0xffff;
-      this.sprBuf(kk).compose((kk % 8) * 9, 0, this.u16(T + 4), this.u16(T + 6), this.scratch, di, 0x18);
-    }
-  }
-  // 11713 动作格 n (≥ 6): 主画布合成暂存 (栏 0x30, 宽 0x18) 以色 8 清空, 两层以 11675 画上
-  bigFrame(side, n) {
-    const si = (n - 6) & 0xffff;
-    this.main.fill(0x30, 0, 0x18, 0x78, 8);
-    if (!side) { this.bigOne(0, this.u16(0x9d50), this.u16(0x9d52), (si << 3) & 0xffff); this.bigOne(0x2c90, this.u16(0x9d50), this.u16(0x9d52), ((si + 0x592) << 3) & 0xffff); }
-    else { this.bigOne(0x4780, this.u16(0x9d54), this.u16(0x9d56), ((si + 0x8f0) << 3) & 0xffff); this.bigOne(0x70b0, this.u16(0x9d54), this.u16(0x9d56), ((si + 0xe16) << 3) & 0xffff); }
-  }
-  // 11675: 22f9(dx + x + 0x30, dy + y, w, h, 偏移 + 起点, [03ee], w)
-  bigOne(base, dx, dy, p) {
-    const f = frameHeader(this.data, p);
-    this.main.maskIn((dx + f.x + 0x30) & 0xffff, (dy + f.y) & 0xffff, f.w, f.h, this.data, (f.off + base) & 0xffff, f.w);
-  }
-  // 11847 船舷前景 (只在海上): 主画布栏 0x48..0x59 依位置叠到 [0c8a] 的左右边
-  rail(pos) {
-    if (this.m.globals.port !== GameConst.EMPTY_SLOT) return;
-    const p = (pos + 7) & 0xffff, M = this.main, S = this.scratch;
-    if (duS16(p) <= 8) {
-      const di = (9 - p) & 0xffff, si = duUmin(di, 1);
-      M.compose((0x49 - si) & 0xffff, 0, si, 0x78, S, ((di - si) << 2) & 0xffff, 0x18);
-      if (duS16(di) > duS16(si)) M.compose((0x52 - di) & 0xffff, 0, (di - si) & 0xffff, 0x78, S, 0, 0x18);
-    }
-    if (duS16(p) >= 0x10) {
-      const di = (p - 0x0f) & 0xffff, si = duUmin(di, 8);
-      M.compose(0x51, 0, si, 0x78, S, ((0x18 - di) << 2) & 0xffff, 0x18);
-      if (duS16(di) > duS16(si)) M.compose(0x59, 0, (di - si) & 0xffff, 0x78, S, ((si - di + 0x18) << 2) & 0xffff, 0x18);
-    }
-  }
-  // 11a4c 一个画面 (主角那方 a、对手 b)
+  // ================= 画面的格 (由 PNG 精灵表绘制) =================
+  loadAnim(side, n) { this.curAction[side] = n; }
+  cacheFrames() {}
   async frame(a, b) {
-    const L = this.s16(0x9d4c), M = this.main, S = this.scratch;
-    M.compose((L + 7) & 0xffff, 0, 0x18, 0x78, S, 0, 0x18);
-    if (duS16(a) < 6) this.sprite(a * 2, this.u16(0x9d50), this.u16(0x9d52));
-    else { this.bigFrame(0, a); M.compose(0x30, 0, 0x18, 0x78, S, 0, 0x18); }
-    if (duS16(b) < 6) this.sprite((b + 6) * 2, this.u16(0x9d54), this.u16(0x9d56));
-    else { this.bigFrame(1, b); M.compose(0x30, 0, 0x18, 0x78, S, 0, 0x18); }
-    this.rail(L);
-    this.c.scr.putPlanar((L + 0x17) & 0xffff, 0xb0, 0x18, 0x78, S, 0);  // 03d2 模式 0
-    this.c.probe?.("11a4c");                                            // 差分测试的快照点 (原版 11b49)
+    this.viewState = {
+      mode: "frame",
+      L: this.s16(0x9d4c),
+      a, b,
+      dxA: this.s16(0x9d50), dyA: this.s16(0x9d52),
+      dxB: this.s16(0x9d54), dyB: this.s16(0x9d56),
+    };
+    if (this.c.scr) this.c.scr.dirty = true;
+    this.c.probe?.("11a4c");
   }
-  // 11b4d 入场用: 右 di、左 si 分开画
   frameApart(a, b, di, si) {
-    const M = this.main, S = this.scratch;
-    M.compose((di + 0x13) & 0xffff, 0, 0x0c, 0x78, S, 0x30, 0x18);
-    M.compose((si + 7) & 0xffff, 0, 0x0c, 0x78, S, 0, 0x18);
-    this.sprite(a * 2, this.u16(0x9d50), this.u16(0x9d52));
-    this.sprite((b + 6) * 2, this.u16(0x9d54), this.u16(0x9d56));
-    this.rail(di); this.rail(si);
-    M.copyIn(0x30, 0, 0x18, 0x78, S, 0);                                // 2461 [0c8a] → 主画布栏 0x30
-    M.compose(0x3c, 0, 0x0c, 0x78, S, 0x1680, 0x0c);
-    M.compose(0x30, 0, 0x0c, 0x78, S, 0, 0x0c);
-    const scr = this.c.scr;
-    scr.putPlanar((di + 0x23) & 0xffff, 0xb0, 0x0c, 0x78, S, 0x1680);  // 03d2
-    scr.putPlanar((si + 0x17) & 0xffff, 0xb0, 0x0c, 0x78, S, 0);
-    this.c.probe?.("11b4d");                                            // 差分测试的快照点 (原版 11cb3)
+    this.viewState = {
+      mode: "apart",
+      di, si,
+      a, b,
+      dxA: this.s16(0x9d50), dyA: this.s16(0x9d52),
+      dxB: this.s16(0x9d54), dyB: this.s16(0x9d56),
+    };
+    if (this.c.scr) this.c.scr.dirty = true;
+    this.c.probe?.("11b4d");
   }
   // 114f3 位置 = (主角那方是 9d44 ? 200 − 体力 : 体力) / 20
   pos() { const v = this.u8(0x9c2a); this.set16(0x9d4c, this.h % 2 === 0 ? Math.trunc((0xc8 - v) / 0x14) : Math.floor(v / 0x14)); }
@@ -438,7 +364,11 @@ export class Duel {
     const m = this.m, { con, menu } = this.c, opp = personByAddr(m, ax ? this.u16(0x9d46) : this.u16(0x9d44)), H = m.heroPerson();
     let n;
     if ((ax === 0 && this.u8(0x9c2a) === 0) || (ax !== 0 && this.u8(0x9c2a) === 0xc8)) {
-      this.msgClear(); con.puts(this.ds(0xa11c)); await menu.waitPrompt();          // 147ab
+      if (this.c.scr?.wideRenderer && hasDom() && this.c.codec) {
+        await runDomStoryCard(this.c.art, null, toSimp(decodeCleanCstr(this.c.codec, this.ds(0xa11c))));
+      } else {
+        this.msgClear(); con.puts(this.ds(0xa11c)); await menu.waitPrompt();          // 147ab
+      }
       n = (10 * opp.battleLevel) & 0xffff;
     } else n = (3 * opp.battleLevel) & 0xffff;
     const up = this.levelUp(H, n);                                      // 1bb9c(主角 +25, +28)
@@ -467,7 +397,11 @@ export class Duel {
 export async function duelInBattle(b, ax, T) {
   const d = new Duel(b.c, b.sea.P); d.scene = b.sea;
   if (!ax) {
-    b.msgArea(); b.c.printf(d.ds(0xa12e)); await b.c.menu.waitPrompt();  // c2ee、a12e、147ab
+    if (b.c.scr?.wideRenderer && hasDom() && b.c.codec) {
+      await runDomStoryCard(b.c.art, null, toSimp(decodeCleanCstr(b.c.codec, d.ds(0xa12e))));
+    } else {
+      b.msgArea(); b.c.printf(d.ds(0xa12e)); await b.c.menu.waitPrompt();  // c2ee、a12e、147ab
+    }
     const B = b.u16(0x9bc2);
     if (b.u16(B) !== b.u16(0x9c2c)) b.set8(0x9c2a, 0x64);
     b.set16(0x9c2c, b.u16(B));

@@ -67,6 +67,17 @@ export async function loadPortAssets(ctx) {
       "dials", "supply_icons", "gamble_cards", "gamble_dice", "hud_buttons",
     ];
     await ctx.art.preloadUrls(sheets.map(s => ctx.art.sheetUrl(s)));
+    const dm = ctx.art.manifest?.duel;
+    if (dm) {
+      const duelUrls = [
+        dm.decks?.sea?.path,
+        dm.decks?.port?.path,
+        dm.rails?.left?.path,
+        dm.rails?.right?.path,
+        ...Object.values(dm.fighters ?? {}).map(f => f.path),
+      ].filter(Boolean).map(p => `${ctx.art.baseUrl}/${p}`);
+      await ctx.art.preloadUrls(duelUrls);
+    }
   }
   return {
     za, map, data, wind,

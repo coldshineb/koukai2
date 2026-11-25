@@ -16,6 +16,27 @@ export interface ArtSheetEntry extends ArtEntry {
   count: number;
 }
 
+export interface DuelSpriteFrame {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  sx: number;
+  sy: number;
+  sw: number;
+  sh: number;
+}
+
+export interface DuelFighterSheet extends ArtEntry {
+  entries: DuelSpriteFrame[][];
+}
+
+export interface DuelManifest {
+  decks: { sea: ArtEntry; port: ArtEntry };
+  rails: { left: ArtEntry; right: ArtEntry };
+  fighters: Record<string, DuelFighterSheet>;
+}
+
 export interface ArtManifest {
   format: "uw2-art-v1";
   portraits: Record<string, ArtEntry>;
@@ -27,7 +48,9 @@ export interface ArtManifest {
   backgrounds: Record<string, ArtEntry>;
   sheets?: Record<string, ArtSheetEntry>;
   ending?: ArtEntry[];
+  endingFaces?: ArtEntry[];
   opening?: Record<string, ArtEntry[]>;
+  duel?: DuelManifest;
   graph?: Record<string, ArtEntry[]>;
   kaoParts?: Record<string, ArtSheetEntry>;
 }

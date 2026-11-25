@@ -161,16 +161,99 @@ export function runDomDuelMove(round: number, isAttack: boolean, labels: string[
   });
 }
 
-export function renderWideDuel(ctx: CanvasRenderingContext2D, scr: any, duel: any) {
+export function renderWideDuel(ctx: CanvasRenderingContext2D, _scr: any, duel: any) {
   ctx.fillStyle = "#081222";
   ctx.fillRect(0, 0, 1280, 720);
 
-  // 原版单挑动画舞台位于 (x: 120..520, y: 176..296)，宽 400 × 高 120，以 2.4× 清晰居中放大呈现
-  const dx = 160, dy = 190, dw = 960, dh = 288;
-  if (scr.fbCanvas) {
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(scr.fbCanvas, 120, 40 + 176, 400, 120, dx, dy, dw, dh);
+  // 原版单挑动画舞台逻辑尺寸为 400 × 120 (cols 0x0f..0x41, rows 0xb0..0x128)，以 2.4× 居中呈现于 960×288
+  const dx = 160, dy = 190, dw = 960, dh = 288, scale = 2.4;
+  const art = duel.c?.art;
+  const dm = art?.manifest?.duel;
+  const getImg = (entry: any) => (entry ? art.getImage(`${art.baseUrl}/${entry.path}`) : null);
+
+  const deckEntry = duel.isAtSea?.() ? dm?.decks?.sea : dm?.decks?.port;
+  const deckImg = getImg(deckEntry);
+  const bgEntry = art?.backgroundUrl?.("duel_bg");
+  const bgImg = bgEntry ? art.getImage(bgEntry) : null;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(dx, dy, dw, dh);
+  ctx.clip();
+
+  if (bgImg) {
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(bgImg, 120, 176, 400, 120, dx, dy, dw, dh);
+  } else {
+    ctx.fillStyle = "#101b2d";
+    ctx.fillRect(dx, dy, dw, dh);
   }
+
+  ctx.imageSmoothingEnabled = false;
+  const vs = duel.viewState;
+
+  const drawFighter = (sideIdx: number, winColOffset: number, actionVal: number, offDx: number, offDy: number) => {
+    const fighterKey = sideIdx === 0 ? `iap${(duel.m.globals.hero & 7) + 1}` : "iae1";
+    const sheet = dm?.fighters?.[fighterKey];
+    const sheetImg = getImg(sheet);
+    if (!sheet || !sheetImg) return;
+    const isWalk = actionVal < 6;
+    const baseAction = isWalk ? 0 : (duel.curAction?.[sideIdx] ?? 0);
+    const frameIdx = isWalk ? actionVal : actionVal - 6;
+    const wepKind = duel.weaponKind?.(sideIdx) ?? 0;
+    for (const layerEntry of [baseAction * 5, baseAction * 5 + wepKind + 1]) {
+      const f = sheet.entries?.[layerEntry]?.[frameIdx];
+      if (!f) continue;
+      const fx = dx + (winColOffset + f.x + offDx) * 8 * scale;
+      const fy = dy + (f.y + offDy) * scale;
+      ctx.drawImage(sheetImg, f.sx, f.sy, f.sw, f.sh, fx, fy, f.sw * scale, f.sh * scale);
+    }
+  };
+
+  const drawRail = (pos: number, winColOffset: number) => {
+    if (!duel.isAtSea?.()) return;
+    const p = pos + 7;
+    if (p <= 8) {
+      const railL = getImg(dm?.rails?.left);
+      const di = 9 - p;
+      if (railL && di > 0) {
+        const wPx = Math.min(9, di) * 8;
+        ctx.drawImage(railL, 72 - wPx, 0, wPx, 120, dx + winColOffset * 8 * scale, dy, wPx * scale, dh);
+      }
+    }
+    if (p >= 16) {
+      const railR = getImg(dm?.rails?.right);
+      const di = p - 15;
+      if (railR && di > 0) {
+        const wPx = Math.min(9, di) * 8;
+        const xOff = (winColOffset + 24) * 8 - wPx;
+        ctx.drawImage(railR, 0, 0, wPx, 120, dx + xOff * scale, dy, wPx * scale, dh);
+      }
+    }
+  };
+
+  if (vs && deckImg) {
+    if (vs.mode === "apart") {
+      // 入场阶段：右侧 (di) 12 栏、左侧 (si) 12 栏分开呈现
+      const rCol = vs.di + 0x23 - 0x0f;
+      const lCol = vs.si + 0x17 - 0x0f;
+      ctx.drawImage(deckImg, (vs.di + 0x13) * 8, 0, 96, 120, dx + rCol * 8 * scale, dy, 96 * scale, dh);
+      ctx.drawImage(deckImg, (vs.si + 7) * 8, 0, 96, 120, dx + lCol * 8 * scale, dy, 96 * scale, dh);
+      const winCol = vs.si + 8;
+      drawFighter(0, winCol, vs.a, vs.dxA, vs.dyA);
+      drawFighter(1, winCol, vs.b, vs.dxB, vs.dyB);
+      drawRail(vs.di, vs.di + 8);
+      drawRail(vs.si, vs.si + 8);
+    } else {
+      const winCol = vs.L + 8;
+      ctx.drawImage(deckImg, (vs.L + 7) * 8, 0, 192, 120, dx + winCol * 8 * scale, dy, 192 * scale, dh);
+      drawFighter(0, winCol, vs.a, vs.dxA, vs.dyA);
+      drawFighter(1, winCol, vs.b, vs.dxB, vs.dyB);
+      drawRail(vs.L, winCol);
+    }
+  }
+  ctx.restore();
+
   ctx.save();
   ctx.strokeStyle = "#c8a258";
   ctx.lineWidth = 2.5;
