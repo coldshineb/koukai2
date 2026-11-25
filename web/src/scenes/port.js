@@ -589,6 +589,17 @@ export class PortScene {
         }
       }
     }
+    // 現代 DOM 模式：港內僅允許方向鍵 / 小鍵盤 8624 / WASD 移動，禁止滑鼠位置決定方向與任意鍵沿用方向
+    if (hasDom()) {
+      if (!key || key === 0xff) return 0xff;
+      switch (key) {
+        case 0x1e: case 0x38: case 0x77: case 0x57: return 1;         // ↑ / 8 / W
+        case 0x1c: case 0x36: case 0x64: case 0x44: return 2;         // → / 6 / D
+        case 0x1f: case 0x32: case 0x73: case 0x53: return 3;         // ↓ / 2 / S
+        case 0x1d: case 0x34: case 0x61: case 0x41: return 4;         // ← / 4 / A
+        default: return 0xff;
+      }
+    }
     for (let i = 0; i < 12; i++) {
       const [x0, y0, x1, y1, k] = B[i];
       if (k !== key && !(x >= x0 && x1 >= x && y0 <= y && y1 >= y)) continue;
@@ -601,14 +612,15 @@ export class PortScene {
   }
   async walk() {
     const { sys, palette } = this.c;
-    let face = 2, di = 0;                                           // di (方向) 跨迴圈保留: 之後任何按鍵都會沿用上次方向
+    const modern = hasDom();
+    let face = 2, di = 0;                                           // 原版 di (方向) 跨迴圈保留；現代模式每次僅依明確方向鍵移動
     sys.mickeys();
     for (;;) {
       if (palette.ending) return 0;
       const key = this.readInput();
       const mk = sys.mickeys();
       sys.mousePos();
-      if (Math.abs(mk.h) > 8 || Math.abs(mk.v) > 8) {
+      if (!modern && (Math.abs(mk.h) > 8 || Math.abs(mk.v) > 8)) {
         if (Math.abs(mk.v) < Math.abs(mk.h)) di = mk.h >= 0 ? 2 : 4; else di = mk.v >= 0 ? 3 : 1;
       }
       if (this.pendingCmd !== undefined) {
@@ -625,10 +637,11 @@ export class PortScene {
         continue;
       }
       const b = await this.buttons(key);
-      if (b !== 0xff) di = b;
+      if (modern) di = (b >= 1 && b <= 4) ? b : 0;
+      else if (b !== 0xff) di = b;
       if (this.port === 0xff) return 0;
       if (this.timeAbort()) return 0;                                 // 1b39a (讀檔後)
-      const shape = P_CURSORS[di];
+      const shape = P_CURSORS[modern ? 0 : di];
       if (shape !== this.cursor) { this.cursor = shape; sys.setCursorShape(shape); }
       sys.timer.set(this.c.state.options & 1 ? 8 : 4);
       if (key && di) {
