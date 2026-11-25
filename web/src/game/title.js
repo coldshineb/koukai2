@@ -3,7 +3,7 @@
 import { GameState, STATE_LOAD_SIZE } from "./state.js";
 import { SaveFile, SLOTS, HEADER_SIZE } from "./savefile.js";
 import { NewGame } from "./newgame.js";
-import { Commands } from "../scenes/commands.js";
+import { Commands, openDomSettings } from "../scenes/commands.js";
 import { loadPortAssets } from "../scenes/port.js";
 import { GameConst, MenuId, OptionFlag } from "../model/flags.ts";
 import { renderWideTitle } from "../canvas_ui/wide_title.ts";
@@ -25,9 +25,14 @@ export class Title {
     const { scr, palette, state } = this.c;
     state.options = 0xff;                 // [0ca4] = FF: 環境設定全開
     scr.clear(0);                         // 07f7
-    await palette.fadeToTarget();         // 98f8 屬性暫存器恆等 + 99e8
-    await palette.fadeBlack();            // 16063 之後 99f2
-    await palette.fadeToTarget();         // 17546 開頭
+    if (hasDom() && this.c.codec) {
+      palette.cur.set(palette.target);
+      palette.writeDAC();
+    } else {
+      await palette.fadeToTarget();         // 98f8 屬性暫存器恆等 + 99e8
+      await palette.fadeBlack();            // 16063 之後 99f2
+      await palette.fadeToTarget();         // 17546 開頭
+    }
     // 1752c: 滑鼠初始化 (4e47) + 4f44(0x27F, 0x18F): 把滑鼠移到右下角 (驅動座標 y 再加 40 行)
     //   之後是/否框在滑鼠位於 (27F,18F) 時改跟隨文字游標 (0FEA:146d4), 所以這一步會影響確認框的位置
     this.c.sys.setMousePos(0x27f, 0x18f);
@@ -36,10 +41,17 @@ export class Title {
   }
   // 171a2(1); restart = 171a2(0) (1757d: 功能「結束遊戲」後回到標題: 不做 1752c, 以 DATA1 #15 重新載入初始狀態代替 162fd)
   async run(restart = false) {
-    this.c.scr.wideRenderer = null;
+    const modernTitle = hasDom() && !!this.c.codec;
+    this.c.scr.wideRenderer = modernTitle ? (c2d => renderWideTitle(c2d, this.c.art)) : null;
+    this.c.scr.dirty = true;
     this.c.scr.setAtmosphere?.({ active: false });
     if (!restart) await this.init();
-    await this.c.palette.fadeToTarget();
+    if (modernTitle) {
+      this.c.palette.cur.set(this.c.palette.target);
+      this.c.palette.writeDAC();
+    } else {
+      await this.c.palette.fadeToTarget();
+    }
     this.c.bgm.playSong(SONG_TITLE);
     if (restart) this.c.state.b.set(this.c.initState.subarray(0, this.c.state.b.length));
     else { this.c.palette.invert = 0; this.c.barColors = [2, 1]; }   // 162fd: [c2d6] = 0, seg0:9376(2, 1) 百分比條顏色 DS:bafa / bafc
@@ -55,7 +67,7 @@ export class Title {
     const { win, menu, scr, art } = this.c, items = this.c.menuItems(MenuId.TITLE);
     const handlers = [() => this.cont(), () => this.newVoyage(), () => this.settings(), () => this.quit(items)];
     const useWide = !!(scr.hdCtx && art && this.c.codec);
-    if (useWide) {
+    if (useWide && !hasDom()) {
       const e1 = art.graphEntry?.("GRAPH.DAT", 0x3c);
       const e2 = art.graphEntry?.("GRAPH.DAT", 0x3e);
       await Promise.all([
@@ -97,6 +109,10 @@ export class Title {
   // 16ff2 環境設定: [8b1e] = 1 → 1fd9:173f (= 214cf, 與港口 / 海上同一個環境設定視窗, scenes/commands.js settings) → [8b1e] = 0, 回傳 0 (回到標題選單)
   //   [8b1e] (地圖精靈的動畫相位) 在 214cf 以下都沒有被讀, 之後進港 / 出海各場景另行初始化, 移植版不另外保存
   async settings() {
+    if (hasDom() && this.c.codec) {
+      await openDomSettings(this.c);
+      return 0;
+    }
     this.c.portAssets ??= await loadPortAssets(this.c);
     await new Commands({ c: this.c, P: this.c.portAssets }).settings();
     return 0;

@@ -1769,55 +1769,7 @@ export class Commands {
   async settings() {
     const st = this.st, { win, con, printf, menu, scr } = this.c, S = this.S;
     if (hasDom() && this.c.codec) {
-      const setSlider = (addr, max, v) => {
-        const clamped = Math.max(0, Math.min(max, Math.round(v)));
-        st.set8(addr, clamped);
-        const m = (st.u8(DS.MOUSE_SENS) + 2) * 2;
-        this.c.sys.mickeyRatio = [m, m];
-      };
-      const SL = UI_STR.settingsLabels;
-      await runDomSettingsModal({
-        title: UI_STR.settingsTitle,
-        toggles: [
-          {
-            label: SL[0],
-            onText: "ON",
-            offText: "OFF",
-            get: () => !!(st.options & 1),
-            toggle: () => this.settingsToggle(0),
-          },
-          {
-            label: SL[1],
-            onText: "ON",
-            offText: "OFF",
-            get: () => !!(st.options & 4),
-            toggle: () => this.settingsToggle(2),
-          },
-        ],
-        sliders: [
-          {
-            label: SL[2],
-            min: 0,
-            max: 4,
-            get: () => st.u8(DS.MOUSE_SENS),
-            set: v => setSlider(DS.MOUSE_SENS, 4, v),
-          },
-          {
-            label: SL[3],
-            min: 0,
-            max: 10,
-            get: () => st.u8(DS.MOUSE_SENS + 1),
-            set: v => setSlider(DS.MOUSE_SENS + 1, 10, v),
-          },
-          {
-            label: SL[4],
-            min: 0,
-            max: 10,
-            get: () => st.u8(DS.SEA_SPEED),
-            set: v => setSlider(DS.SEA_SPEED, 10, v),
-          },
-        ],
-      });
+      await openDomSettings(this.c);
       return;
     }
     if (scr.wideRenderer && this.c.codec) {
@@ -2003,4 +1955,42 @@ export class Commands {
     await palette.fadeBlack();
     palette.ending = 0x88;
   }
+}
+
+// 現代 DOM 版環境設定彈窗（不依賴 portAssets，供標題頁與港海指令共用，邏輯與原版 214cf / 213c5 完全一致）
+export async function openDomSettings(ctx) {
+  const st = ctx.state;
+  const toggle = async r => {
+    if ((r >> 1) === 0) { st.options = st.options ^ 1; return; }
+    const bgm = ctx.bgm, song = bgm.song ?? 0xff;
+    if (song === 0xff || ctx.noSoundDriver) return;
+    st.options = st.options ^ 4;
+    if (st.options & 4) {
+      if ((st.u8(DS.WEATHER) & 15) === 1) { ctx.sfx?.voice(0x0c5a); ctx.sfx?.note(0x30); }
+      bgm.playSong(song);
+    } else {
+      ctx.sfx?.off();
+      bgm.fadeOut();
+      await bgm.stopped?.();
+    }
+  };
+  const setSlider = (addr, max, v) => {
+    const clamped = Math.max(0, Math.min(max, Math.round(v)));
+    st.set8(addr, clamped);
+    const m = (st.u8(DS.MOUSE_SENS) + 2) * 2;
+    ctx.sys.mickeyRatio = [m, m];
+  };
+  const SL = UI_STR.settingsLabels;
+  await runDomSettingsModal({
+    title: UI_STR.settingsTitle,
+    toggles: [
+      { label: SL[0], onText: "ON", offText: "OFF", get: () => !!(st.options & 1), toggle: () => toggle(0) },
+      { label: SL[1], onText: "ON", offText: "OFF", get: () => !!(st.options & 4), toggle: () => toggle(2) },
+    ],
+    sliders: [
+      { label: SL[2], min: 0, max: 4, get: () => st.u8(DS.MOUSE_SENS), set: v => setSlider(DS.MOUSE_SENS, 4, v) },
+      { label: SL[3], min: 0, max: 10, get: () => st.u8(DS.MOUSE_SENS + 1), set: v => setSlider(DS.MOUSE_SENS + 1, 10, v) },
+      { label: SL[4], min: 0, max: 10, get: () => st.u8(DS.SEA_SPEED), set: v => setSlider(DS.SEA_SPEED, 10, v) },
+    ],
+  });
 }

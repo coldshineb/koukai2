@@ -12,6 +12,8 @@ import { GameState } from "./game/state.js";
 import { TextCodec, encodeState } from "./game/data.js";
 import { SaveFile } from "./game/savefile.js";
 import { Title } from "./game/title.js";
+import { renderWideTitle } from "./canvas_ui/wide_title.ts";
+import { hasDom } from "./modern/dom_ui.ts";
 import { GameClock } from "./game/clock.js";
 import { Opening, loadOpeningData } from "./game/opening.js";
 import { Ending, loadEndingData } from "./game/ending.js";
@@ -129,6 +131,10 @@ requestAnimationFrame(frame);
 (async () => {
   await new Opening(ctx, await loadOpeningData(ASSETS, loadBinary, loadJSON)).run();
   if (ctx.halted) return;
+  if (hasDom() && ctx.codec) {
+    ctx.scr.wideRenderer = c2d => renderWideTitle(c2d, ctx.art);
+    ctx.scr.dirty = true;
+  }
   await ctx.bgm.stopped();
   const r = await new Title(ctx).run();
   if (ctx.halted || r !== 1) return;
