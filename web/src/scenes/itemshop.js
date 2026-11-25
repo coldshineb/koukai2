@@ -63,13 +63,24 @@ export class ItemShop {
         title: `${portName} · 道具店`,
         size: "wide",
         cancelable: true,
-        closeLabel: "离开",
+        closeLabel: "关闭",
         onCancel: done,
       });
 
-      const cashBadge = document.createElement("span");
-      cashBadge.className = "uw2-badge";
-      h.headerRight.prepend(cashBadge);
+      const moneyPill = document.createElement("span");
+      moneyPill.className = "uw2-pill";
+      h.headerRight.prepend(moneyPill);
+
+      const toolbar = document.createElement("div");
+      toolbar.className = "uw2-modal-toolbar";
+      h.modal.insertBefore(toolbar, h.body);
+
+      const footer = document.createElement("div");
+      footer.className = "uw2-modal-footer";
+      const toastEl = document.createElement("span");
+      toastEl.style.cssText = "font-size:13px;font-weight:600;color:#247544;";
+      footer.appendChild(toastEl);
+      h.modal.appendChild(footer);
 
       const getList = () => {
         if (tab === 0) {
@@ -88,17 +99,13 @@ export class ItemShop {
       };
 
       const render = () => preserveScroll(h.body, () => {
-        cashBadge.textContent = `金币 ${this.money.toLocaleString()}`;
-        h.body.innerHTML = "";
+        moneyPill.textContent = `金块 ${Math.trunc(this.money / 10000)}  ·  金币 ${this.money % 10000}`;
+        toastEl.textContent = notice;
 
-        const topBar = document.createElement("div");
-        topBar.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;flex-wrap:wrap;";
-
-        const tabs = document.createElement("div");
-        tabs.className = "uw2-tabs";
+        toolbar.innerHTML = "";
         tabLabels.forEach((lbl, idx) => {
           const btn = document.createElement("button");
-          btn.className = `uw2-tab ${tab === idx ? "active" : ""}`;
+          btn.className = `uw2-btn uw2-tab-btn ${tab === idx ? "active" : ""}`;
           btn.textContent = lbl || (idx === 0 ? "买进" : "卖出");
           btn.addEventListener("click", () => {
             tab = idx;
@@ -106,17 +113,10 @@ export class ItemShop {
             haggleState = null;
             render();
           });
-          tabs.appendChild(btn);
+          toolbar.appendChild(btn);
         });
-        topBar.appendChild(tabs);
 
-        if (notice) {
-          const noteEl = document.createElement("div");
-          noteEl.style.cssText = "flex:1;min-width:220px;font-size:13px;color:var(--uw2-ink);padding:6px 10px;border-radius:6px;background:rgba(255,252,242,0.75);border:1px solid rgba(154,119,56,0.28);";
-          noteEl.textContent = notice;
-          topBar.appendChild(noteEl);
-        }
-        h.body.appendChild(topBar);
+        h.body.innerHTML = "";
 
         const listIds = getList();
         if (selIdx >= listIds.length) selIdx = Math.max(0, listIds.length - 1);
@@ -126,6 +126,11 @@ export class ItemShop {
 
         const left = document.createElement("div");
         left.className = "uw2-pane";
+        const leftTitle = document.createElement("div");
+        leftTitle.className = "uw2-pane-title";
+        leftTitle.textContent = tab === 0 ? "本店商品" : "随身物品";
+        left.appendChild(leftTitle);
+
         const listWrap = document.createElement("div");
         listWrap.className = "uw2-list-col";
         listWrap.style.maxHeight = "410px";
@@ -166,6 +171,11 @@ export class ItemShop {
 
         const right = document.createElement("div");
         right.className = "uw2-pane";
+        const rightTitle = document.createElement("div");
+        rightTitle.className = "uw2-pane-title";
+        rightTitle.textContent = "物品详情";
+        right.appendChild(rightTitle);
+
         const detail = document.createElement("div");
         detail.className = "uw2-action-box";
 
