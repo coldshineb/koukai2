@@ -208,8 +208,50 @@ export function runDomMenu(items: string[], disabledMask: number, cancelable: bo
   });
 }
 
+export interface DomDialogPortrait {
+  art?: any;
+  portraitId?: number | null;
+  portraitComposed?: { type: number; parts: number } | null;
+}
+
+function appendModalPrompt(container: HTMLElement, promptText: string, portrait?: DomDialogPortrait, textClass = "uw2-dialog-text") {
+  const pc = portrait?.portraitComposed ?? null;
+  const pid = portrait?.portraitId ?? null;
+  const art = portrait?.art;
+  const hasPortrait = !!(pc || (pid !== null && pid >= 0 && pid < 128 && art?.portraitUrl?.(pid)));
+  if (!promptText && !hasPortrait) return;
+
+  const row = document.createElement("div");
+  row.className = hasPortrait ? "uw2-modal-prompt-row" : "";
+
+  if (pc && art) {
+    const img = document.createElement("img");
+    img.className = "uw2-portrait-img";
+    const cached = getComposedPortraitCached(pc.type, pc.parts);
+    if (cached) img.src = cached;
+    else void getComposedPortraitSrc(art, pc.type, pc.parts).then(src => { if (src) img.src = src; });
+    row.appendChild(img);
+  } else if (pid !== null && pid >= 0 && pid < 128 && art?.portraitUrl) {
+    const url = art.portraitUrl(pid);
+    if (url) {
+      const img = document.createElement("img");
+      img.className = "uw2-portrait-img";
+      img.src = url;
+      row.appendChild(img);
+    }
+  }
+
+  if (promptText) {
+    const p = document.createElement("div");
+    p.className = textClass;
+    p.textContent = promptText;
+    row.appendChild(p);
+  }
+  container.appendChild(row);
+}
+
 // ---------------- 2. 現代確認彈窗 (取代 yesNo) ----------------
-export function runDomYesNo(promptText: string, yesLabel: string, noLabel: string): Promise<number> {
+export function runDomYesNo(promptText: string, yesLabel: string, noLabel: string, portrait?: DomDialogPortrait): Promise<number> {
   return new Promise(resolve => {
     let settled = false;
     const done = (v: number) => { if (settled) return; settled = true; h.close(); resolve(v); };
@@ -221,12 +263,7 @@ export function runDomYesNo(promptText: string, yesLabel: string, noLabel: strin
       onCancel: () => done(0),
     });
 
-    if (promptText) {
-      const p = document.createElement("div");
-      p.className = "uw2-dialog-text";
-      p.textContent = promptText;
-      h.body.appendChild(p);
-    }
+    appendModalPrompt(h.body, promptText, portrait, "uw2-dialog-text");
 
     const row = document.createElement("div");
     row.className = "uw2-dialog-actions";
@@ -275,7 +312,7 @@ export function runDomList(title: string, rows: string[]): Promise<number> {
 }
 
 // ---------------- 4. 現代數字輸入彈窗 (取代 NumPad) ----------------
-export function runDomNumPad(min: number, max: number, promptText = ""): Promise<number> {
+export function runDomNumPad(min: number, max: number, promptText = "", portrait?: DomDialogPortrait): Promise<number> {
   return new Promise(resolve => {
     let settled = false;
     const clamp = (v: number) => Math.max(min, Math.min(max, Math.trunc(v || 0)));
@@ -289,13 +326,7 @@ export function runDomNumPad(min: number, max: number, promptText = ""): Promise
       onCancel: () => done(min),
     });
 
-    if (promptText) {
-      const p = document.createElement("div");
-      p.style.fontSize = "14px";
-      p.style.color = "var(--uw2-ink)";
-      p.textContent = promptText;
-      h.body.appendChild(p);
-    }
+    appendModalPrompt(h.body, promptText, portrait, "uw2-dialog-text");
 
     const input = document.createElement("input");
     input.type = "number";

@@ -1354,3 +1354,18 @@ body[data-uw2-battle="1"] .uw2-dialog-floating {
   color: var(--uw2-ink);
   font-variant-numeric: tabular-nums;
 }
+
+/* 彈窗開啟時隱藏底部浮動對話框，避免背景重疊顯示重複對話 */
+body[data-uw2-modal="open"] .uw2-dialog-floating {
+  display: none !important;
+}
+.uw2-modal-prompt-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.uw2-modal-prompt-row .uw2-portrait-img {
+  width: 64px;
+  height: 80px;
+  flex-shrink: 0;
+}

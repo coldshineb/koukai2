@@ -462,7 +462,11 @@ export class MenuSystem {
     if (hasDom()) {
       const r = this.scr._battleHudActive
         ? await runDomBattleYesNo(this.scr._battleMsg?.() || this.scr.wideDialog?.text || "", "是", "否")
-        : await runDomYesNo(this.scr.wideDialog?.text || "", "是", "否");
+        : await runDomYesNo(this.scr.wideDialog?.text || "", "是", "否", {
+            art: this.scr.wideArt,
+            portraitId: this.scr.wideDialog?.portraitId ?? null,
+            portraitComposed: this.scr.wideDialog?.portraitComposed ?? null,
+          });
       await this.waitRelease();
       return r;
     }

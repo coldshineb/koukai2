@@ -160,7 +160,11 @@ export class NumPad {
   // 592a 輸入 min..max 之間的數 (負數回傳 0); 16:9 模式下使用純 Canvas 現代滑桿步進器 (零 DOM)
   async input(min, max) {
     if (this.c.scr?.wideRenderer) {
-      if (hasDom()) return runDomNumPad(min, max, this.c.scr.wideDialog?.text || "");
+      if (hasDom()) return runDomNumPad(min, max, this.c.scr.wideDialog?.text || "", {
+        art: this.c.scr.wideArt,
+        portraitId: this.c.scr.wideDialog?.portraitId ?? null,
+        portraitComposed: this.c.scr.wideDialog?.portraitComposed ?? null,
+      });
       return runWideNumPad(this.c, min, max);
     }
     const { con, sys, win } = this.c;
