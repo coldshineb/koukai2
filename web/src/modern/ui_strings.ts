@@ -22,7 +22,7 @@ export const UI_STR = {
   wharfTitle: "码头",
   wharfTabs: ["补给", "船坞"] as const,
   wharfDepart: "出航",
-  supplies: ["水", "食物", "资材", "炮弹"] as const,
+  supplies: ["水", "粮食", "物资", "炮弹"] as const,
   dockActions: ["保管", "配备", "交换"] as const,
 
   fleetHubTitle: "经营",
@@ -53,6 +53,8 @@ export const UI_STR = {
   fortuneTabs: ["人生运", "事业运", "爱情运", "朋友运"] as const,
   tavernTabs: ["水手雇用", "水手解雇", "饮酒叙话", "与航海者闲聊", "酒吧女郎", "赌博"] as const,
   itemShopTabs: ["买进", "卖出"] as const,
+  settingsTitle: "环境设定",
+  settingsLabels: ["动画效果", "背景音乐", "滑鼠灵敏度", "海上移动值", "海上速度"] as const,
 
   listTitles: {
     0: "选择舰船",
