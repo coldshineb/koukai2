@@ -16,10 +16,10 @@ import { installTavern } from "./tavern.js";
 import { installWharf } from "./wharf.js";
 import { installShipyard } from "./shipyard.js";
 import { installChurchInnFortune } from "./church_inn_fortune.js";
-import { DS } from "../model/schema_views.ts";
 import { FleetFlag, GameConst, ShipSlotFlag } from "../model/flags.ts";
 import {
   WorldConst,
+  barmaidByAddr,
   getWorkState,
   heroFleet,
   heroOrDockSlot,
@@ -54,8 +54,6 @@ export class Buildings {
   get st() { return this.c.state; }
   get m() { return this.c.state.model; }
   get port() { return this.m.globals.port; }
-  get hero() { return this.m.heroPerson().addr; }                        // [c2ce] (待 tavern/shipyard 迁移后移除)
-  get heroData() { return this.m.heroInfo().addr; }                      // seg0:5be8 (待 tavern/shipyard 迁移后移除)
   get money() { return this.m.globals.money; }
   set money(v) { setHeroMoney(this.m, v); }
   noEvent() { const w = getWorkState(this.m); return w.commonEvent === 0 && w.heroEvent === 0; }
@@ -254,33 +252,29 @@ export class Buildings {
     }
   }
   // ================= 1 酒馆 1fd9:78f5 =================
-  get eco() { return this.m.portEconomy(this.port).addr; }              // [c2dc] = seg0:5caa(港)
-  fleetSlot(i) { return ListSelect.fleetSlot(this.st, i); }                // seg0:5c58
   // [0538] 是固定的字数组: 只覆写前 L.length 项, 后面保留旧值 (原版如此)
   setPersons(L) { const P = (this.c.persons ??= new Array(0x50).fill(0)); for (let i = 0; i < L.length; i++) P[i] = L[i]; }
-  crewData(i) { return this.m.crewSlot(i).addr; }                        // seg0:5c38 (+08/+09 配置比例, +1b 船长, +1c 士气)
   // 0fea:2dea = 12c8a: 主角舰队有船的位置 → [0538]
   fleetShips() {
     const m = this.m, L = [];
     for (let i = 0; i < GameConst.FLEET_SHIPS; i++) if ((heroShipSlot(m, i).flags & ShipSlotFlag.STATE_MASK) === ShipSlotFlag.ACTIVE) L.push(i);
     this.setPersons(L); return L.length;
   }
-  dstr(a) { return Buildings.inState(a) ? this.st.cstr(a) : Uint8Array.of(0); }
-  static inState(a) { return a >= DS.OPTIONS && a < DS.TRADE_LOGS; }
   // seg0:8894 后的金钱增减 (2553b: 上限 600000000)
   addMoney(v) { let m = this.money + v; if (m > 600000000) m = 600000000; this.money = m; this.p.panels(); }
   payMoney(v) { if ((v >>> 0) > (this.money >>> 0)) return 0; this.money = (this.money - v) | 0; this.p.panels(); return 1; }   // 25515
   // seg0:7eac 酒吧女郎头像 (具名头像 face) 与姓名
   talkGirl(face, rec) {
     const { kao, scr, printf, codec } = this.c;
+    const nameBytes = rec ? barmaidByAddr(this.m, rec).nameBytes : Uint8Array.of(0);
     if (scr.wideRenderer && codec) {
-      const nm = decodeCleanCstr(codec, this.dstr(rec));
+      const nm = decodeCleanCstr(codec, nameBytes);
       this.beginWideTalk(face, nm);
       return;
     }
     this.talkWindow(0x14, 0xc0);
     kao.drawNamed(scr, face, 0x16, 0xd0);
-    printf(this.T.fmt.girlName, this.dstr(rec));
+    printf(this.T.fmt.girlName, nameBytes);
   }
   // seg0:7ffc 对话窗口下半的消息
   talkMessage2(n, ...args) {
@@ -385,10 +379,8 @@ export class Buildings {
     const amts = [0, 1, 2, 3, 4].map(k => M.getCargoAmts(k));
     return calcCargoUsed(M.water, M.food, M.material, M.ammo, goods, amts);
   }
-  shipOf(slot) { return this.m.ship(heroOrDockSlot(this.m, slot).ship).addr; }
   // 277c0 窗口 (不保存背景) + 文字颜色
   winText(x, y, w, h) { this.c.win.frame(x, y, w, h, 0); this.c.con.puts(this.WF.winColor); }
-  typeRec(t) { return this.m.shipType(t).addr; }                             // seg0:5c8a
   listSel() { return (this.c.listSel ??= new ListSelect(this.c)); }
   // 2af30 船只数据: mode 0 = 船编号 al, 1 = 中古船 (船型 al), 2 = 新造设计 (船型 al), 3 = 船位 slot 的船 (slot ≥ 0x100 时是船位地址, 例: 海战掳获时对方的船位)
   shipData(al, mode, slot = 0) {

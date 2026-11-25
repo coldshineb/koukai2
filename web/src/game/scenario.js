@@ -4,7 +4,6 @@
 // 两个运行环境: 共用剧本 SNR0 (章 [0d5e], 标志 0d60, 变量 0d68) 与主角专属 SNR{主角+1} (章 [0cd4], 标志 0cd6, 变量 0cde)。
 // 内存: 剧本以 DS 地址读写游戏数据 (D0/DC 取得记录地址后间接访问); 0x0ca4..0x8d18 对应 GameState, 其他地址见 rd8/wr8。
 import { loadJSON } from "../core/assets.js";
-import { faFleet } from "./fleetai.js";
 import { duelFromScenario } from "../scenes/duel.js";
 import { mainEnding } from "./endgame.js";
 import { DS } from "../model/schema_views.ts";
@@ -411,7 +410,7 @@ export class Scenario {
   }
   async op_barmaid_love({ girl, amount }) { const bm = this.m.barmaid(girl); bm.affection = scUmin(bm.affection + amount, 100); }   // 32790
   // 320ba D1 v: 变量的低字节 = 舰队编号 → 33aaf 依任务恢复目的地 (game/fleetai.js resume)
-  async op_d1({ var: v }) { const k = this.getVar(v) & 0xff; if (!this.host.resumeFleet(faFleet(k))) scTodo("劇本命令 D1 (艦隊移動 33aaf)"); }
+  async op_d1({ var: v }) { const k = this.getVar(v) & 0xff; if (!this.host.resumeFleet(this.m.fleet(k).addr)) scTodo("劇本命令 D1 (艦隊移動 33aaf)"); }
   // 32377 E8 一骑打: 31dbb → 0fea:2ca9(1, 主角, 对手) → 外框 / 8894 / 8ebc([b876]) / 99e8 (scenes/duel.js)
   async op_duel({ person }) { await this.host.runDuel(this, person); }
   // 系统变量 6 (32d4a) = [9c2a] 一骑打的体力条 (海战的 DS 镜像; 还没有时是 MAIN.EXE 的初值)

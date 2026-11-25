@@ -3,7 +3,6 @@
 // 运行期变量 (DS, 不在存盘): [c2ea] 目前处理的舰队、[bdb8] 任务的国家 (只在 3407f 写入)、[bd7c] 任务中的舰队 → ctx.aiVars
 // 尚未移植 (主控台警告): 海战本体 10f7e (第 30 节, 经 SeaScene.navalBattle 调用)
 
-import { DS } from "../model/schema_views.ts";
 import { FleetFlag, GameConst, ShipSlotFlag } from "../model/flags.ts";
 import {
   fleetByAddr,
@@ -27,10 +26,6 @@ const faSgn = v => (v < 0 ? -1 : v > 0 ? 1 : 0);                               /
 const faWarned = new Set();
 const faTodo = n => { if (!faWarned.has(n)) { faWarned.add(n); console.warn("尚未移植: " + n); } };
 
-export const faFleet = k => DS.TBL_FLEET + ((0x85 * (k & 0xff)) & 0xffff);     // seg0:5c28
-export const faNation = n => DS.TBL_COUNTRY + ((n & 0xff) << 5);                   // seg0:5bde
-export const faPort = n => DS.TBL_PORT + 0x16 * (n & 0xff);                     // seg0:5c9a
-export const faEcon = n => DS.TBL_PORT_ECONOMY + 0x25 * (n & 0xff);                     // seg0:5caa
 // 23d7b 的 12 个相对位置 (与 23e19 相同)
 const faSpot12 = [0, -2, 0, 2, 2, 0, -2, 0, -1, -2, 1, -2, 2, -1, 2, 1, -1, 2, 1, 2, -2, -1, -2, 1];
 
@@ -459,8 +454,8 @@ export class FleetAI {
     let k = 0;
     for (this.v.c2ea = 0; !palette.ending && this.v.c2ea < 70; k++, this.v.c2ea = (this.v.c2ea + 1) & 0xff) {
       if (sys.mouseEvent() === 0x82) sea.a9c8 |= 1;
-      const fl = m.fleet(k), F = fl.addr;
-      if (F === this.heroFleet || !(fl.flags & FleetFlag.AT_SEA)) continue;
+      const fl = m.fleet(k);
+      if (fl.addr === this.heroFleet || !(fl.flags & FleetFlag.AT_SEA)) continue;
       if (this.c.noFleets) continue;                                          // 测试: 原版 1b048 改成不处理
       if (fl.flags & FleetFlag.IN_PORT) { if (this.c.rt.time === 0) this.mission(fl); if (fl.flags & FleetFlag.IN_PORT) continue; }
       if (this.land(fl.x, fl.y)) continue;
@@ -468,13 +463,13 @@ export class FleetAI {
       const t = this.contact(fl);
       if (t !== GameConst.EMPTY_SLOT) { await this.fight(t, fl); continue; }
       if (this.sameDest(fl) && fl.mission !== 4) this.atDest(fl, false);
-      let d = sea.autoSteer(F) & 0xff;                                        // 2e09:3321 = 313b1 (失败 = FF)
+      let d = sea.autoSteer(fl) & 0xff;                                       // 2e09:3321 = 313b1 (失败 = FF)
       if (d === 8) { fl.flags = fl.flags | FleetFlag.ARRIVED; continue; }
       fl.dir = d;
-      const v = sea.fleetSpeed(F, wDir, wStr, cStr, cDir) & 0xff;            // 1acbf
+      const v = sea.fleetSpeed(fl, wDir, wStr, cStr, cDir) & 0xff;          // 1acbf
       if (this.step(fl, d, v)) {
         d = (d + 1) & 7;
-        if (this.step(fl, d, v)) { d = (d - 2) & 7; if (this.step(fl, d, v)) sea.pathStep(F, sea.pt(F + 0x08), 0); }   // 1fd9:44d8 = 24268
+        if (this.step(fl, d, v)) { d = (d - 2) & 7; if (this.step(fl, d, v)) sea.pathStep(fl, sea.midPt(fl), 0); }   // 1fd9:44d8 = 24268
       }
     }
   }

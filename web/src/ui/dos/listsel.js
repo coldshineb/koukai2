@@ -255,9 +255,6 @@ export class ListSelect {
     printf(FMT_SHIPROW, lsS16(sv.crew), lsS16(ship.maxCrew));
     return 0x1a;
   }
-  // seg0:5c58: 0..9 = 主角舰队 ([c2d4] = 0x2e76 + 舰队编号×0x85) 第 slot 艘船, 10..39 = 各港船坞 (DS:572a + 9×slot) (+0 水手数, +7 船编号, +8 bit4-5 = 1 有船)
-  static fleetSlot(st, slot) { return slot < 10 ? 0x2e76 + st.u8(st.personRecord(st.hero) + 0x2c) * 0x85 + 0x2b + slot * 9 : 0x572a + slot * 9; }   // 10..39 = 船坞
-  static shipRec(n) { return 0x5892 + n * 0x16; }                                    // seg0:5c7a
   // 153aa XOR 外框 (拖拽时)
   xorBox(col, y) {
     const { sys, scr } = this.c;

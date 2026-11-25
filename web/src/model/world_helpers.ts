@@ -377,3 +377,78 @@ export function swapShipAndCrewSlots(m: WorldModel, a: number, b: number): void 
 export function toggleSpritePhase(m: WorldModel): void {
   m.st.set8(0x8b1e, m.st.u8(0x8b1e) ^ 1);
 }
+
+/** 舰队自动航行路线模式与 Bresenham 误差寄存器 (+0x0d/+0x0e) */
+export function getFleetRouteExtra(fleet: FleetView) {
+  return {
+    get routeMode(): number { return fleet.st.u8(fleet.addr + 0x0d); },
+    set routeMode(v: number) { fleet.st.set8(fleet.addr + 0x0d, v); },
+    get routeErr(): number { return fleet.st.u16(fleet.addr + 0x0e); },
+    set routeErr(v: number) { fleet.st.set16(fleet.addr + 0x0e, v); },
+  };
+}
+
+/** 探索世界地图网格：若该格尚未探索，置位并递增总探索数与未报告格数 */
+export function discoverWorldCellIfUnseen(m: WorldModel, col: number, row: number): void {
+  if (row < 0 || row >= 45) return;
+  const c0 = ((col % 90) + 90) % 90;
+  const a = WorkDS.EXPLORE_MAP + 12 * row + (c0 >> 3);
+  const bit = 0x80 >> (c0 & 7);
+  if (!(m.st.u8(a) & bit)) {
+    m.st.set16(WorkDS.EXPLORE_TOTAL, m.st.u16(WorkDS.EXPLORE_TOTAL) + 1);
+    m.st.set16(WorkDS.EXPLORE_UNREP, m.st.u16(WorkDS.EXPLORE_UNREP) + 1);
+  }
+  m.st.set8(a, m.st.u8(a) | bit);
+}
+
+/** 地点探索位图查询 (DS:0x1046) */
+export function isExploreLocationNodeMarked(m: WorldModel, nodeIdx: number): boolean {
+  return (m.st.u8(DS.EXPLORE_LOC + (nodeIdx >> 3)) & (0x80 >> (nodeIdx & 7))) !== 0;
+}
+
+/** 海上特殊事件/海怪触发点 (DS:0x1012 + 4*i, 事件编号 0x103a + i, 当前序号 0x1044) */
+export function getSeaEncounter(m: WorldModel, i: number) {
+  const st = m.st;
+  return {
+    get x(): number { return st.u16(0x1012 + 4 * i); },
+    set x(v: number) { st.set16(0x1012 + 4 * i, v); },
+    get y(): number { return st.u16(0x1014 + 4 * i); },
+    set y(v: number) { st.set16(0x1014 + 4 * i, v); },
+    get eventId(): number { return st.u8(0x103a + i); },
+    set eventId(v: number) { st.set8(0x103a + i, v); },
+  };
+}
+
+export function getSeaEncounterIndex(m: WorldModel): number {
+  return m.st.u8(0x1044);
+}
+
+export function setSeaEncounterIndex(m: WorldModel, v: number): void {
+  m.st.set8(0x1044, v);
+}
+
+/** 将中古船缓存第 slotIdx 项（8B）提升至第 0 格 */
+export function promoteUsedShipCache(m: WorldModel, slotIdx: number): void {
+  const base = DS.TBL_USED_SHIP_CACHE;
+  const copy8 = (d: number, s: number) => {
+    for (let k = 0; k < 8; k++) m.st.set8(d + k, m.st.u8(s + k));
+  };
+  const tmp = m.st.bytes(base + slotIdx * 8, 8).slice();
+  for (let k = slotIdx; k > 0; k--) copy8(base + k * 8, base + (k - 1) * 8);
+  for (let k = 0; k < 8; k++) m.st.set8(base + k, tmp[k]);
+}
+
+/** 中古船缓存整体后移 1 格，准备填入新进港的数据 */
+export function shiftUsedShipCache(m: WorldModel): void {
+  const base = DS.TBL_USED_SHIP_CACHE;
+  for (let k = 2; k > 0; k--) {
+    for (let i = 0; i < 8; i++) m.st.set8(base + k * 8 + i, m.st.u8(base + (k - 1) * 8 + i));
+  }
+}
+
+/** 读取 DS 低区表或状态区单字节（复刻 fleetSpeed 越界查表兼容） */
+export function readDsLowOrStateByte(m: WorldModel, dsLow: Uint8Array, addr: number): number {
+  const a = addr & 0xffff;
+  if (a >= DS.OPTIONS && a < DS.TRADE_LOGS) return m.st.u8(a);
+  return dsLow[a] ?? 0;
+}

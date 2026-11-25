@@ -4,6 +4,7 @@
 // 文字与格式字符串: port.json gamble (tools/extract_port.py)
 import { hasDom } from "../ui/modals.ts";
 import { runDomGamble } from "../ui/gamble_panel.ts";
+import { personRawBytes } from "../model/world_helpers.ts";
 
 const gHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 
@@ -15,7 +16,7 @@ export class Gamble {
       ...Object.fromEntries(Object.entries(G.fmt).map(([k, v]) => [k, gHex(v)])) };
   }
   get c() { return this.b.c; }
-  get st() { return this.b.st; }
+  get m() { return this.b.m; }
   get money() { return this.b.money; } set money(v) { this.b.money = v; }
   get rng() { return this.c.sys.rng; }
   fill(col, y, w, h, color) { this.c.scr.fillCols(col, y, w, h, color); }           // seg0:0906
@@ -42,7 +43,7 @@ export class Gamble {
       if (sel !== 0xff) await [() => this.blackjack(), () => this.dice()][sel]();
     } while (sel !== 0xff);
     await palette.fadeBlack();
-    graph.draw8(this.st.options & 0x80 ? 3 : 5, 0, 0);                              // seg0:5a91
+    graph.draw8(this.m.globals.options & 0x80 ? 3 : 5, 0, 0);                     // seg0:5a91
     await this.b.p.interior(1);                                                     // seg0:8ebc(1)
     await palette.fadeToTarget();
   }
@@ -53,13 +54,13 @@ export class Gamble {
     this.bjText(); this.fill(0x16, 0x68, 0x24, 0x40, 4); this.fill(0x20, 0xe8, 0x1a, 0x58, 7); this.fill(0x16, 0x140, 0x24, 0x40, 4);
   }
   async blackjack() {
-    const { win, kao, scr, con, message, menu } = this.c, st = this.st;
+    const { win, kao, scr, con, message, menu } = this.c, m = this.m;
     if (this.money < 10) return;
     const face = this.rng.random(0x3fff) | 0xc000, start = this.money;          // [bd76]
     win.frame(0x15, 8, 0x26, 0xa8, 2);
     kao.drawRandomType(scr, this.rng, face, 0x17, 0x14);                           // seg0:7cb9
     win.frame(0x15, 0xe0, 0x26, 0xa8, 2);
-    kao.drawPerson(scr, st.bytes(this.b.hero, 0x32), 0x17, 0xec);                  // seg0:7d39
+    kao.drawPerson(scr, personRawBytes(m.heroPerson()), 0x17, 0xec);                // seg0:7d39
     con.left = 0x20; con.right = 0x38;
     this.bjClear();
     this.at(0x20, 0x10); message(0x3d3);
@@ -215,7 +216,7 @@ export class Gamble {
     for (let i = 0; i < 5; i++) { this.at((i + 3) * 5, 0x138); this.c.printf(this.G.d, i + 1); }
   }
   async dice() {
-    const { win, kao, scr, con, message, menu } = this.c, st = this.st;
+    const { win, kao, scr, con, message, menu } = this.c, m = this.m;
     if (this.money < 10) return;
     const start = this.money, ord = { v: 0 };                                       // [bp-6] 先后顺序
     win.frame(2, 0, 0x26, 0x80, 2);                                                 // 2ebf4
@@ -223,7 +224,7 @@ export class Gamble {
     win.frame(0x28, 0x80, 0x26, 0x80, 2);
     kao.drawRandomType(scr, this.rng, this.rng.random(0x3fff) | 0xc000, 0x44, 0x90);
     win.frame(2, 0x100, 0x3a, 0x90, 2);
-    kao.drawPerson(scr, st.bytes(this.b.hero, 0x32), 4, 0x120);
+    kao.drawPerson(scr, personRawBytes(m.heroPerson()), 4, 0x120);
     con.puts(this.G.reset);
     this.areaA(); message(0x3e9);
     if (!(await menu.yesNo())) return;
