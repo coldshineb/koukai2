@@ -346,13 +346,25 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats):
                 hull_near = sum(hull_pad[dy:dy + tile_sz, dx:dx + tile_sz] for dy in range(3) for dx in range(3))
                 is_water = water_base | (((tile_idx == 0) | (tile_idx == 8)) & (blue_sum >= 4) & (hull_near == 0))
 
-            is_arch_walk = (t_id >= 16) and (t_id < p2) and (int(np.sum(tile_idx == 0)) >= 25) and not np.any(is_water)
+            uniq_idx = set(np.unique(tile_idx).tolist())
+            c0_cnt = int(np.sum(tile_idx == 0))
+            is_grass_shadow_tile = (t_id < p2) and (c0_cnt >= 90) and uniq_idx.issubset({0, 13, 14})
+            is_sand_shadow_tile = (t_id < p2) and (c0_cnt >= 90) and (
+                uniq_idx.issubset({0, 8, 10, 11, 15}) or uniq_idx.issubset({0, 10, 13})
+            )
+            is_ground_shadow_tile = is_grass_shadow_tile or is_sand_shadow_tile
+
+            # 行1 (t_id >= 16) 且位于 < p2 的多黑线建筑底座/门扇 (如门下半格 22, 23 / 屋顶 26) 归为建筑，但排除纯地面墙影 (21, 27 等)
+            is_arch_walk = (t_id >= 16) and (t_id < p2) and (c0_cnt >= 25) and not np.any(is_water) and not is_ground_shadow_tile
             is_walk = (t_id < p2) and not is_arch_walk
-            is_tree_tile = (t_id >= p2) and (int(np.sum((tile_idx == 13) | (tile_idx == 14))) >= 120) and not np.any(is_water) and (int(np.sum(tile_idx == 0)) >= 8)
+            is_tree_tile = (t_id >= p2) and (int(np.sum((tile_idx == 13) | (tile_idx == 14))) >= 120) and not np.any(is_water) and (c0_cnt >= 8)
             is_shore_tile = (t_id >= p2) and np.any(is_water) and (int(np.sum((tile_idx == 13) | (tile_idx == 14))) >= 18)
 
             sem[is_water] = 1
-            if is_walk:
+            if is_ground_shadow_tile:
+                # 原版建筑左侧的纯黑硬块投影：还原为平坦草坪/砂地，把真实投影完全交给 WebGL2 实时太阳光影！
+                sem[:, :] = 3 if is_grass_shadow_tile else 2
+            elif is_walk:
                 is_grass = (tile_idx == 13) | (tile_idx == 14)
                 is_sand = ((tile_idx == 10) | (tile_idx == 11) | (tile_idx == 15) | (tile_idx == 8)) & ~is_water & ~is_grass
                 sem[is_sand] = 2
@@ -371,13 +383,20 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats):
                     blk_pad = np.pad((tile_idx == 0).astype(np.int32), ((1, 1), (1, 1)), mode="edge")
                     blk_near = sum(blk_pad[dy:dy + tile_sz, dx:dx + tile_sz] for dy in range(3) for dx in range(3))
                     sem[((tile_idx == 10) | (tile_idx == 11)) & (blk_near == 0) & ~is_water] = 2
-            sem[tile_idx == 0] = 0
+            if not is_ground_shadow_tile:
+                sem[tile_idx == 0] = 0
             sem[is_water] = 1
 
             # 1) Albedo: 地面、海岸草坡与树格使用草地色盘，其余实体建筑使用建筑色盘（含门下半格 22/23）
             pairs = GROUND_DITHER_PAIRS if (is_walk or is_shore_tile or is_tree_tile) else ARCH_DITHER_PAIRS
             tile_pal = MODERN_GROUND_PAL if (is_walk or is_tree_tile or is_shore_tile) else MODERN_ARCH_PAL
-            base_16 = dedither_tile_rgb(tile_idx, tile_pal, pairs, is_water=is_water, wrap_edges=(is_walk and t_id < p1))
+            base_16 = dedither_tile_rgb(tile_idx, tile_pal, pairs, is_water=is_water, wrap_edges=(is_walk and t_id < p1 and not is_ground_shadow_tile))
+            if is_ground_shadow_tile:
+                if is_grass_shadow_tile:
+                    fill_col = MODERN_GROUND_PAL[13] * 0.45 + MODERN_GROUND_PAL[14] * 0.55
+                else:
+                    fill_col = MODERN_GROUND_PAL[10] * 0.45 + MODERN_GROUND_PAL[11] * 0.55
+                base_16[tile_idx == 0] = fill_col
             if pure_water_ripple_tile:
                 # 153 等水上影波纹格：只保留柔和深暗水波层次，不生成刺眼黑刺团块
                 dark_ripple = (tile_idx == 0) | (tile_idx == 8)
