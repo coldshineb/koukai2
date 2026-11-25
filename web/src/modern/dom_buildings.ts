@@ -1591,20 +1591,30 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
   const remodelLabels = [...UI_STR.remodelTabs];
   const initGreet = capMsg(c, 0x4d);
 
-  // 進入時依原版規則計算本港本次進廠可售的船首像與火砲種類數
+  // 依原版 rmFigure / rmGuns 規則：每次切換到「船首像」或「武裝」子分頁時都進行 1/20 稀有品判定（與原版反覆進出子選單刷彩蛋完全一致）
   const E = b.eco, H = b.hero, rng = c.sys.rng;
   let figCount = Math.min(8, Math.trunc(st.u16(E) / 100) + 1);
   let gunCount = Math.min(6, Math.trunc(((st.u16(E + 4) + st.u16(E)) & 0xffff) / 200) + 1);
   let specialNotice = "";
-  if (st.u16(E + 4) > 800 && st.u16(E) > 800 && st.u8(H + 0x23) > 80 && !rng.random(20)) {
-    figCount++;
-    if (rng.random(st.u8(H + 0x23)) >= 90) figCount++;
-    specialNotice = capMsg(c, 0x10a);
-  }
-  if (st.u16(E + 4) > 900 && st.u16(E) > 900 && st.u8(H + 0x23) > 90 && !rng.random(20)) {
-    gunCount++;
-    specialNotice = capMsg(c, 0x10a);
-  }
+  const rollFigureheads = () => {
+    figCount = Math.min(8, Math.trunc(st.u16(E) / 100) + 1);
+    if (st.u16(E + 4) > 800 && st.u16(E) > 800 && st.u8(H + 0x23) > 80 && !rng.random(20)) {
+      figCount++;
+      if (rng.random(st.u8(H + 0x23)) >= 90) figCount++;
+      specialNotice = capMsg(c, 0x10a);
+      return true;
+    }
+    return false;
+  };
+  const rollGuns = () => {
+    gunCount = Math.min(6, Math.trunc(((st.u16(E + 4) + st.u16(E)) & 0xffff) / 200) + 1);
+    if (st.u16(E + 4) > 900 && st.u16(E) > 900 && st.u8(H + 0x23) > 90 && !rng.random(20)) {
+      gunCount++;
+      specialNotice = capMsg(c, 0x10a);
+      return true;
+    }
+    return false;
+  };
 
   let tab = 0; // 0:造新船, 1:买旧船, 2:修理, 3:卖船, 4:改造, 5:工业投资
   let selIdx = 0;
@@ -1689,7 +1699,14 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
           btn.className = `uw2-btn uw2-tab-btn ${tab === idx ? "active" : ""}`;
           btn.disabled = (idx === 1 && usedList.length === 0) || ((idx === 2 || idx === 3 || idx === 4) && fleetSlots.length === 0);
           btn.textContent = lbl;
-          btn.addEventListener("click", () => { tab = idx; selIdx = 0; replaceSlot = -1; render(); });
+          btn.addEventListener("click", () => {
+            tab = idx; selIdx = 0; replaceSlot = -1;
+            if (tab === 4) {
+              if (rmSub === 0 && rollFigureheads()) notice = specialNotice;
+              else if (rmSub === 1 && rollGuns()) notice = specialNotice;
+            }
+            render();
+          });
           shell.toolbar.appendChild(btn);
         });
 
@@ -1993,7 +2010,12 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
             const sb = document.createElement("button");
             sb.className = `uw2-btn ${rmSub === ri ? "active" : ""}`;
             sb.textContent = rl;
-            sb.addEventListener("click", () => { rmSub = ri; render(); });
+            sb.addEventListener("click", () => {
+              rmSub = ri;
+              if (ri === 0 && rollFigureheads()) notice = specialNotice;
+              else if (ri === 1 && rollGuns()) notice = specialNotice;
+              render();
+            });
             subBar.appendChild(sb);
           });
           box.appendChild(subBar);
