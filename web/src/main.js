@@ -129,9 +129,7 @@ function frame() {
 }
 
 (async () => {
-  const opening = new Opening(ctx, await loadOpeningData(ASSETS, loadBinary, loadJSON));
-  ctx.scr.full = opening.full;
-  ctx.scr.setPaletteRaw(new Uint8Array(48));
+  const opening = new Opening(ctx, await loadOpeningData(ASSETS, loadJSON));
   requestAnimationFrame(frame);
   await opening.run();
   if (ctx.halted) return;

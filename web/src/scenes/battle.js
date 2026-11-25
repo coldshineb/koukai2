@@ -1935,7 +1935,7 @@ export class NavalBattle {
   // d1eb 接舷动画: 两船都不在窗口内 → 不画; 否则 效果音 9768(DS:0c02) + 9804(0x30), 目标 → 本船 → 目标 各 8 格
   //   ([0c86] 段 0x2e20 + 0x280 × (0, 1, 2, 3, 1, 3, 0, 2)[i]: 图像 0x200 bytes、遮罩在其后; 每格 50c4 存背景 → 画 → 等 2 → c744); 最后 (9888) c05d 重画两船
   async boardAnim(T) {
-    const cur = this.u16(0x9bc2), { win, sys, gfx } = this.c;
+    const cur = this.u16(0x9bc2), { win, sys, scr, art } = this.c;
     const [cx, cy] = this.pos(cur), [tx, ty] = this.pos(T);
     if (!this.inView(cx, cy) && !this.inView(tx, ty)) return;
     this.c.sfx?.voice(0x0c02); this.c.sfx?.note(0x30);                // d2ea
@@ -1946,9 +1946,7 @@ export class NavalBattle {
       const col = ((x - this.u8(0x9bef)) << 2) & 0xffff, yy = ((((y - this.u8(0x9bf0)) << 5) + (btImod(x, 2) >= 1 ? 0x10 : 0))) & 0xffff;
       for (let i = 0; i < 8; i++) {
         win.save(col, yy, 4, 0x20);                                     // 50c4
-        const o = (0x280 * tab[i] + 0x2e20) & 0xffff;
-        this.c.scr.glyphMode(col, yy, 4, 0x20, gfx.subarray((o + 0x200) & 0xffff), 0x20f);
-        this.putOp(col, yy, 4, 0x20, 3, gfx, o);
+        art?.drawSheetTile?.(scr, "board_fx", tab[i], col * 8, yy, { transparent: true });
         await sys.waitTicks(2);
         this.restoreUnder();                                            // c744
       }

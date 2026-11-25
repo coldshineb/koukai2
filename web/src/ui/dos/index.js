@@ -1,5 +1,5 @@
 // ui/dos/index.js — 创建原版 UI 系统 (文字主控台 + 窗口 + 菜单 + GRAPH 图像 + 头像)
-import { loadBinary, loadJSON } from "../../core/assets.js";
+import { loadJSON } from "../../core/assets.js";
 import { TextConsole } from "./console.js";
 import { WindowSystem } from "./window.js";
 import { MenuSystem } from "./menu.js";
@@ -8,7 +8,7 @@ import { cprintf } from "./printf.js";
 import { Kao } from "../../decoders/kao.js";
 
 export async function createUI(ctx) {
-  const gfx = await loadBinary(ctx.ASSETS + "/gfx/ui_frame.bin");
+  const gfx = new Uint8Array(0x4000);
   const msgText = await loadJSON(ctx.ASSETS + "/text/message.json");
   const menuText = await loadJSON(ctx.ASSETS + "/text/menu.json");
   const sys = ctx.sys;

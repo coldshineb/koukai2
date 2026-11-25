@@ -240,13 +240,18 @@ export class Commands {
   // 1d0e8 舰队一览: 全画面 [0c86]+0x2ba0 底纹 → 各船图 (seg0:8050, 位置 DS:a7a4) → 下方数据框: 提督头像、0x397..0x399、
   //   最慢的船 (速度计算同 1c0a8 但风向表 DS:06d8) 的 +4/+5 与 总水手、总砲数、最低耐久、总战力 (0x39a..0x39c)
   async fleetView(f) {
-    const m = this.m, g = m.globals, { scr, gfx, graph, con, message, palette } = this.c, T = this.T;
+    const m = this.m, g = m.globals, { scr, art, graph, con, message, palette } = this.c, T = this.T;
     const F = m.fleet(f), hero = m.heroPerson().fleet === f;
     await palette.fadeBlack();
     scr.setAtmosphere?.({ active: false });
     scr.wideRenderer = null;
     palette.setTarget(palette.table("ships"));
-    for (let c = 0; c < 0x28; c++) for (let r = 0; r < 0x14; r++) scr.putPlanar(c * 2, r << 4, 2, 0x10, gfx, 0x2ba0);
+    if (art?.sheet?.("fleet_bg")) {
+      await art.preloadUrls([art.sheetUrl("fleet_bg")]);
+      for (let c = 0; c < 0x28; c++) for (let r = 0; r < 0x14; r++) art.drawSheetTile(scr, "fleet_bg", 0, c * 16, r << 4);
+    } else {
+      scr.fillCols(0, 0, 80, 320, 0);
+    }
     let cnt = 0;
     for (let i = 0; i < GameConst.FLEET_SHIPS; i++) {
       const S = F.shipSlot(i);
