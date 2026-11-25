@@ -426,7 +426,7 @@ export class FleetAI {
   // 1ae55 走一步 (没有海流): 挡住返回 1
   step(fl, dir, speed) {
     const sea = this.sea;
-    const ex = faS8(sea.dsb(0x0718 + dir)), ey = faS8(sea.dsb(0x0720 + dir)), sp = faS8(speed);   // 路线失败时方向 = FF, 原版照样读 DS:0718 / 0720 表外
+    const ex = faS8(sea.readDsLow(0x0718 + dir)), ey = faS8(sea.readDsLow(0x0720 + dir)), sp = faS8(speed);   // 路线失败时方向 = FF, 原版照样读 DS:0718 / 0720 表外
     const ax = (ex * sp) & 0xff, ay = (ey * sp) & 0xff;
     const nx = (ax + fl.subX) & 0xff, ny = (ay + fl.subY) & 0xff;
     let di = faImod(fl.x, 0x2d0), y2 = faS16(fl.y), b6 = 0, b7 = 0, out = 0;

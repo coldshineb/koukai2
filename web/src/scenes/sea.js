@@ -2069,9 +2069,12 @@ export class SeaScene extends PortScene {
   //   各船: 风向差 k = |wDir − 航向| 的帆种系数 × 推进力 × wStr / 150 → + 指挥者 +24 × v / 10 (上限 30) → × 指挥者 +1d / 75 (上限 40),
   //   k = 3..5 再 × 转向力 / 100; 取最小 (至少 2); 再依 |cA − 航向|: 0..1 或 ≥ 7 → + min(40 − v, cB), 3..5 → − min(v − 1, cB);
   //   wStr = 0 且没有纵帆船 → 0 (与 314eb 不同: 没有水手与载重项, 也没有纵帆船至少 3 的风力)
+  readDsLow(addr) {
+    const D = (this.dsLow ??= Uint8Array.from((this.P.fleet?.dsLow ?? "").match(/../g) ?? [], h => parseInt(h, 16)));
+    return readDsLowOrStateByte(this.m, D, addr);
+  }
   fleetSpeed(f, wDir, wStr, cB, cA) {
     const m = this.m, F = this.asFleet(f), P = m.person(F.admiral);
-    const D = (this.dsLow ??= Uint8Array.from((this.P.fleet?.dsLow ?? "").match(/../g) ?? [], h => parseInt(h, 16)));
     const lv = P.navLevel, sk = P.getStats(1), hd = F.dir;
     let best = 0xff, fore = 0;
     const k = Math.abs(seaS16(wDir - hd)) & 0xff, k2 = Math.abs(seaS16(cA - hd)) & 0xff, beat = k >= 3 && k <= 5;
@@ -2082,7 +2085,7 @@ export class SeaScene extends PortScene {
       if (!(ship.flags & 0x10)) fore = (fore - 1) & 0xff;
       const t = m.shipType(ship.type);
       // DS:06d8 表 (航向 FF 时读到 dsLow/state 越界位置，保持原版一致)
-      let v = Math.trunc(seaS16(Math.imul(readDsLowOrStateByte(m, D, 0x06d8 + ((k * 8) & 0xffff) + t.buildLevel) * S.propulsion, wStr)) / 0x96) & 0xff;
+      let v = Math.trunc(seaS16(Math.imul(this.readDsLow(0x06d8 + ((k * 8) & 0xffff) + t.buildLevel) * S.propulsion, wStr)) / 0x96) & 0xff;
       v = seaUmin(0x1e, (Math.trunc(seaS16(Math.imul(v, lv)) / 10) + v) & 0xffff) & 0xff;
       v = seaUmin(0x28, Math.trunc(seaS16(Math.imul(v, sk)) / 0x4b) & 0xffff) & 0xff;
       if (beat) v = Math.trunc((S.turn * v) / 100) & 0xff;

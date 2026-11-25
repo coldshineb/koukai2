@@ -319,10 +319,16 @@ export class PortScene {
   npcs() {
     if (this.night()) { this.initNpcs(); return; }
     const rng = this.c.sys.rng;
+    const frames = (this._npcFrames ??= [0, 0, 0, 0]);
     for (let si = 4; si < 8; si++) {
       const n = this.npc(si);
-      if (this.outOfView(n.x, n.y)) continue;
-      const fr = rng.random(2) + (n.d + 12) * 2;
+      if (this.outOfView(n.x, n.y)) {
+        frames[si - 4] = (this.toggle ^ si) & 1;
+        continue;
+      }
+      const f = rng.random(2);
+      frames[si - 4] = f;
+      const fr = f + (n.d + 12) * 2;
       this.drawFigure(n.x - this.vx, n.y - this.vy, fr * 0x280);
     }
     for (let di = 0; di < 4; di++) {
@@ -657,6 +663,7 @@ export class PortScene {
         this.drawHero(this.hx, this.hy, face);
         this.drawHero(this.hx, this.hy, face);
         this.npcs();
+        this.c.scr.dirty = true;
         sys.mouseShow();
       }
       await sys.poll();

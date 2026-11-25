@@ -236,7 +236,8 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
       const sx = (n.x - camX) * TILE;
       const sy = (n.y - camY) * TILE;
       if (sx < -64 || sx > VIEW_W || sy < -64 || sy > VIEW_H) continue;
-      const localIdx = i >= 4 ? (n.d + 12) * 2 : ((i & 1) * 4 + n.d + 4) * 2 + (((n.x + n.y) & 1) === 0 ? 1 : 0);
+      const anim = i >= 4 ? (portScene._npcFrames?.[i - 4] ?? ((portScene.toggle ^ i) & 1)) : (((n.x + n.y) & 1) === 0 ? 1 : 0);
+      const localIdx = i >= 4 ? (n.d + 12) * 2 + anim : ((i & 1) * 4 + n.d + 4) * 2 + anim;
       const globalIdx = 48 + Math.max(0, Math.min(23, localIdx - 8));
       drawSheetTileDirect(ctx, art, "chars", globalIdx, sx, sy, TILE * 2, TILE * 2, scr, false);
     }
