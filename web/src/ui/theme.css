@@ -227,7 +227,8 @@ html, body {
 #uw2-overlay > * {
   pointer-events: auto;
 }
-#uw2-overlay > .uw2-world-hud {
+#uw2-overlay > .uw2-world-hud,
+#uw2-overlay > .uw2-dialog-floating {
   pointer-events: none;
 }
 

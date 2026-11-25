@@ -3,7 +3,7 @@
 import type { IScenarioHost, ScenarioWindowDef } from "../ui/dos/protocol.ts";
 import { GameConst } from "../model/flags.ts";
 import { stripEscBytes, toSimp } from "../ui/text_util.ts";
-import { runDomMenu, runDomYesNo } from "../ui/modals.ts";
+import { runDomMenu, runDomYesNo, waitDomContinue } from "../ui/modals.ts";
 
 export interface ModernScenarioDeps {
   runDuel: (scenario: any, person: number) => Promise<void>;
@@ -137,32 +137,17 @@ export class ModernScenarioHost implements IScenarioHost {
     if (this.textEl) this.textEl.textContent = this.buffer;
   }
 
-  waitKey(): Promise<void> {
+  async waitKey(): Promise<void> {
     this.ensureCard();
-    return new Promise(resolve => {
-      document.body.dataset.uw2Modal = "open";
-      const body = this.cardEl?.querySelector(".uw2-scenario-body");
-      const actions = document.createElement("div");
-      actions.className = "uw2-dialog-actions";
-      const ok = document.createElement("button");
-      ok.className = "uw2-btn uw2-btn-primary";
-      ok.textContent = "继续";
-      actions.appendChild(ok);
-      body?.appendChild(actions);
-
-      const finish = () => {
-        window.removeEventListener("keydown", onKey);
-        actions.remove();
-        delete document.body.dataset.uw2Modal;
-        resolve();
-      };
-      const onKey = (e: KeyboardEvent) => {
-        if (e.key === "Enter" || e.key === " " || e.key === "Escape") { e.preventDefault(); finish(); }
-      };
-      ok.addEventListener("click", finish);
-      window.addEventListener("keydown", onKey);
-      ok.focus();
-    });
+    const next = document.createElement("div");
+    next.className = "uw2-dialog-next";
+    next.textContent = "▼";
+    this.cardEl?.appendChild(next);
+    try {
+      await waitDomContinue();
+    } finally {
+      next.remove();
+    }
   }
 
   async selectMenu(items: Uint8Array[]): Promise<number> {

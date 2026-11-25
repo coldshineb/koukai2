@@ -104,6 +104,42 @@ function popModalLock() {
   if (modalDepth === 0) delete document.body.dataset.uw2Modal;
 }
 
+/** 统一等待玩家推进对话（舞台或对话卡内任意左/右键，或 Enter / Space / Esc） */
+export function waitDomContinue(opts?: { stage?: HTMLElement | null }): Promise<void> {
+  if (!hasDom()) return Promise.resolve();
+  return new Promise(resolve => {
+    pushModalLock();
+    const scope: HTMLElement | Window = opts?.stage ?? document.getElementById("uw2-stage") ?? window;
+    let settled = false;
+    const isBlocked = () => !!document.querySelector(".uw2-modal-backdrop");
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      scope.removeEventListener("mousedown", onMouseDown as EventListener, true);
+      window.removeEventListener("keydown", onKey, true);
+      popModalLock();
+      resolve();
+    };
+    const onMouseDown = (e: MouseEvent) => {
+      if (isBlocked()) return;
+      if (e.button !== 0 && e.button !== 2) return;
+      e.preventDefault();
+      e.stopPropagation();
+      finish();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (isBlocked()) return;
+      if (e.key === "Enter" || e.key === " " || e.key === "Escape") {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        finish();
+      }
+    };
+    scope.addEventListener("mousedown", onMouseDown as EventListener, true);
+    window.addEventListener("keydown", onKey, true);
+  });
+}
+
 export interface DomModalHandle {
   backdrop: HTMLElement;
   modal: HTMLElement;
@@ -461,9 +497,17 @@ export function runDomStoryCard(
   if (!hasDom()) return Promise.resolve();
   return new Promise(resolve => {
     let settled = false;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        done();
+      }
+    };
     const done = () => {
       if (settled) return;
       settled = true;
+      window.removeEventListener("keydown", onKey, true);
       h.close();
       resolve();
     };
@@ -474,6 +518,8 @@ export function runDomStoryCard(
       closeLabel: "关闭",
       onCancel: () => done(),
     });
+    window.addEventListener("keydown", onKey, true);
+    h.modal.addEventListener("click", () => done());
     if (graphId !== null && art) {
       const entry = art.graphEntry?.("GRAPH.DAT", graphId);
       if (entry) {

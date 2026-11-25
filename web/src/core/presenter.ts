@@ -2,6 +2,7 @@
 // 供阶段 5 逐场景从 640×400 帧缓冲切换至现代高清界面使用。
 import type { IGameUI } from "../ui/dos/protocol.ts";
 import { stripEscBytes, toSimp } from "../ui/text_util.ts";
+import { waitDomContinue } from "../ui/modals.ts";
 
 export class ModernGameUI implements IGameUI {
   readonly root: HTMLElement;
@@ -28,36 +29,22 @@ export class ModernGameUI implements IGameUI {
     return this.waitPrompt();
   }
 
-  waitPrompt(): Promise<void> {
-    return new Promise(resolve => {
-      document.body.dataset.uw2Modal = "open";
-      const box = document.createElement("div");
-      box.className = "uw2-card uw2-dialog";
-      box.innerHTML = `<div class="uw2-dialog-text"></div>`;
-      (box.querySelector(".uw2-dialog-text") as HTMLElement).textContent = this.currentText;
+  async waitPrompt(): Promise<void> {
+    const box = document.createElement("div");
+    box.className = "uw2-card uw2-dialog";
+    box.innerHTML = `<div class="uw2-dialog-text"></div>`;
+    (box.querySelector(".uw2-dialog-text") as HTMLElement).textContent = this.currentText;
 
-      const actions = document.createElement("div");
-      actions.className = "uw2-dialog-actions";
-      const ok = document.createElement("button");
-      ok.className = "uw2-btn uw2-btn-primary";
-      ok.textContent = "继续";
-      actions.appendChild(ok);
-      box.appendChild(actions);
-
-      const finish = () => {
-        window.removeEventListener("keydown", onKey);
-        box.remove();
-        delete document.body.dataset.uw2Modal;
-        resolve();
-      };
-      const onKey = (e: KeyboardEvent) => {
-        if (e.key === "Enter" || e.key === " " || e.key === "Escape") { e.preventDefault(); finish(); }
-      };
-      ok.addEventListener("click", finish);
-      window.addEventListener("keydown", onKey);
-      this.root.appendChild(box);
-      ok.focus();
-    });
+    const next = document.createElement("div");
+    next.className = "uw2-dialog-next";
+    next.textContent = "▼";
+    box.appendChild(next);
+    this.root.appendChild(box);
+    try {
+      await waitDomContinue();
+    } finally {
+      box.remove();
+    }
   }
 
   confirmYesNo(promptText?: string): Promise<boolean> {
