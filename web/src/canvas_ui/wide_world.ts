@@ -65,13 +65,21 @@ function drawGlassPanel(ctx: CanvasRenderingContext2D, x: number, y: number, w: 
   ctx.restore();
 }
 
-// 原版日間 16 色調色盤 (PALETTE_ADDR.day = 0xA50C) 供首次建立圖集色號索引表
-const DAY_PAL_RGB: [number, number, number][] = [
-  [0, 0, 0], [0, 68, 221], [221, 68, 0], [221, 102, 170],
-  [0, 170, 102], [0, 170, 255], [255, 170, 102], [255, 238, 221],
-  [119, 119, 153], [0, 68, 204], [170, 102, 0], [238, 187, 85],
-  [0, 136, 255], [0, 119, 102], [0, 187, 102], [255, 238, 221],
+// 與 core/screen.js 與 tools/extract_art.py 完全一致的 4-bit -> 6-bit VGA DAC -> 8-bit RGB 轉換
+const dac8 = (v4: number) => Math.round(((v4 & 15) * 4 * 255) / 63);
+
+// 原版日間 16 色調色盤 (PALETTE_ADDR.day = 0xA50C, 原始 B,R,G 4-bit 順序)
+const DAY_PAL_RAW = [
+  0, 0, 0,   13, 0, 4,   0, 13, 4,   10, 13, 6,
+  6, 0, 10,  15, 0, 10,  6, 15, 10,  13, 15, 14,
+  9, 7, 7,   12, 0, 4,   0, 10, 6,   5, 14, 11,
+  15, 0, 8,  6, 0, 7,    6, 0, 11,   13, 15, 14,
 ];
+const DAY_PAL_RGB: [number, number, number][] = Array.from({ length: 16 }, (_, i) => [
+  dac8(DAY_PAL_RAW[i * 3 + 1]),
+  dac8(DAY_PAL_RAW[i * 3 + 2]),
+  dac8(DAY_PAL_RAW[i * 3]),
+]);
 
 // 地圖圖塊優先對映至原版世界時段色號 8..15 (與 0 黑)，確保清晨/白天/黃昏/夜晚/陰天完全還原原版材質
 const MAP_SEARCH_ORDER = [0, 8, 9, 10, 11, 12, 13, 14, 15, 1, 2, 3, 4, 5, 6, 7];
@@ -159,9 +167,9 @@ function getPaletteRemappedSheet(
     const idxArr = entry.indices;
     const rTab = new Uint8Array(16), gTab = new Uint8Array(16), bTab = new Uint8Array(16);
     for (let i = 0; i < 16; i++) {
-      bTab[i] = raw[i * 3] * 17;
-      rTab[i] = raw[i * 3 + 1] * 17;
-      gTab[i] = raw[i * 3 + 2] * 17;
+      bTab[i] = dac8(raw[i * 3]);
+      rTab[i] = dac8(raw[i * 3 + 1]);
+      gTab[i] = dac8(raw[i * 3 + 2]);
     }
     for (let p = 0, q = 0; p < idxArr.length; p++, q += 4) {
       const ci = idxArr[p];
