@@ -158,6 +158,100 @@ function getPaletteRemappedSheet(
   return entry.canvas;
 }
 
+interface ExtrudedHdCache {
+  srcImg: HTMLImageElement;
+  canvas: HTMLCanvasElement;
+  tileW: number;
+  tileH: number;
+  pad: number;
+  cols: number;
+}
+
+const extrudedHdCache = new Map<string, ExtrudedHdCache>();
+const DAY_REF_SUM = DAY_PAL_RGB.slice(8).reduce((acc, [r, g, b]) => acc + r + g + b, 0);
+
+function getExtrudedHdSheet(art: any, sheetName: string, meta: any): ExtrudedHdCache | null {
+  const url = art?.hdSheetUrl?.(sheetName);
+  const img = url ? art.getImage(url) : null;
+  if (!img || !img.complete) return null;
+  const nw = (img as HTMLImageElement).naturalWidth || img.width;
+  const nh = (img as HTMLImageElement).naturalHeight || img.height;
+  if (!nw || !nh || !meta?.cols || !meta?.rows) return null;
+
+  const cached = extrudedHdCache.get(sheetName);
+  if (cached && cached.srcImg === img) return cached;
+  if (typeof document === "undefined") return null;
+
+  const tileW = Math.floor(nw / meta.cols);
+  const tileH = Math.floor(nh / meta.rows);
+  const pad = 2;
+  const cellW = tileW + pad * 2;
+  const cellH = tileH + pad * 2;
+  const canvas = document.createElement("canvas");
+  canvas.width = meta.cols * cellW;
+  canvas.height = meta.rows * cellH;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  ctx.imageSmoothingEnabled = false;
+
+  for (let row = 0; row < meta.rows; row++) {
+    for (let col = 0; col < meta.cols; col++) {
+      const sx = col * tileW;
+      const sy = row * tileH;
+      const dx = col * cellW;
+      const dy = row * cellH;
+      // 中心主体
+      ctx.drawImage(img, sx, sy, tileW, tileH, dx + pad, dy + pad, tileW, tileH);
+      // 四边 2px 外扩延拓（防止 double-bilinear / HiDPI 采样到相邻图块产生接缝线）
+      ctx.drawImage(img, sx, sy, tileW, 1, dx + pad, dy, tileW, pad);
+      ctx.drawImage(img, sx, sy + tileH - 1, tileW, 1, dx + pad, dy + pad + tileH, tileW, pad);
+      ctx.drawImage(img, sx, sy, 1, tileH, dx, dy + pad, pad, tileH);
+      ctx.drawImage(img, sx + tileW - 1, sy, 1, tileH, dx + pad + tileW, dy + pad, pad, tileH);
+      // 四角
+      ctx.drawImage(img, sx, sy, 1, 1, dx, dy, pad, pad);
+      ctx.drawImage(img, sx + tileW - 1, sy, 1, 1, dx + pad + tileW, dy, pad, pad);
+      ctx.drawImage(img, sx, sy + tileH - 1, 1, 1, dx, dy + pad + tileH, pad, pad);
+      ctx.drawImage(img, sx + tileW - 1, sy + tileH - 1, 1, 1, dx + pad + tileW, dy + pad + tileH, pad, pad);
+    }
+  }
+
+  const entry: ExtrudedHdCache = { srcImg: img, canvas, tileW, tileH, pad, cols: meta.cols };
+  extrudedHdCache.set(sheetName, entry);
+  return entry;
+}
+
+const HD_MODE_TINTS: Record<string, readonly [number, number, number]> = {
+  day: [255, 255, 255],
+  dawn: [244, 206, 214],
+  dusk: [255, 184, 130],
+  night: [110, 138, 198],
+  overcast: [194, 208, 224],
+};
+
+function applyHdAtmosphereTint(ctx: CanvasRenderingContext2D, scr: any, vw: number, vh: number) {
+  const mode: string = scr?.atmosphere?.mode || "day";
+  const baseTint = HD_MODE_TINTS[mode] || HD_MODE_TINTS.day;
+  const raw: Uint8Array | undefined = scr?.raw;
+  let fade = 1;
+  if (raw && raw.length >= 48 && DAY_REF_SUM > 0) {
+    let curSum = 0;
+    for (let i = 8; i < 16; i++) {
+      curSum += dac8(raw[i * 3]) + dac8(raw[i * 3 + 1]) + dac8(raw[i * 3 + 2]);
+    }
+    const modeBias = mode === "night" ? 0.506 : mode === "dusk" ? 0.923 : mode === "dawn" ? 0.884 : mode === "overcast" ? 0.766 : 1;
+    fade = clamp(curSum / Math.max(1, DAY_REF_SUM * modeBias), 0, 1);
+  }
+  const r = Math.round(baseTint[0] * fade);
+  const g = Math.round(baseTint[1] * fade);
+  const b = Math.round(baseTint[2] * fade);
+  if (r >= 254 && g >= 254 && b >= 254) return;
+  ctx.save();
+  ctx.globalCompositeOperation = "multiply";
+  ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+  ctx.fillRect(0, 0, vw, vh);
+  ctx.restore();
+}
+
 function drawSheetTileDirect(
   ctx: CanvasRenderingContext2D,
   art: any,
@@ -169,15 +263,37 @@ function drawSheetTileDirect(
   dh: number,
   scr?: any,
   preferMapSlots = true,
-) {
+  useHd = false,
+): boolean {
   const meta = art?.sheet?.(sheetName);
-  if (!meta || tileIdx < 0 || tileIdx >= meta.count) return;
+  if (!meta || tileIdx < 0 || tileIdx >= meta.count) return false;
+  const col = tileIdx % meta.cols;
+  const row = Math.floor(tileIdx / meta.cols);
+
+  if (useHd) {
+    const hd = getExtrudedHdSheet(art, sheetName, meta);
+    if (hd) {
+      const cellW = hd.tileW + hd.pad * 2;
+      const cellH = hd.tileH + hd.pad * 2;
+      ctx.drawImage(
+        hd.canvas,
+        col * cellW + hd.pad,
+        row * cellH + hd.pad,
+        hd.tileW,
+        hd.tileH,
+        dx,
+        dy,
+        dw,
+        dh,
+      );
+      return true;
+    }
+  }
+
   const img = scr
     ? getPaletteRemappedSheet(art, scr, sheetName, preferMapSlots)
     : art.getImage(art.sheetUrl(sheetName));
-  if (!img) return;
-  const col = tileIdx % meta.cols;
-  const row = Math.floor(tileIdx / meta.cols);
+  if (!img) return false;
   const nw = (img as HTMLImageElement).naturalWidth || img.width || meta.w;
   const nh = (img as HTMLImageElement).naturalHeight || img.height || meta.h;
   const scaleX = nw / meta.w;
@@ -193,6 +309,7 @@ function drawSheetTileDirect(
     dw,
     dh,
   );
+  return false;
 }
 
 function drawFloatingHud(scene: any, atSea: boolean) {
@@ -337,17 +454,22 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
   const startRow = Math.max(0, Math.floor(camPxY / TILE));
   const endRow = Math.min(P_MAP_W - 1, Math.floor((camPxY + vh - 1) / TILE));
 
+  const useHd = prefs?.hdPortTextures !== false;
   const wctx = getWideStageCtx(ctx, vw, vh);
   wctx.fillStyle = "#081424";
   wctx.fillRect(0, 0, vw, vh);
-  wctx.imageSmoothingEnabled = false;
+  wctx.imageSmoothingEnabled = useHd;
+  if (useHd) wctx.imageSmoothingQuality = "high";
 
+  let usedHdMap = false;
   for (let my = startRow; my <= endRow; my++) {
     const rowOff = my * P_MAP_W;
     const dy = my * TILE - camPxY;
     for (let mx = startCol; mx <= endCol; mx++) {
       const t = M[rowOff + mx];
-      drawSheetTileDirect(wctx, art, sheetName, t, mx * TILE - camPxX, dy, TILE, TILE, scr, true);
+      if (drawSheetTileDirect(wctx, art, sheetName, t, mx * TILE - camPxX, dy, TILE, TILE, scr, true, useHd)) {
+        usedHdMap = true;
+      }
     }
   }
 
@@ -368,7 +490,7 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
       const anim = i >= 4 ? (portScene._npcFrames?.[i - 4] ?? ((portScene.toggle ^ i) & 1)) : (((n.x + n.y) & 1) === 0 ? 1 : 0);
       const localIdx = i >= 4 ? (n.d + 12) * 2 + anim : ((i & 1) * 4 + n.d + 4) * 2 + anim;
       const globalIdx = 48 + Math.max(0, Math.min(23, localIdx - 8));
-      drawSheetTileDirect(wctx, art, "chars", globalIdx, sx, sy, TILE * 2, TILE * 2, scr, false);
+      drawSheetTileDirect(wctx, art, "chars", globalIdx, sx, sy, TILE * 2, TILE * 2, scr, false, useHd);
     }
   } else {
     portSmooth.npcs.fill(undefined);
@@ -380,7 +502,11 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
   const heroSpriteIdx = portScene.m.globals.hero * 8 + hDir * 2 + hPhase;
   const hxPx = Math.round(visHeroX * TILE) - camPxX;
   const hyPx = Math.round(visHeroY * TILE) - camPxY;
-  drawSheetTileDirect(wctx, art, "chars", heroSpriteIdx, hxPx, hyPx, TILE * 2, TILE * 2, scr, false);
+  drawSheetTileDirect(wctx, art, "chars", heroSpriteIdx, hxPx, hyPx, TILE * 2, TILE * 2, scr, false, useHd);
+
+  if (usedHdMap) {
+    applyHdAtmosphereTint(wctx, scr, vw, vh);
+  }
 
   if (wideStageCanvas && wctx !== ctx) {
     ctx.imageSmoothingEnabled = false;

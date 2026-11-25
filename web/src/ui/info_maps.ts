@@ -377,9 +377,12 @@ export function mountDomPortMap(container: HTMLElement, c: any, p: any) {
     if (!ctx) return;
     ctx.fillStyle = "#0c1a2e";
     ctx.fillRect(0, 0, mapPx, mapPx);
-    const sheetImg = meta ? art.getImage(art.sheetUrl(sheetName)) : null;
+    const useHd = Boolean(c.prefs?.hdPortTextures);
+    const hdImg = useHd && meta ? art.getImage(art.hdSheetUrl?.(sheetName)) : null;
+    const sheetImg = hdImg ?? (meta ? art.getImage(art.sheetUrl(sheetName)) : null);
     if (meta && sheetImg) {
-      ctx.imageSmoothingEnabled = false;
+      ctx.imageSmoothingEnabled = Boolean(hdImg);
+      if (hdImg) ctx.imageSmoothingQuality = "high";
       const scaleX = (sheetImg.naturalWidth || meta.w) / meta.w;
       const scaleY = (sheetImg.naturalHeight || meta.h) / meta.h;
       const M = p.map;

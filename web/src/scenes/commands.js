@@ -2009,6 +2009,17 @@ export async function openDomSettings(ctx) {
       { label: SL[0], onText: "ON", offText: "OFF", get: () => !!(g.options & OptionFlag.ANIMATION), toggle: () => toggle(0) },
       { label: SL[1], onText: "ON", offText: "OFF", get: () => !!(g.options & OptionFlag.BGM), toggle: () => toggle(2) },
       { label: "音乐版本", onText: "30周年CD", offText: "PS1版", hint: "未收录曲目自动回退 PS1 版", get: () => prefs.bgmPack === "cd30", toggle: togglePack },
+      {
+        label: "港内贴图",
+        onText: "现代高清",
+        offText: "原版像素",
+        hint: "4× 真彩无缝高清港内地图与角色（可随时切换对比原版）",
+        get: () => Boolean(prefs.hdPortTextures),
+        toggle: () => {
+          prefs.hdPortTextures = !prefs.hdPortTextures;
+          savePrefs(prefs);
+        },
+      },
     ],
     sliders: [
       { label: SL[3], min: 0, max: 10, get: () => g.seaScroll, set: v => setSlider("seaScroll", 10, v) },

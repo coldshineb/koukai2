@@ -66,7 +66,10 @@ export async function loadPortAssets(ctx) {
       "naval_battle", "battle_ships", "battle_fx_lg", "battle_fx_sm", "battle_ball",
       "dials", "supply_icons", "gamble_cards", "gamble_dice", "hud_buttons",
     ];
-    await ctx.art.preloadUrls(sheets.map(s => ctx.art.sheetUrl(s)));
+    await ctx.art.preloadUrls([
+      ...sheets.map(s => ctx.art.sheetUrl(s)),
+      ...sheets.map(s => ctx.art.hdSheetUrl(s)),
+    ]);
     const dm = ctx.art.manifest?.duel;
     if (dm) {
       const duelUrls = [

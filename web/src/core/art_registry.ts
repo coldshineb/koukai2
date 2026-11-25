@@ -248,6 +248,14 @@ export class ArtRegistry {
     return this.resolve(this.sheet(name));
   }
 
+  hdSheetUrl(name: string): string | null {
+    if (!this.sheet(name)) return null;
+    if (name === "chars" || /^portchip_[0-6]$/.test(name)) {
+      return `${this.baseUrl}/hd/sheets/${name}.png`;
+    }
+    return null;
+  }
+
   endingUrl(index: number): string | null {
     return this.resolve(this.manifest?.ending?.[index]);
   }

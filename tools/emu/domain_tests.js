@@ -136,6 +136,7 @@
     const path = require("path");
     const prefs = U.createDefaultPrefs();
     eq("default prefs bgmPack == ps1", prefs.bgmPack, "ps1");
+    eq("default prefs hdPortTextures on", prefs.hdPortTextures, true);
     eq("default prefs all rule toggles off",
       prefs.unlock1552 || prefs.unlockCashCap || prefs.fixItemShopNight || prefs.fixPalaceHeroCaptain || prefs.fixScoutSpeedArgs || prefs.unlockTradeLogCap,
       false);

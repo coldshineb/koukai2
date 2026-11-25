@@ -6,6 +6,7 @@ export type BgmPackId = "ps1" | "cd30";
 
 export interface UserPrefs {
   bgmPack: BgmPackId;
+  hdPortTextures: boolean;
   unlock1552: boolean;
   unlockCashCap: boolean;
   fixItemShopNight: boolean;
@@ -20,6 +21,7 @@ export const PREFS_STORAGE_KEY = "uw2.prefs.v1";
 
 export const DEFAULT_PREFS: Readonly<UserPrefs> = Object.freeze({
   bgmPack: "ps1",
+  hdPortTextures: true,
   unlock1552: false,
   unlockCashCap: false,
   fixItemShopNight: false,
@@ -42,6 +44,7 @@ export function loadPrefs(): UserPrefs {
     if (!raw) return out;
     const parsed = JSON.parse(raw) as Partial<UserPrefs>;
     if (parsed.bgmPack === "ps1" || parsed.bgmPack === "cd30") out.bgmPack = parsed.bgmPack;
+    if (parsed.hdPortTextures !== undefined) out.hdPortTextures = Boolean(parsed.hdPortTextures);
     out.unlock1552 = Boolean(parsed.unlock1552);
     out.unlockCashCap = Boolean(parsed.unlockCashCap);
     out.fixItemShopNight = Boolean(parsed.fixItemShopNight);
@@ -78,7 +81,7 @@ export function addCashClamped(curCash: number, delta: number, ctx: { prefs?: Pa
 }
 
 export interface RuleToggleMeta {
-  key: Exclude<keyof UserPrefs, "bgmPack">;
+  key: Exclude<keyof UserPrefs, "bgmPack" | "hdPortTextures">;
   label: string;
   hint: string;
 }
