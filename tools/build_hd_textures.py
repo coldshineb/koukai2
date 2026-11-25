@@ -34,49 +34,50 @@ DAY_PAL_RGB = np.array([
     for i in range(16)
 ], dtype=np.uint8)
 
-# 更有厚重感与电影感的基础色调（适度压暗过亮色，给 HDR Bloom 与实时太阳光照留出动态范围）
+# 温润自然的现代物理色盘：抬升结构线至深炭棕、收敛过曝象牙白与荧光绿，与实时光影保持同一明度动态范围
 MODERN_GROUND_PAL = np.array([
-    [16, 15, 22],     # 0: 深暖炭黑结构线/门洞阴影
-    [26, 78, 198],    # 1: 皇家钴蓝
-    [194, 78, 22],    # 2: 暖红褐
-    [194, 104, 156],  # 3: 紫粉
-    [28, 152, 96],    # 4: 翠青
-    [48, 156, 224],   # 5: 晴蓝
-    [232, 156, 84],   # 6: 暖琥珀灯火/皮肤
-    [226, 214, 194],  # 7: 暖象牙石膏
-    [106, 114, 130],  # 8: 温润青石板灰
-    [14, 62, 132],    # 9: 深港湾蓝
-    [162, 114, 58],   # 10: 暖赭土/木梁
-    [212, 178, 110],  # 11: 暖砂岩/日光木纹
-    [54, 136, 206],   # 12: 亮波蓝/窗玻璃
-    [34, 108, 66],    # 13: 浓草地暗部/铜绿瓦暗部
-    [54, 152, 78],    # 14: 鲜草坪
-    [230, 218, 198],  # 15: 日光石膏高光
+    [42, 36, 36],     # 0: 深暖炭褐结构线/地缝阴影
+    [28, 82, 188],    # 1: 皇家钴蓝
+    [184, 78, 30],    # 2: 暖红陶褐
+    [186, 104, 150],  # 3: 紫粉
+    [34, 140, 88],    # 4: 翠青
+    [54, 152, 212],   # 5: 晴蓝
+    [224, 152, 84],   # 6: 暖琥珀灯火/皮肤
+    [214, 202, 180],  # 7: 暖石灰石膏
+    [108, 112, 120],  # 8: 温润石灰青石灰
+    [16, 66, 136],    # 9: 深港湾蓝
+    [154, 108, 56],   # 10: 暖赭土/实木
+    [204, 172, 112],  # 11: 暖砂岩/沙滩金
+    [58, 134, 196],   # 12: 亮波蓝/窗玻璃
+    [36, 98, 56],     # 13: 浓草地暗部/深林绿
+    [62, 134, 68],    # 14: 自然日照草坪
+    [222, 210, 188],  # 15: 暖白石膏高光
 ], dtype=np.float32)
 
 MODERN_SPRITE_PAL = np.array([
-    [18, 16, 24],     # 0: 锐利暗描边
-    [28, 84, 210],    # 1: 皇家蓝阴影
-    [196, 82, 24],    # 2: 皮革棕红
-    [202, 110, 162],  # 3: 玫瑰饰边
-    [26, 162, 102],   # 4: 翠绿衣饰
-    [48, 166, 238],   # 5: 亮海蓝外衣 (主角约翰)
-    [240, 168, 104],  # 6: 暖肤色
-    [238, 226, 208],  # 7: 象牙白衬衫
-    [110, 116, 136],  # 8: 蓝灰阴影
-    [24, 78, 182],    # 9: 深蓝
-    [154, 92, 34],    # 10: 棕皮革/褐发
-    [226, 182, 100],  # 11: 金发/暖高光
-    [54, 142, 235],   # 12: 浅蓝
-    [34, 112, 92],    # 13: 深绿
-    [48, 166, 96],    # 14: 翠绿
-    [240, 228, 210],  # 15: 亮象牙白
+    [26, 22, 28],     # 0: 沉稳轮廓描边
+    [30, 86, 204],    # 1: 皇家蓝阴影
+    [190, 82, 28],    # 2: 皮革棕红
+    [196, 108, 156],  # 3: 玫瑰饰边
+    [32, 154, 96],    # 4: 翠绿衣饰
+    [52, 162, 228],   # 5: 亮海蓝外衣
+    [234, 164, 102],  # 6: 暖肤色
+    [230, 218, 198],  # 7: 象牙白衬衫
+    [110, 114, 130],  # 8: 暖蓝灰阴影
+    [26, 78, 178],    # 9: 深蓝
+    [150, 92, 38],    # 10: 棕皮革/褐发
+    [220, 178, 102],  # 11: 金发/暖高光
+    [58, 140, 224],   # 12: 浅蓝
+    [38, 112, 90],    # 13: 深绿
+    [54, 158, 94],    # 14: 翠绿
+    [234, 222, 202],  # 15: 亮象牙白
 ], dtype=np.float32)
 
-# 建筑专用色盘：将原版暗蓝青阴影 index 13 压成沉稳石青瓦灰，消除木门和灰墙里跳眼的鲜绿点
+# 建筑专用色盘：抬升黑色隙缝至暖深岩褐 [46, 40, 38] 以便实时阴影与天光渗入，压制 index 13 为氧化铜绿灰
 MODERN_ARCH_PAL = MODERN_GROUND_PAL.copy()
-MODERN_ARCH_PAL[13] = [44, 72, 74]
-MODERN_ARCH_PAL[14] = [52, 136, 96]
+MODERN_ARCH_PAL[0] = [46, 40, 38]
+MODERN_ARCH_PAL[13] = [56, 74, 76]
+MODERN_ARCH_PAL[14] = [64, 134, 88]
 
 # 仅对“真正纯大面积平铺”的沙地/草坪/水体做棋盘格消噪，保留砖块与木门肌理
 GROUND_DITHER_PAIRS = {
@@ -87,9 +88,11 @@ GROUND_DITHER_PAIRS = {
     (9, 12), (12, 9),
     (8, 15), (15, 8),
     (8, 7), (7, 8),
+    (8, 11), (11, 8),
+    (8, 10), (10, 8),
 }
 
-# 建筑只去除大块白灰粉墙、蓝灰瓦顶与门扇的阴影点阵，保留石砖与木门框结构
+# 建筑平滑消除白墙/瓦顶/石壁/木船的颗粒抖动点阵
 ARCH_DITHER_PAIRS = {
     (11, 15), (15, 11),
     (11, 7), (7, 11),
@@ -99,8 +102,21 @@ ARCH_DITHER_PAIRS = {
     (8, 13), (13, 8),
     (10, 13), (13, 10),
     (9, 12), (12, 9),
+    (8, 10), (10, 8),
+    (8, 11), (11, 8),
+    (10, 11), (11, 10),
+    (10, 15), (15, 10),
+    (8, 15), (15, 8),
+}
+
+# 高对比暗点棋盘（如瓦背/拱廊/船壳中交替的 0-x 点阵）：仅在严格 2×2 棋盘围合时才混融，绝不模糊 1px 直线窗框或桅杆描边
+STRONG_ARCH_CHECKER_PAIRS = {
+    (0, 8), (8, 0),
     (0, 10), (10, 0),
     (0, 13), (13, 0),
+    (0, 11), (11, 0),
+    (0, 12), (12, 0),
+    (0, 15), (15, 0),
 }
 
 SPRITE_DITHER_PAIRS = {
@@ -173,53 +189,96 @@ def periodic_noise(sz: int, freqs=(4, 8, 16), seed=42) -> np.ndarray:
     return acc / max(1e-5, m)
 
 def make_tactile_materials(sz: int = 64):
-    """生成带物理凹凸高度场的多材质无缝周期贴图（石板路/砂砾、草簇、水底与微岩理）"""
+    """生成区分石板广场、风蚀沙滩/荒漠、自然草簇、海床与建筑风化岩木理的物理高度与微色差贴图"""
     yy, xx = np.mgrid[0:sz, 0:sz].astype(np.float32)
 
-    # 1. 地中海铺石广场 (4x4 错缝石板：物理凹凸高度 + 矿物砂粒颜色起伏)
+    # 1A. 港口石砌广场/码头铺砖 (错缝方石，柔和风化浅缝隙与温润冷暖块差，仅用于砖石广场格)
     row_idx = np.floor(yy / 16.0)
     ox = (xx + (row_idx % 2) * 8.0) % 16.0
     oy = yy % 16.0
-    # 到石板边缘距离 (0..8) -> 倒角斜坡营造真实立体感
     dx = np.minimum(ox, 16.0 - ox)
     dy = np.minimum(oy, 16.0 - oy)
     edge_d = np.minimum(dx, dy)
-    bevel = np.clip(edge_d / 2.2, 0.0, 1.0)
-    grout = 1.0 - bevel
-    # 每块石板给一点微小的暖冷色调随机偏移
+    bevel = np.clip(edge_d / 2.6, 0.0, 1.0)
+    grout = (1.0 - bevel) ** 1.4
     cell_id = (row_idx % 4) * 4 + (np.floor((xx + (row_idx % 2) * 8.0) / 16.0) % 4)
     tile_tone = np.sin(cell_id * 12.9898) * 0.5
-    sand_grain = periodic_noise(sz, (6, 12, 22), seed=107)
-    sand_broad = periodic_noise(sz, (2, 4), seed=109)
+    stone_grain = periodic_noise(sz, (6, 14, 24), seed=107)
+    stone_broad = periodic_noise(sz, (2, 4), seed=109)
 
+    plaza_albedo = (
+        tile_tone * 5.2
+        + stone_broad * 4.5
+        + stone_grain * 4.2
+        - grout * 10.5
+    )[:, :, None] * np.array([1.02, 0.96, 0.84], dtype=np.float32)
+    plaza_height = np.clip(0.56 * bevel + 0.14 * stone_grain + 0.12 * stone_broad, 0.0, 1.0)
+
+    # 1B. 自然沙滩/沙漠土路 (风吹微沙波与矿物砂粒，绝无人工瓷砖方格线条)
+    wind_phase = (xx * 0.55 + yy * 0.85) * (2.0 * math.pi / sz) * 3.0
+    dune_ripple = np.sin(wind_phase + stone_broad * 1.6) * 0.5
+    sand_fine = periodic_noise(sz, (8, 16, 28), seed=113)
     sand_albedo = (
-        tile_tone * 6.5
-        + sand_broad * 5.0
-        + sand_grain * 4.8
-        - grout * 16.0
-    )[:, :, None] * np.array([1.04, 0.96, 0.78], dtype=np.float32)
-    sand_height = np.clip(0.55 * bevel + 0.16 * sand_grain + 0.12 * sand_broad, 0.0, 1.0)
+        dune_ripple * 3.4
+        + stone_broad * 5.5
+        + sand_fine * 3.8
+    )[:, :, None] * np.array([1.05, 0.96, 0.78], dtype=np.float32)
+    sand_height = np.clip(0.45 + 0.22 * dune_ripple + 0.18 * stone_broad + 0.14 * sand_fine, 0.0, 1.0)
 
-    # 2. 锐利有层次的草簇质感 (并非一片糊绿)
-    g_clump = periodic_noise(sz, (4, 8), seed=205)
+    # 2. 自然植物草坪肌理 (柔和团簇起伏与细腻草叶方向微颗粒)
+    g_clump = periodic_noise(sz, (3, 7), seed=205)
     g_blade = periodic_noise(sz, (12, 22, 30), seed=208)
-    grass_albedo = (g_clump * 10.5 + g_blade * 9.0)[:, :, None] * np.array([0.75, 1.18, 0.56], dtype=np.float32)
-    grass_height = np.clip(0.45 + 0.35 * g_clump + 0.25 * g_blade, 0.0, 1.0)
+    grass_albedo = (g_clump * 8.5 + g_blade * 5.8)[:, :, None] * np.array([0.82, 1.10, 0.62], dtype=np.float32)
+    grass_height = np.clip(0.45 + 0.34 * g_clump + 0.22 * g_blade, 0.0, 1.0)
 
-    # 3. 港湾深水底色 (波动留给 WebGL2 实时着色器，保留柔和水深过渡)
+    # 3. 港湾深水底色 (波动由 WebGL2 实时着色器主导)
     w_deep = periodic_noise(sz, (2, 4), seed=303)
-    water_albedo = (w_deep * 6.0)[:, :, None] * np.array([0.45, 0.85, 1.2], dtype=np.float32)
+    water_albedo = (w_deep * 5.0)[:, :, None] * np.array([0.45, 0.85, 1.2], dtype=np.float32)
 
-    # 4. 建筑石材与木纹细微肌理 (不破坏砖块，补充表面粗糙微颗粒)
-    arch_grain = periodic_noise(sz, (8, 16, 26), seed=407)
-    arch_albedo = (arch_grain * 5.5)[:, :, None] * np.array([1.0, 0.98, 0.93], dtype=np.float32)
+    # 4. 建筑石材/木质/灰泥柔和微风化颗粒 (低频温和起伏，无噪点刺毛)
+    arch_macro = periodic_noise(sz, (3, 7), seed=401)
+    arch_grain = periodic_noise(sz, (10, 18), seed=407)
+    arch_albedo = (arch_macro * 4.2 + arch_grain * 3.2)[:, :, None] * np.array([1.0, 0.97, 0.91], dtype=np.float32)
+    arch_detail_h = (arch_macro * 0.08 + arch_grain * 0.05).astype(np.float32)
 
-    return sand_albedo, sand_height, grass_albedo, grass_height, water_albedo, arch_albedo
+    return plaza_albedo, plaza_height, sand_albedo, sand_height, grass_albedo, grass_height, water_albedo, arch_albedo, arch_detail_h
+
+def bilateral_tile_rgb(
+    rgb: np.ndarray,
+    mask: np.ndarray,
+    sigma_s: float = 1.2,
+    sigma_c: float = 34.0,
+    radius: int = 2,
+) -> np.ndarray:
+    """向量化 5×5 保边双边滤波：抹平建筑/瓦片/船体 4× 放大锯齿与色斑，同时保持窗框、砖缝与屋檐锐利"""
+    if not np.any(mask):
+        return rgb
+    h, w, _ = rgb.shape
+    pad = radius
+    p_rgb = np.pad(rgb, ((pad, pad), (pad, pad), (0, 0)), mode="edge")
+    p_msk = np.pad(mask.astype(np.float32), ((pad, pad), (pad, pad)), mode="constant", constant_values=0.0)
+    num = np.zeros_like(rgb, dtype=np.float32)
+    den = np.zeros((h, w), dtype=np.float32)
+    inv_2s2 = 1.0 / (2.0 * sigma_s * sigma_s)
+    inv_2c2 = 1.0 / (2.0 * sigma_c * sigma_c)
+    for dy in range(-radius, radius + 1):
+        for dx in range(-radius, radius + 1):
+            ws = math.exp(-(dy * dy + dx * dx) * inv_2s2)
+            nb = p_rgb[pad + dy:pad + dy + h, pad + dx:pad + dx + w]
+            nm = p_msk[pad + dy:pad + dy + h, pad + dx:pad + dx + w]
+            diff = nb - rgb
+            dc2 = np.sum(diff * diff, axis=2) / 3.0
+            wt = ws * np.exp(-dc2 * inv_2c2) * nm
+            num += nb * wt[:, :, None]
+            den += wt
+    out = np.where((den > 1e-4)[:, :, None] & mask[:, :, None], num / np.maximum(den[:, :, None], 1e-4), rgb)
+    return out
 
 def dedither_tile_rgb(
     idx_tile: np.ndarray,
     pal_rgb: np.ndarray,
     dither_pairs: set,
+    strict_pairs: set | None = None,
     is_water: np.ndarray | None = None,
     wrap_edges: bool = False,
 ) -> np.ndarray:
@@ -251,16 +310,20 @@ def dedither_tile_rgb(
                     ny, nx = pos
                     nb.append((int(clean_idx[ny, nx]), base[ny, nx]))
             matches = [(ni, rgb) for ni, rgb in nb if (ci, ni) in dither_pairs]
-            if not matches:
+            strict_matches = [(ni, rgb) for ni, rgb in nb if strict_pairs and (ci, ni) in strict_pairs]
+            if not matches and not strict_matches:
                 continue
             diag_same = 0
             for dy, dx in ((-1, -1), (-1, 1), (1, -1), (1, 1)):
                 pos = get_px(y + dy, x + dx)
                 if pos is not None and int(clean_idx[pos[0], pos[1]]) == ci:
                     diag_same += 1
-            avg_nb = np.mean([rgb for _, rgb in matches], axis=0)
-            if (len(matches) >= 2 and diag_same >= 1) or len(matches) >= 3:
-                out[y, x] = base[y, x] * 0.50 + avg_nb * 0.50
+            if matches and ((len(matches) >= 2 and diag_same >= 1) or len(matches) >= 3):
+                avg_nb = np.mean([rgb for _, rgb in matches], axis=0)
+                out[y, x] = base[y, x] * 0.48 + avg_nb * 0.52
+            elif strict_matches and (len(strict_matches) >= 3 and diag_same >= 2):
+                avg_nb = np.mean([rgb for _, rgb in strict_matches], axis=0)
+                out[y, x] = base[y, x] * 0.42 + avg_nb * 0.58
     return out
 
 def height_to_normal_rgba(height: np.ndarray, elevation: np.ndarray, strength: float = 2.6) -> np.ndarray:
@@ -570,7 +633,7 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats, water_
     hd_tile = 64
     cols, rows = W // tile_sz, H // tile_sz
 
-    sand_alb, sand_hgt, grass_alb, grass_hgt, water_alb, arch_alb = mats
+    plaza_alb, plaza_hgt, sand_alb, sand_hgt, grass_alb, grass_hgt, water_alb, arch_alb, arch_detail_h = mats
     ref_tid = 5 if set_idx == 1 else 4
     ref_r, ref_c = divmod(ref_tid, cols)
     ref_tile_idx = idx_all[ref_r * tile_sz:(ref_r + 1) * tile_sz, ref_c * tile_sz:(ref_c + 1) * tile_sz]
@@ -720,10 +783,11 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats, water_
 
             # 1) Albedo: 地面、平坦海岸线与树格使用地面色盘；道具/船/尖塔/十字架/沙漠屋顶的外围裸露地面也使用地面色盘以无缝衔接铺石
             pairs = GROUND_DITHER_PAIRS if (is_walk or is_shore_tile or is_flat_beach or is_tree_tile) else ARCH_DITHER_PAIRS
+            strict_pairs = None if (is_walk or is_shore_tile or is_flat_beach or is_tree_tile) else STRONG_ARCH_CHECKER_PAIRS
             if is_flat_beach:
                 pairs = pairs | {(8, 11), (11, 8), (8, 10), (10, 8)}
             tile_pal = MODERN_GROUND_PAL if (is_walk or is_tree_tile or is_shore_tile or is_flat_beach or is_ground_stair) else MODERN_ARCH_PAL
-            base_16 = dedither_tile_rgb(tile_idx, tile_pal, pairs, is_water=is_water, wrap_edges=(is_walk and t_id < p1 and not is_ground_shadow_tile and not is_road_curb))
+            base_16 = dedither_tile_rgb(tile_idx, tile_pal, pairs, strict_pairs=strict_pairs, is_water=is_water, wrap_edges=(is_walk and t_id < p1 and not is_ground_shadow_tile and not is_road_curb))
             if is_flat_beach and set_idx == 1 and np.any((tile_idx == 8) & (sem == 2)):
                 base_16[(tile_idx == 8) & (sem == 2)] = stone_ref
             if not (is_walk or is_tree_tile or is_shore_tile or is_flat_beach) and np.any(outer_bg):
@@ -773,9 +837,15 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats, water_
             up64 = epx_2x_rgb(up32)
             sem64 = epx_2x_mask(sem32)
 
-            # 对地面/水域去高频网格，对建筑主体只做极轻微抗毛刺 (sigma=0.38, mix=0.22) 保留石块锐度
+            # 识别真石板广场 vs 自然沙滩/荒漠：仅在真铺砖地砖 (is_walk 且含 {8}) 或以砌石为底的图集 (Set 1/4/5 非海滩建筑外围) 才叠石板纹；纯沙/沙漠港 (Set 0/2/3/6) 的船只与屋周保持自然沙砾肌理
+            is_stone_plaza = (
+                (is_walk and (8 in uniq_idx) and not is_flat_beach and not is_shore_tile)
+                or ((not is_walk) and set_idx in (1, 4, 5) and not is_flat_beach and not is_shore_tile)
+            )
+
+            # 对地面/水域去高频网格，对建筑/屋檐/船只使用双边保边滤波将 1993 阶梯像素平滑为水彩绘本砖木质感
             final64 = up64.copy()
-            for m_val, sigma, mix in ((1, 1.8, 0.88), (2, 1.8, 0.90), (3, 1.5, 0.84), (4, 0.42, 0.25)):
+            for m_val, sigma, mix in ((1, 1.8, 0.88), (2, 1.8, 0.90), (3, 1.5, 0.84)):
                 m = (sem64 == m_val).astype(np.float32)
                 if np.sum(m) < 16:
                     continue
@@ -784,6 +854,23 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats, water_
                 for ch in range(3):
                     num = gaussian_filter(up64[:, :, ch] * m, sigma=sigma, mode=mode)
                     final64[:, :, ch] = np.where(m > 0.5, up64[:, :, ch] * (1.0 - mix) + (num / denom) * mix, final64[:, :, ch])
+
+            # 门洞/船舱真实空腔 (void_64) 保持深邃暗影，其余建筑实体 (sem64 == 4 | sem64 == 0) 做双边保边绘面平滑
+            void_16 = np.zeros_like(tile_idx, dtype=bool)
+            if not is_ground_shadow_tile and not pure_water_ripple_tile and c0_cnt >= 48:
+                lbl_v, n_v = label(tile_idx == 0)
+                for vid in range(1, n_v + 1):
+                    vm = lbl_v == vid
+                    if int(np.sum(vm)) >= 48:
+                        void_16 |= vm
+            void_64 = np.repeat(np.repeat(void_16, 4, axis=0), 4, axis=1)
+
+            arch_paint_mask = ((sem64 == 4) | (sem64 == 0)) & ~void_64
+            if np.any(arch_paint_mask):
+                final64 = bilateral_tile_rgb(final64, arch_paint_mask, sigma_s=1.25, sigma_c=36.0, radius=2)
+                final64 = bilateral_tile_rgb(final64, arch_paint_mask, sigma_s=1.05, sigma_c=28.0, radius=2)
+            if np.any(void_64):
+                final64[void_64] = np.array([22.0, 20.0, 26.0], dtype=np.float32)
 
             m_water = (sem64 == 1).astype(np.float32)
             m_sand = (sem64 == 2).astype(np.float32)
@@ -800,26 +887,28 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats, water_
                 final64,
             )
 
-            # 叠加上高对比度立体铺石 / 草簇 / 石砖颗粒
+            # 叠加区分材质的物理微肌理：砖石广场 vs 风蚀沙滩/荒漠 vs 草簇 vs 建筑岩木
+            g_alb = plaza_alb if is_stone_plaza else sand_alb
+            g_hgt = plaza_hgt if is_stone_plaza else sand_hgt
             final64 = (
                 final64
                 + m_water[:, :, None] * water_alb
-                + m_sand[:, :, None] * sand_alb
+                + m_sand[:, :, None] * g_alb
                 + m_grass[:, :, None] * grass_alb
                 + m_arch[:, :, None] * arch_alb
             )
 
-            # 2) 法线贴图高度场 + 物理高程 Elevation（用于实时光影与方向投影）
+            # 2) 法线贴图高度场：基于保边平滑后的温和明度起伏，消除原版锯齿与点阵黑洞高光噪点
             lum = (0.299 * final64[:, :, 0] + 0.587 * final64[:, :, 1] + 0.114 * final64[:, :, 2]) / 255.0
-            # 黑描边凹陷深度 (砖缝/窗格缝/瓦片缝)，亮部凸起 -> 产生强烈的立体雕刻法线！
-            arch_bump = np.where(sem64 == 0, 0.08, 0.35 + 0.65 * lum)
+            smooth_lum = gaussian_filter(lum, sigma=0.85, mode="nearest")
+            arch_bump = np.where(void_64, 0.04, np.clip(0.32 + 0.58 * smooth_lum + arch_detail_h, 0.05, 1.0))
             micro_height = (
-                m_sand * sand_hgt * 0.65
-                + m_grass * grass_hgt * 0.72
+                m_sand * g_hgt * (0.62 if is_stone_plaza else 0.46)
+                + m_grass * grass_hgt * 0.58
                 + m_arch * arch_bump
                 + m_water * 0.10
             )
-            micro_height = gaussian_filter(micro_height, sigma=0.75, mode="nearest")
+            micro_height = gaussian_filter(micro_height, sigma=0.85, mode="nearest")
 
             # 物理高程：地上行走层 (~0.00)，纯水波纹 (~0.00)，半阻挡石栏 (~0.32)，实心建筑/门框/树冠/船体 (~0.85)
             # 闭运算前必须 edge 外扩，防止边缘被 scipy 默认清零而让屋顶/墙砖产生黑线格子！
@@ -827,16 +916,6 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats, water_
                 p = np.pad(mask_bool, ((k, k), (k, k)), mode="edge")
                 c = binary_closing(p, structure=np.ones((k * 2 - 1, k * 2 - 1), dtype=bool))
                 return c[k:-k, k:-k]
-
-            # 大面积纯黑门洞/隧道空腔 (面积 >= 48px) 属于凹陷通道而非向前凸出的实体墙，高程清零避免往路面投黑块
-            void_16 = np.zeros_like(tile_idx, dtype=bool)
-            if not is_ground_shadow_tile and not pure_water_ripple_tile and c0_cnt >= 48:
-                lbl_v, n_v = label(tile_idx == 0)
-                for vid in range(1, n_v + 1):
-                    vm = lbl_v == vid
-                    if int(np.sum(vm)) >= 48:
-                        void_16 |= vm
-            void_64 = np.repeat(np.repeat(void_16, 4, axis=0), 4, axis=1)
 
             if (is_walk and not is_arch_walk) or pure_water_ripple_tile or is_road_curb or is_flat_beach or is_ground_stair:
                 tile_elev = np.zeros_like(micro_height)
@@ -871,19 +950,19 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats, water_
                 base_e = np.where(solid_m, 0.85, 0.0)
                 tile_elev = gaussian_filter(base_e.astype(np.float32), sigma=1.4, mode="nearest")
 
-            nrm_tile = height_to_normal_rgba(micro_height, tile_elev, strength=3.4)
+            nrm_tile = height_to_normal_rgba(micro_height, tile_elev, strength=2.6)
 
-            # 3) 材质掩膜 (_mat.png): R=Water, G=Emissive窗户灯火, B=高光镜面度, A=Shadow接收
+            # 3) 材质掩膜 (_mat.png): R=Water, G=Emissive窗户灯火, B=高光粗糙质感, A=Shadow接收
             em_16 = detect_emissive_windows(tile_idx, t_id, p2, is_water)
             em_64 = np.repeat(np.repeat(em_16, 4, axis=0), 4, axis=1)
             em_64 = np.clip(gaussian_filter(em_64, sigma=1.4, mode="nearest") * 1.15, 0.0, 1.0)
             em_64 = np.where(em_64 > 0.12, em_64, 0.0)
 
             spec = np.where(
-                m_water > 0.5, 0.92,
-                np.where(em_64 > 0.25, 0.80,
-                np.where(sem64 == 4, np.clip(lum * 0.65, 0.12, 0.65),
-                np.where(sem64 == 2, 0.22, 0.08)))
+                m_water > 0.5, 0.90,
+                np.where(em_64 > 0.25, 0.78,
+                np.where(sem64 == 4, np.clip(0.14 + smooth_lum * 0.24, 0.14, 0.36),
+                np.where(sem64 == 2, 0.18 if is_stone_plaza else 0.07, 0.06)))
             )
 
             dy, dx = r * hd_tile, c * hd_tile
