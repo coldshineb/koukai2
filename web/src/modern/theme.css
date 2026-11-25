@@ -855,17 +855,17 @@ html, body {
 }
 .uw2-hud-tr-wrap .uw2-hud-card {
   position: static;
-  width: 296px;
+  width: 312px;
 }
 .uw2-hud-pm {
   pointer-events: auto;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 5px;
-  padding: 8px;
+  padding: 10px 12px;
   border-radius: 10px;
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3);
-  width: 296px;
+  width: 312px;
 }
 .uw2-pm-btn {
   display: inline-flex;
