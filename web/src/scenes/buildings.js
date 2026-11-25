@@ -220,7 +220,7 @@ export class Buildings {
       if (p.stayPort === this.port || f === hFleet) { L.push(i); continue; }
       if (f >= WorldConst.TOTAL_FLEETS) continue;
       const fl = m.fleet(f);
-      if ((fl.flags & FleetFlag.DOCKED) && fl.x === P.x && fl.y === P.y) L.push(i);
+      if ((fl.flags & FleetFlag.IN_PORT) && fl.x === P.x && fl.y === P.y) L.push(i);
     }
     return L;
   }

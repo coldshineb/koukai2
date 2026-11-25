@@ -547,7 +547,7 @@ class TavernMixin {
     const lo = this.BG.survey[k], hi = this.BG.survey[k + 1];
     for (let i = lo; i < hi; i++) {
       const F = m.fleet((nat * 10 + i) & 0xff);
-      if (!(F.flags & FleetFlag.ACTIVE)) { message(0x22c, i - lo + 1); await this.wait(); continue; }
+      if (!(F.flags & FleetFlag.AT_SEA)) { message(0x22c, i - lo + 1); await this.wait(); continue; }
       const t = F.mission, q = F.target;
       const port = () => m.port(q).nameBytes, who = () => m.person(q).familyNameBytes;
       this.talkMessage2(0x21d, m.person(F.admiral).familyNameBytes);
