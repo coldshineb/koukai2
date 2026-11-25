@@ -274,10 +274,27 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
       `;
     }
 
-    // 海上右側艦隊完整狀態欄（還原原版 7 項屬性：轉向 / 推進 / 耐久 / 吃水 / 瞭望 / 水手 / 狀態）
+    // 海上右側艦隊完整狀態欄（還原原版 7 項屬性：轉向力 / 推進力 / 耐久度 / 吃水量 / 瞭望範圍 / 水手 / 船艦狀態）
     if (ss) {
+      let turn = ss.turn;
+      let prop = ss.prop;
+      if ((turn === undefined || prop === undefined) && typeof scene.slotOf === "function") {
+        let minT = 100, minP = 100, found = false;
+        for (let i = 0; i < 10; i++) {
+          const S = scene.slotOf(i);
+          if ((st.u8(S + 8) & 0x30) !== 0x10) continue;
+          found = true;
+          minT = Math.min(minT, st.u8(S + 4));
+          minP = Math.min(minP, st.u8(S + 5));
+        }
+        if (turn === undefined) turn = found ? minT : 0;
+        if (prop === undefined) prop = found ? minP : 0;
+      }
+      turn = turn ?? 0;
+      prop = prop ?? 0;
+      const sightPct = ss.sightPct ?? (typeof scene.sight === "number" ? Math.trunc((100 * scene.sight) / 24) : 0);
       const crewPct = ss.maxCrewSum > 0 ? Math.min(100, Math.round((ss.crewSum * 100) / ss.maxCrewSum)) : 0;
-      const seaPmKey = `SEA|${ss.turn}|${ss.prop}|${ss.minDur}|${ss.loadPct}|${ss.sight}|${ss.crewSum}/${ss.maxCrewSum}|${ss.morale}`;
+      const seaPmKey = `SEA|${turn}|${prop}|${ss.minDur}|${ss.loadPct}|${sightPct}|${ss.crewSum}/${ss.maxCrewSum}|${ss.morale}`;
       pmEl.style.display = "grid";
       pmEl.style.gridTemplateColumns = "1fr 1fr";
       pmEl.style.gap = "6px 12px";
@@ -289,11 +306,11 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
           `<div class="uw2-bar-track" style="height:5px;"><div class="uw2-bar-fill ${cls}" style="width:${Math.max(0, Math.min(100, pct))}%"></div></div>` +
           `</div>`;
         pmEl.innerHTML =
-          barRow("转向力", `${ss.turn}`, ss.turn) +
-          barRow("推进力", `${ss.prop}`, ss.prop) +
+          barRow("转向力", `${turn}`, turn) +
+          barRow("推进力", `${prop}`, prop) +
           barRow("耐久度", `${ss.minDur}`, ss.minDur, ss.minDur < 40 ? "red" : "green") +
           barRow("吃水量", `${ss.loadPct}%`, ss.loadPct, ss.loadPct >= 90 ? "red" : "") +
-          barRow("瞭望范围", `${ss.sightPct}%`, ss.sightPct) +
+          barRow("瞭望范围", `${sightPct}%`, sightPct) +
           barRow("水手", `${ss.crewSum}/${ss.maxCrewSum}`, crewPct, crewPct < 40 ? "red" : "green") +
           barRow("船舰状态", `${ss.morale}`, ss.morale, ss.morale < 40 ? "red" : "green");
       }
