@@ -414,12 +414,18 @@ def compute_portmap_context(meta: dict):
 # 排除纯米白石膏墙体/招牌图块被误判为沙地（教堂顶十字架 s0:205/s1:53/s3:88 与清真寺尖塔 s2:155..178 均保留外围沙地剥离）
 WALL_PLAQUE_SKIP_SAND = {
     0: {83},
-    1: set(),
-    2: {56, 219, 234, 235},
+    1: {129, 131},
+    2: {56},
     3: {89, 169, 181, 189},
     4: {44, 45, 46, 47, 110},
     5: {54, 62, 97},
-    6: {56, 77, 78, 79, 87, 88, 89, 97, 98, 99, 157},
+    6: {56, 157},
+}
+
+# 马赛克码头岸壁格：允许通过 adj_pairs 传播开放沙边，但剥离时严格限制在最底 y>=14 纯 {11,15} 沙边距，绝不向上侵蚀马赛克墙体
+QUAY_APRON_TILES = {
+    0: {108, 109, 130, 132},
+    2: {81, 107, 109},
 }
 
 def extract_outer_ground(tile_idx: np.ndarray, set_idx: int, t_id: int, p2: int, edge_map: dict, is_water: np.ndarray, has_water_adj: bool):
@@ -469,12 +475,41 @@ def extract_outer_ground(tile_idx: np.ndarray, set_idx: int, t_id: int, p2: int,
     if int(np.sum(mg)) >= 12 and {13, 14}.issubset(ag) and int(np.sum(mg & (tile_idx == 14))) >= 3:
         outer_grass |= mg
 
+    if t_id in QUAY_APRON_TILES.get(set_idx, set()):
+        if not np.any(tile_idx == 9) and 2 in edge_map and {11, 15}.issubset(edge_map[2]):
+            q2 = deque()
+            ms2 = np.zeros_like(tile_idx, dtype=bool)
+            run = []
+            for x in range(16):
+                if int(tile_idx[15, x]) in (11, 15):
+                    run.append(x)
+                else:
+                    if len(run) >= 4:
+                        for rx in run:
+                            ms2[15, rx] = True
+                            q2.append((15, rx))
+                    run = []
+            if len(run) >= 4:
+                for rx in run:
+                    ms2[15, rx] = True
+                    q2.append((15, rx))
+            while q2:
+                cy, cx = q2.popleft()
+                for dy, dx in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                    ny, nx = cy + dy, cx + dx
+                    if 14 <= ny < 16 and 0 <= nx < 16 and not ms2[ny, nx] and int(tile_idx[ny, nx]) in (11, 15):
+                        ms2[ny, nx] = True
+                        q2.append((ny, nx))
+            if int(np.sum(ms2)) >= 10:
+                outer_sand |= ms2
+        return outer_sand, outer_grass
+
     if t_id in WALL_PLAQUE_SKIP_SAND.get(set_idx, set()):
         return outer_sand, outer_grass
 
-    # set 1 旱坞船左侧假影 ({0, 8, 10}) 允许穿过非实心黑船壳的孤立棋盘 0 噪点
+    # set 1 旱坞船体行 (141/153/165) 左侧假影 ({0, 8, 10}) 允许穿过非实心黑船壳的孤立棋盘 0 噪点
     checker_zero_mask = None
-    if set_idx == 1 and t_id in (129, 141, 153, 165):
+    if set_idx == 1 and t_id in (141, 153, 165):
         zpad = np.pad((tile_idx == 0).astype(np.int32), ((0, 0), (1, 1)), mode="constant", constant_values=0)
         z_lr = zpad[:, :-2] + zpad[:, 2:]
         checker_zero_mask = (tile_idx == 0) & (z_lr == 0)
@@ -494,22 +529,6 @@ def extract_outer_ground(tile_idx: np.ndarray, set_idx: int, t_id: int, p2: int,
         ms, a_s = flood_group({10, 11, 15})
         if int(np.sum(ms)) >= 12 and {11, 15}.issubset(a_s) and int(np.sum(ms & (tile_idx == 11))) >= 4 and int(np.sum(ms & (tile_idx == 15))) >= 4:
             outer_sand |= ms
-    elif not np.any(tile_idx == 9) and 2 in edge_map and {11, 15}.issubset(edge_map[2]) and set(tile_idx[15, :].tolist()).issubset({11, 15}):
-        # 码头马赛克墙体下缘 (如 set 0: 108、set 2: 81) 自带 2px 纯 {11,15} 沙底带：剥离为地平沙砖以消除墙底突兀亮条
-        ms2 = np.zeros_like(tile_idx, dtype=bool)
-        q2 = deque()
-        for x in range(16):
-            ms2[15, x] = True
-            q2.append((15, x))
-        while q2:
-            cy, cx = q2.popleft()
-            for dy, dx in ((-1, 0), (1, 0), (0, -1), (0, 1)):
-                ny, nx = cy + dy, cx + dx
-                if 0 <= ny < 16 and 0 <= nx < 16 and not ms2[ny, nx] and int(tile_idx[ny, nx]) in (11, 15):
-                    ms2[ny, nx] = True
-                    q2.append((ny, nx))
-        if int(np.sum(ms2)) >= 16:
-            outer_sand |= ms2
 
     return outer_sand, outer_grass
 
@@ -685,8 +704,8 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats, water_
                     # 清除旱坞船体 (set 0/2/3)、椰树等左侧原版 1993 {8,11} 灰格假影，由 WebGL2 实时光线统一投射斜影
                     clean_sand = MODERN_GROUND_PAL[11] * 0.48 + MODERN_GROUND_PAL[15] * 0.52
                     base_ext[outer_sand & ((tile_idx == 8) | (tile_idx == 10))] = clean_sand
-                elif set_idx == 1 and t_id in (129, 141, 153, 165) and np.any(outer_sand):
-                    # 清除 set 1 旱坞船左侧 {0, 8, 10} 灰格假影，匹配其邻接地砖 stone_ref
+                elif set_idx == 1 and t_id in (141, 153, 165) and np.any(outer_sand):
+                    # 清除 set 1 旱坞船体行 (141/153/165) 左侧 {0, 8, 10} 灰格假影，匹配其邻接地砖 stone_ref
                     base_ext[outer_sand & ((tile_idx == 8) | (tile_idx == 0))] = stone_ref
                 base_16 = np.where(outer_bg[:, :, None], base_ext, base_16)
             if is_ground_shadow_tile:
