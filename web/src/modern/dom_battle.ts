@@ -803,5 +803,5 @@ export function renderWideBattle(ctx: CanvasRenderingContext2D, scr: any, battle
   ctx.strokeRect(x - 1, y - 1, w + 2, h + 2);
   ctx.restore();
 
-  if (hasDom()) syncDomBattleHud(battle);
+  if (hasDom() && scr._battleHudActive) syncDomBattleHud(battle);
 }

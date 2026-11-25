@@ -3,6 +3,7 @@
 import { DS } from "../model/schema_views.ts";
 import { decodeCleanCstr, toSimp } from "../canvas_ui/text_util.ts";
 import { createDomModal, hasDom, getPersonPortraitSrc } from "./dom_ui.ts";
+import { hideDomBattleHud } from "./dom_battle.ts";
 import { PortMove } from "../scenes/portmove.js";
 
 let hudRoot: HTMLElement | null = null;
@@ -99,6 +100,7 @@ export function hideDomWorldHud() {
 }
 
 export function syncDomWorldHud(scene: any, atSea: boolean) {
+  hideDomBattleHud();
   const root = ensureHudRoot();
   if (!root || !tlEl || !trEl || !pmEl || !blEl) return;
   root.style.display = "block";
@@ -183,6 +185,7 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
   // 2. 右上：港情（含商業/工業投資額）+ 港內建築一鍵直達  或  海上氣象
   if (!atSea) {
     const P = scene.port;
+    if (P >= 130) return;
     const portName = decodeCleanCstr(codec, m.port(P).nameBytes);
     const E = P < 100 ? m.portEconomy(P) : null;
     const regionName = E ? toSimp(c.messageText(0x181 + E.priceRegion).trim()) : "";
