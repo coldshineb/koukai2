@@ -1360,7 +1360,7 @@ export async function runDomTavernWorkbench(b: any, drinkNameBytes: Uint8Array, 
           pt.textContent = "酒馆内的航海者";
           pane.appendChild(pt);
 
-          const n = b.portPersons();
+          const n = b.tavernPersons();
           const hasPeople = n > 0 && c.persons[0] !== 0xff;
           if (!hasPeople) {
             const box = document.createElement("div");
@@ -1461,5 +1461,122 @@ export async function runDomTavernWorkbench(b: any, drinkNameBytes: Uint8Array, 
     } else if (act.kind === "girl") await b.barGirl();
     else if (act.kind === "gamble") await onGamble();
     b.after();
+  }
+}
+
+// ============================================================================
+// 8. 造船廠一體化工作台 (Shipyard — 與交易所 / 碼頭 / 道具店 / 王宮 / 酒館 1:1 統一結構)
+// ============================================================================
+export async function runDomShipyardWorkbench(b: any): Promise<void> {
+  const c = b.c, st = b.st, m = st.model, codec = c.codec;
+  const portName = decodeCleanCstr(codec, m.port(b.port).nameBytes);
+  const tabLabels = [...UI_STR.shipyardTabs];
+  const initGreet = capMsg(c, 0x4d);
+
+  for (;;) {
+    let pickAction = -1;
+
+    await new Promise<void>(resolve => {
+      let settled = false;
+      let tab = 0;
+      const done = () => {
+        if (settled) return;
+        settled = true;
+        shell.h.close();
+        resolve();
+      };
+
+      const shell = createWorkbenchShell(`${portName} · 造船厂`, b.money, done);
+
+      const render = () => preserveScroll(shell.h.body, () => {
+        shell.moneyPill.textContent = fmtMoneyPill(b.money);
+        shell.toastEl.textContent = initGreet;
+
+        let usedCount = 0;
+        for (let i = 0; i < 5; i++) if (st.u8(DS.TBL_USED_SHIP_CACHE + i) !== 0xff) usedCount++;
+
+        shell.toolbar.innerHTML = "";
+        tabLabels.forEach((lbl, idx) => {
+          const btn = document.createElement("button");
+          btn.className = `uw2-btn uw2-tab-btn ${tab === idx ? "active" : ""}`;
+          btn.disabled = idx === 1 && usedCount === 0;
+          btn.textContent = lbl;
+          btn.addEventListener("click", () => { tab = idx; render(); });
+          shell.toolbar.appendChild(btn);
+        });
+
+        shell.h.body.innerHTML = "";
+        const split = document.createElement("div");
+        split.className = "uw2-split";
+
+        const left = document.createElement("div");
+        left.className = "uw2-pane";
+        const lt = document.createElement("div");
+        lt.className = "uw2-pane-title";
+        const E = b.eco;
+        const ind = st.u16(E + 4);
+        const buildDays = st.u8(E + 0x23);
+        lt.textContent = buildDays !== 0xff
+          ? `自舰队（工业 ${ind} · 建造剩余 ${buildDays} 天）`
+          : `自舰队（工业 ${ind}）`;
+        left.appendChild(lt);
+
+        const list = document.createElement("div");
+        list.className = "uw2-list-col";
+        const nShips = b.fleetShips();
+        if (!nShips) {
+          const empty = document.createElement("div");
+          empty.className = "uw2-empty";
+          empty.textContent = "暂无舰船";
+          list.appendChild(empty);
+        } else {
+          for (let i = 0; i < nShips; i++) {
+            const slot = c.persons[i] & 0xff;
+            const S = b.fleetSlot(slot);
+            const ship = m.ship(st.u8(S + 7));
+            const dur = st.u8(S + OFF.DOCK_SLOT.DURABILITY);
+            const maxDur = st.u8(S + OFF.DOCK_SLOT.MAX_DURABILITY);
+            const crew = st.u16(S);
+            const row = document.createElement("div");
+            row.className = "uw2-slot-card";
+            row.innerHTML =
+              `<span style="font-weight:700;min-width:110px;">${decodeCleanCstr(codec, ship.nameBytes)}</span>` +
+              `<span style="font-size:13px;color:var(--uw2-ink-muted);">耐久 ${dur}/${maxDur} · 水手 ${crew}/${ship.maxCrew}</span>`;
+            list.appendChild(row);
+          }
+        }
+        left.appendChild(list);
+
+        const right = document.createElement("div");
+        right.className = "uw2-pane";
+        const rt = document.createElement("div");
+        rt.className = "uw2-pane-title";
+        rt.textContent = tabLabels[tab];
+        right.appendChild(rt);
+
+        const box = document.createElement("div");
+        box.className = "uw2-action-box";
+        const actBtn = document.createElement("button");
+        actBtn.className = "uw2-btn uw2-btn-primary";
+        actBtn.style.alignSelf = "flex-start";
+        actBtn.disabled = tab === 1 && usedCount === 0;
+        actBtn.textContent = tabLabels[tab];
+        actBtn.addEventListener("click", () => { pickAction = tab; done(); });
+        box.appendChild(actBtn);
+        right.appendChild(box);
+
+        split.append(left, right);
+        shell.h.body.appendChild(split);
+      });
+
+      render();
+    });
+
+    if (pickAction < 0) break;
+    b.b2f4 = b.b2f5 = b.b2f6 = b.b2f7 = 0xff;
+    b.b2f8 = 0;
+    await [() => b.newShip(), () => b.usedShip(), () => b.repair(), () => b.sellShip(), () => b.remodel(), () => b.invest()][pickAction]();
+    b.after();
+    if (st.u8(DS.DAILY_FLAGS) & 2) break;
   }
 }

@@ -28,7 +28,7 @@ export const UI_STR = {
   fleetHubTitle: "经营",
   fleetHubTabs: ["船长变更", "水手比例", "人事变更", "积载分配"] as const,
   crewPosts: ["助手", "会计", "水手长"] as const,
-  crewRatios: ["操帆", "瞭望", "甲板"] as const,
+  crewRatios: ["驾驶", "瞭望", "甲板"] as const,
 
   belongingsTitle: "随身物",
   belongingsActions: ["佩戴", "使用"] as const,
@@ -52,6 +52,7 @@ export const UI_STR = {
   churchTabs: ["礼拜", "赠献"] as const,
   fortuneTabs: ["人生运", "事业运", "爱情运", "朋友运"] as const,
   tavernTabs: ["水手雇用", "水手解雇", "饮酒叙话", "与航海者闲聊", "酒吧女郎", "赌博"] as const,
+  shipyardTabs: ["造新船", "买旧船", "修理", "卖船", "改造", "工业投资"] as const,
   itemShopTabs: ["买进", "卖出"] as const,
   settingsTitle: "环境设定",
   settingsLabels: ["动画效果", "背景音乐", "滑鼠灵敏度", "海上移动值", "海上速度"] as const,

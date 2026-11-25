@@ -104,9 +104,8 @@ export class Buildings {
   greet(n, ...args) {                                                    // seg0:8f03
     const { sys, win, con, message, scr } = this.c;
     if (scr.wideRenderer && this.c.codec) {
-      if (this._wideTalk) this.endWideTalk();
-      scr.wideDialog = { text: this.captureMessage(n, ...args), portraitId: null, waiting: false };
-      scr.dirty = true;
+      this.beginWideTalk(null);
+      message(n, ...args);
       return;
     }
     sys.mouseHide();
@@ -124,9 +123,12 @@ export class Buildings {
     if (this._curBuildingName) this.c.menu.wideMenuTitle = this._curBuildingName;
     try {
       const r = await this.c.menu.listMenu(0x3c, 0x68, items, 1);
-      if (r === 0xff && this.c.scr.wideDialog) {
-        this.c.scr.wideDialog = null;
-        this.c.scr.dirty = true;
+      if (r === 0xff) {
+        this.endWideTalk();
+        if (this.c.scr.wideDialog) {
+          this.c.scr.wideDialog = null;
+          this.c.scr.dirty = true;
+        }
       }
       return r;
     } finally {

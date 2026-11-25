@@ -122,7 +122,10 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
   const bars = Math.trunc(money / 10000);
   const gold = money % 10000;
 
-  const tlKey = `${heroId}|${dateText}|${fame}|${bars}|${gold}`;
+  const ss = atSea ? scene._seaStats : null;
+  const tlKey = atSea && ss
+    ? `S|${heroId}|${dateText}|${ss.loadPct}|${ss.minDur}|${ss.crewSum}/${ss.maxCrewSum}|${ss.morale}|${ss.water}|${ss.food}|${ss.lumber}|${ss.ammo}`
+    : `P|${heroId}|${dateText}|${fame}|${bars}|${gold}`;
   if (tlKey !== lastTlKey) {
     lastTlKey = tlKey;
     tlEl.innerHTML = "";
@@ -132,15 +135,32 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
     void getPersonPortraitSrc(art, st.bytes(st.personRecord(heroId), 0x32)).then(src => { if (src) img.src = src; });
 
     const info = document.createElement("div");
-    info.style.cssText = "display:flex;flex-direction:column;gap:4px;min-width:210px;";
-    info.innerHTML = `
-      <div style="font-size:13px;font-weight:700;color:#7a4e10;">${dateText}</div>
-      <div style="display:flex;gap:14px;font-size:13px;font-weight:600;color:var(--uw2-ink);">
-        <span>声望 <b>${fame}</b></span>
-        <span>金块 <b style="color:#8a5d17;">${bars}</b></span>
-      </div>
-      <div style="font-size:13px;font-weight:600;color:var(--uw2-ink);">金币 <b style="color:#8a5d17;">${gold}</b></div>
-    `;
+    info.style.cssText = "display:flex;flex-direction:column;gap:4px;min-width:218px;";
+    if (atSea && ss) {
+      info.innerHTML = `
+        <div style="font-size:13px;font-weight:700;color:#7a4e10;">${dateText}</div>
+        <div style="display:flex;gap:12px;font-size:12.5px;font-weight:600;color:var(--uw2-ink);">
+          <span>吃水 <b style="color:${ss.loadPct >= 90 ? "#b83d3d" : "#8a5d17"};">${ss.loadPct}%</b></span>
+          <span>耐久 <b>${ss.minDur}</b></span>
+          <span>水手 <b>${ss.crewSum}/${ss.maxCrewSum}</b></span>
+        </div>
+        <div style="display:flex;gap:10px;font-size:12px;font-weight:600;color:var(--uw2-ink);">
+          <span>水 <b style="color:${ss.water <= 10 ? "#b83d3d" : "#2a6bb8"};">${ss.water}</b></span>
+          <span>粮食 <b style="color:${ss.food <= 10 ? "#b83d3d" : "#247544"};">${ss.food}</b></span>
+          <span>物资 <b>${ss.lumber}</b></span>
+          <span>炮弹 <b>${ss.ammo}</b></span>
+        </div>
+      `;
+    } else {
+      info.innerHTML = `
+        <div style="font-size:13px;font-weight:700;color:#7a4e10;">${dateText}</div>
+        <div style="display:flex;gap:14px;font-size:13px;font-weight:600;color:var(--uw2-ink);">
+          <span>声望 <b>${fame}</b></span>
+          <span>金块 <b style="color:#8a5d17;">${bars}</b></span>
+        </div>
+        <div style="font-size:13px;font-weight:600;color:var(--uw2-ink);">金币 <b style="color:#8a5d17;">${gold}</b></div>
+      `;
+    }
     tlEl.append(img, info);
   }
 

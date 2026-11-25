@@ -4,6 +4,7 @@ import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
 import { domS16, domUmin16 } from "../domain/economy.ts";
 import { createDomModal, hasDom, preserveScroll } from "../modern/dom_ui.ts";
+import { runDomShipyardWorkbench } from "../modern/dom_buildings.ts";
 import { decodeCleanCstr, toSimp } from "../canvas_ui/text_util.ts";
 
 class ShipyardMixin {
@@ -12,6 +13,11 @@ class ShipyardMixin {
     const st = this.st, { palette, menu } = this.c;
     if (!hasDom()) { palette.setTarget(palette.table("ships")); await palette.fadeToTarget(); }
     if (st.u8(DS.DAILY_FLAGS) & 2) { this.greet(0xf9); await this.wait(); return; }
+    if (hasDom() && this.c.codec) {
+      await runDomShipyardWorkbench(this);
+      this.fleetRecalc();
+      return;
+    }
     this.greet(0x4d);
     let sel;
     do {
