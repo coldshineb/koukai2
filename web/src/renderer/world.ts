@@ -245,13 +245,14 @@ function stepGridTween(
   if (!tw || reset || Math.max(Math.abs(logicX - tw.prevX), Math.abs(logicY - tw.prevY)) > 1) {
     return { fromX: logicX, fromY: logicY, toX: logicX, toY: logicY, prevX: logicX, prevY: logicY, elapsed: dur, dur };
   }
-  const t = tw.dur > 0 ? clamp(tw.elapsed / tw.dur, 0, 1) : 1;
-  let curX = tw.fromX + (tw.toX - tw.fromX) * t;
-  let curY = tw.fromY + (tw.toY - tw.fromY) * t;
-  if (logicX !== tw.prevX || logicY !== tw.prevY) {
-    return { fromX: curX, fromY: curY, toX: logicX, toY: logicY, prevX: logicX, prevY: logicY, elapsed: dt, dur };
-  }
+  const prevDone = tw.elapsed >= tw.dur;
   tw.elapsed = Math.min(tw.dur, tw.elapsed + dt);
+  const t = tw.dur > 0 ? clamp(tw.elapsed / tw.dur, 0, 1) : 1;
+  const curX = tw.fromX + (tw.toX - tw.fromX) * t;
+  const curY = tw.fromY + (tw.toY - tw.fromY) * t;
+  if (logicX !== tw.prevX || logicY !== tw.prevY) {
+    return { fromX: curX, fromY: curY, toX: logicX, toY: logicY, prevX: logicX, prevY: logicY, elapsed: prevDone ? dt : 0, dur };
+  }
   return tw;
 }
 
@@ -435,12 +436,25 @@ function getGlobalSeaTile(seaScene: any, wx: number, wy: number): number {
   return chunk[(wy % 24) * 24 + (gwx % 24)];
 }
 
+interface SeaTween {
+  fromX: number;
+  fromY: number;
+  toX: number;
+  toY: number;
+  prevRawX: number;
+  prevRawY: number;
+  elapsed: number;
+  dur: number;
+  avgStepMs: number;
+  sinceStepMs: number;
+}
+
 interface SeaSmoothState {
   scene: any;
   lastMs: number;
   camWX: number;
   camWY: number;
-  fleets: Map<number, { wx: number; wy: number }>;
+  fleets: Map<number, SeaTween>;
 }
 
 let seaSmooth: SeaSmoothState | null = null;
@@ -454,24 +468,83 @@ function exactFleetPos(seaScene: any, fl: any): [number, number] {
   return [wx, wy];
 }
 
-function stepSeaPos(
-  cur: { wx: number; wy: number } | undefined,
+/** 海上亚格位置线性自适应补间（依实测步进间隔匀速插值，避免指数阻尼一快一慢脉冲） */
+function stepSeaTween(
+  tw: SeaTween | undefined,
   rawWX: number,
   rawWY: number,
-  alpha: number,
+  dt: number,
+  fallbackStepMs: number,
   reset: boolean,
-): { wx: number; wy: number } {
-  if (!cur || reset) return { wx: rawWX, wy: rawWY };
-  const dx = wrapSignedDelta(rawWX - cur.wx, SEA_WORLD_W);
-  const dy = rawWY - cur.wy;
-  if (Math.hypot(dx, dy) > 4) return { wx: rawWX, wy: rawWY };
+): SeaTween {
+  if (!tw || reset) {
+    return {
+      fromX: rawWX,
+      fromY: rawWY,
+      toX: rawWX,
+      toY: rawWY,
+      prevRawX: rawWX,
+      prevRawY: rawWY,
+      elapsed: fallbackStepMs,
+      dur: fallbackStepMs,
+      avgStepMs: fallbackStepMs,
+      sinceStepMs: fallbackStepMs,
+    };
+  }
+  const jumpX = wrapSignedDelta(rawWX - tw.prevRawX, SEA_WORLD_W);
+  const jumpY = rawWY - tw.prevRawY;
+  if (Math.hypot(jumpX, jumpY) > 2.5) {
+    return {
+      fromX: rawWX,
+      fromY: rawWY,
+      toX: rawWX,
+      toY: rawWY,
+      prevRawX: rawWX,
+      prevRawY: rawWY,
+      elapsed: tw.avgStepMs,
+      dur: tw.avgStepMs,
+      avgStepMs: tw.avgStepMs,
+      sinceStepMs: tw.avgStepMs,
+    };
+  }
+
+  const prevDone = tw.elapsed >= tw.dur;
+  tw.elapsed = Math.min(tw.dur, tw.elapsed + dt);
+  tw.sinceStepMs += dt;
+  const t = tw.dur > 0 ? clamp(tw.elapsed / tw.dur, 0, 1) : 1;
+  const curX = wrapMod(tw.fromX + wrapSignedDelta(tw.toX - tw.fromX, SEA_WORLD_W) * t, SEA_WORLD_W);
+  const curY = clamp(tw.fromY + (tw.toY - tw.fromY) * t, 0, SEA_WORLD_H - 1);
+
+  if (Math.abs(jumpX) > 1e-4 || Math.abs(jumpY) > 1e-4) {
+    const sampleMs = tw.sinceStepMs;
+    const avgStepMs =
+      sampleMs >= 14 && sampleMs <= 260 ? tw.avgStepMs * 0.72 + sampleMs * 0.28 : tw.avgStepMs;
+    const dur = clamp(avgStepMs * 1.06, 26, 240);
+    return {
+      fromX: curX,
+      fromY: curY,
+      toX: rawWX,
+      toY: rawWY,
+      prevRawX: rawWX,
+      prevRawY: rawWY,
+      elapsed: prevDone ? dt : 0,
+      dur,
+      avgStepMs,
+      sinceStepMs: 0,
+    };
+  }
+  return tw;
+}
+
+function evalSeaTween(tw: SeaTween): { wx: number; wy: number } {
+  const t = tw.dur > 0 ? clamp(tw.elapsed / tw.dur, 0, 1) : 1;
   return {
-    wx: wrapMod(cur.wx + dx * alpha, SEA_WORLD_W),
-    wy: clamp(cur.wy + dy * alpha, 0, SEA_WORLD_H - 1),
+    wx: wrapMod(tw.fromX + wrapSignedDelta(tw.toX - tw.fromX, SEA_WORLD_W) * t, SEA_WORLD_W),
+    wy: clamp(tw.fromY + (tw.toY - tw.fromY) * t, 0, SEA_WORLD_H - 1),
   };
 }
 
-/** 16:9 全球无缝海面渲染器（结合 subX/subY 与 60fps 平滑船只移动及平滑相机） */
+/** 16:9 全球无缝海面渲染器（结合 subX/subY 与 60fps 匀速船只插值及平滑相机） */
 export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene: any) {
   const art = seaScene.c.art;
   if (!art || !seaScene.wm) return;
@@ -493,12 +566,13 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
   const gapReset = !seaSmooth || seaSmooth.scene !== seaScene || tNow - seaSmooth.lastMs > 220;
   const dt = gapReset ? 16 : Math.min(50, Math.max(0, tNow - seaSmooth!.lastMs));
   const speedScale = Math.max(0.25, seaScene.c?.sys?.timeScale || 1);
-  const shipAlpha = 1 - Math.exp((-24 * Math.max(1, speedScale) * dt) / 1000);
+  const defaultSeaStepMs = clamp(((1 + (m.globals.seaSpeed || 0)) * 16.581) / speedScale, 26, 220);
   const camAlpha = 1 - Math.exp((-12 * Math.max(1, speedScale) * dt) / 1000);
 
-  const fleetsMap = gapReset ? new Map<number, { wx: number; wy: number }>() : seaSmooth!.fleets;
-  const heroSmooth = stepSeaPos(fleetsMap.get(F), heroRawWX, heroRawWY, shipAlpha, gapReset);
-  fleetsMap.set(F, heroSmooth);
+  const fleetsMap = gapReset ? new Map<number, SeaTween>() : seaSmooth!.fleets;
+  const heroTw = stepSeaTween(fleetsMap.get(F), heroRawWX, heroRawWY, dt, defaultSeaStepMs, gapReset);
+  fleetsMap.set(F, heroTw);
+  const heroSmooth = evalSeaTween(heroTw);
 
   const viewColsF = VIEW_W / TILE; // 40
   const viewRowsF = VIEW_H / TILE; // 22.5
@@ -567,8 +641,9 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
       pos = heroSmooth;
     } else {
       const [rwx, rwy] = exactFleetPos(seaScene, fl);
-      pos = stepSeaPos(fleetsMap.get(fl.addr), rwx, rwy, shipAlpha, gapReset);
-      fleetsMap.set(fl.addr, pos);
+      const tw = stepSeaTween(fleetsMap.get(fl.addr), rwx, rwy, dt, defaultSeaStepMs, gapReset);
+      fleetsMap.set(fl.addr, tw);
+      pos = evalSeaTween(tw);
     }
     const fx = wrapSignedDelta(pos.wx - baseWX, WORLD_W);
     const fy = pos.wy - baseWY;
