@@ -153,7 +153,7 @@ export function createDomModal(opts: {
   if (cancelable) {
     const closeBtn = document.createElement("button");
     closeBtn.className = "uw2-btn";
-    closeBtn.textContent = opts.closeLabel ?? "×";
+    closeBtn.textContent = opts.closeLabel ?? "关闭";
     closeBtn.addEventListener("click", () => { doClose(); opts.onCancel?.(); });
     headerRight.appendChild(closeBtn);
     backdrop.addEventListener("click", e => {
@@ -421,7 +421,7 @@ export function runDomStoryCard(
       title: title || "航海日志",
       size: "md",
       cancelable: true,
-      closeLabel: "×",
+      closeLabel: "关闭",
       onCancel: () => done(),
     });
     if (graphId !== null && art) {

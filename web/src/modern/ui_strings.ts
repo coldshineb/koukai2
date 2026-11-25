@@ -27,7 +27,7 @@ export const UI_STR = {
 
   fleetHubTitle: "经营",
   fleetHubTabs: ["船长变更", "水手比例", "人事变更", "积载分配"] as const,
-  crewPosts: ["大副", "会计", "水手长"] as const,
+  crewPosts: ["助手", "会计", "水手长"] as const,
   crewRatios: ["操帆", "瞭望", "甲板"] as const,
 
   belongingsTitle: "随身物",

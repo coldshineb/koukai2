@@ -1385,7 +1385,7 @@ export async function runDomTavernWorkbench(b: any, drinkNameBytes: Uint8Array, 
               sp.style.fontWeight = "700";
               sp.textContent = nm;
               card.append(img, sp);
-              card.addEventListener("click", () => { pending = { kind: "chat" }; done(); });
+              card.addEventListener("click", () => { pending = { kind: "chat", arg: pid }; done(); });
               grid.appendChild(card);
             }
             pane.appendChild(grid);
@@ -1447,8 +1447,18 @@ export async function runDomTavernWorkbench(b: any, drinkNameBytes: Uint8Array, 
       b.tvA = Math.min(100, d);
       b.payMoney(domS16(drinkPrice * v));
       await b.rumor(heat);
-    } else if (act.kind === "chat") await b.chat();
-    else if (act.kind === "girl") await b.barGirl();
+    } else if (act.kind === "chat") {
+      if (act.arg !== undefined) {
+        const who = act.arg;
+        b.mate = st.personRecord(who);
+        b.talkPerson(who);
+        b.mateNo = who;
+        await b.chatMenu();
+        await b.closeTalk();
+      } else {
+        await b.chat();
+      }
+    } else if (act.kind === "girl") await b.barGirl();
     else if (act.kind === "gamble") await onGamble();
     b.after();
   }

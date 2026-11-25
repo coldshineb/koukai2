@@ -301,7 +301,7 @@ export function runDomNewGameSelect(
       title: "开始新航海",
       size: "wide",
       cancelable,
-      closeLabel: "×",
+      closeLabel: "关闭",
       onCancel: () => done(null),
     });
 
@@ -494,7 +494,7 @@ export function runDomSettingsModal(opts: {
       title: toSimp(opts.title),
       size: "md",
       cancelable: true,
-      closeLabel: "×",
+      closeLabel: "关闭",
       onCancel: done,
     });
     h.modal.classList.add("uw2-settings-modal");

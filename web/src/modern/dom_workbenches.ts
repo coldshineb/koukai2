@@ -564,7 +564,7 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
         title: `${portName} · ${wharfTitle}`,
         size: "wide",
         cancelable: true,
-        closeLabel: "×",
+        closeLabel: "关闭",
         onCancel: () => resolve({ type: "close" }),
       });
 

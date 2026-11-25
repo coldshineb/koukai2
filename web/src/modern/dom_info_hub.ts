@@ -1211,7 +1211,7 @@ export function runDomFormation(cmd: any, title: string): Promise<void> {
       title: title || "队形变更",
       size: "md",
       cancelable: true,
-      closeLabel: "×",
+      closeLabel: "关闭",
       onCancel: () => finish(false),
     });
 
