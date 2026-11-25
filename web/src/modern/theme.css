@@ -1177,3 +1177,92 @@ body[data-uw2-battle="1"] .uw2-dialog-floating {
   font-size: 30px;
   line-height: 1;
 }
+
+/* 現代 16:9 標題開始畫面 */
+.uw2-title-screen {
+  position: fixed;
+  inset: 40px 0 0 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  background:
+    radial-gradient(ellipse at 50% 32%, rgba(28, 62, 104, 0.72) 0%, rgba(10, 22, 40, 0.96) 70%),
+    repeating-linear-gradient(0deg, rgba(200, 162, 88, 0.04) 0 1px, transparent 1px 48px),
+    repeating-linear-gradient(90deg, rgba(200, 162, 88, 0.04) 0 1px, transparent 1px 48px),
+    #081426;
+  overflow: hidden;
+}
+.uw2-title-compass {
+  position: absolute;
+  width: 520px;
+  height: 520px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  opacity: 0.75;
+}
+.uw2-title-hero {
+  position: relative;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.uw2-title-sub {
+  font-size: 13px;
+  letter-spacing: 6px;
+  color: rgba(230, 198, 124, 0.78);
+  font-weight: 600;
+}
+.uw2-title-main {
+  margin: 0;
+  font-family: var(--uw2-font-serif);
+  font-size: 52px;
+  font-weight: 700;
+  letter-spacing: 10px;
+  background: linear-gradient(180deg, #fff5d6 0%, #e5be6a 55%, #b38231 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.65));
+}
+.uw2-title-rule {
+  width: 260px;
+  height: 2px;
+  margin-top: 6px;
+  background: linear-gradient(90deg, transparent 0%, #c8a258 30%, #f5dfa2 50%, #c8a258 70%, transparent 100%);
+}
+.uw2-title-menu {
+  position: relative;
+  width: 300px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.uw2-title-btn {
+  width: 100%;
+  padding: 12px 18px;
+  border-radius: 8px;
+  border: 1px solid rgba(61, 40, 23, 0.24);
+  background: rgba(255, 253, 246, 0.86);
+  color: var(--uw2-ink);
+  font-family: var(--uw2-font-serif);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  cursor: pointer;
+  transition: background 0.14s, border-color 0.14s, transform 0.12s;
+}
+.uw2-title-btn:hover,
+.uw2-title-btn.selected {
+  background: linear-gradient(180deg, #fffaf0 0%, #ead299 100%);
+  border-color: #9e6f1e;
+  box-shadow: 0 3px 10px rgba(158, 111, 30, 0.24);
+  transform: translateY(-1px);
+}

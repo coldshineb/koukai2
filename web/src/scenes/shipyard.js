@@ -3,6 +3,8 @@ import { ListSelect } from "../ui/listsel.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
 import { domS16, domUmin16 } from "../domain/economy.ts";
+import { createDomModal, hasDom, preserveScroll } from "../modern/dom_ui.ts";
+import { decodeCleanCstr, toSimp } from "../canvas_ui/text_util.ts";
 
 class ShipyardMixin {
   // ================= 2 造船廠 1fd9:cc01 =================
@@ -183,9 +185,122 @@ class ShipyardMixin {
   }
   // 0fea:e788 + 0fea:fe57 + 8ebc(2)
   async leftovers(left) {
+    if (this.c.scr.wideRenderer && hasDom() && this.c.codec) {
+      await this.leftoversDom(left.goods, left.amt);
+      return;
+    }
     this.fleetTable();
     await this.distribute(left.goods, left.amt);
     await this.p.interior(2);
+  }
+  async leftoversDom(lg, la) {
+    const st = this.st, codec = this.c.codec;
+    const dec = bts => toSimp(decodeCleanCstr(codec, bts));
+    const supNames = ["水", "食物", "资材", "炮弹"];
+    const goodsNames = this.LO?.goods ?? [];
+    let selLeft = 0;
+
+    const getLefts = () => {
+      const out = [];
+      for (let i = 0; i < lg.length; i++) {
+        if (lg[i] === 0xff || la[i] <= 0) continue;
+        const g = lg[i];
+        const name = (g & 0x80) ? (supNames[g & 0x7f] || "补给") : (goodsNames[g] ? dec(goodsNames[g]) : `货物#${g}`);
+        out.push({ idx: i, code: g, name, amt: la[i] });
+      }
+      return out;
+    };
+    const getShips = () => {
+      const out = [];
+      for (let i = 0; i < 10; i++) {
+        const S = this.fleetSlot(i);
+        if ((st.u8(S + OFF.DOCK_SLOT.FLAGS) & 0x30) !== 0x10) continue;
+        const ship = ListSelect.shipRec(st.u8(S + OFF.DOCK_SLOT.SHIP));
+        const max = st.u16(ship + 0x14), used = this.cargoUsed(i);
+        out.push({ slot: i, name: dec(this.dstr(ship)), used, max, free: Math.max(0, max - used) });
+      }
+      return out;
+    };
+    const putIntoShip = (leftItem, shipSlot) => {
+      const S = this.fleetSlot(shipSlot), ship = ListSelect.shipRec(st.u8(S + OFF.DOCK_SLOT.SHIP));
+      const free = Math.max(0, st.u16(ship + 0x14) - this.cargoUsed(shipSlot));
+      if (free <= 0) return;
+      const move = Math.min(leftItem.amt, free);
+      const M = this.crewData(shipSlot), g = leftItem.code;
+      if (g & 0x80) {
+        const k = g & 0x7f;
+        const mult = k < 2 ? 10 : 1;
+        st.set16(M + 2 * k, st.u16(M + 2 * k) + move * mult);
+      } else {
+        let j = -1;
+        for (let k = 0; k < 5; k++) {
+          const cg = st.u8(M + OFF.CREW_SLOT.CARGO_GOODS + k);
+          if (cg === g) { j = k; break; }
+          if (cg === 0xff && j < 0) j = k;
+        }
+        if (j < 0) return;
+        st.set8(M + OFF.CREW_SLOT.CARGO_GOODS + j, g);
+        st.set16(M + OFF.CREW_SLOT.CARGO_AMTS + 2 * j, st.u16(M + OFF.CREW_SLOT.CARGO_AMTS + 2 * j) + move);
+      }
+      la[leftItem.idx] -= move;
+      if (la[leftItem.idx] <= 0) lg[leftItem.idx] = 0xff;
+      this.loadTotal(shipSlot);
+    };
+
+    await new Promise(resolve => {
+      const h = createDomModal({
+        title: "剩余货物分配",
+        size: "wide",
+        cancelable: true,
+        closeLabel: "完成",
+        onCancel: () => resolve(),
+      });
+      const render = () => {
+        preserveScroll(h.body, () => {
+          h.body.innerHTML = "";
+          const lefts = getLefts();
+          const ships = getShips();
+          if (!lefts.length) { h.close(); resolve(); return; }
+          if (selLeft >= lefts.length) selLeft = 0;
+
+          const split = document.createElement("div");
+          split.className = "uw2-split";
+
+          const lCol = document.createElement("div");
+          lCol.className = "uw2-pane";
+          lCol.innerHTML = `<div class="uw2-pane-title">未装载货物</div>`;
+          const lList = document.createElement("div");
+          lList.className = "uw2-list-col";
+          lefts.forEach((it, i) => {
+            const btn = document.createElement("button");
+            btn.className = `uw2-row-card ${i === selLeft ? "selected" : ""}`;
+            btn.innerHTML = `<span style="font-weight:700;">${it.name}</span><strong>${it.amt}</strong>`;
+            btn.addEventListener("click", () => { selLeft = i; render(); });
+            lList.appendChild(btn);
+          });
+          lCol.appendChild(lList);
+
+          const rCol = document.createElement("div");
+          rCol.className = "uw2-pane";
+          rCol.innerHTML = `<div class="uw2-pane-title">点击目标舰船装入「${lefts[selLeft].name}」</div>`;
+          const rList = document.createElement("div");
+          rList.className = "uw2-list-col";
+          ships.forEach(s => {
+            const btn = document.createElement("button");
+            btn.className = "uw2-row-card";
+            btn.disabled = s.free <= 0;
+            btn.innerHTML = `<span style="font-weight:700;">${s.name}</span><span>空余 ${s.free} (${s.used}/${s.max})</span>`;
+            btn.addEventListener("click", () => { putIntoShip(lefts[selLeft], s.slot); render(); });
+            rList.appendChild(btn);
+          });
+          rCol.appendChild(rList);
+
+          split.append(lCol, rCol);
+          h.body.appendChild(split);
+        }, true);
+      };
+      render();
+    });
   }
   // 1e628 艦隊表 (不保存背景)
   fleetTable() {

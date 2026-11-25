@@ -382,3 +382,64 @@ export function runDomNewGameSelect(
     render();
   });
 }
+
+/** 現代 16:9 標題開始介面（深海航海羅盤全屏底圖 + 古銅金標題 + 暖羊皮紙主選單，徹底取代模糊 KOEI Canvas） */
+export function runDomTitleMenu(labels: string[]): Promise<number> {
+  if (!hasDom()) return Promise.resolve(0);
+  hideDomWorldHud();
+
+  return new Promise(resolve => {
+    let settled = false;
+    let selected = 0;
+
+    const backdrop = document.createElement("div");
+    backdrop.className = "uw2-title-screen";
+    backdrop.innerHTML =
+      `<svg class="uw2-title-compass" viewBox="0 0 240 240" aria-hidden="true">` +
+        `<circle cx="120" cy="120" r="112" fill="none" stroke="rgba(214,174,96,0.22)" stroke-width="1.2" stroke-dasharray="4 6"/>` +
+        `<circle cx="120" cy="120" r="88" fill="none" stroke="rgba(214,174,96,0.18)" stroke-width="1"/>` +
+        `<polygon points="120,10 134,106 230,120 134,134 120,230 106,134 10,120 106,106" fill="rgba(214,174,96,0.08)" stroke="rgba(214,174,96,0.26)" stroke-width="1"/>` +
+        `<polygon points="120,38 128,112 202,120 128,128 120,202 112,128 38,120 112,112" fill="rgba(230,198,124,0.07)"/>` +
+      `</svg>` +
+      `<div class="uw2-title-hero">` +
+        `<div class="uw2-title-sub">UNCHARTED WATERS II</div>` +
+        `<h1 class="uw2-title-main">大航海时代 II</h1>` +
+        `<div class="uw2-title-rule"></div>` +
+      `</div>`;
+
+    const card = document.createElement("div");
+    card.className = "uw2-card uw2-title-menu";
+    const btns: HTMLButtonElement[] = [];
+
+    const done = (idx: number) => {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener("keydown", onKey, true);
+      delete document.body.dataset.uw2Modal;
+      backdrop.remove();
+      resolve(idx);
+    };
+
+    labels.forEach((raw, i) => {
+      const btn = document.createElement("button");
+      btn.className = `uw2-title-btn ${i === selected ? "selected" : ""}`;
+      btn.textContent = toSimp(raw).replace(/\s+/g, "");
+      btn.addEventListener("mouseenter", () => { selected = i; sync(); });
+      btn.addEventListener("click", () => done(i));
+      btns.push(btn);
+      card.appendChild(btn);
+    });
+
+    const sync = () => btns.forEach((b, i) => b.classList.toggle("selected", i === selected));
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowUp") { e.preventDefault(); e.stopPropagation(); selected = (selected + labels.length - 1) % labels.length; sync(); }
+      else if (e.key === "ArrowDown") { e.preventDefault(); e.stopPropagation(); selected = (selected + 1) % labels.length; sync(); }
+      else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); done(selected); }
+    };
+
+    backdrop.appendChild(card);
+    document.body.dataset.uw2Modal = "open";
+    document.body.appendChild(backdrop);
+    window.addEventListener("keydown", onKey, true);
+  });
+}

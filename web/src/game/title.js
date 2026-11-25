@@ -8,6 +8,8 @@ import { loadPortAssets } from "../scenes/port.js";
 import { GameConst, MenuId, OptionFlag } from "../model/flags.ts";
 import { renderWideTitle } from "../canvas_ui/wide_title.ts";
 import { captureConsoleText, decodeCleanCstr } from "../canvas_ui/text_util.ts";
+import { hasDom } from "../modern/dom_ui.ts";
+import { runDomTitleMenu } from "../modern/dom_hud.ts";
 
 const ESC = 0x1b;
 const STR_STAR = Uint8Array.of(ESC, 0x43, 0x32, 0x2a, ESC, 0x43, 0x30, 0);   // DS:a37a  ESC C2 * ESC C0
@@ -62,7 +64,13 @@ export class Title {
     }
     for (;;) {
       let sel;
-      if (useWide) {
+      if (hasDom() && this.c.codec) {
+        scr.wideRenderer = c2d => renderWideTitle(c2d, art);
+        scr.dirty = true;
+        const labels = items.slice(0, 4).map(b => decodeCleanCstr(this.c.codec, b));
+        sel = await runDomTitleMenu(labels);
+        if (sel === 0xff) continue;
+      } else if (useWide) {
         scr.wideRenderer = c2d => renderWideTitle(c2d, art);
         scr.dirty = true;
         menu.wideAnchorCmd = -2;

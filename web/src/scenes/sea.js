@@ -21,7 +21,7 @@ import { Land } from "./land.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
 import { renderWideSea, hitWideCommandButton } from "../canvas_ui/wide_world.ts";
-import { hasDom, runDomInfoLines, runDomStoryCard } from "../modern/dom_ui.ts";
+import { createDomModal, hasDom, runDomInfoLines, runDomStoryCard } from "../modern/dom_ui.ts";
 import { captureConsoleText, decodeCleanCstr, toSimp } from "../canvas_ui/text_util.ts";
 
 const seaHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
@@ -1749,7 +1749,63 @@ export class SeaScene extends PortScene {
   //   (x mod 24 < 12 時往左一格, y mod 24 < 12 且列 ≠ 0 時往上一格) 以 1d710 模式 1 畫在地圖視窗 → 航海圖調色盤 → 等按鍵 →
   //   在港 88e9 / 海上 還原 [06ca] 與區域 → 淡出 → 1976e → 2103 + 1fac → 淡入 (不重畫外框與面板)
   async mapItem(it) {
-    const st = this.st, { palette, sys, menu } = this.c, item0 = this.item, inPort = this.port !== 0xff;
+    const st = this.st, { palette, sys, menu, scr, art, codec } = this.c, item0 = this.item, inPort = this.port !== 0xff;
+    const R = DS.TBL_DISCOVERY + ((st.u8(DS.TBL_ITEM + ((it * 0x14) & 0xffff) + 0x12) * 7) & 0xffff);   // seg0:5cde → +12 → seg0:5cce
+    const x = seaS16(st.u16(R)), y = seaS16(st.u16(R + 2));
+    if (scr.wideRenderer && hasDom() && art) {
+      let di = Math.trunc(x / 0x18), si = Math.trunc(y / 0x18);
+      if (x % 0x18 < 0x0c) di = (di + 0x59) % 0x5a;
+      if (y % 0x18 < 0x0c && si) si--;
+      const tileBuf = new Uint8Array(0x60 * 0x60);
+      const itemName = codec ? toSimp(decodeCleanCstr(codec, st.cstr(DS.TBL_ITEM + ((it * 0x14) & 0xffff)))) : "藏宝图";
+      const sheetMeta = art.sheet("seachip");
+      const sheetImg = sheetMeta ? (art.getImage(art.sheetUrl("seachip")) || await art.loadImage(art.sheetUrl("seachip")).catch(() => null)) : null;
+
+      await new Promise(resolve => {
+        const h = createDomModal({ title: itemName, size: "md", cancelable: true, closeLabel: "关闭", onCancel: () => resolve() });
+        const cv = document.createElement("canvas");
+        cv.width = 48 * 8; cv.height = 48 * 8;
+        cv.style.cssText = "width:100%;max-width:420px;aspect-ratio:1/1;margin:0 auto;display:block;border-radius:8px;border:2px solid var(--uw2-gold);background:#0c2648;image-rendering:pixelated;";
+        const ctx = cv.getContext("2d");
+        if (ctx && sheetMeta && sheetImg) {
+          ctx.imageSmoothingEnabled = false;
+          const sxScale = (sheetImg.naturalWidth || sheetMeta.w) / sheetMeta.w;
+          const syScale = (sheetImg.naturalHeight || sheetMeta.h) / sheetMeta.h;
+          const drawQuad = (qx, qy, bc, br) => {
+            bc = ((bc % 0x5a) + 0x5a) % 0x5a;
+            if (br < 0 || br >= 0x2d) return;
+            const itIdx = (3 * Math.trunc(br / 0x2d) + Math.trunc(bc / 0x1e)) & 0xff;
+            let ox = 0x18, oy = 0x18, r = (br % 0x2d) - 1, c = (bc % 0x1e) - 1;
+            if (c < 0) { c = 0; ox = 0; } else if (c > 0x1b) { ox = 0x30; c = 0x1b; }
+            if (r < 0) { r = 0; oy = 0; } else if (r > 0x2a) { oy = 0x30; r = 0x2a; }
+            this.wm.decodeChart(st, itIdx, 0x1e * r + c, tileBuf);
+            for (let rr = 0; rr < 24; rr++) for (let cc = 0; cc < 24; cc++) {
+              const t = tileBuf[0x60 * (oy + rr) + ox + cc];
+              const col = t % sheetMeta.cols, row = Math.floor(t / sheetMeta.cols);
+              ctx.drawImage(sheetImg, col * sheetMeta.tileW * sxScale, row * sheetMeta.tileH * syScale, sheetMeta.tileW * sxScale, sheetMeta.tileH * syScale, (qx + cc) * 8, (qy + rr) * 8, 8, 8);
+            }
+          };
+          drawQuad(0, 0, di, si);
+          drawQuad(24, 0, di + 1, si);
+          drawQuad(0, 24, di, si + 1);
+          drawQuad(24, 24, di + 1, si + 1);
+          // 繪製紅色 X 寶藏標記
+          let rx = x - di * 24;
+          if (rx < -1080) rx += 2160; else if (rx > 1080) rx -= 2160;
+          const ry = y - si * 24;
+          if (rx >= 0 && rx < 48 && ry >= 0 && ry < 48) {
+            const px = rx * 8 + 4, py = ry * 8 + 4;
+            ctx.strokeStyle = "#dc2626"; ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(px - 8, py - 8); ctx.lineTo(px + 8, py + 8);
+            ctx.moveTo(px + 8, py - 8); ctx.lineTo(px - 8, py + 8);
+            ctx.stroke();
+          }
+        }
+        h.body.appendChild(cv);
+      });
+      return;
+    }
     if (inPort) this.item = 0xff;                                      // 84de
     await palette.fadeBlack();                                         // 99f2
     const T = this.chartTiles(), A = this.SJ.tab.chartX;               // 1d8ac(0x80)
@@ -1758,8 +1814,6 @@ export class SeaScene extends PortScene {
       if (si === 1) { T[0x7c * 32 + o] = src | a; T[0x7e * 32 + o] = src | b; }
       else { T[0x7c * 32 + o] = src & ~a & 0xff; T[0x7e * 32 + o] = src & ~b & 0xff; }
     }
-    const R = DS.TBL_DISCOVERY + ((st.u8(DS.TBL_ITEM + ((it * 0x14) & 0xffff) + 0x12) * 7) & 0xffff);   // seg0:5cde → +12 → seg0:5cce
-    const x = seaS16(st.u16(R)), y = seaS16(st.u16(R + 2));
     let di = Math.trunc(x / 0x18), si = Math.trunc(y / 0x18);
     if (x % 0x18 < 0x0c) di += 0x59;
     if (y % 0x18 < 0x0c && si) si--;
