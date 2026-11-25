@@ -9,6 +9,35 @@
 //   2 × 2 模式时最右栏换成「栏数」(= 不命中), 1 格模式时 −1 换成最右栏; 列的命中范围是 0..列数 − 2
 const csTdiv8 = v => (v < 0 ? -((-v) >> 3) : v >> 3);                // cwd / xor / sar 3: 向零取整
 
+function clientPosToView(canvas, scr, e) {
+  if (!canvas) return { vx: -1, vy: -1 };
+  const r = canvas.getBoundingClientRect();
+  const vw = scr?.viewW || 1280;
+  const vh = scr?.viewH || 720;
+  return {
+    vx: Math.max(0, Math.min(vw - 1, Math.floor(((e.clientX - r.left) * vw) / r.width))),
+    vy: Math.max(0, Math.min(vh - 1, Math.floor(((e.clientY - r.top) * vh) / r.height))),
+  };
+}
+
+function drawWideTargetBox(ctx, x, y, size) {
+  const pulse = 0.72 + 0.28 * Math.sin(performance.now() * 0.008);
+  ctx.fillStyle = `rgba(245, 200, 92, ${(0.18 * pulse).toFixed(3)})`;
+  ctx.fillRect(x, y, size, size);
+  ctx.strokeStyle = `rgba(255, 224, 130, ${(0.95 * pulse).toFixed(3)})`;
+  ctx.lineWidth = 3;
+  ctx.strokeRect(x + 1.5, y + 1.5, size - 3, size - 3);
+  const cl = 14;
+  ctx.strokeStyle = "#fff4cc";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(x - 2, y + cl); ctx.lineTo(x - 2, y - 2); ctx.lineTo(x + cl, y - 2);
+  ctx.moveTo(x + size - cl, y - 2); ctx.lineTo(x + size + 2, y - 2); ctx.lineTo(x + size + 2, y + cl);
+  ctx.moveTo(x - 2, y + size - cl); ctx.lineTo(x - 2, y + size + 2); ctx.lineTo(x + cl, y + size + 2);
+  ctx.moveTo(x + size - cl, y + size + 2); ctx.lineTo(x + size + 2, y + size + 2); ctx.lineTo(x + size + 2, y + size - cl);
+  ctx.stroke();
+}
+
 export class CellSelect {
   constructor(ctx) { this.c = ctx; this.a239 = 0; }
   get m() { return this.c.menu; }
@@ -108,23 +137,7 @@ export class CellSelect {
         ctx.setLineDash([]);
       }
       if (box) {
-        const { x, y, size } = box;
-        const pulse = 0.72 + 0.28 * Math.sin(performance.now() * 0.008);
-        ctx.fillStyle = `rgba(245, 200, 92, ${(0.18 * pulse).toFixed(3)})`;
-        ctx.fillRect(x, y, size, size);
-        ctx.strokeStyle = `rgba(255, 224, 130, ${(0.95 * pulse).toFixed(3)})`;
-        ctx.lineWidth = 3;
-        ctx.strokeRect(x + 1.5, y + 1.5, size - 3, size - 3);
-        // 四角瞄准括号
-        const cl = 14;
-        ctx.strokeStyle = "#fff4cc";
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.moveTo(x - 2, y + cl); ctx.lineTo(x - 2, y - 2); ctx.lineTo(x + cl, y - 2);
-        ctx.moveTo(x + size - cl, y - 2); ctx.lineTo(x + size + 2, y - 2); ctx.lineTo(x + size + 2, y + cl);
-        ctx.moveTo(x - 2, y + size - cl); ctx.lineTo(x - 2, y + size + 2); ctx.lineTo(x + cl, y + size + 2);
-        ctx.moveTo(x + size - cl, y + size + 2); ctx.lineTo(x + size + 2, y + size + 2); ctx.lineTo(x + size + 2, y + size - cl);
-        ctx.stroke();
+        drawWideTargetBox(ctx, box.x, box.y, box.size);
       }
       ctx.restore();
     };
@@ -145,16 +158,8 @@ export class CellSelect {
     // 直接监听 canvas 鼠标移动与左/右键点击，确保浏览器中 100% 实时响应（不依赖轮询时机）
     const canvas = scr.canvas;
     let clickResult = null;
-    const clientToView = e => {
-      if (!canvas) return { vx: -1, vy: -1 };
-      const r = canvas.getBoundingClientRect();
-      return {
-        vx: Math.max(0, Math.min(1279, Math.floor(((e.clientX - r.left) * 1280) / r.width))),
-        vy: Math.max(0, Math.min(719, Math.floor(((e.clientY - r.top) * 720) / r.height))),
-      };
-    };
     const onMove = e => {
-      const { vx, vy } = clientToView(e);
+      const { vx, vy } = clientPosToView(canvas, scr, e);
       const hov = screenToCell(vx, vy, true);
       if (hov >= 0 && hov !== cur) {
         cur = hov;
@@ -164,7 +169,7 @@ export class CellSelect {
     const onDown = e => {
       if (e.button === 2) { clickResult = -1; e.preventDefault(); return; }
       if (e.button === 0) {
-        const { vx, vy } = clientToView(e);
+        const { vx, vy } = clientPosToView(canvas, scr, e);
         const hov = screenToCell(vx, vy, true);
         if (hov >= 0) cur = hov;
         clickResult = cur;
@@ -247,25 +252,11 @@ export class CellSelect {
     this.widePrompt = "";
 
     const drawFn = ctx => {
-      const x = curCol * cam.tile;
-      const y = curRow * cam.tile;
+      const x = (curCol - (cam.camX ?? 0)) * cam.tile;
+      const y = (curRow - (cam.camY ?? 0)) * cam.tile;
       const size = cam.tile * 2;
-      const pulse = 0.72 + 0.28 * Math.sin(performance.now() * 0.008);
       ctx.save();
-      ctx.fillStyle = `rgba(245, 200, 92, ${(0.18 * pulse).toFixed(3)})`;
-      ctx.fillRect(x, y, size, size);
-      ctx.strokeStyle = `rgba(255, 224, 130, ${(0.95 * pulse).toFixed(3)})`;
-      ctx.lineWidth = 3;
-      ctx.strokeRect(x + 1.5, y + 1.5, size - 3, size - 3);
-      const cl = 14;
-      ctx.strokeStyle = "#fff4cc";
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.moveTo(x - 2, y + cl); ctx.lineTo(x - 2, y - 2); ctx.lineTo(x + cl, y - 2);
-      ctx.moveTo(x + size - cl, y - 2); ctx.lineTo(x + size + 2, y - 2); ctx.lineTo(x + size + 2, y + cl);
-      ctx.moveTo(x - 2, y + size - cl); ctx.lineTo(x - 2, y + size + 2); ctx.lineTo(x + cl, y + size + 2);
-      ctx.moveTo(x + size - cl, y + size + 2); ctx.lineTo(x + size + 2, y + size + 2); ctx.lineTo(x + size + 2, y + size - cl);
-      ctx.stroke();
+      drawWideTargetBox(ctx, x, y, size);
       ctx.restore();
     };
 
@@ -283,24 +274,16 @@ export class CellSelect {
 
     const canvas = scr.canvas;
     let clickResult = null;
-    const clientToView = e => {
-      if (!canvas) return { vx: -1, vy: -1 };
-      const r = canvas.getBoundingClientRect();
-      return {
-        vx: Math.max(0, Math.min(1279, Math.floor(((e.clientX - r.left) * 1280) / r.width))),
-        vy: Math.max(0, Math.min(719, Math.floor(((e.clientY - r.top) * 720) / r.height))),
-      };
-    };
     const updateFromView = (vx, vy) => {
-      const nc = Math.max(0, Math.min(maxCol, Math.floor((vx - cam.tile * 0.5) / cam.tile)));
-      const nr = Math.max(0, Math.min(maxRow, Math.floor((vy - cam.tile * 0.5) / cam.tile)));
+      const nc = Math.max(0, Math.min(maxCol, Math.round((cam.camX ?? 0) + vx / cam.tile - 1)));
+      const nr = Math.max(0, Math.min(maxRow, Math.round((cam.camY ?? 0) + vy / cam.tile - 1)));
       if (nc !== curCol || nr !== curRow) { curCol = nc; curRow = nr; scr.dirty = true; }
     };
-    const onMove = e => { const { vx, vy } = clientToView(e); updateFromView(vx, vy); };
+    const onMove = e => { const { vx, vy } = clientPosToView(canvas, scr, e); updateFromView(vx, vy); };
     const onDown = e => {
       if (e.button === 2) { clickResult = "cancel"; e.preventDefault(); return; }
       if (e.button === 0) {
-        const { vx, vy } = clientToView(e);
+        const { vx, vy } = clientPosToView(canvas, scr, e);
         updateFromView(vx, vy);
         clickResult = "ok";
         e.preventDefault();

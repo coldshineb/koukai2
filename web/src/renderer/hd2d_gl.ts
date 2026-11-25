@@ -60,6 +60,7 @@ void main() {
 const FS_TERRAIN_GBUF = `#version 300 es
 precision highp float;
 precision highp int;
+precision highp usampler2D;
 in vec2 vUV;
 
 uniform usampler2D uMapTex;
@@ -226,14 +227,14 @@ float vnoise(vec2 p) {
 }
 
 vec3 evalWaveNormal(vec2 worldPx, float t) {
-  vec2 p1 = worldPx * 0.065 + vec2(t * 0.55, t * 0.28);
-  vec2 p2 = worldPx * 0.135 + vec2(-t * 0.42, t * 0.62);
+  vec2 p1 = worldPx * 0.055 + vec2(t * 0.48, t * 0.22);
+  vec2 p2 = worldPx * 0.115 + vec2(-t * 0.36, t * 0.52);
   float eps = 0.08;
-  float h0 = sin(p1.x + 1.4 * vnoise(p1 * 0.45)) * 0.55 + cos(p2.y - p2.x * 0.7) * 0.45 + vnoise(p2) * 0.55;
-  float hx = sin(p1.x + eps + 1.4 * vnoise(p1 * 0.45 + vec2(eps, 0.0))) * 0.55 + cos(p2.y - (p2.x + eps) * 0.7) * 0.45 + vnoise(p2 + vec2(eps, 0.0)) * 0.55;
-  float hy = sin(p1.x + 1.4 * vnoise(p1 * 0.45 + vec2(0.0, eps))) * 0.55 + cos(p2.y + eps - p2.x * 0.7) * 0.45 + vnoise(p2 + vec2(0.0, eps)) * 0.55;
+  float h0 = sin(p1.x + 1.2 * vnoise(p1 * 0.40)) * 0.55 + cos(p2.y - p2.x * 0.65) * 0.45 + vnoise(p2) * 0.45;
+  float hx = sin(p1.x + eps + 1.2 * vnoise(p1 * 0.40 + vec2(eps, 0.0))) * 0.55 + cos(p2.y - (p2.x + eps) * 0.65) * 0.45 + vnoise(p2 + vec2(eps, 0.0)) * 0.45;
+  float hy = sin(p1.x + 1.2 * vnoise(p1 * 0.40 + vec2(0.0, eps))) * 0.55 + cos(p2.y + eps - p2.x * 0.65) * 0.45 + vnoise(p2 + vec2(0.0, eps)) * 0.45;
   vec2 grad = vec2(hx - h0, hy - h0) / eps;
-  return normalize(vec3(-grad.x * 0.36, -grad.y * 0.36, 1.0));
+  return normalize(vec3(-grad.x * 0.14, -grad.y * 0.14, 1.0));
 }
 
 void main() {
@@ -251,7 +252,7 @@ void main() {
   vec3 sunDirDay = normalize(vec3(0.56, 0.52, 0.64));
   vec3 sunDirDawn = normalize(vec3(0.84, 0.34, 0.42));
   vec3 sunDirDusk = normalize(vec3(-0.86, 0.32, 0.38));
-  vec3 sunDirNight = normalize(vec3(-0.42, 0.54, 0.72));
+  vec3 sunDirNight = normalize(vec3(-0.48, 0.52, 0.70));
   vec3 sunDir = normalize(
     sunDirDay * max(0.0, 1.0 - uDawnMix - uDuskMix - uNightMix)
     + sunDirDawn * uDawnMix
@@ -259,15 +260,15 @@ void main() {
     + sunDirNight * uNightMix
   );
 
-  vec3 sunCol = mix(vec3(1.18, 1.08, 0.92), vec3(1.24, 0.74, 0.52), uDawnMix);
-  sunCol = mix(sunCol, vec3(1.38, 0.72, 0.34), uDuskMix);
-  sunCol = mix(sunCol, vec3(0.38, 0.58, 0.95), uNightMix);
-  sunCol = mix(sunCol, vec3(0.72, 0.80, 0.92), uOvercastMix * 0.75);
+  vec3 sunCol = mix(vec3(1.16, 1.07, 0.92), vec3(1.22, 0.74, 0.54), uDawnMix);
+  sunCol = mix(sunCol, vec3(1.36, 0.70, 0.32), uDuskMix);
+  sunCol = mix(sunCol, vec3(0.20, 0.34, 0.68), uNightMix);
+  sunCol = mix(sunCol, vec3(0.70, 0.78, 0.90), uOvercastMix * 0.75);
 
-  vec3 skyAmb = mix(vec3(0.36, 0.42, 0.54), vec3(0.32, 0.30, 0.46), uDawnMix);
-  skyAmb = mix(skyAmb, vec3(0.30, 0.24, 0.42), uDuskMix);
-  skyAmb = mix(skyAmb, vec3(0.11, 0.16, 0.30), uNightMix);
-  skyAmb = mix(skyAmb, vec3(0.34, 0.39, 0.47), uOvercastMix * 0.65);
+  vec3 skyAmb = mix(vec3(0.35, 0.41, 0.53), vec3(0.30, 0.28, 0.44), uDawnMix);
+  skyAmb = mix(skyAmb, vec3(0.26, 0.20, 0.38), uDuskMix);
+  skyAmb = mix(skyAmb, vec3(0.055, 0.085, 0.19), uNightMix);
+  skyAmb = mix(skyAmb, vec3(0.32, 0.37, 0.46), uOvercastMix * 0.65);
 
   vec2 texel = 1.0 / uViewSize;
 
@@ -306,34 +307,41 @@ void main() {
 
   vec3 lit;
   if (isWater > 0.35) {
-    // 3. 动态《八方旅人》级高清海水：世界坐标锚定波浪法线 + 真实岸边倒影 + 璀璨高光闪烁
+    // 3. 动态《八方旅人》级高清海水：世界坐标锚定波浪法线 + 真实岸边倒影 + 细腻碎钻水光
     vec2 worldPx = vec2(vUV.x * uViewSize.x, (1.0 - vUV.y) * uViewSize.y) + uCamPx;
     vec3 wN = evalWaveNormal(worldPx, uTimeSec);
-    // 半透明混合原材质，保留岸边礁石与过渡特征
-    vec3 surfN = normalize(mix(N, wN, 0.85));
+    vec3 surfN = normalize(mix(N, wN, 0.92));
+
+    // 开阔深水采用连续均匀海水基色，消除 16x16 原版水域接缝微线，同时保留岸边浅水过渡
+    float deepMask = smoothstep(0.45, 0.95, isWater);
+    vec3 pureOcean = vec3(0.032, 0.165, 0.42);
+    vec3 oceanAlbedo = mix(albedo, pureOcean, deepMask * 0.82);
 
     // 平面反射采样上方岸堤/船只/灯火
-    vec2 reflOffset = vec2(surfN.x * 0.022, 0.058 + surfN.y * 0.014);
+    vec2 reflOffset = vec2(surfN.x * 0.016, 0.048 + surfN.y * 0.012);
     vec2 reflUV = clamp(vUV + reflOffset, vec2(0.004), vec2(0.996));
     vec3 reflCol = texture(uColorTex, reflUV).rgb;
     float reflMatWater = texture(uMatTex, reflUV).r;
     float reflEm = texture(uMatTex, reflUV).g;
 
-    vec3 skyRefl = mix(vec3(0.28, 0.58, 0.92), vec3(0.95, 0.56, 0.36), uDuskMix);
-    skyRefl = mix(skyRefl, vec3(0.86, 0.64, 0.72), uDawnMix);
-    skyRefl = mix(skyRefl, vec3(0.08, 0.14, 0.28), uNightMix);
-    vec3 envRefl = mix(reflCol * 0.72, skyRefl, clamp(reflMatWater + 0.32, 0.28, 0.88));
-    // 夜景窗户倒影在海面上拉出温暖的金波拖影
-    envRefl += vec3(1.05, 0.62, 0.22) * reflEm * (uNightMix * 0.95 + uDuskMix * 0.55);
+    vec3 skyRefl = mix(vec3(0.24, 0.52, 0.86), vec3(0.92, 0.52, 0.34), uDuskMix);
+    skyRefl = mix(skyRefl, vec3(0.84, 0.62, 0.70), uDawnMix);
+    skyRefl = mix(skyRefl, vec3(0.045, 0.085, 0.19), uNightMix);
+    vec3 envRefl = mix(reflCol * mix(0.68, 0.36, uNightMix), skyRefl, clamp(reflMatWater * 0.85 + 0.38, 0.34, 0.90));
+    envRefl += vec3(1.15, 0.66, 0.22) * reflEm * (uNightMix * 1.1 + uDuskMix * 0.55);
+
+    // 水面高光严格锁定极陡波峰（细碎星芒而非大块白斑）
+    vec3 waterLightDir = normalize(vec3(sunDir.x * 0.75, 0.72, 0.42));
+    vec3 waterHalf = normalize(waterLightDir + vec3(0.0, -0.35, 1.0));
+    float specBase = max(dot(wN, waterHalf), 0.0);
+    float sparkle = pow(specBase, 220.0) * 3.2;
+    float waveCrest = smoothstep(0.92, 0.995, specBase) * 0.45;
+    float glintScale = mix(0.85, 0.42, uNightMix) * (1.0 - 0.75 * uOvercastMix);
 
     float ndotl = max(dot(surfN, sunDir), 0.0);
-    vec3 halfVec = normalize(sunDir + viewDir);
-    float sparkle = pow(max(dot(surfN, halfVec), 0.0), 56.0) * (1.85 - 0.65 * uOvercastMix);
-    float microGlint = pow(max(dot(wN, normalize(sunDir + vec3(0.15, -0.35, 1.0))), 0.0), 140.0) * 2.4;
-
-    float fresnel = pow(1.0 - max(dot(surfN, viewDir), 0.0), 2.4) * 0.55 + 0.16;
-    vec3 waterBase = albedo * (skyAmb * 1.15 + sunCol * ndotl * 0.65 * sunShadow) * ao;
-    lit = mix(waterBase, envRefl, fresnel) + sunCol * (sparkle + microGlint) * sunShadow;
+    float fresnel = pow(1.0 - max(dot(surfN, viewDir), 0.0), 2.6) * 0.42 + 0.14;
+    vec3 waterBase = oceanAlbedo * (skyAmb * 1.25 + sunCol * ndotl * 0.68 * sunShadow) * ao;
+    lit = mix(waterBase, envRefl, fresnel) + sunCol * (sparkle + waveCrest) * glintScale * sunShadow;
   } else {
     // 4. 固体地形与建筑：立体凹凸法线漫反射 + 微光泽高光 + 半球环境光 + 阴影
     float ndotl = max(dot(N, sunDir), 0.0);
@@ -367,11 +375,11 @@ void main() {
 
     // 玩家身边柔和便携提灯暖光圈
     vec2 dHero = (vUV - uHeroUv) * vec2(uViewSize.x / uViewSize.y, 1.0);
-    float heroGlow = exp(-dot(dHero, dHero) * 34.0) * (uNightMix * 0.72 + uDuskMix * 0.22);
-    lit += albedo * vec3(1.18, 0.80, 0.44) * heroGlow;
+    float heroGlow = exp(-dot(dHero, dHero) * 32.0) * (uNightMix * 1.05 + uDuskMix * 0.28);
+    lit += albedo * vec3(1.35, 0.86, 0.42) * heroGlow;
   }
 
-  // 6. 大气斜向体积阳光束 (God Rays) & 飘浮微尘粒子
+  // 6. 大气斜向体积阳光束 (God Rays) & 稀疏柔光浮尘粒子
   if (uNightMix < 0.85 && uOvercastMix < 0.8) {
     float rayCoord = (vUV.x * 0.72 + (1.0 - vUV.y) * 0.55) * 9.0 - uTimeSec * 0.14;
     float shafts = pow(max(0.0, sin(rayCoord) * 0.5 + 0.5), 3.0) * vnoise(vec2(rayCoord * 1.3, uTimeSec * 0.18));
@@ -380,17 +388,17 @@ void main() {
     lit += rayCol * shafts * cornerMask * (0.14 - 0.10 * uNightMix);
   }
 
-  // 程序化呼吸微光浮尘 / 夜晚海港萤火微粒
-  vec2 pCoord = vUV * vec2(18.0, 10.0) + vec2(uTimeSec * 0.12, -uTimeSec * 0.08);
+  // 稀疏微光浮尘 / 夜晚萤火 (仅少许柔和金点，避免满屏均匀雪点)
+  vec2 pCoord = vUV * vec2(12.0, 7.0) + vec2(uTimeSec * 0.10, -uTimeSec * 0.06);
   vec2 cell = floor(pCoord);
   vec2 fcell = fract(pCoord);
   float rnd = hash21(cell);
-  if (rnd > 0.78) {
-    vec2 center = vec2(0.5) + 0.28 * vec2(sin(uTimeSec * 0.9 + rnd * 20.0), cos(uTimeSec * 0.7 + rnd * 15.0));
+  if (rnd > 0.89) {
+    vec2 center = vec2(0.5) + 0.26 * vec2(sin(uTimeSec * 0.85 + rnd * 25.0), cos(uTimeSec * 0.65 + rnd * 19.0));
     float dist = length(fcell - center);
-    float mote = smoothstep(0.11, 0.0, dist) * (0.4 + 0.6 * sin(uTimeSec * 2.2 + rnd * 30.0));
-    vec3 moteCol = mix(vec3(1.15, 0.96, 0.64), vec3(1.25, 0.78, 0.32), uNightMix + uDuskMix * 0.5);
-    lit += moteCol * mote * (0.28 + 0.42 * (uNightMix + uDuskMix));
+    float mote = smoothstep(0.075, 0.0, dist) * (0.35 + 0.65 * sin(uTimeSec * 2.0 + rnd * 30.0));
+    vec3 moteCol = mix(vec3(1.10, 0.92, 0.58), vec3(1.30, 0.76, 0.26), uNightMix + uDuskMix * 0.5);
+    lit += moteCol * mote * (0.16 + 0.34 * (uNightMix + uDuskMix));
   }
 
   // 半档 HDR 打包到 RGBA8 ([0..2.0] -> [0..1.0]), 让 Pass 3 Bloom 真实捕捉高光
@@ -634,11 +642,10 @@ export class Hd2dPortRenderer {
       gl.bindTexture(gl.TEXTURE_2D, tex);
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, linear ? gl.LINEAR_MIPMAP_LINEAR : gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, linear ? gl.LINEAR : gl.NEAREST);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, linear ? gl.LINEAR : gl.NEAREST);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      if (linear) gl.generateMipmap(gl.TEXTURE_2D);
       ent = { tex, imgRef: img };
       this.imgTexCache.set(key, ent);
     }
@@ -801,7 +808,7 @@ export class Hd2dPortRenderer {
     gl.uniform1i(gl.getUniformLocation(this.progFinal, "uBloomTex"), 1);
     gl.uniform2f(gl.getUniformLocation(this.progFinal, "uViewSize"), p.vw, p.vh);
     gl.uniform1f(gl.getUniformLocation(this.progFinal, "uFade"), p.fade);
-    gl.uniform1f(gl.getUniformLocation(this.progFinal, "uDofStrength"), 0.85);
+    gl.uniform1f(gl.getUniformLocation(this.progFinal, "uDofStrength"), 0.58);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
     return this.canvas;
