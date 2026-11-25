@@ -1,7 +1,7 @@
 // canvas_ui/wide_manage.ts — 原生 16:9 (1280×720) 現代 Canvas 2D 經營/命令/設定浮窗套件
 // 涵蓋：艦隊經營表 (船長變更/水手編組/水手比例/艦船銷毀)、人事變更三職位卡、通用滑條/開關浮窗 (水手比例/糧食分配/環境設定)、通用對話提示。
 import { VIEW_W, VIEW_H } from "../core/screen.js";
-import { hasDom, runDomControls } from "../modern/dom_ui.ts";
+import { hasDom, runDomControls, runDomList } from "../modern/dom_ui.ts";
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath();
@@ -44,6 +44,11 @@ export interface WideFleetTableOpts {
 }
 
 export async function runWideFleetTableSelect(ctx: any, opts: WideFleetTableOpts): Promise<number> {
+  if (hasDom()) {
+    const title = opts.badgeText ? `${opts.title} · ${opts.badgeText}` : opts.title;
+    const rows = opts.rows.map(r => `${r.name}  (${r.captain})  水手 ${r.crewText}  装载 ${r.loadText}  速度 ${r.speedText}kt`);
+    return runDomList(title, rows);
+  }
   const { scr, sys, menu } = ctx;
   const w = 880;
   const rowH = 44;
@@ -182,6 +187,9 @@ export async function runWidePersonnelSelect(
   title: string,
   cards: WidePersonnelCard[],
 ): Promise<number> {
+  if (hasDom()) {
+    return runDomList(title, cards.map(c => `${c.roleLabel}：${c.personName || "----"}`));
+  }
   const { scr, sys, menu, art } = ctx;
   await Promise.all(cards.map(c => c.portraitUrl ? art?.loadImage?.(c.portraitUrl).catch(() => {}) : null));
 

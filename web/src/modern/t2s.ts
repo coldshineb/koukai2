@@ -17,7 +17,7 @@ export function toSimp(text: string): string {
 
   const hit = cache.get(text);
   if (hit !== undefined) return hit;
-  const out = converter(text);
+  const out = converter(text).replace(/连度/g, "速度");
   if (cache.size >= MAX_CACHE) cache.clear();
   cache.set(text, out);
   return out;

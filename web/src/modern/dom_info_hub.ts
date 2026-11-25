@@ -4,12 +4,243 @@
 import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
 import { ListSelect } from "../ui/listsel.js";
-import { captureConsoleText, decodeCleanCstr } from "../canvas_ui/text_util.ts";
-import { runWideWorldChart } from "../canvas_ui/wide_panels.ts";
+import { captureConsoleText, decodeCleanCstr, UI_FONT } from "../canvas_ui/text_util.ts";
 import { createDomModal, getPersonPortraitSrc, preserveScroll } from "./dom_ui.ts";
 
 const s16 = (v: number) => (v << 16) >> 16;
 const umin = (a: number, b: number) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);
+
+/** 將世界航海圖內嵌繪製到任意 DOM 容器中（支援滑鼠懸停顯示港名，點擊不會關閉） */
+export function mountDomWorldChart(container: HTMLElement, c: any) {
+  const st = c.state, art = c.art;
+  const dec = (bts: Uint8Array) => decodeCleanCstr(c.codec, bts);
+
+  const cw = 9, ch = 9; // 90×45 格 = 810×405
+  const mapW = 90 * cw, mapH = 45 * ch;
+  const wrap = document.createElement("div");
+  wrap.className = "uw2-action-box";
+  wrap.style.cssText = "align-items:center;gap:10px;";
+
+  const stage = document.createElement("div");
+  stage.style.cssText = `position:relative;width:${mapW}px;max-width:100%;aspect-ratio:${mapW}/${mapH};border-radius:8px;overflow:hidden;border:1px solid var(--uw2-gold);background:#0a1b32;`;
+
+  const cv = document.createElement("canvas");
+  cv.width = mapW;
+  cv.height = mapH;
+  cv.style.cssText = "width:100%;height:100%;display:block;";
+  stage.appendChild(cv);
+
+  const tip = document.createElement("div");
+  tip.style.cssText = "position:absolute;pointer-events:none;display:none;padding:4px 10px;border-radius:6px;background:rgba(12,24,42,0.94);color:#fff4d6;border:1px solid #d4af5a;font-size:13px;font-weight:700;white-space:nowrap;z-index:2;";
+  stage.appendChild(tip);
+
+  const legend = document.createElement("div");
+  legend.style.cssText = "display:flex;gap:18px;font-size:13px;color:var(--uw2-ink-muted);align-items:center;";
+  legend.innerHTML = `<span><b style="color:#ff4d4d;">●</b> 当前舰队</span><span><b style="color:#d49d2a;">■</b> 港口</span><span><b style="color:#3898d8;">■</b> 补给港</span><span>移动鼠标查看港口名称</span>`;
+
+  wrap.append(stage, legend);
+  container.appendChild(wrap);
+
+  const F = DS.TBL_FLEET + st.u8(st.personRecord(st.hero) + 0x2c) * 0x85;
+  const fx = st.u16(F), fy = st.u16(F + OFF.FLEET.Y);
+  const toX = (wx: number) => (((wx / 24) + 30) % 90) * cw;
+  const toY = (wy: number) => (wy / 24) * ch;
+
+  const ports: { x: number; y: number; name: string; supply: boolean }[] = [];
+  for (let p = 0; p < 130; p++) {
+    const R = DS.TBL_PORT + p * 0x16;
+    if (!(st.u8(R + OFF.PORT.REGION) & 0x40)) continue;
+    ports.push({ x: toX(st.u16(R)), y: toY(st.u16(R + 2)), name: dec(st.cstr(R + OFF.PORT.NAME)), supply: p >= 100 });
+  }
+
+  const mapEntry = art?.graphEntry?.("GRAPH.DAT", 0x19);
+  const mapUrl = mapEntry ? `${art.baseUrl}/${mapEntry.path}` : null;
+
+  const draw = () => {
+    const ctx = cv.getContext("2d");
+    if (!ctx) return;
+    ctx.fillStyle = "#0a1b32";
+    ctx.fillRect(0, 0, mapW, mapH);
+
+    const mapImg = mapUrl ? art?.getImage?.(mapUrl) : null;
+    if (mapImg) {
+      const sx = (50 / 640) * mapImg.naturalWidth;
+      const sy = (50 / 400) * mapImg.naturalHeight;
+      const sw = (540 / 640) * mapImg.naturalWidth;
+      const sh = (270 / 400) * mapImg.naturalHeight;
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(mapImg, sx, sy, sw, sh, 0, 0, mapW, mapH);
+    }
+
+    for (let row = 0; row < 45; row++) {
+      for (let col = 0; col < 90; col++) {
+        const wcol = (col - 30 + 90) % 90;
+        const seen = st.u8(WorkDS.EXPLORE_MAP + 12 * row + (wcol >> 3)) & (0x80 >> (wcol & 7));
+        if (seen) continue;
+        ctx.fillStyle = "rgba(8, 18, 34, 0.84)";
+        ctx.fillRect(col * cw, row * ch, cw, ch);
+      }
+    }
+
+    ctx.strokeStyle = "rgba(214, 174, 96, 0.14)";
+    ctx.lineWidth = 1;
+    for (let col = 0; col <= 90; col += 15) {
+      ctx.beginPath(); ctx.moveTo(col * cw, 0); ctx.lineTo(col * cw, mapH); ctx.stroke();
+    }
+    for (let row = 0; row <= 45; row += 9) {
+      ctx.beginPath(); ctx.moveTo(0, row * ch); ctx.lineTo(mapW, row * ch); ctx.stroke();
+    }
+
+    for (const pt of ports) {
+      ctx.fillStyle = pt.supply ? "#80d4ff" : "#f2d89b";
+      ctx.fillRect(pt.x - 2, pt.y - 2, 4, 4);
+    }
+
+    const hx = toX(fx), hy = toY(fy);
+    ctx.fillStyle = "#ff4d4d";
+    ctx.beginPath();
+    ctx.arc(hx, hy, 5.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+  };
+
+  draw();
+  if (mapUrl && !art?.getImage?.(mapUrl)) {
+    void art?.loadImage?.(mapUrl).then(() => draw()).catch(() => {});
+  }
+
+  cv.addEventListener("mousemove", e => {
+    const r = cv.getBoundingClientRect();
+    const mx = ((e.clientX - r.left) / (r.width || 1)) * mapW;
+    const my = ((e.clientY - r.top) / (r.height || 1)) * mapH;
+    let best: typeof ports[0] | null = null;
+    let bestD = 12;
+    for (const pt of ports) {
+      const d = Math.hypot(mx - pt.x, my - pt.y);
+      if (d < bestD) { bestD = d; best = pt; }
+    }
+    if (best) {
+      tip.textContent = best.name;
+      tip.style.display = "block";
+      tip.style.left = `${Math.min(82, Math.max(2, (best.x / mapW) * 100))}%`;
+      tip.style.top = `${Math.max(2, (best.y / mapH) * 100 - 9)}%`;
+    } else {
+      tip.style.display = "none";
+    }
+  });
+  cv.addEventListener("mouseleave", () => { tip.style.display = "none"; });
+}
+
+/** 將海港地圖內嵌繪製到任意 DOM 容器中（點擊不會關閉） */
+export function mountDomPortMap(container: HTMLElement, c: any, p: any) {
+  const st = c.state, art = c.art;
+  const dec = (bts: Uint8Array) => decodeCleanCstr(c.codec, bts);
+  const sheetName = p.chipSetName || "portchip_0";
+  const meta = art?.sheet?.(sheetName);
+  const lab = c.menuItems(0x3a);
+
+  const X = p.hx + p.vx, Y = p.hy + p.vy;
+  let di = Math.trunc(X / 24), si = Math.trunc(Y / 24);
+  if (X % 24 < 12 ? di !== 0 : di === 3) di--;
+  if (Y % 24 < 12 ? si !== 0 : si === 3) si--;
+  const startCol = Math.max(0, Math.min(48, di * 24));
+  const startRow = Math.max(0, Math.min(48, si * 24));
+  const tilePx = 10;
+  const mapPx = 48 * tilePx; // 480×480
+
+  const wrap = document.createElement("div");
+  wrap.className = "uw2-action-box";
+  wrap.style.cssText = "align-items:center;gap:10px;";
+
+  const header = document.createElement("div");
+  header.className = "uw2-pane-title";
+  header.textContent = dec(st.model.port(p.port).nameBytes);
+
+  const cv = document.createElement("canvas");
+  cv.width = mapPx;
+  cv.height = mapPx;
+  cv.style.cssText = `width:${mapPx}px;max-width:100%;height:auto;border-radius:8px;border:1px solid var(--uw2-gold);background:#0c1a2e;display:block;`;
+
+  wrap.append(header, cv);
+  container.appendChild(wrap);
+
+  const draw = () => {
+    const ctx = cv.getContext("2d");
+    if (!ctx) return;
+    ctx.fillStyle = "#0c1a2e";
+    ctx.fillRect(0, 0, mapPx, mapPx);
+    const sheetImg = meta ? art.getImage(art.sheetUrl(sheetName)) : null;
+    if (meta && sheetImg) {
+      ctx.imageSmoothingEnabled = false;
+      const scaleX = (sheetImg.naturalWidth || meta.w) / meta.w;
+      const scaleY = (sheetImg.naturalHeight || meta.h) / meta.h;
+      const M = p.map;
+      for (let r = 0; r < 48; r++) {
+        const mr = startRow + r;
+        for (let col = 0; col < 48; col++) {
+          const mc = startCol + col;
+          const t = M[mr * 96 + mc];
+          if (t < 0 || t >= meta.count) continue;
+          const sx = (t % meta.cols) * meta.tileW * scaleX;
+          const sy = Math.floor(t / meta.cols) * meta.tileH * scaleY;
+          ctx.drawImage(sheetImg, sx, sy, meta.tileW * scaleX, meta.tileH * scaleY, col * tilePx, r * tilePx, tilePx, tilePx);
+        }
+      }
+    }
+
+    const hx = (X - startCol) * tilePx + tilePx / 2;
+    const hy = (Y - startRow) * tilePx + tilePx / 2;
+    ctx.fillStyle = "#ff4d4d";
+    ctx.beginPath();
+    ctx.arc(hx, hy, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.font = `700 12px ${UI_FONT}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    for (let k = 0; k < 12; k++) {
+      if (k === 7) continue;
+      const dx = p.door[k * 2], dy = p.door[k * 2 + 1];
+      if (dx < startCol || dx >= startCol + 48 || dy < startRow || dy >= startRow + 48) continue;
+      const text = dec(lab[k]);
+      if (!text) continue;
+      const lx = (dx - startCol) * tilePx + tilePx / 2;
+      const ly = Math.max(12, (dy - startRow) * tilePx - 10);
+      const tw = ctx.measureText(text).width + 12;
+      ctx.fillStyle = "rgba(8, 18, 34, 0.88)";
+      ctx.fillRect(lx - tw / 2, ly - 9, tw, 18);
+      ctx.strokeStyle = "rgba(232, 194, 114, 0.9)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(lx - tw / 2, ly - 9, tw, 18);
+      ctx.fillStyle = "#fff4d6";
+      ctx.fillText(text, lx, ly + 1);
+    }
+  };
+
+  draw();
+  if (meta && !art.getImage(art.sheetUrl(sheetName))) {
+    void art.loadImage(art.sheetUrl(sheetName)).then(() => draw()).catch(() => {});
+  }
+}
+
+export function runDomWorldChartModal(c: any, title: string): Promise<void> {
+  return new Promise(resolve => {
+    const h = createDomModal({ title, size: "wide", cancelable: true, closeLabel: "关闭", onCancel: () => resolve() });
+    mountDomWorldChart(h.body, c);
+  });
+}
+
+export function runDomPortMapModal(c: any, p: any, title = "海港地图"): Promise<void> {
+  return new Promise(resolve => {
+    const h = createDomModal({ title, size: "md", cancelable: true, closeLabel: "关闭", onCancel: () => resolve() });
+    mountDomPortMap(h.body, c, p);
+  });
+}
 
 /** F1 情報中心：10 項原版情報全部平鋪為一體化標籤頁，零嵌套選單 */
 export async function runDomInfoHub(cmd: any): Promise<void> {
@@ -41,58 +272,49 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
   let selGoodIdx = 0;
   let selDiscIdx = 0;
 
-  for (;;) {
-    const extAction = await new Promise<"close" | "world" | "portMap">(resolve => {
-      let settled = false;
-      const done = (act: "close" | "world" | "portMap") => {
-        if (settled) return;
-        settled = true;
-        h.close();
-        resolve(act);
-      };
+  return new Promise(resolve => {
+    const h = createDomModal({
+      title: infoTitle,
+      size: "wide",
+      cancelable: true,
+      closeLabel: "关闭",
+      onCancel: () => resolve(),
+    });
 
-      const h = createDomModal({
-        title: infoTitle,
-        size: "wide",
-        cancelable: true,
-        closeLabel: "关闭",
-        onCancel: () => done("close"),
+    const toolbar = document.createElement("div");
+    toolbar.className = "uw2-modal-toolbar";
+    h.modal.insertBefore(toolbar, h.body);
+
+    const render = (keepScroll = true) => {
+      if (isDisabled(activeTab)) activeTab = hasShips() ? 0 : 3;
+
+      toolbar.innerHTML = "";
+      tabLabels.forEach((lb, i) => {
+        const btn = document.createElement("button");
+        btn.className = `uw2-btn uw2-tab-btn ${i === activeTab ? "active" : ""}`;
+        btn.disabled = isDisabled(i);
+        btn.textContent = lb;
+        btn.addEventListener("click", () => {
+          activeTab = i;
+          render(false);
+        });
+        toolbar.appendChild(btn);
       });
 
-      const toolbar = document.createElement("div");
-      toolbar.className = "uw2-modal-toolbar";
-      h.modal.insertBefore(toolbar, h.body);
-
-      const render = (keepScroll = true) => {
-        if (isDisabled(activeTab)) activeTab = hasShips() ? 0 : 3;
-
-        toolbar.innerHTML = "";
-        tabLabels.forEach((lb, i) => {
-          const btn = document.createElement("button");
-          btn.className = `uw2-btn uw2-tab-btn ${i === activeTab ? "active" : ""}`;
-          btn.disabled = isDisabled(i);
-          btn.textContent = lb;
-          btn.addEventListener("click", () => {
-            if (i === 7) { done("world"); return; }
-            if (i === 9) { done("portMap"); return; }
-            activeTab = i;
-            render(false);
-          });
-          toolbar.appendChild(btn);
-        });
-
-        preserveScroll(h.body, () => {
-          h.body.innerHTML = "";
-          if (activeTab === 0) renderFleetTab(h.body);
-          else if (activeTab === 1) renderShipTab(h.body);
-          else if (activeTab === 2) renderPersonTab(h.body);
-          else if (activeTab === 3) renderLordTab(h.body);
-          else if (activeTab === 4) renderCargoShipTab(h.body);
-          else if (activeTab === 5) renderCargoSummaryTab(h.body);
-          else if (activeTab === 6) renderDiscoveryTab(h.body);
-          else if (activeTab === 8) renderLogTab(h.body);
-        }, keepScroll);
-      };
+      preserveScroll(h.body, () => {
+        h.body.innerHTML = "";
+        if (activeTab === 0) renderFleetTab(h.body);
+        else if (activeTab === 1) renderShipTab(h.body);
+        else if (activeTab === 2) renderPersonTab(h.body);
+        else if (activeTab === 3) renderLordTab(h.body);
+        else if (activeTab === 4) renderCargoShipTab(h.body);
+        else if (activeTab === 5) renderCargoSummaryTab(h.body);
+        else if (activeTab === 6) renderDiscoveryTab(h.body);
+        else if (activeTab === 7) mountDomWorldChart(h.body, c);
+        else if (activeTab === 8) renderLogTab(h.body);
+        else if (activeTab === 9) mountDomPortMap(h.body, c, p);
+      }, keepScroll);
+    };
 
       // ---- Tab 0: 自艦隊情報 ----
       const renderFleetTab = (root: HTMLElement) => {
@@ -624,13 +846,8 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
         root.appendChild(list);
       };
 
-      render();
-    });
-
-    if (extAction === "close") return;
-    if (extAction === "world") await runWideWorldChart(c, p, tabLabels[7]);
-    else if (extAction === "portMap") await cmd.portMap();
-  }
+      render(false);
+  });
 }
 
 /** 隨身物一體化工作台：左側道具清單 + 右側高清道具插圖、屬性、原版說明與佩戴/使用按鈕 */

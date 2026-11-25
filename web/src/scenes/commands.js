@@ -20,7 +20,7 @@ import { runWideFleetHub } from "../canvas_ui/wide_fleet_hub.ts";
 import { captureConsoleText, decodeCleanCstr, UI_FONT } from "../canvas_ui/text_util.ts";
 import { hasDom } from "../modern/dom_ui.ts";
 import { runDomPersonInfo, runDomShipInfo } from "../modern/dom_workbenches.ts";
-import { runDomInfoHub, runDomBelongings, runDomFormation } from "../modern/dom_info_hub.ts";
+import { runDomInfoHub, runDomBelongings, runDomFormation, runDomPortMapModal } from "../modern/dom_info_hub.ts";
 
 const cmHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const cmStrlen = s => { let n = 0; while (n < s.length && s[n]) n++; return n; };
@@ -759,8 +759,12 @@ export class Commands {
     this.c.sys.flush();
     return k;
   }
-  // ---- 9 海港地圖 1dfaf: 原生 16:9 現代浮動港內小地圖 (直接繪製 HD PNG 圖塊 + 原版建築標籤 + 主角位置) ----
+  // ---- 9 海港地圖 1dfaf ----
   async portMap() {
+    if (hasDom() && this.c.codec) {
+      await runDomPortMapModal(this.c, this.p, this.dec(this.c.menuItems(0x1a)[9]));
+      return;
+    }
     const { scr, sys, menu, art } = this.c, p = this.p;
     const sheetName = p.chipSetName || "portchip_0";
     const meta = art?.sheet?.(sheetName);

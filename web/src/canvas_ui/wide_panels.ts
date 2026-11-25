@@ -6,6 +6,7 @@ import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
 import { decodeCleanCstr } from "./text_util.ts";
 import { hasDom, runDomLordInfo, runDomInfoLines, runDomLogBook } from "../modern/dom_ui.ts";
+import { runDomWorldChartModal } from "../modern/dom_info_hub.ts";
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath();
@@ -366,6 +367,7 @@ export async function runWideLogBook(
 
 // ---------------- 4. 世界航海圖 (16:9 現代浮窗，載入 GRAPH.DAT #0x19 真實大陸底圖 + 迷霧 + 已知港口) ----------------
 export async function runWideWorldChart(ctx: any, scene: any, title: string) {
+  if (hasDom()) return runDomWorldChartModal(ctx, title);
   const { scr, sys, menu, state: st, codec, art } = ctx;
   const dec = (bts: Uint8Array) => decodeCleanCstr(codec, bts);
 
