@@ -10,7 +10,7 @@ class ShipyardMixin {
   // ================= 2 造船廠 1fd9:cc01 =================
   async shipyard() {
     const st = this.st, { palette, menu } = this.c;
-    palette.setTarget(palette.table("ships")); await palette.fadeToTarget();
+    if (!hasDom()) { palette.setTarget(palette.table("ships")); await palette.fadeToTarget(); }
     if (st.u8(DS.DAILY_FLAGS) & 2) { this.greet(0xf9); await this.wait(); return; }
     this.greet(0x4d);
     let sel;
@@ -27,8 +27,10 @@ class ShipyardMixin {
       }
     } while (sel !== 0xff && !(st.u8(DS.DAILY_FLAGS) & 2));
     this.fleetRecalc();
-    palette.selectTimePalette(this.c.rt.time, false, st.weather);           // 0fea:98ce
-    await palette.fadeToTarget();
+    if (!hasDom()) {
+      palette.selectTimePalette(this.c.rt.time, false, st.weather);           // 0fea:98ce
+      await palette.fadeToTarget();
+    }
   }
   sTodo(n) { this.todo(n); }
   // 2bd77 造新船

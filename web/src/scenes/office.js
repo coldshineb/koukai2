@@ -3,6 +3,8 @@
 // 共用劇本 SNR0 的工作狀態: globals.commonChap / commonSec / WorkDS.*
 import { Scenario, ENV_COMMON } from "../game/scenario.js";
 import { GameConst, WorkDS, TreatyFlag } from "../model/flags.ts";
+import { hasDom } from "../modern/dom_ui.ts";
+import { runDomOfficeWorkbench } from "../modern/dom_buildings.ts";
 
 const ofHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const ofS16 = v => (v << 16) >> 16;
@@ -20,6 +22,10 @@ export class Office {
 
   // ================= 入口 2d19f =================
   async run() {
+    if (hasDom() && this.c.codec) {
+      await runDomOfficeWorkbench(this);
+      return;
+    }
     const b = this.b;
     if (b.noEvent()) b.greet(0x55);
     let sel;

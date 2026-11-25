@@ -15,23 +15,33 @@ const CHARMAP_SWAP: Record<string, string> = {
   "髯": "髮", "髮": "髯",
   "匾": "區", "區": "匾",
   "綞": "緩", "緩": "綞",
+  "薨": "薦",
 };
-const SWAP_RE = /[速連散敢髯髮匾區綞緩]/g;
+const SWAP_RE = /[速連散敢髯髮匾區綞緩薨]/g;
+const UNMAPPED_GLYPHS: Record<string, string> = {
+  "{#93D3}": "打",
+  "{#D8C6}": "里",
+};
+const UNMAPPED_RE = /\{#[0-9A-Fa-f]{4}\}/g;
+const CTRL_BRACE_RE = /\{[0-9A-Fa-f]{2,4}\}/g;
 
-/** 將任意繁體中文文字修正 charmap 對調字後轉為標準簡體中文（自動快取） */
+/** 將任意繁體中文文字修正 charmap 對調字、補齊未映射字形並清除殘留 {XX} 控制碼後轉為標準簡體中文（自動快取） */
 export function toSimp(text: string): string {
   if (!text) return text;
+  const cleaned = text.includes("{")
+    ? text.replace(UNMAPPED_RE, m => UNMAPPED_GLYPHS[m.toUpperCase()] ?? "").replace(CTRL_BRACE_RE, "")
+    : text;
   let hasNonAscii = false;
-  for (let i = 0; i < text.length; i++) {
-    if (text.charCodeAt(i) > 0x7f) { hasNonAscii = true; break; }
+  for (let i = 0; i < cleaned.length; i++) {
+    if (cleaned.charCodeAt(i) > 0x7f) { hasNonAscii = true; break; }
   }
-  if (!hasNonAscii) return text;
+  if (!hasNonAscii) return cleaned;
 
-  const hit = cache.get(text);
+  const hit = cache.get(cleaned);
   if (hit !== undefined) return hit;
-  const fixed = text.replace(SWAP_RE, ch => CHARMAP_SWAP[ch] ?? ch);
+  const fixed = cleaned.replace(SWAP_RE, ch => CHARMAP_SWAP[ch] ?? ch);
   const out = converter(fixed);
   if (cache.size >= MAX_CACHE) cache.clear();
-  cache.set(text, out);
+  cache.set(cleaned, out);
   return out;
 }

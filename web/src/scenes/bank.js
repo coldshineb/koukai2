@@ -6,6 +6,8 @@
 // 銀行內的金錢增減不呼叫 8894 (面板要等下次選單才重畫) —— 原版如此
 import { GameConst, MenuId } from "../model/flags.ts";
 import { domS16, encodeBankBalance, calcDepositLimit, canTakeLoan, calcLoanLimit } from "../domain/economy.ts";
+import { hasDom } from "../modern/dom_ui.ts";
+import { runDomBankWorkbench } from "../modern/dom_buildings.ts";
 
 export class Bank {
   constructor(b) { this.b = b; }
@@ -24,6 +26,10 @@ export class Bank {
 
   // ================= 入口 292a1 =================
   async run() {
+    if (hasDom() && this.c.codec) {
+      await runDomBankWorkbench(this);
+      return;
+    }
     const b = this.b, m = this.m;
     if (b.noEvent()) {
       if (b.port === GameConst.VENICE_PORT_ID) b.greet(0x61);                   // 威尼斯本行

@@ -1,6 +1,8 @@
 // church_inn_fortune.js — 旅館 (4) / 教會 (10) / 占卜師 (11)
 import { DS, OFF } from "../model/schema_views.ts";
 import { domS16, domUmin16 } from "../domain/economy.ts";
+import { hasDom } from "../modern/dom_ui.ts";
+import { runDomInnWorkbench, runDomChurchWorkbench, runDomFortuneWorkbench } from "../modern/dom_buildings.ts";
 
 const cifHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const B_SUPPORT_FMT = Uint8Array.of(0x25, 0x2d, 0x31, 0x34, 0x73, 0x20, 0x25, 0x33, 0x64, 0x25, 0x25, 0); // DS:b0ba "%-14s %3d%%"
@@ -11,8 +13,12 @@ class ChurchInnFortuneMixin {
   // ================= 4 旅館 1fd9:8f84 =================
   async inn() {
     const { sys } = this.c, st = this.st;
-    if (this.noEvent()) this.greet(0x42);
     this.c.randomParts = sys.rng.random(0x3fff) | 0xc000;              // [bdc6]
+    if (hasDom() && this.c.codec) {
+      await runDomInnWorkbench(this);
+      return;
+    }
+    if (this.noEvent()) this.greet(0x42);
     const items = this.c.menuItems(4);
     let sel;
     do {
@@ -90,6 +96,10 @@ class ChurchInnFortuneMixin {
     if (!this.mosque && nation === 2) { this.greet(0x5a); await this.wait(); return; }
     if (this.mosque && nation !== 2) { this.greet(0x322); await this.wait(); return; }
     const base = this.mosque * 0x2c8, items = this.c.menuItems(7);    // 2cbdb
+    if (hasDom() && this.c.codec) {
+      await runDomChurchWorkbench(this, base);
+      return;
+    }
     if (this.noEvent()) this.greet(base + 0x5b);
     let sel;
     do {
@@ -126,6 +136,10 @@ class ChurchInnFortuneMixin {
   }
   // ================= 11 占卜師 1fd9:d647 =================
   async fortune() {
+    if (hasDom() && this.c.codec) {
+      await runDomFortuneWorkbench(this);
+      return;
+    }
     const { menu } = this.c;
     if (this.noEvent()) this.greet(0x12a);
     const items = this.c.menuItems(17);

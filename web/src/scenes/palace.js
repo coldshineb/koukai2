@@ -5,6 +5,8 @@ import { mainEnding } from "../game/endgame.js";
 import { GameConst, MenuId, OptionFlag, ShipSlotFlag, WorkDS } from "../model/flags.ts";
 import { captureConsoleText, decodeCleanCstr } from "../canvas_ui/text_util.ts";
 import { runWideInfoLinesModal } from "../canvas_ui/wide_panels.ts";
+import { hasDom } from "../modern/dom_ui.ts";
+import { runDomPalaceWorkbench } from "../modern/dom_buildings.ts";
 
 const plHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const plS16 = v => (v << 16) >> 16;
@@ -80,6 +82,10 @@ export class Palace {
     }
     if (hd.rank === 0 && (m.heroPerson().face & 0x0f) !== 6) {                   // 平民
       if (!this.same() || !(st.u8(WorkDS.FLAGS) & 6)) return this.gw(0x54);
+    }
+    if (hasDom() && this.c.codec) {
+      await runDomPalaceWorkbench(this);
+      return;
     }
     const t = hd.rank;
     if (t) b.greet(0x1bc, this.heroName(), g.hero === 5 ? b.T.ottomanTitles[t] : b.T.titles[t]);
