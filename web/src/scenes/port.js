@@ -401,7 +401,12 @@ export class PortScene {
       if (ox + dx < 0 || ox + dx >= 0x17 || oy + dy < 0 || oy + dy >= 0x17) break moved;
       this.oldVy = this.vy; this.oldVx = this.vx;
       const code = this.collide(-1, this.vx + ox + dx, oy + this.vy + dy);
-      if (code && this.talkCool >= 10) { await this.talk(code); this.talkCool = 0; return 0; }
+      if (code && (code !== this.lastTalkCode || this.talkCool >= 3)) {
+        await this.talk(code);
+        this.lastTalkCode = code;
+        this.talkCool = 0;
+        return 0;
+      }
       if (this.talkCool < 10) this.talkCool++;
       this.hx += dx; this.hy += dy;
       if (this.heroBlocked() || this.collide(-1, this.hx + this.vx, this.hy + this.vy)) {

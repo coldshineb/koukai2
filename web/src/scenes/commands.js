@@ -20,7 +20,7 @@ import { runWideFleetHub } from "../canvas_ui/wide_fleet_hub.ts";
 import { captureConsoleText, decodeCleanCstr, UI_FONT } from "../canvas_ui/text_util.ts";
 import { hasDom } from "../modern/dom_ui.ts";
 import { runDomPersonInfo, runDomShipInfo } from "../modern/dom_workbenches.ts";
-import { runDomInfoHub, runDomBelongings } from "../modern/dom_info_hub.ts";
+import { runDomInfoHub, runDomBelongings, runDomFormation } from "../modern/dom_info_hub.ts";
 
 const cmHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const cmStrlen = s => { let n = 0; while (n < s.length && s[n]) n++; return n; };
@@ -1348,6 +1348,13 @@ export class Commands {
   // 20587 隊形變更
   async formation(title = "") {
     const { win, con, message, menu, scr } = this.c, b = this.b, P = this.c.persons;
+    if (scr.wideRenderer && hasDom() && this.c.codec) {
+      const n = b.fleetShips();
+      if (!n) return;
+      if (n === 1) { await showWideNotice(this.c, this.cap(() => message(0xd9))); return; }
+      await runDomFormation(this, title);
+      return;
+    }
     if (scr.wideRenderer && this.c.codec) {
       for (;;) {
         const n = b.fleetShips();

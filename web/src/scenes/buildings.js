@@ -19,7 +19,7 @@ import { installChurchInnFortune } from "./church_inn_fortune.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { domS16, domUmin16 } from "../domain/economy.ts";
 import { calcCargoUsed, calcShipLoadTotal, calcShipSpeed } from "../domain/fleet.ts";
-import { captureConsoleText, createEscStripper, decodeCleanCstr } from "../canvas_ui/text_util.ts";
+import { captureConsoleText, createEscStripper, decodeCleanCstr, toSimp } from "../canvas_ui/text_util.ts";
 
 const bHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const B_SPEECH = Uint8Array.of(0x1b, 0x43, 0x30, 0x01, 0x1b, 0x42, 0x37, 0);   // DS:8c12
@@ -75,7 +75,7 @@ export class Buildings {
     const origPutc = con.putc;
     const raw = [];
     const sync = () => {
-      const body = codec.decode(Uint8Array.from(raw)).replace(/\{[0-9A-F]{2}\}/g, "").trim();
+      const body = toSimp(codec.decode(Uint8Array.from(raw)).replace(/\{[0-9A-F]{2}\}/g, "").trim());
       const text = prefix ? (body ? `${prefix}\n${body}` : prefix) : body;
       scr.wideDialog = { text, portraitId, portraitComposed, waiting: false };
       scr.dirty = true;
@@ -240,7 +240,7 @@ export class Buildings {
   talkGirl(face, rec) {
     const { kao, scr, printf, codec } = this.c;
     if (scr.wideRenderer && codec) {
-      const nm = codec.decode(this.dstr(rec)).replace(/\0.*$/, "").trim();
+      const nm = toSimp(codec.decode(this.dstr(rec)).replace(/\0.*$/, "").trim());
       this.beginWideTalk(face, nm);
       return;
     }

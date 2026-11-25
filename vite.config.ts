@@ -15,6 +15,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          if (id.includes("opencc-js")) return "t2s";
           if (id.includes("/src/game/opening.js") || id.includes("/src/game/ending")) return "cinematics";
           if (id.includes("/src/scenes/")) return "scenes";
         },

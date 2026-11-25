@@ -1,6 +1,8 @@
-// canvas_ui/text_util.ts — 統一原版控制碼清理、文字擷取與高清晰度字體常數
+// canvas_ui/text_util.ts — 統一原版控制碼清理、文字擷取、繁轉簡與高清晰度字體常數
 // 精確對應 console.js 的所有 ESC 控制序列，徹底消除 64 / 01 / 51 / 2 等殘留色碼字元。
-export const UI_FONT = '"Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
+import { toSimp } from "../modern/t2s.ts";
+export { toSimp };
+export const UI_FONT = '"Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", "Segoe UI", sans-serif';
 export const MONO_FONT = '"Cascadia Mono", "Consolas", "Microsoft YaHei UI", monospace';
 
 export function stripEscBytes(bytes: Uint8Array): Uint8Array {
@@ -26,7 +28,7 @@ export function stripEscBytes(bytes: Uint8Array): Uint8Array {
 export function decodeCleanCstr(codec: any, bytes: Uint8Array): string {
   if (!codec || !bytes) return "";
   const clean = stripEscBytes(bytes);
-  return codec.decode(clean).replace(/\{[0-9A-F]{2}\}/g, "").trim();
+  return toSimp(codec.decode(clean).replace(/\{[0-9A-F]{2}\}/g, "").trim());
 }
 
 export function createEscStripper(onByte: (b: number) => void) {
@@ -56,5 +58,5 @@ export function captureConsoleText(ctx: any, fn: () => void): string {
   } finally {
     con.putc = saved;
   }
-  return codec ? codec.decode(Uint8Array.from(raw)).replace(/\{[0-9A-F]{2}\}/g, "").trim() : "";
+  return codec ? toSimp(codec.decode(Uint8Array.from(raw)).replace(/\{[0-9A-F]{2}\}/g, "").trim()) : "";
 }

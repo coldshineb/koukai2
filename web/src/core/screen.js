@@ -3,6 +3,7 @@
 // 讓任何高清重繪 PNG 皆可直接以原生真彩與高解析度繪製於 hdCanvas，並與原版文字/視窗圖層無縫合成。
 import { drawWideDialog } from "../canvas_ui/wide_dialog.ts";
 import { hasDom, syncDomDialog } from "../modern/dom_ui.ts";
+import { toSimp } from "../modern/t2s.ts";
 
 export const SCREEN_W = 640;
 export const SCREEN_H = 400;
@@ -169,7 +170,7 @@ export class Screen {
       ctx.fillStyle = this.colorCss(fgIdx);
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(ch, (dx + dw / 2) * HD_SCALE, (dy + dh / 2 + 0.5) * HD_SCALE, dw * HD_SCALE);
+      ctx.fillText(toSimp(ch), (dx + dw / 2) * HD_SCALE, (dy + dh / 2 + 0.5) * HD_SCALE, dw * HD_SCALE);
     }
     this.dirty = true;
     return true;

@@ -17,18 +17,16 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
   const dec = (bts: Uint8Array) => decodeCleanCstr(c.codec, bts);
   const cap = (fn: () => void) => captureConsoleText(c, fn);
   const tabLabels: string[] = c.menuItems(0x1a).slice(0, 10).map(dec);
-  const infoTitle = "情報";
+  const infoTitle = "情报";
 
   const hasShips = () => b.fleetShips() > 0;
-  const hasCargo = () => !!cmd.anyCargo();
   const hasDisc = () => !!cmd.discList(1);
   const hasWorld = () => !!st.u16(WorkDS.EXPLORE_TOTAL);
   const hasLog = () => st.u16(DS.TRADE_LOGS) !== 0xffff;
   const inPort = () => st.port !== 0xff;
 
   const isDisabled = (idx: number): boolean => {
-    if (idx === 0 || idx === 1) return !hasShips();
-    if (idx === 4 || idx === 5) return !hasShips() || !hasCargo();
+    if (idx === 0 || idx === 1 || idx === 4 || idx === 5) return !hasShips();
     if (idx === 6) return !hasDisc();
     if (idx === 7) return !hasWorld();
     if (idx === 8) return !hasLog();
@@ -153,7 +151,7 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
           nm.textContent = dec(st.cstr(ship));
           const sub = document.createElement("div");
           sub.className = "uw2-slot-sub";
-          sub.textContent = `${st.u8(S + OFF.DOCK_SLOT.DURABILITY)}/${st.u8(S + OFF.DOCK_SLOT.MAX_DURABILITY)} · ${st.u16(S)} · ${st.u8(S + OFF.DOCK_SLOT.GUNS)}`;
+          sub.textContent = `耐久 ${st.u8(S + OFF.DOCK_SLOT.DURABILITY)}/${st.u8(S + OFF.DOCK_SLOT.MAX_DURABILITY)} · 水手 ${st.u16(S)} · 炮 ${st.u8(S + OFF.DOCK_SLOT.GUNS)}`;
           card.append(nm, sub);
           const targetIdx = grid.children.length;
           card.addEventListener("click", () => { selShipIdx = targetIdx; activeTab = 1; render(); });
@@ -471,6 +469,13 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
         split.className = "uw2-split narrow-left";
         const left = document.createElement("div");
         left.className = "uw2-list-col";
+        if (!goodsList.length) {
+          const empty = document.createElement("div");
+          empty.className = "uw2-slot-sub";
+          empty.style.padding = "12px";
+          empty.textContent = "—";
+          left.appendChild(empty);
+        }
         goodsList.forEach(([g, amt], i) => {
           const btn = document.createElement("button");
           btn.className = `uw2-row-card ${i === selGoodIdx ? "selected" : ""}`;
@@ -735,4 +740,131 @@ export async function runDomBelongings(cmd: any): Promise<void> {
     if (action.type === "equip" && action.it !== undefined) await cmd.equip(action.it);
     else if (action.type === "use" && action.it !== undefined) await cmd.use(action.it);
   }
+}
+
+/** 現代隊形變更面板：上移 / 下移 / 置頂即時調整艦隊順序，一鍵確定寫回原版槽位 */
+export function runDomFormation(cmd: any, title: string): Promise<void> {
+  const c = cmd.c, st = cmd.st, b = cmd.b, art = c.art;
+  const dec = (bts: Uint8Array) => decodeCleanCstr(c.codec, bts);
+  const n = b.fleetShips();
+  if (n <= 1) return Promise.resolve();
+
+  const oldSlots: number[] = [];
+  for (let i = 0; i < n; i++) oldSlots.push(c.persons[i] & 0xff);
+  const order = [...oldSlots];
+
+  return new Promise(resolve => {
+    let settled = false;
+    const finish = (apply: boolean) => {
+      if (settled) return;
+      settled = true;
+      h.close();
+      if (apply) {
+        const oldArr = new Array(10).fill(0xff);
+        const nwArr = new Array(10).fill(0xff);
+        for (let i = 0; i < order.length; i++) { oldArr[i] = oldSlots[i]; nwArr[i] = order[i]; }
+        cmd.fmApply(oldArr, nwArr);
+      }
+      resolve();
+    };
+
+    const h = createDomModal({
+      title: title || "队形变更",
+      size: "md",
+      cancelable: true,
+      closeLabel: "取消",
+      onCancel: () => finish(false),
+    });
+
+    const footer = document.createElement("div");
+    footer.className = "uw2-modal-footer";
+    const cancelBtn = document.createElement("button");
+    cancelBtn.className = "uw2-step-btn";
+    cancelBtn.style.padding = "7px 20px";
+    cancelBtn.textContent = "取消";
+    cancelBtn.addEventListener("click", () => finish(false));
+
+    const okBtn = document.createElement("button");
+    okBtn.className = "uw2-btn uw2-btn-primary";
+    okBtn.style.padding = "7px 26px";
+    okBtn.textContent = "确定";
+    okBtn.addEventListener("click", () => finish(true));
+
+    footer.append(cancelBtn, okBtn);
+    h.modal.appendChild(footer);
+
+    const render = () => {
+      preserveScroll(h.body, () => {
+        h.body.innerHTML = "";
+        const list = document.createElement("div");
+        list.className = "uw2-list-col";
+        list.style.maxHeight = "440px";
+
+        order.forEach((slot, idx) => {
+          const S = b.fleetSlot(slot), M = b.crewData(slot);
+          const ship = DS.TBL_SHIP + st.u8(S + OFF.DOCK_SLOT.SHIP) * 0x16;
+          const typeId = st.u8(ship + 0x0f);
+          const capId = st.u8(M + OFF.CREW_SLOT.CAPTAIN);
+          const capName = (capId & 0x80) ? "----" : dec(st.cstr(st.personRecord(capId)));
+          const dur = st.u8(S + OFF.DOCK_SLOT.DURABILITY), maxDur = st.u8(S + OFF.DOCK_SLOT.MAX_DURABILITY);
+          const crew = st.u16(S), spd = (b.shipSpeed(slot) + 1) >> 1;
+
+          const card = document.createElement("div");
+          card.className = "uw2-slot-card";
+          card.style.gap = "12px";
+
+          const num = document.createElement("span");
+          num.style.cssText = "width:26px;font-size:16px;font-weight:700;color:#8a5d17;text-align:center;";
+          num.textContent = String(idx + 1);
+          card.appendChild(num);
+
+          const shipUrl = art?.shipUrl?.(typeId);
+          if (shipUrl) {
+            const img = document.createElement("img");
+            img.src = shipUrl;
+            img.style.cssText = "width:64px;height:42px;object-fit:contain;border-radius:4px;background:#0e1b30;border:1px solid var(--uw2-gold);padding:2px;flex-shrink:0;";
+            card.appendChild(img);
+          }
+
+          const info = document.createElement("div");
+          info.style.cssText = "flex:1;min-width:0;";
+          info.innerHTML = `<div class="uw2-slot-title">${dec(st.cstr(ship))}</div><div class="uw2-slot-sub">${capName} · 耐久 ${dur}/${maxDur} · 水手 ${crew} · ${spd}kt</div>`;
+          card.appendChild(info);
+
+          const ctrl = document.createElement("div");
+          ctrl.className = "uw2-step-row";
+
+          const mkBtn = (lb: string, dis: boolean, fn: () => void) => {
+            const btn = document.createElement("button");
+            btn.className = "uw2-step-btn";
+            btn.disabled = dis;
+            btn.textContent = lb;
+            btn.addEventListener("click", fn);
+            return btn;
+          };
+
+          ctrl.append(
+            mkBtn("置顶", idx === 0, () => {
+              const [x] = order.splice(idx, 1);
+              order.unshift(x);
+              render();
+            }),
+            mkBtn("↑", idx === 0, () => {
+              [order[idx - 1], order[idx]] = [order[idx], order[idx - 1]];
+              render();
+            }),
+            mkBtn("↓", idx === order.length - 1, () => {
+              [order[idx + 1], order[idx]] = [order[idx], order[idx + 1]];
+              render();
+            }),
+          );
+          card.appendChild(ctrl);
+          list.appendChild(card);
+        });
+        h.body.appendChild(list);
+      }, true);
+    };
+
+    render();
+  });
 }

@@ -104,7 +104,7 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
 
     const render = (keepScroll = true) => {
       const money = market.money;
-      moneyPill.textContent = `金塊 ${Math.trunc(money / 10000)}  ·  金幣 ${money % 10000}`;
+      moneyPill.textContent = `金块 ${Math.trunc(money / 10000)}  ·  金币 ${money % 10000}`;
       toastEl.textContent = toastMsg;
 
       const goods = getBuyGoods();
@@ -508,7 +508,7 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
 
         daysPill.textContent = `${curDays} DAYS`;
         daysPill.className = `uw2-pill ${curDays > 0 && !noDriver ? "ok" : "err"}`;
-        moneyPill.textContent = `金塊 ${Math.trunc(b.money / 10000)}  ·  金幣 ${b.money % 10000}`;
+        moneyPill.textContent = `金块 ${Math.trunc(b.money / 10000)}  ·  金币 ${b.money % 10000}`;
         toastEl.textContent = toastMsg;
         departBtn.disabled = n === 0;
 
@@ -529,7 +529,7 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
           const row = document.createElement("div");
           row.className = "uw2-wharf-row";
           const info = document.createElement("div");
-          info.innerHTML = `<div class="uw2-slot-title">${s.name}</div><div class="uw2-slot-sub">${s.drv}/${s.look}/${s.deck} · ${s.used}/${s.max}</div>`;
+          info.innerHTML = `<div class="uw2-slot-title">${s.name}</div><div class="uw2-slot-sub">操帆${s.drv} 瞭望${s.look} 甲板${s.deck} · 装载 ${s.used}/${s.max}</div>`;
           row.appendChild(info);
 
           for (let k = 0; k < 4; k++) {
@@ -606,7 +606,7 @@ export function runDomFleetHub(cmd: any): Promise<void> {
     };
 
     const h = createDomModal({
-      title: "經營",
+      title: "经营",
       size: "wide",
       cancelable: false,
     });
@@ -724,7 +724,7 @@ export function runDomFleetHub(cmd: any): Promise<void> {
       ships.forEach((s, i) => {
         const row = document.createElement("button");
         row.className = `uw2-row-card ${i === selShipIdx ? "selected" : ""}`;
-        row.innerHTML = `<div><div class="uw2-slot-title">${s.name}</div><div class="uw2-slot-sub">${s.capName}</div></div><div style="text-align:right;"><div style="font-weight:700;font-size:13px;">${s.crew}/${s.maxCrew}</div><div class="uw2-slot-sub">${s.speed}kt</div></div>`;
+        row.innerHTML = `<div><div class="uw2-slot-title">${s.name}</div><div class="uw2-slot-sub">${s.capName}</div></div><div style="text-align:right;"><div style="font-weight:700;font-size:13px;">水手 ${s.crew}/${s.maxCrew}</div><div class="uw2-slot-sub">速度 ${s.speed}kt</div></div>`;
         row.addEventListener("click", () => { selShipIdx = i; render(); });
         left.appendChild(row);
       });

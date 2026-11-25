@@ -2,15 +2,15 @@
 // 嚴格遵守: 零 DOM 遊戲介面、100% 原版文本 (所有標籤/名稱/日期均直接取自原版資料表)。
 import { DS, OFF } from "../model/schema_views.ts";
 import { VIEW_W, VIEW_H } from "../core/screen.js";
-import { decodeCleanCstr } from "./text_util.ts";
+import { decodeCleanCstr, toSimp } from "./text_util.ts";
 
 const TILE = 32; // 40×23 格 = 1280×736，無黑邊鋪滿整個 16:9 畫面
 const COLS = Math.ceil(VIEW_W / TILE) + 1;
 const ROWS = Math.ceil(VIEW_H / TILE) + 1;
 const P_MAP_W = 0x60;
 
-// 4 枚主指令按鈕 (右下懸浮) — 嚴格使用原版右側 HUD 四字標題
-const CMD_LABELS = ["情報", "經營", "命令", "航海術"] as const;
+// 4 枚主指令按鈕 (右下懸浮)
+const CMD_LABELS = ["情报", "经营", "命令", "航海术"] as const;
 const CMD_BTN_W = 94;
 const CMD_BTN_H = 42;
 const CMD_GAP = 10;
@@ -211,19 +211,19 @@ function drawFloatingHud(ctx: CanvasRenderingContext2D, scene: any, atSea: boole
   const bars = Math.trunc(money / 10000);
   const gold = money % 10000;
 
-  ctx.font = '500 13px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
+  ctx.font = '500 13px "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", "Segoe UI", sans-serif';
   ctx.fillStyle = "#d9cdb4";
-  ctx.fillText(`聲望`, 96, 60);
+  ctx.fillText(`声望`, 96, 60);
   ctx.fillStyle = "#ffffff";
   ctx.fillText(String(fame), 132, 60);
 
   ctx.fillStyle = "#d9cdb4";
-  ctx.fillText(`金塊`, 206, 60);
+  ctx.fillText(`金块`, 206, 60);
   ctx.fillStyle = "#f2d89b";
   ctx.fillText(String(bars), 242, 60);
 
   ctx.fillStyle = "#d9cdb4";
-  ctx.fillText(`金幣`, 96, 84);
+  ctx.fillText(`金币`, 96, 84);
   ctx.fillStyle = "#f2d89b";
   ctx.fillText(String(gold), 132, 84);
 
@@ -232,16 +232,16 @@ function drawFloatingHud(ctx: CanvasRenderingContext2D, scene: any, atSea: boole
     const P = scene.port;
     const portName = decodeCstr(codec, m.port(P).nameBytes);
     const E = P < 100 ? m.portEconomy(P) : null;
-    const regionName = E ? c.messageText(0x181 + E.priceRegion).trim() : "";
+    const regionName = E ? toSimp(c.messageText(0x181 + E.priceRegion).trim()) : "";
 
     drawGlassPanel(ctx, VIEW_W - 318, 14, 302, 92, 10);
-    ctx.font = '700 17px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
+    ctx.font = '700 17px "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", "Segoe UI", sans-serif';
     ctx.fillStyle = "#f2d89b";
     ctx.textAlign = "left";
     ctx.fillText(portName, VIEW_W - 302, 36);
 
     if (regionName) {
-      ctx.font = '500 12px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
+      ctx.font = '500 12px "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", "Segoe UI", sans-serif';
       ctx.fillStyle = "#b8c7dc";
       ctx.textAlign = "right";
       ctx.fillText(regionName, VIEW_W - 30, 36);
@@ -252,19 +252,19 @@ function drawFloatingHud(ctx: CanvasRenderingContext2D, scene: any, atSea: boole
       for (let i = 0; i < 10; i++) sum += E.getPrices(i);
       const avgPrice = Math.trunc(sum / 10) + 50;
       ctx.textAlign = "left";
-      ctx.font = '500 13px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
+      ctx.font = '500 13px "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", "Segoe UI", sans-serif';
       ctx.fillStyle = "#d9cdb4";
-      ctx.fillText(`商業價值`, VIEW_W - 302, 62);
+      ctx.fillText(`商业价值`, VIEW_W - 302, 62);
       ctx.fillStyle = "#ffffff";
       ctx.fillText(String((E.commerce << 16) >> 16), VIEW_W - 238, 62);
 
       ctx.fillStyle = "#d9cdb4";
-      ctx.fillText(`工業價值`, VIEW_W - 164, 62);
+      ctx.fillText(`工业价值`, VIEW_W - 164, 62);
       ctx.fillStyle = "#ffffff";
       ctx.fillText(String((E.industry << 16) >> 16), VIEW_W - 100, 62);
 
       ctx.fillStyle = "#d9cdb4";
-      ctx.fillText(`平均物價`, VIEW_W - 302, 86);
+      ctx.fillText(`平均物价`, VIEW_W - 302, 86);
       ctx.fillStyle = "#f2d89b";
       ctx.fillText(`${avgPrice}%`, VIEW_W - 238, 86);
     }
