@@ -126,24 +126,21 @@ export class CellSelect {
         ctx.moveTo(x + size - cl, y + size + 2); ctx.lineTo(x + size + 2, y + size + 2); ctx.lineTo(x + size + 2, y + size - cl);
         ctx.stroke();
       }
-      if (promptText) {
-        ctx.font = '700 15px "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", sans-serif';
-        const tw = ctx.measureText(promptText).width;
-        const pw = tw + 36, ph = 38, px = (1280 - pw) / 2, py = 20;
-        ctx.fillStyle = "rgba(246, 236, 212, 0.96)";
-        ctx.strokeStyle = "#9c7432";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.roundRect(px, py, pw, ph, 8);
-        ctx.fill();
-        ctx.stroke();
-        ctx.fillStyle = "#3d2817";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(promptText, 640, py + ph / 2);
-      }
       ctx.restore();
     };
+
+    // 使用原生 DOM 羊皮紙提示牌顯示「請指定目的地」等文字，避免畫在 Canvas 上被拉伸變扁發糊
+    let promptEl = null;
+    if (promptText && typeof document !== "undefined" && document.body) {
+      promptEl = document.createElement("div");
+      promptEl.className = "uw2-card";
+      promptEl.style.cssText =
+        "position:fixed;top:56px;left:50%;transform:translateX(-50%);z-index:60;pointer-events:none;" +
+        "padding:8px 22px;border-radius:8px;font-size:16px;font-weight:700;color:var(--uw2-ink);" +
+        "box-shadow:0 6px 20px rgba(0,0,0,0.35);white-space:nowrap;";
+      promptEl.textContent = promptText;
+      document.body.appendChild(promptEl);
+    }
 
     // 直接監聽 canvas 滑鼠移動與左/右鍵點擊，確保瀏覽器中 100% 即時響應（不依賴輪詢時機）
     const canvas = scr.canvas;
@@ -214,6 +211,7 @@ export class CellSelect {
         await sys.poll();
       }
     } finally {
+      promptEl?.remove();
       canvas?.removeEventListener("mousemove", onMove);
       canvas?.removeEventListener("mousedown", onDown);
       const idx = scr.wideOverlays.indexOf(drawFn);
