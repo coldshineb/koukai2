@@ -314,18 +314,46 @@ export class SeaScene extends PortScene {
   async seaInput() {
     const { sys, menu } = this.c;
     let key = this.readInput();                                        // 210f1
-    if (sys.mouseEvent() === 0x81) {
-      this.a9c8 |= 2;
-      const p = sys.mousePos(), x = p.x - 0x60, y = p.y - 8;
-      if (x >= 0 && x < 0x180 && y >= 0 && y < 0x180) {
-        key = ((x >> 7) + 3 * ((0x180 - y) >> 7) + 0x31) & 0xff;      // 數字鍵 1..9 的配置 (y = 0 時算成第 4 列, 原版如此)
-        this.a9c8 &= 0xfd;
+    // 支援方向鍵直接轉舵（原版只認數字小鍵盤 1..9）
+    if (key === 0x1e) key = 0x38;      // ↑ -> 北 (8)
+    else if (key === 0x1f) key = 0x32; // ↓ -> 南 (2)
+    else if (key === 0x1d) key = 0x34; // ← -> 西 (4)
+    else if (key === 0x1c) key = 0x36; // → -> 東 (6)
+
+    // 16:9 寬螢幕下點擊海面任意位置，依相對畫面中心 8 方位直接轉舵航行
+    const mouseDown = key === 0xff || sys.mouseEvent() === 0x81;
+    if (mouseDown) {
+      if (this.c.scr.wideRenderer && sys.mouse?.vx !== undefined) {
+        const dx = sys.mouse.vx - 640;
+        const dy = sys.mouse.vy - 360;
+        if (Math.hypot(dx, dy) >= 24) {
+          // 0=北,1=東北,2=東,3=東南,4=南,5=西南,6=西,7=西北 -> 對應原版數字鍵 8,9,6,3,2,1,4,7
+          const deg = ((Math.atan2(dy, dx) * 180) / Math.PI + 90 + 360) % 360;
+          const oct = Math.floor(((deg + 22.5) % 360) / 45);
+          key = [0x38, 0x39, 0x36, 0x33, 0x32, 0x31, 0x34, 0x37][oct];
+          this.a9c8 &= 0xfd;
+        } else {
+          key = 0;
+        }
+      } else {
+        this.a9c8 |= 2;
+        const p = sys.mousePos(), x = p.x - 0x60, y = p.y - 8;
+        if (x >= 0 && x < 0x180 && y >= 0 && y < 0x180) {
+          key = ((x >> 7) + 3 * ((0x180 - y) >> 7) + 0x31) & 0xff;
+          this.a9c8 &= 0xfd;
+        }
       }
     }
     if (key === 0x30 || key === 0x1b) this.a9c8 |= 1;
     if (this.a9c8 & 1) { key = 0; this.cursor = 0x2570; sys.setCursorShape(0x2570); await menu.waitRelease(); }
     for (;;) {
-      if (this.a9c8 & 1) key = this.readInput();
+      if (this.a9c8 & 1) {
+        key = this.readInput();
+        if (key === 0x1e) key = 0x38;
+        else if (key === 0x1f) key = 0x32;
+        else if (key === 0x1d) key = 0x34;
+        else if (key === 0x1c) key = 0x36;
+      }
       if (key || (this.a9c8 & 2)) { await this.seaButton(key); if (this.timeAbort()) return; }
       if (!(this.a9c8 & 1)) return;
       await sys.poll();

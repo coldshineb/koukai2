@@ -205,16 +205,40 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
     const b = st.u8(DS.WIND_CUR);
     const windDir = (a & 0x38) >> 3, windStr = a & 7;
     const curDir = (b & 0x38) >> 3, curStr = b & 7;
+    const headDir = st.u8(scene.fleet + 0x1a);
     const spd = (scene.speed + 1) >> 1;
     const days = st.u8(DS.DAYS_AT_SEA);
-    const trKey = `S|${windDir}|${windStr}|${curDir}|${curStr}|${spd}|${days}`;
+    const trKey = `S|${windDir}|${windStr}|${curDir}|${curStr}|${headDir}|${spd}|${days}`;
     if (trKey !== lastTrKey) {
       lastTrKey = trKey;
+      const arrowSvg = (dir: number, active: boolean, color: string) => active && dir < 8
+        ? `<svg viewBox="0 0 28 28" width="26" height="26" style="display:block;margin:0 auto;">
+             <circle cx="14" cy="14" r="12" fill="rgba(255,252,244,0.9)" stroke="#b3873a" stroke-width="1.3"/>
+             <g transform="rotate(${dir * 45} 14 14)">
+               <polygon points="14,4 18.5,18 14,15 9.5,18" fill="${color}"/>
+             </g>
+           </svg>`
+        : `<svg viewBox="0 0 28 28" width="26" height="26" style="display:block;margin:0 auto;">
+             <circle cx="14" cy="14" r="12" fill="rgba(255,252,244,0.75)" stroke="#b3873a" stroke-width="1.3"/>
+             <circle cx="14" cy="14" r="3" fill="#8a7a62"/>
+           </svg>`;
       trEl.innerHTML = `
-        <div style="display:flex;gap:16px;align-items:center;font-size:13px;color:var(--uw2-ink);min-width:250px;justify-content:space-between;">
-          <div><div style="font-size:11px;color:var(--uw2-ink-muted);">风向</div><b>${windStr ? `${DIR_LABELS[windDir]} ${windStr}` : "无风"}</b></div>
-          <div><div style="font-size:11px;color:var(--uw2-ink-muted);">海流</div><b>${curStr ? `${DIR_LABELS[curDir]} ${curStr}` : "平静"}</b></div>
-          <div><div style="font-size:11px;color:var(--uw2-ink-muted);">航速 / 天数</div><b style="color:#8a5d17;">${spd}kt · ${days}天</b></div>
+        <div style="display:flex;gap:14px;align-items:center;font-size:12px;color:var(--uw2-ink);min-width:260px;justify-content:space-between;text-align:center;">
+          <div>
+            <div style="color:var(--uw2-ink-muted);margin-bottom:2px;">风向</div>
+            ${arrowSvg(windDir, windStr > 0, "#247544")}
+            <b>${windStr ? `${DIR_LABELS[windDir]} ${windStr}` : "无风"}</b>
+          </div>
+          <div>
+            <div style="color:var(--uw2-ink-muted);margin-bottom:2px;">海流</div>
+            ${arrowSvg(curDir, curStr > 0, "#2a6bb8")}
+            <b>${curStr ? `${DIR_LABELS[curDir]} ${curStr}` : "平静"}</b>
+          </div>
+          <div>
+            <div style="color:var(--uw2-ink-muted);margin-bottom:2px;">航向</div>
+            ${arrowSvg(headDir, headDir < 8, "#c93b2b")}
+            <b style="color:#8a5d17;">${spd}kt · ${days}天</b>
+          </div>
         </div>
       `;
     }
