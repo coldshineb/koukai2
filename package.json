@@ -11,6 +11,8 @@
     "test:data": "node tools/emu/run_local.js data_tests.js",
     "test:domain": "node tools/emu/domain_tests.js",
     "test:save": "node tools/emu/save_tests.js",
+    "test:story": "node tools/emu/story_tests.mjs",
+    "lift:stories": "node tools/lift_stories.mjs",
     "test:fast": "npm run test:prep && node tools/emu/run_regress.js --fast",
     "test:all": "npm run test:prep && node tools/emu/run_regress.js --all"
   },
