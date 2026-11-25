@@ -256,6 +256,22 @@ export class ArtRegistry {
     return null;
   }
 
+  hdSheetNormalUrl(name: string): string | null {
+    if (!this.sheet(name)) return null;
+    if (name === "chars" || /^portchip_[0-6]$/.test(name)) {
+      return `${this.baseUrl}/hd/sheets/${name}_nrm.png`;
+    }
+    return null;
+  }
+
+  hdSheetMatUrl(name: string): string | null {
+    if (!this.sheet(name)) return null;
+    if (/^portchip_[0-6]$/.test(name)) {
+      return `${this.baseUrl}/hd/sheets/${name}_mat.png`;
+    }
+    return null;
+  }
+
   endingUrl(index: number): string | null {
     return this.resolve(this.manifest?.ending?.[index]);
   }

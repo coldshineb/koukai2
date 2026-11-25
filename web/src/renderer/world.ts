@@ -3,6 +3,7 @@ import { FleetFlag, GameConst } from "../model/flags.ts";
 import { WorldConst, fleetByAddr, fleetShipSlot } from "../model/world_helpers.ts";
 import { VIEW_W, VIEW_H } from "../core/screen.js";
 import { syncDomWorldHud } from "../ui/hud.ts";
+import { getSharedHd2dRenderer, type Hd2dSprite } from "./hd2d_gl.ts";
 
 const TILE = 32; // 40×22.5 格 = 1280×720，无黑边铺满整个 16:9 画面
 const P_MAP_W = 0x60;
@@ -228,9 +229,8 @@ const HD_MODE_TINTS: Record<string, readonly [number, number, number]> = {
   overcast: [194, 208, 224],
 };
 
-function applyHdAtmosphereTint(ctx: CanvasRenderingContext2D, scr: any, vw: number, vh: number) {
+function calcHdFadeFactor(scr: any): { mode: string; fade: number } {
   const mode: string = scr?.atmosphere?.mode || "day";
-  const baseTint = HD_MODE_TINTS[mode] || HD_MODE_TINTS.day;
   const raw: Uint8Array | undefined = scr?.raw;
   let fade = 1;
   if (raw && raw.length >= 48 && DAY_REF_SUM > 0) {
@@ -241,6 +241,12 @@ function applyHdAtmosphereTint(ctx: CanvasRenderingContext2D, scr: any, vw: numb
     const modeBias = mode === "night" ? 0.506 : mode === "dusk" ? 0.923 : mode === "dawn" ? 0.884 : mode === "overcast" ? 0.766 : 1;
     fade = clamp(curSum / Math.max(1, DAY_REF_SUM * modeBias), 0, 1);
   }
+  return { mode, fade };
+}
+
+function applyHdAtmosphereTint(ctx: CanvasRenderingContext2D, scr: any, vw: number, vh: number) {
+  const { mode, fade } = calcHdFadeFactor(scr);
+  const baseTint = HD_MODE_TINTS[mode] || HD_MODE_TINTS.day;
   const r = Math.round(baseTint[0] * fade);
   const g = Math.round(baseTint[1] * fade);
   const b = Math.round(baseTint[2] * fade);
@@ -455,6 +461,86 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
   const endRow = Math.min(P_MAP_W - 1, Math.floor((camPxY + vh - 1) / TILE));
 
   const useHd = prefs?.hdPortTextures !== false;
+
+  // 收集角色清单 (先计算平滑位置以便 HD-2D WebGL2 与 2D 两条路径复用)
+  const visibleSprites: Hd2dSprite[] = [];
+  if (!portScene.night()) {
+    for (let i = 0; i < 8; i++) {
+      const n = portScene.npc(i);
+      if (n.x === 0xff || n.y === 0xff) {
+        portSmooth.npcs[i] = undefined;
+        continue;
+      }
+      const nTw = stepGridTween(portSmooth.npcs[i], n.x, n.y, dt, stepDur * 1.15, gapReset || !useSmoothMove);
+      portSmooth.npcs[i] = nTw;
+      const [nx, ny] = useSmoothMove ? evalGridTween(nTw) : [n.x, n.y];
+      const sx = Math.round(nx * TILE) - camPxX;
+      const sy = Math.round(ny * TILE) - camPxY;
+      if (sx < -64 || sx > vw || sy < -64 || sy > vh) continue;
+      const anim = i >= 4 ? (portScene._npcFrames?.[i - 4] ?? ((portScene.toggle ^ i) & 1)) : (((n.x + n.y) & 1) === 0 ? 1 : 0);
+      const localIdx = i >= 4 ? (n.d + 12) * 2 + anim : ((i & 1) * 4 + n.d + 4) * 2 + anim;
+      const globalIdx = 48 + Math.max(0, Math.min(23, localIdx - 8));
+      visibleSprites.push({ spriteIdx: globalIdx, xPx: sx, yPx: sy, w: TILE * 2, h: TILE * 2, sortY: sy + TILE * 2, isHero: false });
+    }
+  } else {
+    portSmooth.npcs.fill(undefined);
+  }
+
+  const hDir = portScene._lastDir ?? 2;
+  const hPhase = portScene.phase ? 1 : 0;
+  const heroSpriteIdx = portScene.m.globals.hero * 8 + hDir * 2 + hPhase;
+  const hxPx = Math.round(visHeroX * TILE) - camPxX;
+  const hyPx = Math.round(visHeroY * TILE) - camPxY;
+  visibleSprites.push({ spriteIdx: heroSpriteIdx, xPx: hxPx, yPx: hyPx, w: TILE * 2, h: TILE * 2, sortY: hyPx + TILE * 2, isHero: true });
+
+  // 优先走《八方旅人》风格 WebGL2 HD-2D 实时光影/法线/阴影/波光水面/移轴景深管线
+  if (useHd) {
+    const sheetMeta = art.sheet?.(sheetName);
+    const charsMeta = art.sheet?.("chars");
+    const albSheet = art.getImage(art.hdSheetUrl?.(sheetName));
+    const nrmSheet = art.getImage(art.hdSheetNormalUrl?.(sheetName));
+    const matSheet = art.getImage(art.hdSheetMatUrl?.(sheetName));
+    const charsAlb = art.getImage(art.hdSheetUrl?.("chars"));
+    const charsNrm = art.getImage(art.hdSheetNormalUrl?.("chars"));
+    const ready = (im: HTMLImageElement | null) => Boolean(im && im.complete && (im.naturalWidth || im.width) > 0);
+    if (sheetMeta && charsMeta && ready(albSheet) && ready(nrmSheet) && ready(matSheet) && ready(charsAlb) && ready(charsNrm)) {
+      const glRenderer = getSharedHd2dRenderer();
+      if (glRenderer) {
+        const { mode, fade } = calcHdFadeFactor(scr);
+        const glOut = glRenderer.render({
+          vw,
+          vh,
+          mapBytes: M,
+          mapW: P_MAP_W,
+          mapH: P_MAP_W,
+          camPxX,
+          camPxY,
+          tilePx: TILE,
+          timeSec: tNow * 0.001,
+          gameTime: portScene.m?.globals?.time ?? 30,
+          mode,
+          fade,
+          heroScreenX: hxPx + TILE,
+          heroScreenY: hyPx + TILE * 1.4,
+          albSheet: albSheet!,
+          nrmSheet: nrmSheet!,
+          matSheet: matSheet!,
+          charsAlb: charsAlb!,
+          charsNrm: charsNrm!,
+          sheetCols: sheetMeta.cols,
+          sheetRows: sheetMeta.rows,
+          charsCols: charsMeta.cols,
+          charsRows: charsMeta.rows,
+          sprites: visibleSprites,
+        });
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(glOut, 0, 0, vw, vh, 0, 0, vw, vh);
+        drawFloatingHud(portScene, false);
+        return;
+      }
+    }
+  }
+
   const wctx = getWideStageCtx(ctx, vw, vh);
   wctx.fillStyle = "#081424";
   wctx.fillRect(0, 0, vw, vh);
@@ -473,36 +559,9 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
     }
   }
 
-  // 绘制白天行人与站立 NPC（行人在格子间同样平滑移动）
-  if (!portScene.night()) {
-    for (let i = 0; i < 8; i++) {
-      const n = portScene.npc(i);
-      if (n.x === 0xff || n.y === 0xff) {
-        portSmooth.npcs[i] = undefined;
-        continue;
-      }
-      const nTw = stepGridTween(portSmooth.npcs[i], n.x, n.y, dt, stepDur * 1.15, gapReset || !useSmoothMove);
-      portSmooth.npcs[i] = nTw;
-      const [nx, ny] = useSmoothMove ? evalGridTween(nTw) : [n.x, n.y];
-      const sx = Math.round(nx * TILE) - camPxX;
-      const sy = Math.round(ny * TILE) - camPxY;
-      if (sx < -64 || sx > vw || sy < -64 || sy > vh) continue;
-      const anim = i >= 4 ? (portScene._npcFrames?.[i - 4] ?? ((portScene.toggle ^ i) & 1)) : (((n.x + n.y) & 1) === 0 ? 1 : 0);
-      const localIdx = i >= 4 ? (n.d + 12) * 2 + anim : ((i & 1) * 4 + n.d + 4) * 2 + anim;
-      const globalIdx = 48 + Math.max(0, Math.min(23, localIdx - 8));
-      drawSheetTileDirect(wctx, art, "chars", globalIdx, sx, sy, TILE * 2, TILE * 2, scr, false, useHd);
-    }
-  } else {
-    portSmooth.npcs.fill(undefined);
+  for (const sp of visibleSprites) {
+    drawSheetTileDirect(wctx, art, "chars", sp.spriteIdx, sp.xPx, sp.yPx, sp.w, sp.h, scr, false, useHd);
   }
-
-  // 绘制主角
-  const hDir = portScene._lastDir ?? 2;
-  const hPhase = portScene.phase ? 1 : 0;
-  const heroSpriteIdx = portScene.m.globals.hero * 8 + hDir * 2 + hPhase;
-  const hxPx = Math.round(visHeroX * TILE) - camPxX;
-  const hyPx = Math.round(visHeroY * TILE) - camPxY;
-  drawSheetTileDirect(wctx, art, "chars", heroSpriteIdx, hxPx, hyPx, TILE * 2, TILE * 2, scr, false, useHd);
 
   if (usedHdMap) {
     applyHdAtmosphereTint(wctx, scr, vw, vh);

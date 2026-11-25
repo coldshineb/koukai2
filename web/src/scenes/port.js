@@ -69,6 +69,8 @@ export async function loadPortAssets(ctx) {
     await ctx.art.preloadUrls([
       ...sheets.map(s => ctx.art.sheetUrl(s)),
       ...sheets.map(s => ctx.art.hdSheetUrl(s)),
+      ...sheets.map(s => ctx.art.hdSheetNormalUrl(s)),
+      ...sheets.map(s => ctx.art.hdSheetMatUrl(s)),
     ]);
     const dm = ctx.art.manifest?.duel;
     if (dm) {
