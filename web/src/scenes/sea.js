@@ -108,9 +108,9 @@ export class SeaScene extends PortScene {
     st.set8(DS.PORT, 0xff);
     this.item = Math.trunc(this.vx1006 / 0x2d0) & 0xff;               // [06ca]
     // 849a: WORLDMAP 第 [06ca] 項 → [06ce]; 84de: DATA1 #11 → [03ee] (海上圖塊與船隻精靈); DATA1 #7 → [0c86]+0x3ea0 (羅盤指針)
+    await palette.fadeBlack();                                         // 99f2 (先淡黑再切換海圖緩衝，避免切換瞬間閃出錯位圖塊)
     if (this.map && this.map !== this.seaBuf) this.seaBuf.set(this.map.subarray(0, 0x2400));   // [03f6] 原本是出港港口的 PORTMAP
     this.map = this.seaBuf; this.chipSetName = "seachip"; this.tileCache.clear();
-    await palette.fadeBlack();                                         // 99f2
     this.c.bgm.playSong(st.u8(DS.HERO) + 4);                            // 9670 主角的海上曲目
     sys.mouseHide();
     // 9630: [03d5] 恆為 1, 不動作
@@ -317,21 +317,39 @@ export class SeaScene extends PortScene {
 
   // ================= 海上時刻 1fd9:13c1 = 21151 (輸入) =================
   async seaInput() {
-    const { sys, menu } = this.c;
+    const { sys, menu, scr } = this.c;
+    const steerFromViewPos = (vx, vy) => {
+      // 以主角船隻實際畫面座標為中心計算 8 方向（靠近地圖邊緣時也能精準轉向）
+      let cx = 640, cy = 360;
+      const cam = scr._wideSeaCam;
+      if (cam) {
+        let dxw = this.wx(this.fleet) - cam.baseWX;
+        if (dxw < -cam.worldW / 2) dxw += cam.worldW;
+        else if (dxw > cam.worldW / 2) dxw -= cam.worldW;
+        const dyw = this.wy(this.fleet) - cam.baseWY;
+        cx = (dxw - cam.camX) * cam.tile + cam.tile;
+        cy = (dyw - cam.camY) * cam.tile + cam.tile;
+      }
+      const dx = vx - cx, dy = vy - cy;
+      if (Math.hypot(dx, dy) < 20) return 0;
+      const deg = ((Math.atan2(dy, dx) * 180) / Math.PI + 90 + 360) % 360;
+      const oct = Math.floor(((deg + 22.5) % 360) / 45);
+      this.a9c8 &= 0xfd;
+      return [0x38, 0x39, 0x36, 0x33, 0x32, 0x31, 0x34, 0x37][oct];
+    };
     const translateSeaKey = k => {
       if (k === 0x1e) return 0x38;      // ↑ -> 北 (8)
       if (k === 0x1f) return 0x32;      // ↓ -> 南 (2)
       if (k === 0x1d) return 0x34;      // ← -> 西 (4)
       if (k === 0x1c) return 0x36;      // → -> 東 (6)
-      if (k === 0xff && this.c.scr.wideRenderer && sys.mouse?.vx !== undefined) {
-        const dx = sys.mouse.vx - 640, dy = sys.mouse.vy - 360;
-        if (Math.hypot(dx, dy) >= 24) {
-          const deg = ((Math.atan2(dy, dx) * 180) / Math.PI + 90 + 360) % 360;
-          const oct = Math.floor(((deg + 22.5) % 360) / 45);
-          this.a9c8 &= 0xfd;
-          return [0x38, 0x39, 0x36, 0x33, 0x32, 0x31, 0x34, 0x37][oct];
-        }
-        return 0;
+      if (k === 0xff && scr.wideRenderer && sys.mouse?.vx !== undefined) {
+        sys.mouse.lastClick = null;
+        return steerFromViewPos(sys.mouse.vx, sys.mouse.vy);
+      }
+      if (!k && scr.wideRenderer && sys.mouse?.lastClick) {
+        const lc = sys.mouse.lastClick;
+        sys.mouse.lastClick = null;
+        if (performance.now() - lc.t < 600) return steerFromViewPos(lc.vx, lc.vy);
       }
       return k;
     };

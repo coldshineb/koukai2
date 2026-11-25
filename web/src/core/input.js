@@ -44,7 +44,14 @@ export function bindInput(canvas, sys) {
     m.mdy = (m.mdy | 0) + Math.round(e.movementY * k * (sys.mickeyRatio?.[1] ?? 16) / 8);
     pos(e);
   });
-  canvas.addEventListener("mousedown", e => { pos(e); sys.mouse.buttons |= e.button === 2 ? 2 : e.button === 0 ? 1 : 0; e.preventDefault(); });
+  canvas.addEventListener("mousedown", e => {
+    pos(e);
+    sys.mouse.buttons |= e.button === 2 ? 2 : e.button === 0 ? 1 : 0;
+    if (e.button === 0 && document.body?.dataset.uw2Modal !== "open") {
+      sys.mouse.lastClick = { vx: sys.mouse.vx, vy: sys.mouse.vy, t: performance.now() };
+    }
+    e.preventDefault();
+  });
   addEventListener("mouseup", e => { sys.mouse.buttons &= ~(e.button === 2 ? 2 : e.button === 0 ? 1 : 0); });
   window.addEventListener("contextmenu", e => e.preventDefault());
   canvas.style.cursor = "default";        // 階段 4: 使用瀏覽器原生高精度指標

@@ -1,7 +1,7 @@
 // modern/dom_battle.ts — 16:9 現代羊皮紙海戰 HUD + 戰場 Canvas 縮放渲染器 + 無遮擋右側指令/確認欄 + 羊皮紙情報卡
 // 左側 (20, 10, 728×700) 清晰呈現 1.75× 縮放六角格海戰場（絕不被選單模糊遮擋），
 // 右側以暖羊皮紙卡片呈現旗艦狀態、風向、戰術小地圖，底部卡位無縫承載戰況訊息、戰鬥指令與是/否確認。
-import { createDomModal, hasDom, getPersonPortraitSrc } from "./dom_ui.ts";
+import { createDomModal, hasDom, getPersonPortraitSrc, preserveScroll } from "./dom_ui.ts";
 import { hideDomWorldHud } from "./dom_hud.ts";
 import { decodeCleanCstr, toSimp } from "../canvas_ui/text_util.ts";
 import { DS, OFF } from "../model/schema_views.ts";
@@ -313,52 +313,293 @@ export async function runDomBattleFleetModal(battle: any, personId: number): Pro
   });
 }
 
-/** 現代羊皮紙人物資料彈窗（海戰我方船員 / 敵方提督） */
+/** 現代羊皮紙人物資料彈窗（海戰敵方提督） */
 export async function runDomBattlePersonModal(battle: any, personId: number): Promise<void> {
-  if (!hasDom()) return;
+  return runDomBattleCrewModal(battle, [personId], "人物资料");
+}
+
+/** 現代羊皮紙左右分欄人物情報彈窗（左側人名清單、右側即時顯示頭像與能力，無需二次彈窗） */
+export async function runDomBattleCrewModal(battle: any, personIds: number[], title = "舰队人物"): Promise<void> {
+  if (!hasDom() || !personIds.length) return;
   const st = battle.st, art = battle.c.art, codec = battle.c.codec;
   const dec = (bts: Uint8Array) => toSimp(decodeCleanCstr(codec, bts));
-  const P = battle.person(personId);
-  const gName = dec(st.cstr(P));
-  const fName = dec(st.cstr(P + OFF.PERSON.FAMILY_NAME));
-  const fullName = fName ? `${gName}·${fName}` : gName;
-  const portraitSrc = await getPersonPortraitSrc(art, st.bytes(P, 0x32));
+  let selIdx = 0;
 
   return new Promise(resolve => {
     const h = createDomModal({
-      title: fullName,
+      title,
+      size: personIds.length > 1 ? "wide" : "md",
+      cancelable: true,
+      closeLabel: "关闭",
+      onCancel: () => resolve(),
+    });
+
+    const render = () => {
+      preserveScroll(h.body, () => {
+        h.body.innerHTML = "";
+        const pid = personIds[selIdx];
+        const P = battle.person(pid);
+        const gName = dec(st.cstr(P));
+        const fName = dec(st.cstr(P + OFF.PERSON.FAMILY_NAME));
+        const fullName = fName ? `${gName}·${fName}` : gName;
+
+        const detail = document.createElement("div");
+        detail.className = "uw2-action-box";
+        detail.style.cssText = "flex-direction:row;gap:16px;align-items:flex-start;";
+
+        const portWrap = document.createElement("div");
+        portWrap.style.cssText = "width:68px;flex-shrink:0;";
+        void getPersonPortraitSrc(art, st.bytes(P, 0x32)).then(src => {
+          if (!src || !portWrap.isConnected) return;
+          const img = document.createElement("img");
+          img.src = src;
+          img.className = "uw2-portrait-img";
+          portWrap.appendChild(img);
+        });
+        detail.appendChild(portWrap);
+
+        const rightCol = document.createElement("div");
+        rightCol.style.cssText = "flex:1;display:flex;flex-direction:column;gap:10px;";
+        const nameEl = document.createElement("div");
+        nameEl.style.cssText = "font-size:17px;font-weight:700;color:var(--uw2-ink);";
+        nameEl.textContent = fullName;
+        const grid = document.createElement("div");
+        grid.style.cssText = "display:grid;grid-template-columns:repeat(2,1fr);gap:8px 16px;font-size:14px;color:var(--uw2-ink);";
+        const stats: [string, number][] = [
+          ["航海等级", st.u8(P + OFF.PERSON.NAV_LEVEL)],
+          ["战斗等级", st.u8(P + OFF.PERSON.BATTLE_LEVEL)],
+          ["统率力", st.u8(P + 0x1c)],
+          ["航海术", st.u8(P + 0x1d)],
+          ["知识", st.u8(P + 0x1e)],
+          ["直觉", st.u8(P + 0x1f)],
+          ["勇气", st.u8(P + 0x20)],
+          ["剑术", st.u8(P + 0x21)],
+          ["魅力", st.u8(P + 0x22)],
+          ["运气", st.u8(P + 0x23)],
+        ];
+        grid.innerHTML = stats.map(([k, v]) => `<div>${k}：<strong>${v}</strong></div>`).join("");
+        rightCol.append(nameEl, grid);
+        detail.appendChild(rightCol);
+
+        if (personIds.length === 1) {
+          h.body.appendChild(detail);
+          return;
+        }
+
+        const split = document.createElement("div");
+        split.className = "uw2-split narrow-left";
+        const left = document.createElement("div");
+        left.className = "uw2-list-col";
+        personIds.forEach((id, i) => {
+          const R = battle.person(id);
+          const gn = dec(st.cstr(R));
+          const fn = dec(st.cstr(R + OFF.PERSON.FAMILY_NAME));
+          const btn = document.createElement("button");
+          btn.className = `uw2-row-card ${i === selIdx ? "selected" : ""}`;
+          btn.innerHTML = `<span style="font-weight:700;">${fn ? `${gn}·${fn}` : gn}</span><span style="font-size:12px;color:var(--uw2-ink-muted);">战 ${st.u8(R + OFF.PERSON.BATTLE_LEVEL)}</span>`;
+          btn.addEventListener("click", () => { selIdx = i; render(); });
+          left.appendChild(btn);
+        });
+        split.append(left, detail);
+        h.body.appendChild(split);
+      }, true);
+    };
+
+    render();
+  });
+}
+
+/** 現代羊皮紙作戰一覽彈窗（取代原版 Canvas 列表） */
+export function runDomBattleOrdersModal(battle: any): Promise<void> {
+  if (!hasDom()) return Promise.resolve();
+  const st = battle.st, codec = battle.c.codec;
+  const dec = (bts: Uint8Array) => toSimp(decodeCleanCstr(codec, bts));
+  const flag = battle.u16(battle.u16(0x9bc0));
+
+  return new Promise(resolve => {
+    const h = createDomModal({
+      title: "作战一览",
       size: "md",
       cancelable: true,
       closeLabel: "关闭",
       onCancel: () => resolve(),
     });
-    const box = document.createElement("div");
-    box.className = "uw2-action-box";
-    box.style.cssText = "flex-direction:row;gap:16px;align-items:flex-start;";
-    if (portraitSrc) {
-      const img = document.createElement("img");
-      img.src = portraitSrc;
-      img.className = "uw2-portrait-img";
-      box.appendChild(img);
+    const list = document.createElement("div");
+    list.className = "uw2-list-col";
+    for (let B = flag; B; B = battle.u16(B + 8)) {
+      if (!battle.alive(B)) continue;
+      const num = (battle.u8(B + 0x0d) & 0x0f) + 1;
+      const R = battle.shipRec(battle.u8(battle.u16(B + 2) + 7));
+      const shipName = dec(st.cstr(R));
+      const f = battle.u8(B + 0x0c);
+      let desc = "";
+      if (B === flag) {
+        desc = "旗舰";
+      } else {
+        const form = (f & 8) ? "撤离" : (f & 4) ? "集结" : "分散";
+        const stance = (f & 1) ? "攻势" : "守势";
+        const strat = (f & 2) ? "攻击" : "退避";
+        const tactic = (f & 0x10) ? "炮击" : "肉搏";
+        let target = "委任";
+        if (f & 0x80) {
+          const T = battle.u16(B + 6);
+          const sideTag = (battle.u8(T + 0x0d) & 0x20) ? "敌援" : "敌";
+          target = `${sideTag}${dec(battle.shipName(battle.u8(T + 0x0d) & 0x0f))}`;
+        }
+        desc = `${form} · ${stance} · ${strat} · ${tactic} · 目标：${target}`;
+      }
+      const card = document.createElement("div");
+      card.className = "uw2-slot-card";
+      card.innerHTML = `<span class="uw2-slot-title">${num}号 ${shipName}</span><span class="uw2-slot-sub">${desc}</span>`;
+      list.appendChild(card);
     }
-    const grid = document.createElement("div");
-    grid.style.cssText = "flex:1;display:grid;grid-template-columns:repeat(2,1fr);gap:8px 16px;font-size:14px;color:var(--uw2-ink);";
-    const stats: [string, number][] = [
-      ["航海等级", st.u8(P + OFF.PERSON.NAV_LEVEL)],
-      ["战斗等级", st.u8(P + OFF.PERSON.BATTLE_LEVEL)],
-      ["统率力", st.u8(P + 0x1c)],
-      ["航海术", st.u8(P + 0x1d)],
-      ["知识", st.u8(P + 0x1e)],
-      ["直觉", st.u8(P + 0x1f)],
-      ["勇气", st.u8(P + 0x20)],
-      ["剑术", st.u8(P + 0x21)],
-      ["魅力", st.u8(P + 0x22)],
-      ["运气", st.u8(P + 0x23)],
-    ];
-    grid.innerHTML = stats.map(([k, v]) => `<div>${k}：<strong>${v}</strong></div>`).join("");
-    box.appendChild(grid);
-    h.body.appendChild(box);
+    h.body.appendChild(list);
   });
+}
+
+/** 右側海戰 HUD 無遮擋「信號」面板（3 個可點擊開關 + 確定） */
+export function runDomBattleSignal(battle: any, cur: number): Promise<void> {
+  const root = ensureBattleRoot();
+  if (!root || !actionCard || !msgCard) return Promise.resolve();
+
+  return new Promise(resolve => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener("keydown", onKey, true);
+      if (actionCard) { actionCard.style.display = "none"; actionCard.innerHTML = ""; }
+      if (msgCard) msgCard.style.display = "flex";
+      resolve();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" || e.key === "Enter") { e.preventDefault(); e.stopPropagation(); finish(); }
+    };
+    window.addEventListener("keydown", onKey, true);
+
+    const render = () => {
+      msgCard!.style.display = "none";
+      actionCard!.style.display = "flex";
+      actionCard!.innerHTML = "";
+
+      const f = battle.u8(cur + 0x0c);
+      const head = document.createElement("div");
+      head.className = "uw2-battle-action-head";
+      head.innerHTML = `<span class="uw2-pane-title">全舰信号</span>`;
+      const doneBtn = document.createElement("button");
+      doneBtn.className = "uw2-btn uw2-btn-primary";
+      doneBtn.style.padding = "4px 14px";
+      doneBtn.textContent = "确定";
+      doneBtn.addEventListener("click", finish);
+      head.appendChild(doneBtn);
+
+      const grid = document.createElement("div");
+      grid.className = "uw2-battle-cmd-row";
+      const defs: [string, string, number][] = [
+        ["行动", (f & 8) ? "撤离" : "继续作战", 8],
+        ["阵形", (f & 4) ? "集结" : "分散", 4],
+        ["态势", (f & 1) ? "攻势" : "守势", 1],
+      ];
+      for (const [label, val, bit] of defs) {
+        const btn = document.createElement("button");
+        btn.className = "uw2-battle-cmd-btn";
+        btn.style.cssText = "display:flex;justify-content:space-between;align-items:center;";
+        btn.innerHTML = `<span style="color:var(--uw2-ink-muted);font-weight:600;">${label}</span><strong>${val}</strong>`;
+        btn.addEventListener("click", () => {
+          battle.set8(cur + 0x0c, battle.u8(cur + 0x0c) ^ bit);
+          render();
+        });
+        grid.appendChild(btn);
+      }
+      actionCard!.append(head, grid);
+    };
+    render();
+  });
+}
+
+/** 右側海戰 HUD 無遮擋「作戰」單船指令面板（策略 / 戰術 / 目標均可直接點擊） */
+export async function runDomBattleShipOrders(battle: any, B: number): Promise<void> {
+  const root = ensureBattleRoot();
+  if (!root || !actionCard || !msgCard) return;
+  const st = battle.st, codec = battle.c.codec;
+  const dec = (bts: Uint8Array) => toSimp(decodeCleanCstr(codec, bts));
+  const R = battle.shipRec(battle.u8(battle.u16(B + 2) + 7));
+  const shipLabel = `${(battle.u8(B + 0x0d) & 0x0f) + 1}号 ${dec(st.cstr(R))}`;
+
+  for (;;) {
+    const action = await new Promise<"strat" | "tactic" | "target" | "done">(resolve => {
+      let settled = false;
+      const done = (v: "strat" | "tactic" | "target" | "done") => {
+        if (settled) return;
+        settled = true;
+        window.removeEventListener("keydown", onKey, true);
+        if (actionCard) { actionCard.style.display = "none"; actionCard.innerHTML = ""; }
+        if (msgCard) msgCard.style.display = "flex";
+        resolve(v);
+      };
+      const onKey = (e: KeyboardEvent) => {
+        if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); done("done"); }
+      };
+      window.addEventListener("keydown", onKey, true);
+
+      msgCard!.style.display = "none";
+      actionCard!.style.display = "flex";
+      actionCard!.innerHTML = "";
+
+      const f = battle.u8(B + 0x0c);
+      const head = document.createElement("div");
+      head.className = "uw2-battle-action-head";
+      head.innerHTML = `<span class="uw2-pane-title">作战 · ${shipLabel}</span>`;
+      const doneBtn = document.createElement("button");
+      doneBtn.className = "uw2-btn uw2-btn-primary";
+      doneBtn.style.padding = "4px 14px";
+      doneBtn.textContent = "完成";
+      doneBtn.addEventListener("click", () => done("done"));
+      head.appendChild(doneBtn);
+
+      let targetText = "委任";
+      if (f & 0x80) {
+        const T = battle.u16(B + 6);
+        const sideTag = (battle.u8(T + 0x0d) & 0x20) ? "敌援" : "敌";
+        targetText = `${sideTag}${dec(battle.shipName(battle.u8(T + 0x0d) & 0x0f))}`;
+      }
+
+      const grid = document.createElement("div");
+      grid.className = "uw2-battle-cmd-row";
+      const rows: [string, string, "strat" | "tactic" | "target"][] = [
+        ["策略", (f & 2) ? "攻击" : "退避", "strat"],
+        ["战术", (f & 0x10) ? "炮击为主" : "肉搏为主", "tactic"],
+        ["目标", targetText, "target"],
+      ];
+      for (const [label, val, act] of rows) {
+        const btn = document.createElement("button");
+        btn.className = "uw2-battle-cmd-btn";
+        btn.style.cssText = "display:flex;justify-content:space-between;align-items:center;";
+        btn.innerHTML = `<span style="color:var(--uw2-ink-muted);font-weight:600;">${label}</span><strong>${val}</strong>`;
+        btn.addEventListener("click", () => done(act));
+        grid.appendChild(btn);
+      }
+      actionCard!.append(head, grid);
+    });
+
+    if (action === "done") break;
+    if (action === "strat") {
+      battle.set8(B + 0x0c, battle.u8(B + 0x0c) ^ 2);
+      battle.and8(B + 0x0c, 0xfe);
+      battle.or8(B + 0x0c, (battle.u8(B + 0x0c) & 2) >> 1);
+    } else if (action === "tactic") {
+      battle.set8(B + 0x0c, battle.u8(B + 0x0c) ^ 0x10);
+    } else if (action === "target") {
+      if (!(battle.u8(B + 0x0c) & 0x80)) {
+        battle.or8(B + 0x0c, 0x80);
+        battle.set16(B + 6, await battle.pickTargetFor());
+      } else {
+        battle.and8(B + 0x0c, 0x7f);
+        battle.set16(B + 6, 0);
+      }
+      if (!battle.u16(B + 6)) battle.and8(B + 0x0c, 0x7f);
+    }
+  }
 }
 
 /** 現代羊皮紙單船情報彈窗（海戰我方/敵方艦船） */

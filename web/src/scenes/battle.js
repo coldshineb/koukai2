@@ -19,7 +19,7 @@ import { marketTradeLog } from "./market.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
 import { hasDom } from "../modern/dom_ui.ts";
-import { BATTLE_VIEWPORT, renderWideBattle, hideDomBattleHud, runDomBattleFleetModal, runDomBattlePersonModal, runDomBattleShipModal } from "../modern/dom_battle.ts";
+import { BATTLE_VIEWPORT, renderWideBattle, hideDomBattleHud, runDomBattleFleetModal, runDomBattlePersonModal, runDomBattleCrewModal, runDomBattleShipModal, runDomBattleOrdersModal, runDomBattleSignal, runDomBattleShipOrders } from "../modern/dom_battle.ts";
 import { createEscStripper } from "../canvas_ui/text_util.ts";
 
 const btHex = s => Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16)));
@@ -987,7 +987,7 @@ export class NavalBattle {
       case 3: return this.cmdSignal();                                  // b30f
       case 4: return this.cmdOrders();                                  // b6db
       case 5: return this.cmdStop();                                    // b6f2
-      case 6: await this.sea.commandsObj().belongings(); return 0;     // b71b: 1fd9:9cbc = 29a4c 隨身物 (commands.js), 回傳 0
+      case 6: await this.sea.commandsObj().belongings(); if (this.c.scr._battleHudActive) this.redraw(); return 0;     // b71b: 1fd9:9cbc = 29a4c 隨身物 (commands.js), 回傳 0
       case 7: return this.cmdRetreat();                                 // b723
     }
     return 0;
@@ -1000,18 +1000,32 @@ export class NavalBattle {
   async cmdInfo() {
     const { menu } = this.c;
     for (;;) {
-      const items = this.c.menuItems(0x33);
+      const allItems = this.c.menuItems(0x33);
       this.infoEnable();                                                // b19c
+      if (this.c.scr._battleHudActive && hasDom()) {
+        // 現代模式移除冗餘的「本方艦船」(index 2)，艦隊內已含所有船隻資訊
+        const mapIdx = [0, 1, 3, 4, 5, 6];
+        const filtered = mapIdx.map(i => allItems[i]);
+        let dis = 0;
+        mapIdx.forEach((orig, ni) => { if (menu.disabled & (1 << orig)) dis |= (1 << ni); });
+        menu.disabled = dis;
+        menu.wideMenuTitle = "情报";
+        const r = await menu.popupMenu(filtered, 1);
+        menu.wideMenuTitle = "";
+        if (r === 0xff) return 0;
+        const orig = mapIdx[r];
+        await [() => this.fleetLook(this.st.u8(DS.HERO)), () => this.infoCrew(), () => this.infoShips(), () => this.infoEnemyFleet(),
+          () => this.infoEnemyPerson(), () => this.infoEnemyShip(), () => this.infoOrders()][orig]();
+        continue;
+      }
       menu.wideMenuTitle = "情报";
-      const r = await menu.popupMenu(items, 1);
+      const r = await menu.popupMenu(allItems, 1);
       menu.wideMenuTitle = "";
       if (r === 0xff) return 0;
       await [() => this.fleetLook(this.st.u8(DS.HERO)), () => this.infoCrew(), () => this.infoShips(), () => this.infoEnemyFleet(),
         () => this.infoEnemyPerson(), () => this.infoEnemyShip(), () => this.infoOrders()][r]();   // ad9f / ada7 / addc / ae57 / aebc / af32 / b0bc
-      if (!this.c.scr._battleHudActive) {
-        this.redraw();                                                  // c608
-        await this.fadeIn();                                            // bcfa
-      }
+      this.redraw();                                                    // c608
+      await this.fadeIn();                                              // bcfa
     }
   }
   // b19c [a14c]: bit5 主角艦隊以外沒有視窗內的活船, bit6 目前這艘之後本方沒有活船
@@ -1048,12 +1062,17 @@ export class NavalBattle {
   // ada7 人物 (主角 + 船員, 12d8c): 清單種類 6 → 1c839(人物, 6, 1)
   async infoCrew() {
     const b = this.sea.b, cm = this.sea.commandsObj(), n = b.captainPool();
+    if (this.c.scr._battleHudActive && hasDom()) {
+      const ids = [];
+      for (let i = 0; i < n; i++) ids.push(this.c.persons[i] & 0xff);
+      await runDomBattleCrewModal(this, ids, "舰队人物");
+      return;
+    }
     for (;;) {
       const r = await b.listSel().select(6, n);
       await b.closeTalk();                                              // 796d
       if (r === -1) return;
-      if (this.c.scr._battleHudActive && hasDom()) await runDomBattlePersonModal(this, this.c.persons[r] & 0xff);
-      else cm.personInfo(this.c.persons[r] & 0xff, 6, 1);               // 0fea:c999
+      cm.personInfo(this.c.persons[r] & 0xff, 6, 1);                    // 0fea:c999
     }
   }
   // addc 本方的船: 清單種類 0 → 艦船調色盤 → 1c1a3(船位, 6) → 490b → c2ee / c608 / bcfa
@@ -1187,6 +1206,10 @@ export class NavalBattle {
   }
   // b0bc 本方各船的命令一覽 (視窗不保存背景)
   async infoOrders() {
+    if (this.c.scr._battleHudActive && hasDom()) {
+      await runDomBattleOrdersModal(this);
+      return;
+    }
     const { win, con, printf, menu } = this.c, st = this.st, flag = this.u16(this.u16(0x9bc0));
     let n = 0; for (let B = flag; B; B = this.u16(B + 8)) if (this.alive(B)) n++;
     win.frame(0, 0x20, 0x34, (n * 0x18 + 0x20) & 0xffff, 0);           // 7358
@@ -1218,6 +1241,15 @@ export class NavalBattle {
   // b30f 信號: 目前這艘 (旗艦) +0c bit3 / bit2 / bit0 切換 → 結束時抄給本方之後的每艘
   async cmdSignal() {
     const { con, menu, printf } = this.c, cur = this.u16(0x9bc2), R = menu.rects;
+    if (this.c.scr._battleHudActive && hasDom()) {
+      await runDomBattleSignal(this, cur);
+      for (let B = this.u16(cur + 8); B; B = this.u16(B + 8)) {
+        const f = this.u8(cur + 0x0c);
+        this.set8(B + 0x0c, (this.u8(B + 0x0c) & 0xf0) | (f & 0x0d) | ((f & 1) << 1));
+      }
+      this.msgArea();
+      return 0;
+    }
     this.msgArea();                                                     // c2ee
     this.signalText(cur);                                               // b2b5
     for (let i = 0; i < 3; i++) R[i] = { x0: 0x1b8 + 0x30 * i, x1: 0x1d8 + 0x30 * i, y0: 0x170, y1: 0x180 };
@@ -1281,6 +1313,11 @@ export class NavalBattle {
   }
   // b61f 一艘船的命令: 0 策略 (bit1, bit0 = bit1)、1 戰術 (bit4)、2 對象 (bit7 + +6)
   async shipOrders(B) {
+    if (this.c.scr._battleHudActive && hasDom()) {
+      await runDomBattleShipOrders(this, B);
+      this.msgArea();
+      return;
+    }
     const { menu } = this.c;
     this.msgArea();
     for (;;) {

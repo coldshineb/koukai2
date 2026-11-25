@@ -1114,7 +1114,14 @@ export async function runDomBelongings(cmd: any): Promise<void> {
           const it = itemIds[selIdx];
           const R = DS.TBL_ITEM + it * 0x14;
           const imgUrl = art?.discoveryUrl?.(st.u8(R + 0x0f) + 0x55);
-          const lines = cap(() => b.itemInfo(it, 1)).split("\n").filter(Boolean);
+          const origGraphDraw = c.graph?.draw;
+          let lines: string[] = [];
+          try {
+            if (c.graph) c.graph.draw = () => {};
+            lines = cap(() => b.itemInfo(it, 1)).split("\n").filter(Boolean);
+          } finally {
+            if (c.graph && origGraphDraw) c.graph.draw = origGraphDraw;
+          }
 
           const head = document.createElement("div");
           head.style.cssText = "display:flex;gap:16px;align-items:flex-start;";
