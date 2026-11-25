@@ -159,24 +159,22 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
     info.style.cssText = "display:flex;flex-direction:column;gap:5px;min-width:258px;";
     if (atSea && ss) {
       info.innerHTML = `
-        <div style="font-size:15.5px;font-weight:700;color:#7a4e10;">${dateText}</div>
-        <div style="display:flex;gap:18px;font-size:15px;font-weight:600;color:var(--uw2-ink);">
-          <span>水 <b style="color:${seaWater <= 10 ? "#b83d3d" : "#2a6bb8"};">${seaWater}</b></span>
-          <span>粮食 <b style="color:${seaFood <= 10 ? "#b83d3d" : "#247544"};">${seaFood}</b></span>
-        </div>
-        <div style="display:flex;gap:18px;font-size:15px;font-weight:600;color:var(--uw2-ink);">
-          <span>物资 <b>${seaLumber}</b></span>
-          <span>炮弹 <b>${seaAmmo}</b></span>
+        <div style="font-size:15.5px;font-weight:700;color:#7a4e10;font-variant-numeric:tabular-nums;">${dateText}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px 12px;font-size:15px;font-weight:600;color:var(--uw2-ink);font-variant-numeric:tabular-nums;">
+          <span style="white-space:nowrap;">水 <b style="color:${seaWater <= 10 ? "#b83d3d" : "#2a6bb8"};">${seaWater}</b></span>
+          <span style="white-space:nowrap;">粮食 <b style="color:${seaFood <= 10 ? "#b83d3d" : "#247544"};">${seaFood}</b></span>
+          <span style="white-space:nowrap;">物资 <b>${seaLumber}</b></span>
+          <span style="white-space:nowrap;">炮弹 <b>${seaAmmo}</b></span>
         </div>
       `;
     } else {
       info.innerHTML = `
-        <div style="font-size:15.5px;font-weight:700;color:#7a4e10;">${dateText}</div>
-        <div style="display:flex;gap:18px;font-size:15px;font-weight:600;color:var(--uw2-ink);">
-          <span>声望 <b>${fame}</b></span>
-          <span>金块 <b style="color:#8a5d17;">${bars}</b></span>
+        <div style="font-size:15.5px;font-weight:700;color:#7a4e10;font-variant-numeric:tabular-nums;">${dateText}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px 12px;font-size:15px;font-weight:600;color:var(--uw2-ink);font-variant-numeric:tabular-nums;">
+          <span style="white-space:nowrap;">声望 <b>${fame}</b></span>
+          <span style="white-space:nowrap;">金块 <b style="color:#8a5d17;">${bars}</b></span>
+          <span style="white-space:nowrap;">金币 <b style="color:#8a5d17;">${gold}</b></span>
         </div>
-        <div style="font-size:15px;font-weight:600;color:var(--uw2-ink);">金币 <b style="color:#8a5d17;">${gold}</b></div>
       `;
     }
     tlEl.append(img, info);
@@ -275,21 +273,21 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
              <circle cx="14" cy="14" r="3" fill="#8a7a62"/>
            </svg>`;
       trEl.innerHTML = `
-        <div style="display:flex;gap:12px;align-items:center;font-size:14.5px;color:var(--uw2-ink);width:100%;justify-content:space-between;text-align:center;">
-          <div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1.25fr;gap:6px;align-items:center;font-size:14.5px;color:var(--uw2-ink);width:100%;text-align:center;font-variant-numeric:tabular-nums;">
+          <div style="min-width:0;">
             <div style="color:var(--uw2-ink-muted);margin-bottom:2px;font-weight:600;">风向</div>
             ${arrowSvg(windDir, windStr > 0, "#247544")}
-            <b>${windStr ? `${DIR_LABELS[windDir]} ${windStr}` : "无风"}</b>
+            <b style="display:block;white-space:nowrap;">${windStr ? `${DIR_LABELS[windDir]} ${windStr}` : "无风"}</b>
           </div>
-          <div>
+          <div style="min-width:0;">
             <div style="color:var(--uw2-ink-muted);margin-bottom:2px;font-weight:600;">洋流</div>
             ${arrowSvg(curDir, curStr > 0, "#2a6bb8")}
-            <b>${curStr ? `${DIR_LABELS[curDir]} ${curStr}` : "平静"}</b>
+            <b style="display:block;white-space:nowrap;">${curStr ? `${DIR_LABELS[curDir]} ${curStr}` : "平静"}</b>
           </div>
-          <div>
+          <div style="min-width:0;">
             <div style="color:var(--uw2-ink-muted);margin-bottom:2px;font-weight:600;">航向</div>
             ${arrowSvg(headDir, headDir < 8, "#c93b2b")}
-            <b style="color:#8a5d17;">${spd}kt · ${days}天</b>
+            <b style="display:block;white-space:nowrap;color:#8a5d17;">${spd}kt · ${days}天</b>
           </div>
         </div>
       `;

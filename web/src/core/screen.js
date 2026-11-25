@@ -483,7 +483,7 @@ export class Screen {
     if (!this.ctx) return;
     if (this.dpr && this.dpr !== 1) this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     const cur = this.cursor, key = cur && cur.visible ? `${cur.x},${cur.y},${cur.shape}` : "";
-    const liveFx = !!this.wideRenderer || (this.atmosphere.active && ((this.atmosphere.atSea && (this.atmosphere.weather & 15) === 1) || this.atmosphere.mode === "night"));
+    const liveFx = !!this.wideRenderer;
     if (!this.dirty && !liveFx && key === this.lastCursor) return;
     this.lastCursor = key;
     const fb = this.fb, hm = this.hdMask, out = this.out, lut = this.lut, base = Y_OFFSET * SCREEN_W;

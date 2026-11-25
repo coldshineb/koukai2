@@ -225,26 +225,6 @@ function drawSheetTileDirect(
   );
 }
 
-/** 僅保留暴風雨雨絲特效；所有日夜時段色調完全交由原版 16 色調色盤 (scr.raw) 呈現 */
-function drawStormRainOnly(ctx: CanvasRenderingContext2D, scr: any) {
-  const a = scr.atmosphere;
-  const isStorm = !!(a?.active && a.atSea && (a.weather & 15) === 1);
-  if (!isStorm) return;
-  const t = typeof performance !== "undefined" ? performance.now() * 0.001 : 0;
-  ctx.save();
-  ctx.strokeStyle = "rgba(195, 220, 255, 0.36)";
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  for (let i = 0; i < 84; i++) {
-    const px = (i * 113 + t * 280) % VIEW_W;
-    const py = (i * 67 + t * 760) % VIEW_H;
-    ctx.moveTo(px, py);
-    ctx.lineTo(px - 12, py + 28);
-  }
-  ctx.stroke();
-  ctx.restore();
-}
-
 function drawFloatingHud(ctx: CanvasRenderingContext2D, scene: any, atSea: boolean) {
   if (hasDom()) {
     syncDomWorldHud(scene, atSea);
@@ -659,6 +639,5 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
     drawOneFleet(F, 0, true);
   }
 
-  drawStormRainOnly(ctx, scr);
   drawFloatingHud(ctx, seaScene, true);
 }
