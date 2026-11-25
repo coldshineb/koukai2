@@ -1,17 +1,18 @@
-// explore_walk.js — explore.js 的港内走路辅助: 依港口地图 (web/assets/gfx/portmap.bin + portchip.bin 的 bd78) 以 BFS 找路,
+// explore_walk.js — explore.js 的港内走路辅助: 依港口地图 (portmap.json + 原版 portchip 阻塞参数) 以 BFS 找路,
 //   每送一个方向键就重新读主角位置与行人位置; 撞到行人开了对话窗口时按 Enter 关掉。只用来「探索」按键串行, 重播时不需要。
 "use strict";
 (function () {
-const S = session, X = S.X, fs = require("fs");
+const S = session, U = S.UI, X = S.X, fs = require("fs");
 const K = S.K = { down: [0x50, 0], up: [0x48, 0], left: [0x4b, 0], right: [0x4d, 0], enter: [0x1c, 0x0d], esc: [0x01, 0x1b], sp: [0x39, 0x20], f5: [0x3f, 0] };
 K.d = n => String(n).split("").map(ch => [ch === "0" ? 0x0b : ch.charCodeAt(0) - 0x2f, ch.charCodeAt(0)]);   // 数字键 (计算机输入)
 // 至今的按键存盘 (沙盒被杀掉时可从文件重播): X.save(名称) / X.load(名称)
 X.save = name => fs.writeFileSync(S.W + "/op/" + name + ".json", JSON.stringify(X.log));
 X.load = name => JSON.parse(fs.readFileSync(S.W + "/op/" + name + ".json", "utf8"));
-const A = S.W + "/uw2_remake/web/assets/";
-const MAPS = new Uint8Array(fs.readFileSync(A + "gfx/portmap.bin")), CHIP = new Uint8Array(fs.readFileSync(A + "gfx/portchip.bin"));
+const A = S.W + "/uw2_remake/web/assets/", GFX = S.W + "/uw2_remake/tools/work/gfx/";
+const MAPS = U.decodePortMapJson(JSON.parse(fs.readFileSync(A + "data/portmap.json", "utf8")));
+const CHIP = new Uint8Array(fs.readFileSync(GFX + "portchip.bin"));
 const chipNo = JSON.parse(fs.readFileSync(A + "data/portchip.json", "utf8")).chipNo;
-const ZA = new Uint8Array(fs.readFileSync(A + "data/za_dat.bin"));
+const ZA = U.decodeZaDatJson(JSON.parse(fs.readFileSync(A + "data/za_dat.json", "utf8")));
 X.doors = p => { const k = Math.min(p, 100) * 24, D = []; for (let i = 0; i < 12; i++) D.push([ZA[k + i * 2], ZA[k + i * 2 + 1]]); return D; };
 X.blocked = (p, x, y) => {
   const set = p < 100 ? chipNo[p] : 3, base = set * (0x7800 + 4), P = CHIP.subarray(base + 0x7800, base + 0x7804), M = MAPS.subarray((p < 100 ? p : 100) * 0x2400);

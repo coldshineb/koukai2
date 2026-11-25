@@ -43,7 +43,7 @@ const font = U.Font.fromRaw(f["1.PAT"], f["2.PAT"], S.rom);
 const menuText = JSON.parse(fs.readFileSync(S.W + "/uw2_remake/web/assets/text/menu.json", "utf8"));
 const palJson = JSON.parse(fs.readFileSync(S.W + "/uw2_remake/web/assets/data/palettes.json", "utf8"));
 const ngData = JSON.parse(fs.readFileSync(S.W + "/uw2_remake/web/assets/data/newgame.json", "utf8"));
-const nodes = new Uint8Array(fs.readFileSync(S.W + "/uw2_remake/web/assets/data/mapnodes.bin"));
+const nodes = U.decodeMapNodesJson(JSON.parse(fs.readFileSync(S.W + "/uw2_remake/web/assets/data/mapnodes.json", "utf8")));
 const msg = f["MESSAGE.DAT"];
 const initState = new Uint8Array(fs.readFileSync(S.W + "/uw2_remake/tools/work/newgame.bin"));
 async function runJS(rng0) {

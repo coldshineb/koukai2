@@ -1,13 +1,13 @@
 // decoders/worldmap.js — 海上地图区域解码 (MAIN.EXE 1fd9:2fd2 = 线性 22d62, 及其调用的 22b19 / 22028 / 22a47 / 22a5d / 22aba)
 // 世界: 2160 × 1080 地图格 (每格 16×16 像素), 分成 90 × 45 个「海域格」(24×24 地图格); WORLDMAP.LZW 3 项各涵盖 30 栏海域格 (720 地图格宽)
 // 区域缓冲 [03f4]:[03f6]: 96 × 96 bytes (与港口地图 PORTMAP 共用同一块内存), 海上只用左上 72 × 72 (3 × 3 个海域格)
-//   assets/gfx/worldmap.bin (tools/extract_sea.py): 每项 1350 格 × 144 码; 1 码 = 2×2 地图格
+//   assets/data/worldmap.json (经 decoders/bin_json.ts 解码): 每项 1350 格 × 144 码; 1 码 = 2×2 地图格
 // 码: < 0x10 = 陆/海比特 (8 左上, 4 右上, 2 左下, 1 右下 → 0x41 / 0); 0x10、0x12 = 港口; 0x11 = 发现物; >= 0x13 = 由 [03fc] 表 (DATA1 #18) 取 2×2 图块
 // 图块 >= 0x29 视为陆地 (海岸自动接边); 0x34 以上为「实心」图块 (3135c 判断不能航行)
 const WM_W = 0x60;
 
 export class WorldMap {
-  // codes: worldmap.bin; sea: sea.json (autotile [03f8] = DATA1 #10, hash [06d0] = DATA1 #12, codeTiles [03fc] = DATA1 #18)
+  // codes: worldmap 解码缓冲; sea: sea.json (autotile [03f8] = DATA1 #10, hash [06d0] = DATA1 #12, codeTiles [03fc] = DATA1 #18)
   constructor(codes, sea) {
     this.codes = codes; this.auto = Uint8Array.from(sea.autotile); this.hash = Uint8Array.from(sea.hash); this.ct = Uint8Array.from(sea.codeTiles);
   }

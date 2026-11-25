@@ -41,7 +41,9 @@ import {
 import { runDomSettingsModal } from "../ui/hud.ts";
 import { UI_STR } from "../ui/strings.ts";
 import { runDomPersonInfo, runDomShipInfo } from "../ui/fleet_panel.ts";
-import { runDomInfoHub, runDomBelongings, runDomFormation, runDomPortMapModal, runDomWorldChartModal } from "../ui/info_hub.ts";
+import { runDomInfoHub } from "../ui/info_hub.ts";
+import { runDomPortMapModal, runDomWorldChartModal } from "../ui/info_maps.ts";
+import { runDomBelongings, runDomFormation } from "../ui/info_modals.ts";
 
 const cmHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const cmStrlen = s => { let n = 0; while (n < s.length && s[n]) n++; return n; };

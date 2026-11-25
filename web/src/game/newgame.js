@@ -25,7 +25,7 @@ const ngDiv8 = v => (v < 0 ? -((-v) >> 3) : v >> 3);
 const ngDiv2 = v => (v < 0 ? -((-v) >> 1) : v >> 1);
 
 export class NewGame {
-  // data: assets/data/newgame.json; nodes: assets/data/mapnodes.bin (DATA1.LZW #4, 每笔 16 bytes)
+  // data: assets/data/newgame.json; nodes: assets/data/mapnodes.json 解码后的节点字节表 (每笔 16 bytes)
   constructor(ctx, data, nodes) {
     this.c = ctx; this.d = data; this.nodes = nodes;
     this.S = { all: ngHex(data.strings.all), d3: ngHex(data.strings.d3) };

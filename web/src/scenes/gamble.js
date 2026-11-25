@@ -1,5 +1,5 @@
 // gamble.js — 酒馆 赌博 (MAIN.EXE 1fd9:7701 = 27491; 子功能 DS:af80 = 二十一点 2e8ed / 骰子 2fc60), 见 RE_NOTES 17.9
-// 图形: DATA1.LZW 第 9 项 (assets/gfx/gamble.bin, 0x15c0 bytes) 每次进入赌博时重新加载到 [c2ec]:
+// 图形: 原版 DATA1.LZW 第 9 项，复刻版改为 PNG 图集 sheets/gamble_{cards,dice}.png 与 Canvas 牌面/骰子绘制
 //   扑克牌 花色 k (牌 / 13) 于 0x300×k (k = 4 为背面), 4 栏 × 48 行平面交错; 骰子 v (0..5) 于 0xf00 + 0x120×v, 3 栏 × 24 行
 // 文字与格式字符串: port.json gamble (tools/extract_port.py)
 import { hasDom } from "../ui/modals.ts";

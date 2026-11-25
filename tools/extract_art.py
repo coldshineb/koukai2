@@ -67,7 +67,7 @@ def extract_kao(pals, manifest):
 const fs = require('fs');
 require('./tools/work/ui_bundle.js');
 const U = globalThis.UI;
-const kao = new U.Kao(new Uint8Array(fs.readFileSync('web/assets/gfx/KAO.LZW')));
+const kao = new U.Kao(new Uint8Array(fs.readFileSync('tools/work/sea2/KAO.LZW')));
 const chunks = [];
 for (let i = 0; i < 128; i++) {
   const fb = new Uint8Array(640 * 400);
@@ -126,7 +126,7 @@ process.stdout.write(Buffer.concat([hdr, Buffer.from(out)]));
 def extract_graph_art(pals, manifest):
     # 1) Buildings: GRAPH.DAT #6..#21
     for i in range(16):
-        w, h, px = decode_graph_entry("web/assets/gfx/GRAPH.DAT", 6 + i)
+        w, h, px = decode_graph_entry("tools/work/sea2/GRAPH.DAT", 6 + i)
         rel = f"buildings/building_{i:02d}.png"
         save_indexed_png(os.path.join(ART, rel), w, h, px, pals["day"])
         manifest["buildings"][str(i)] = {"path": rel, "w": w, "h": h}
@@ -134,7 +134,7 @@ def extract_graph_art(pals, manifest):
 
     # 2) Ships: GRAPH.DAT #28..#52
     for i in range(25):
-        w, h, px = decode_graph_entry("web/assets/gfx/GRAPH.DAT", 28 + i)
+        w, h, px = decode_graph_entry("tools/work/sea2/GRAPH.DAT", 28 + i)
         rel = f"ships/ship_{i:02d}.png"
         save_indexed_png(os.path.join(ART, rel), w, h, px, pals["ships"])
         manifest["ships"][str(i)] = {"path": rel, "w": w, "h": h}
@@ -142,10 +142,10 @@ def extract_graph_art(pals, manifest):
 
     # 3) Backgrounds
     bgs = [
-        ("duel_bg", "web/assets/gfx/GRAPH.DAT", 23, "battle"),
-        ("worldmap", "web/assets/gfx/GRAPH.DAT", 25, "chart"),
-        ("gamble_bg", "web/assets/gfx/GRAPH.DAT", 27, "day"),
-        ("hero_select", "web/assets/gfx/GRAPH2.DAT", 1, "heroSelect"),
+        ("duel_bg", "tools/work/sea2/GRAPH.DAT", 23, "battle"),
+        ("worldmap", "tools/work/sea2/GRAPH.DAT", 25, "chart"),
+        ("gamble_bg", "tools/work/sea2/GRAPH.DAT", 27, "day"),
+        ("hero_select", "tools/work/sea2/GRAPH2.DAT", 1, "heroSelect"),
     ]
     for name, dat, idx, pal_name in bgs:
         w, h, px = decode_graph_entry(dat, idx)
@@ -170,7 +170,7 @@ def extract_graph_art(pals, manifest):
 const fs = require('fs');
 require('./tools/work/ui_bundle.js');
 const U = globalThis.UI;
-const dat = new Uint8Array(fs.readFileSync('web/assets/gfx/GRAPH.DAT'));
+const dat = new Uint8Array(fs.readFileSync('tools/work/sea2/GRAPH.DAT'));
 const g = new U.GraphDat(dat);
 const col8 = new Set([0, 2, 3, 4, 5, 62]);
 const chunks = [Buffer.from([g.offsets.length])];
@@ -207,7 +207,7 @@ process.stdout.write(Buffer.concat(chunks));
             extra_g1 += 1
     manifest["graph"]["GRAPH.DAT"] = g1_list
 
-    w2, h2, px2 = decode_graph_entry("web/assets/gfx/GRAPH2.DAT", 0)
+    w2, h2, px2 = decode_graph_entry("tools/work/sea2/GRAPH2.DAT", 0)
     rel_g2_0 = "graph/g2_00.png"
     save_indexed_png(os.path.join(ART, rel_g2_0), w2, h2, px2, pals["heroSelect"])
     manifest["graph"]["GRAPH2.DAT"] = [
@@ -219,7 +219,7 @@ process.stdout.write(Buffer.concat(chunks));
 
 def extract_kao_parts(pals, manifest):
     """KAO.LZW 檔尾 7 組隨機頭像部件 (A..E) -> 5 張 PNG 圖集 (C/D/E 含透明通道)"""
-    dat = open(os.path.join(ROOT, "web", "assets", "gfx", "KAO.LZW"), "rb").read()
+    dat = open(os.path.join(ROOT, "tools", "work", "sea2", "KAO.LZW"), "rb").read()
     PARTS_BASE = 0x476A2
     PARTS_SET = 0x60C0
     specs = [
@@ -268,7 +268,7 @@ def extract_kao_parts(pals, manifest):
 
 def extract_hud_buttons(pals, manifest):
     """transit.bin 0x4b00 起 4 個 24x80 (3 平面) 右側指令按下圖"""
-    dat = open(os.path.join(ROOT, "web", "assets", "gfx", "transit.bin"), "rb").read()
+    dat = open(os.path.join(ROOT, "tools", "work", "gfx", "transit.bin"), "rb").read()
     pal = pals["day"]
     sw, sh = 4 * 24, 80
     out = bytearray(sw * sh)
@@ -292,13 +292,13 @@ def extract_hud_buttons(pals, manifest):
 
 
 def extract_events(pals, manifest):
-    ev_dir = os.path.join(ROOT, "web", "assets", "gfx", "event")
+    ev_dir = os.path.join(ROOT, "tools", "work", "sea2")
     total = 0
     for fname in sorted(os.listdir(ev_dir)):
-        if not fname.upper().endswith(".DAT"):
+        if not (fname.upper().startswith("EVENT") and fname.upper().endswith(".DAT")):
             continue
         hero_tag = fname.lower().replace(".dat", "")
-        rel_dat = f"web/assets/gfx/event/{fname}"
+        rel_dat = f"tools/work/sea2/{fname}"
         js = f"""
 const fs = require('fs');
 require('./tools/work/ui_bundle.js');
@@ -322,7 +322,7 @@ def extract_figureheads(pals, manifest):
 const fs = require('fs');
 require('./tools/work/ui_bundle.js');
 const U = globalThis.UI;
-const dat = new Uint8Array(fs.readFileSync('web/assets/gfx/transit.bin'));
+const dat = new Uint8Array(fs.readFileSync('tools/work/gfx/transit.bin'));
 const count = Math.floor((dat.length - 0x1980) / 0x480);
 const chunks = [Buffer.from([count])];
 for (let i = 0; i < count; i++) {
@@ -554,67 +554,67 @@ def extract_sheets(pals, manifest):
     for s in range(7):
         off = s * (0x7800 + 4)
         manifest["sheets"][f"portchip_{s}"] = extract_seq_tile_sheet(
-            "web/assets/gfx/portchip.bin", off, 240, 16, pals["day"], f"sheets/portchip_{s}.png"
+            "tools/work/gfx/portchip.bin", off, 240, 16, pals["day"], f"sheets/portchip_{s}.png"
         )
     print("[portchip.bin] 7 port tileset sheets extracted")
 
     # 2) Hero & NPC sprites (72 sprites of 32x32 with alpha transparency)
     manifest["sheets"]["chars"] = extract_char_figures(
-        "web/assets/gfx/char.bin", pals["day"], "sheets/chars.png"
+        "tools/work/gfx/char.bin", pals["day"], "sheets/chars.png"
     )
     print("[char.bin] 72 alpha-masked character sprites extracted")
 
     # 3) Sea tiles (128 tiles of 16x16, sequential 4-plane) + 32 transparent sea ships
     manifest["sheets"]["seachip"] = extract_seq_tile_sheet(
-        "web/assets/gfx/seachip.bin", 0, 128, 16, pals["day"], "sheets/seachip.png"
+        "tools/work/gfx/seachip.bin", 0, 128, 16, pals["day"], "sheets/seachip.png"
     )
     manifest["sheets"]["sea_ships"] = extract_sea_ships(
-        "web/assets/gfx/seachip.bin", pals["day"], "sheets/sea_ships.png"
+        "tools/work/gfx/seachip.bin", pals["day"], "sheets/sea_ships.png"
     )
     print("[seachip.bin] 128 sea terrain tiles + 32 alpha-masked sea ships extracted")
 
     # 4) Compasses
     manifest["sheets"]["compass"] = extract_planar_sheet(
-        "web/assets/gfx/compass.bin", 0, 8, 5, 24, 4, pals["day"], "sheets/compass.png"
+        "tools/work/gfx/compass.bin", 0, 8, 5, 24, 4, pals["day"], "sheets/compass.png"
     )
     manifest["sheets"]["seacompass"] = extract_planar_sheet(
-        "web/assets/gfx/seacompass.bin", 0, 18, 4, 32, 9, pals["day"], "sheets/seacompass.png"
+        "tools/work/gfx/seacompass.bin", 0, 18, 4, 32, 9, pals["day"], "sheets/seacompass.png"
     )
     print("[compass/seacompass] compass sheets extracted")
 
     # 5) Naval battle tiles (13 x 32x32) + 24 battle ships + FX sprites
     manifest["sheets"]["naval_battle"] = extract_planar_sheet(
-        "web/assets/gfx/hdat.bin", 0, 13, 4, 32, 8, pals["battle"], "sheets/naval_battle.png"
+        "tools/work/gfx/hdat.bin", 0, 13, 4, 32, 8, pals["battle"], "sheets/naval_battle.png"
     )
     manifest["sheets"]["battle_ships"] = extract_battle_ships(
-        "web/assets/gfx/hdat.bin", pals["battle"], "sheets/battle_ships.png"
+        "tools/work/gfx/hdat.bin", pals["battle"], "sheets/battle_ships.png"
     )
     manifest["sheets"]["battle_fx_lg"] = extract_masked_planar_sheet(
-        "web/assets/gfx/hdat.bin", 0x6E40, 4, 4, 32, 0x280, 0x80, 4, pals["battle"], "sheets/battle_fx_lg.png"
+        "tools/work/gfx/hdat.bin", 0x6E40, 4, 4, 32, 0x280, 0x80, 4, pals["battle"], "sheets/battle_fx_lg.png"
     )
     manifest["sheets"]["battle_fx_sm"] = extract_masked_planar_sheet(
-        "web/assets/gfx/hdat.bin", 0x7840, 4, 2, 20, 0xC8, 0x28, 4, pals["battle"], "sheets/battle_fx_sm.png"
+        "tools/work/gfx/hdat.bin", 0x7840, 4, 2, 20, 0xC8, 0x28, 4, pals["battle"], "sheets/battle_fx_sm.png"
     )
     manifest["sheets"]["battle_ball"] = extract_masked_planar_sheet(
-        "web/assets/gfx/hdat.bin", 0x7B60, 1, 1, 8, 0x28, 0x08, 1, pals["battle"], "sheets/battle_ball.png"
+        "tools/work/gfx/hdat.bin", 0x7B60, 1, 1, 8, 0x28, 0x08, 1, pals["battle"], "sheets/battle_ball.png"
     )
     print("[hdat.bin] 13 battle terrain hexes + 24 battle ships + 9 FX sprites extracted")
 
     # 6) Wind/Current/Heading dials (9 x 40x40) & Supply icons (4 x 16x32) from ui_frame.bin
     manifest["sheets"]["dials"] = extract_planar_sheet(
-        "web/assets/gfx/ui_frame.bin", 0x0490, 9, 5, 40, 9, pals["day"], "sheets/dials.png"
+        "tools/work/gfx/ui_frame.bin", 0x0490, 9, 5, 40, 9, pals["day"], "sheets/dials.png"
     )
     manifest["sheets"]["supply_icons"] = extract_planar_sheet(
-        "web/assets/gfx/ui_frame.bin", 0x20D0, 4, 2, 32, 4, pals["day"], "sheets/supply_icons.png"
+        "tools/work/gfx/ui_frame.bin", 0x20D0, 4, 2, 32, 4, pals["day"], "sheets/supply_icons.png"
     )
     print("[ui_frame.bin] 9 dial arrows + 4 supply icons extracted")
 
     # 6) Gamble cards (5 x 32x48) & dice (6 x 24x24)
     manifest["sheets"]["gamble_cards"] = extract_planar_sheet(
-        "web/assets/gfx/gamble.bin", 0, 5, 4, 48, 5, pals["day"], "sheets/gamble_cards.png"
+        "tools/work/gfx/gamble.bin", 0, 5, 4, 48, 5, pals["day"], "sheets/gamble_cards.png"
     )
     manifest["sheets"]["gamble_dice"] = extract_planar_sheet(
-        "web/assets/gfx/gamble.bin", 0x0f00, 6, 3, 24, 6, pals["day"], "sheets/gamble_dice.png"
+        "tools/work/gfx/gamble.bin", 0x0f00, 6, 3, 24, 6, pals["day"], "sheets/gamble_dice.png"
     )
     print("[gamble.bin] cards & dice sheets extracted")
 
@@ -626,7 +626,7 @@ def extract_ending_and_opening(pals, manifest):
 const fs = require('fs');
 require('./tools/work/ui_bundle.js');
 const U = globalThis.UI;
-const dat = new Uint8Array(fs.readFileSync('web/assets/gfx/ENDGRP.DAT'));
+const dat = new Uint8Array(fs.readFileSync('tools/work/sea2/ENDGRP.DAT'));
 const g = new U.GraphDat(dat);
 const items = [];
 for (let i = 0; i < g.offsets.length; i++) items.push({ off: g.offsets[i], hasTable: true });
@@ -662,7 +662,7 @@ process.stdout.write(Buffer.concat(chunks));
     total_op = 0
     for pack in range(14):
         tag = f"op{pack:02d}"
-        rel_dat = f"web/assets/gfx/opgraph/{pack:02d}.dat"
+        rel_dat = f"tools/work/gfx/opgraph/{pack:02d}.dat"
         js_op = f"""
 const fs = require('fs');
 require('./tools/work/ui_bundle.js');

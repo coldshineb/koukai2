@@ -518,45 +518,7 @@ function fuseFieldOpsInSeq(steps: readonly StoryStep[], liveOut: LiveMap): Story
     i++;
   }
 
-  // Pass C: Collapse read -> alu -> write back (`get_field -> calc -> set_field`) when tmpVar is dead
-  const passC: IntermediateStep[] = [];
-  for (let k = 0; k < out.length; k++) {
-    const s0 = out[k], s1 = out[k + 1], s2 = out[k + 2];
-    if (
-      s0?.op === "get_field" &&
-      s1?.op === "alu" && "var" in s1.dst && `v${s1.dst.var}` === s0.to &&
-      s2?.op === "set_field" && s2.target === s0.from && s2.value === s0.to && s2.size === s0.size
-    ) {
-      const tmpVar = s1.dst.var;
-      const liveAfterWrite = liveOut.get(
-        // Find original write node? Wait: `set_field` wasn't in liveOut; conservatively check if tmpVar is read in ANY remaining step in out[k+3..] OR read in outer liveOut!
-        // Even better: check if tmpVar is NEVER read in passC/out[k+3..] and check original mov step wasn't live:
-        // Wait — track origin step on set_field or compute liveOut directly on `out`!
-        s1,
-      );
-      // Since we're in the same straight-line block, let's check if tmpVar is read in out[k+3..] BEFORE being written, AND if all steps after out stop/write!
-      let readLaterInBlock = false;
-      let writtenBeforeExit = false;
-      for (let m = k + 3; m < out.length; m++) {
-        const sm = out[m];
-        if (sm.op === "if" || sm.op === "loop" || sm.op === "block" || sm.op === "exit" || sm.op === "break" || sm.op === "continue" || sm.op === "stop" || sm.op === "ending") {
-          break;
-        }
-        const origSm = sm.op === "__u8_load" ? sm.origLoad : sm;
-        const eff = stepEffects(origSm);
-        if (eff.reads.has(tmpVar)) { readLaterInBlock = true; break; }
-        if (eff.writes.has(tmpVar)) { writtenBeforeExit = true; break; }
-      }
-      // Also check liveOut after original `s1` (s1 IS original `alu` step!):
-      // Actually `liveOut.get(s1)` has tmpVar (because `s2` read it!). If `s2` only read tmpVar and tmpVar wasn't live AFTER `s2`,
-      // check if `writtenBeforeExit` or `!liveAfterBlock`: wait — if we simply run `computeLiveness` once on `out`? Let's just avoid complexity and check `!readLaterInBlock && (writtenBeforeExit || (lastStepIsTerminal(out) && ...))`!
-      // Running a quick forward scan on `out[k+3..]` up to terminal (`stop`/`ending`), OR re-running `computeLiveness` on the AST after Pass B gives EXACT `liveOut` for `s2`!!
-      passC.push(s0);
-      continue;
-    }
-    passC.push(s0);
-  }
-  return simplifyRemaining(passC);
+  return simplifyRemaining(out);
 }
 
 // 简洁化：重新对 Pass B 结果做一次全局活跃分析，精确融合 get_field+alu+set_field 与简化 mov/alu/if/say

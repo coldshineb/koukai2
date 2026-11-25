@@ -90,7 +90,7 @@ def main():
     open(os.path.join(TMP, "newgame.bin"), "wb").write(newgame)
     sys.path.insert(0, HERE)
     import make_test_bundle as mb
-    mb.bundle(ROOT, mb.MODS, os.path.join(TMP, "ui_bundle.js"), mb.NAMES)
+    mb.bundle(ROOT, out=os.path.join(TMP, "ui_bundle.js"))
     print("W =", W)
     print("rom8x8.bin  A row0..7:", rom[0x41 * 8:0x42 * 8].hex())
     print("newgame.bin", len(newgame), "bytes; DATA1 entries:", len(d1))

@@ -1,10 +1,10 @@
-// worldmap_tests.js — 海上地图区域解码差分测试: 原版 1fd9:2fd2 (= 线性 22d62, 含 22b19 格解码、22028 海岸接边、港口/发现物) vs web/src/gfx/worldmap.js
+// worldmap_tests.js — 海上地图区域解码差分测试: 原版 1fd9:2fd2 (= 线性 22d62, 含 22b19 格解码、22028 海岸接边、港口/发现物) vs web/src/decoders/worldmap.js
 // 前提: 先跑过一条出海路线 (例: sea_depart_route.js + port_tests.js), 使 session.titleEnv 的原版停在海上 ([03f6] 等缓冲已配置), 并已加载 ui_bundle.js
 // 做法: 随机把 130 个港口 +15 bit4 / 100 个发现物 +6 bit6 设为一半已发现; 对 3 项 × 7 列 × 5 栏 + 60 个随机区域, 原版换项 (849a) 后调用 22d62,
 //       移植版以同一份 DS 内存 (状态) 解码, 96 × 96 缓冲逐 byte 比对; 测完还原原版内存
 (function () {
-const fs = require("fs"), S = session, A = S.W + "/uw2_remake/web/assets/";
-const sea = JSON.parse(fs.readFileSync(A + "data/sea.json", "utf8")), codes = new Uint8Array(fs.readFileSync(A + "gfx/worldmap.bin"));
+const fs = require("fs"), S = session, U = S.UI, A = S.W + "/uw2_remake/web/assets/";
+const sea = JSON.parse(fs.readFileSync(A + "data/sea.json", "utf8")), codes = U.decodeWorldMapJson(JSON.parse(fs.readFileSync(A + "data/worldmap.json", "utf8")));
 const env = S.titleEnv, c = env.cpu, d = c.s[3] * 16, DSEG = c.s[3];
 const st = { u8: a => c.mem[d + (a & 0xffff)], u16: a => c.mem[d + (a & 0xffff)] | (c.mem[d + ((a + 1) & 0xffff)] << 8) };
 const wm = new S.UI.WorldMap(codes, sea);

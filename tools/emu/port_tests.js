@@ -81,16 +81,16 @@ async function runEmu() {
 // ---------------- 移植版 ----------------
 const font = U.Font.fromRaw(f["1.PAT"], f["2.PAT"], S.rom);
 { const cm = JSON.parse(fs.readFileSync(S.W + "/uw2_remake/web/assets/font/charmap.json", "utf8")); font.u2c = new Map(); for (const [code, , , u] of cm.table) font.u2c.set(u, code); }
-const A = S.W + "/uw2_remake/web/assets/";
-const rdj = n => JSON.parse(fs.readFileSync(A + n, "utf8")), rdb = n => new Uint8Array(fs.readFileSync(A + n));
-const menuText = rdj("text/menu.json"), palJson = rdj("data/palettes.json"), ngData = rdj("data/newgame.json"), nodes = rdb("data/mapnodes.bin");
-const portAssets = { za: rdb("data/za_dat.bin"), chip: rdb("gfx/portchip.bin"), map: rdb("gfx/portmap.bin"), chr: rdb("gfx/char.bin"), compass: rdb("gfx/compass.bin"),
-  data: rdj("data/port.json"), wind: rdb("data/windcur.bin"), chipNo: rdj("data/portchip.json").chipNo, transit: rdb("gfx/transit.bin"), colony: rdj("text/colony.json"), itemMes: rdj("text/item_mes.json"), gamble: rdb("gfx/gamble.bin"), commands: rdj("data/commands.json") };
+const A = S.W + "/uw2_remake/web/assets/", GFX = S.W + "/uw2_remake/tools/work/gfx/", SEA2 = S.W + "/uw2_remake/tools/work/sea2/";
+const rdj = n => JSON.parse(fs.readFileSync(A + n, "utf8")), rdg = n => new Uint8Array(fs.readFileSync(GFX + n));
+const menuText = rdj("text/menu.json"), palJson = rdj("data/palettes.json"), ngData = rdj("data/newgame.json"), nodes = U.decodeMapNodesJson(rdj("data/mapnodes.json"));
+const portAssets = { za: U.decodeZaDatJson(rdj("data/za_dat.json")), chip: rdg("portchip.bin"), map: U.decodePortMapJson(rdj("data/portmap.json")), chr: rdg("char.bin"), compass: rdg("compass.bin"),
+  data: rdj("data/port.json"), wind: U.decodeWindCurJson(rdj("data/windcur.json")), chipNo: rdj("data/portchip.json").chipNo, transit: rdg("transit.bin"), colony: rdj("text/colony.json"), itemMes: rdj("text/item_mes.json"), gamble: rdg("gamble.bin"), commands: rdj("data/commands.json") };
 portAssets.data.bld2 = rdj("data/buildings2.json");                 // 王宫/事务所/住宅/银行/道具店 (port.js loadPortAssets 同一项)
-Object.assign(portAssets, { worldmap: rdb("gfx/worldmap.bin"), seachip: rdb("gfx/seachip.bin"), seacompass: rdb("gfx/seacompass.bin"), sea: rdj("data/sea.json"), fleet: rdj("data/fleet.json") });   // 海上 (loadPortAssets 同一组)
-Object.assign(portAssets, { hdat: rdb("gfx/hdat.bin"), battle: rdj("data/battle.json") });   // 海战 (loadPortAssets 同一组)
-portAssets.monster = rdb("data/monster.bin");                          // MONSTER.DAT (海上特殊地点, loadPortAssets 同一项)
-portAssets.duel = { J: rdj("data/duel.json"), data1: rdb("gfx/duel/DATA1.LZW"), iae: rdb("gfx/duel/IAE1.LZW"), iap: [1, 2, 3, 4, 5, 6].map(i => rdb(`gfx/duel/IAP${i}.LZW`)) };   // 一骑打 (loadPortAssets 同一组)
+Object.assign(portAssets, { worldmap: U.decodeWorldMapJson(rdj("data/worldmap.json")), seachip: rdg("seachip.bin"), seacompass: rdg("seacompass.bin"), sea: rdj("data/sea.json"), fleet: rdj("data/fleet.json") });   // 海上 (loadPortAssets 同一组)
+Object.assign(portAssets, { hdat: rdg("hdat.bin"), battle: rdj("data/battle.json") });   // 海战 (loadPortAssets 同一组)
+portAssets.monster = U.decodeMonsterJson(rdj("data/monster.json"));    // MONSTER.DAT (海上特殊地点, loadPortAssets 同一项)
+portAssets.duel = { J: rdj("data/duel.json") };                        // 一骑打 (loadPortAssets 同一组)
 const msg = f["MESSAGE.DAT"], initState = new Uint8Array(fs.readFileSync(S.W + "/uw2_remake/tools/work/newgame.bin"));
 async function runJS(rng0) {
   const scr = new U.Screen(); let polls = 0;
@@ -109,8 +109,7 @@ async function runJS(rng0) {
   if (S.SFX_LOG) { ctx.sfx = new U.SfxPort(null, { log: m => sfxJ.push([shots.length, m.ah, m.al, m.ah === 5 ? m.addr : m.ah === 6 ? m.dl : 0]) }); ctx.sfx.state = state; }
   const con = new U.TextConsole(scr, font, { wait: n => sys.waitSpeed(n) });
   const win = new U.WindowSystem(scr, con, S.D1[14], { wait: n => sys.waitTicks(n), options: ctx.options, sys });
-  const graph = new U.Graph(scr); graph.files = { "GRAPH.DAT": new U.GraphDat(f["GRAPH.DAT"]), "GRAPH2.DAT": new U.GraphDat(f["GRAPH2.DAT"]) }; graph.g = graph.files["GRAPH.DAT"];
-  for (let i = 0; i < 7; i++) graph.files[`EVENT${i}.DAT`] = new U.GraphDat(rdb(`gfx/event/EVENT${i}.DAT`));   // 剧情插图 (graph.ensure 不再加载)
+  const graph = new U.Graph(scr);                                      // PNG manifest 由浏览器运行时 ArtRegistry 提供
   const menu = new U.MenuSystem({ sys, scr, con, win, gfx: S.D1[14], graph });
   const message = (n, ...a) => { const off = (msg[n * 2] << 8) | msg[n * 2 + 1]; U.cprintf(msg.subarray(off, off + 256), a, ch => con.putc(ch)); };
   const printf = (fmt, ...a) => U.cprintf(typeof fmt === "string" ? font.encode(fmt + "\0") : fmt, a, ch => con.putc(ch));

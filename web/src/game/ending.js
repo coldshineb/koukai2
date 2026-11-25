@@ -6,7 +6,7 @@
 //   注释中的地址 = END.EXE 加载映像线性偏移, [xxxx] = DGROUP (段 08dd) 变量, DS:xxxx 常数取自 assets/data/ending.json (tools/extract_end.py 原样提取)。
 //
 // 显示: END.EXE 的绘图函数库与 MAIN.EXE seg0 的是同一套 (游戏区 640x400 = VRAM 第 40..439 行, 剪裁 03d36 = seg0:012e),
-//   所以直接用 core/screen.js 的索引帧缓冲与原语 (putPlanar / tile / fillCols / glyphMode / glyph) 与 gfx/graphdec.js;
+//   所以直接用 core/screen.js 的索引帧缓冲与原语 (putPlanar / tile / fillCols / glyphMode / glyph) 与 decoders/png_index.ts;
 //   END.EXE 自己另有的平面操作 (选平面读写 4437/49d7、59ce 网点溶入、5a7b 左移、2c88 截取、498c 存背景) 在这里对索引帧缓冲的比特平面实现。
 // 计时: FMDRV INT 66h 倒数 (F1 01 设置 / F1 00 读取, 1 tick = 16.58 ms) → sys.timer。
 // 音乐: END.EXE 内嵌 2 曲 (0771:0002, 00ecb 以 AH=00 登记); 359f(k) → AH=01 AL=k+1, 网页版以 BGM playSong(k+1) (assets/data/bgm.json "ending")。
@@ -250,7 +250,7 @@ export class Ending {
     const src = this.file.subarray(o, o + 0x8000); tmp.set(src);
     this.decodeToBuf(dst, tmp);
   }
-  // 50fc: GRAPH 16 色格式 (graphdec.js) 解码到内存 — 单位 n 在 (n>>1)*4 的 4 个字节, n 偶数用高半字节、奇数用低半字节
+  // 50fc: 索引图/GRAPH 16 色 4 平面缓冲写入 — 单位 n 在 (n>>1)*4 的 4 个字节, n 偶数用高半字节、奇数用低半字节
   decodeToBuf(dst, src) {
     let p = 0;
     const rd = () => src[p++ & 0xffff];

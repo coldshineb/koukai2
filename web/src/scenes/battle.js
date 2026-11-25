@@ -78,7 +78,7 @@ export class NavalBattle {
     const m = this.m, ws = getWorkState(m), hero = m.globals.hero;
     const enemy = hero === al ? dl : al;
     ws.commonBattleTarget = enemy; ws.heroBattleTarget = enemy;
-    // 0be20: HDAT.PUT → [03ee]:0 (移植版直接使用资源 hdat.bin)
+    // 0be20: HDAT.PUT → [03ee]:0 (移植版已改由 PNG 图集渲染)
     this.set8(0x9bfb, 0);
     const ally = { a: bl & 0xff, d: arg & 0xff };
     await this.allies(al, dl, ally);                                    // 10e68
@@ -1445,7 +1445,7 @@ export class NavalBattle {
       this.reachRec(B, q, nd, (pts - cost) & 0xff, d === 6 ? m : 0);
     }
   }
-  // bd3f 标记图 (HD Canvas 六角框 / 方向标记，取代 hdat.bin 点阵)
+  // bd3f 标记图 (HD Canvas 六角框 / 方向标记，取代原版点阵)
   mark(x, y, t) {
     const { scr } = this.c;
     const dx = (x - this.u8(0x9bef)) * 32, dy = (y - this.u8(0x9bf0)) * 32 + (btImod(x, 2) === 0 ? 0 : 16);

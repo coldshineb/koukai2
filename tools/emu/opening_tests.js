@@ -9,8 +9,8 @@ const R = () => S.W + "/uw2_remake";
 S.openData = function () {
   const W = R();
   return {
-    entries: [...Array(14)].map((_, i) => new Uint8Array(fs.readFileSync(`${W}/web/assets/gfx/opgraph/${String(i).padStart(2, "0")}.dat`))),
-    tail: new Uint8Array(fs.readFileSync(`${W}/web/assets/gfx/opgraph/tail.dat`)),
+    entries: [...Array(14)].map((_, i) => new Uint8Array(fs.readFileSync(`${W}/tools/work/gfx/opgraph/${String(i).padStart(2, "0")}.dat`))),
+    tail: new Uint8Array(fs.readFileSync(`${W}/tools/work/gfx/opgraph/tail.dat`)),
     json: JSON.parse(fs.readFileSync(`${W}/web/assets/data/opening.json`, "utf8")),
   };
 };

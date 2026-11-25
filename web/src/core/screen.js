@@ -179,7 +179,7 @@ export class Screen {
     this.dirty = true;
     return true;
   }
-  // Phase 6: HD 2D Canvas 现代大航海羊皮纸/古铜金木框窗体绘制 (取代 ui_frame.bin 像素框)
+  // HD 2D Canvas 现代大航海羊皮纸/古铜金木框窗体绘制
   drawWindowHd(col, y, wCols, hPx, style = 0, { shadow = false } = {}) {
     if (!this.hdCtx || !this.inBounds(col, y, wCols, hPx)) return false;
     const dx = col * 8, dy = y, dw = wCols * 8, dh = hPx;

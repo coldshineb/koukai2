@@ -3,7 +3,8 @@
 // 原版运行期变量 (不在存盘内): [b8de] = sea.landFlag (34ec7 设置, 地图格 0x59 时 0)、[b8e0] 补水可行、[bc18] 雇用的向导 → ctx.landRT
 import { DiscoveryFlag, GameConst, MenuId, SeaFlag2, ShipSlotFlag } from "../model/flags.ts";
 import { heroShipSlot } from "../model/world_helpers.ts";
-import { createDomModal, hasDom } from "../ui/modals.ts";
+import { hasDom } from "../ui/modals.ts";
+import { runDomLandRepairModal } from "../ui/sea_modals.ts";
 import { decodeCleanCstr, toSimp } from "../ui/text_util.ts";
 
 const ldS16 = v => (v << 16) >> 16;
@@ -186,30 +187,13 @@ export class Land {
       return;
     }
     const shipName = toSimp(decodeCleanCstr(this.c.codec, m.ship(S.ship).nameBytes));
+    const rows = [
+      { label: "耐久", cur: S.durability, max: S.maxDurability },
+      { label: "转向", cur: S.turn, max: T.turn },
+      { label: "推进", cur: S.propulsion, max: T.propulsion },
+    ];
     for (;;) {
-      const sel = await new Promise(resolve => {
-        const h = createDomModal({
-          title: `修理 · ${shipName}`,
-          size: "sm",
-          cancelable: true,
-          closeLabel: "完成",
-          onCancel: () => resolve(-1),
-        });
-        const rows = [
-          ["耐久", S.durability, S.maxDurability],
-          ["转向", S.turn, T.turn],
-          ["推进", S.propulsion, T.propulsion],
-        ];
-        rows.forEach(([label, cur, max], idx) => {
-          const btn = document.createElement("button");
-          btn.className = "uw2-row-card";
-          const pct = max > 0 ? Math.min(100, Math.round((cur * 100) / max)) : 100;
-          btn.disabled = cur >= max;
-          btn.innerHTML = `<span style="font-weight:700;min-width:44px;">${label}</span><div class="uw2-bar-track" style="flex:1;"><div class="uw2-bar-fill ${pct < 40 ? "red" : "green"}" style="width:${pct}%"></div></div><span style="font-weight:700;min-width:58px;text-align:right;">${cur}/${max}</span>`;
-          btn.addEventListener("click", () => { h.close(); resolve(idx); });
-          h.body.appendChild(btn);
-        });
-      });
+      const sel = await runDomLandRepairModal(shipName, rows);
       if (sel < 0) break;
       await this.repairDo(slot, sel);
     }
