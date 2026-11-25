@@ -7,10 +7,18 @@ import { loadPortAssets } from "../scenes/port.js";
 import { SeaScene } from "../scenes/sea.js";
 import { Scenario, ENV_HERO } from "./scenario.js";
 import { Title } from "./title.js";
-import { faFleet } from "./fleetai.js";
 import { Monthly } from "./monthly.js";
 import { mainEnding } from "./endgame.js";
 import { GameConst, OptionFlag } from "../model/flags.ts";
+import {
+  getDaysAtSea,
+  getPortEcoExtra,
+  getSeaCooldown,
+  setDaysAtSea,
+  setPortBuildDays,
+  setSeaCooldown,
+  setWindCurrent,
+} from "../model/world_helpers.ts";
 import { hasDom, runDomStoryCard } from "../ui/modals.ts";
 import { hideDomBattleHud } from "../ui/battle_hud.ts";
 import { captureConsoleText, toSimp } from "../ui/text_util.ts";
@@ -29,7 +37,7 @@ export class GameClock {
     if (this.c.noFleetAI) return;
     const ai = this.portScene.ai;
     ai.v.c2ea = k;
-    await ai.daily(faFleet(k));
+    await ai.daily(this.m.fleet(k));
   }
   // 1b39a 中止标志 (月/日/时刻 >= F0)
   abort() { const r = this.rt; return r.month >= 0xf0 || r.day >= 0xf0 || r.time >= 0xf0; }
@@ -38,18 +46,18 @@ export class GameClock {
   // 1603c
   daysInMonth() { const d = this.c.portAssets.data.daysInMonth[this.rt.month]; return this.rt.month === 1 && this.leap() ? d + 1 : d; }
   // 1fd9:32c4 舰队所在海域的风向 ([0400]) 与海流 ([0404]); 各 30×15 格 (每格 = 3×3 个 24 单位)
-  windAt(F) {
-    const s16 = v => (v << 16) >> 16, st = this.st;
-    const x = s16(st.u16(F)), y = s16(st.u16(F + 2));
+  windAt(fl) {
+    const s16 = v => (v << 16) >> 16;
+    const x = s16(fl.x), y = s16(fl.y);
     const k = Math.trunc(Math.trunc(y / 24) / 3) * 30 + Math.trunc(Math.trunc(x / 24) / 3);
     const W = this.c.portAssets.wind, off = this.c.windOffset ?? 0;
     return [W[(off + k) & 0xffff] ?? 0, W[0x384 + k] ?? 0];
   }
   // 1a011 风向与天候
   async weather() {
-    const st = this.st, m = this.m, g = m.globals, rng = this.c.sys.rng;
-    const F = m.fleet(m.heroPerson().fleet).addr;
-    const [w0, w2] = this.windAt(F);
+    const m = this.m, g = m.globals, rng = this.c.sys.rng;
+    const fl = m.fleet(m.heroPerson().fleet);
+    const [w0, w2] = this.windAt(fl);
     let v;
     if (g.weather & 15) v = (g.portFlags & 0x3f) | (w0 & 0xc0);
     else {
@@ -60,7 +68,7 @@ export class GameClock {
       al = ((al + (w0 & 0xf8)) & 0xff) & 0x38;
       v = (al + mn) & 0xff;
     }
-    g.portFlags = v; st.set8(0x0cb2, w2);
+    g.portFlags = v; setWindCurrent(m, w2);
     // 19ba1: 只做计算, 不改状态
     if (g.port === GameConst.EMPTY_SLOT) {
       const sea = this.portScene;
@@ -103,10 +111,10 @@ export class GameClock {
   }
   // 1b2ba 一天
   async day() {
-    const st = this.st, g = this.m.globals, { sys, palette } = this.c;
+    const m = this.m, g = m.globals, { sys, palette } = this.c;
     if (g.port === GameConst.EMPTY_SLOT && !this.c.noEvents) {                       // 2e09:55c2(0xa0, 出港天数) → 2e09:5546
       const sc = (this.c.events ??= new Scenario(this.c)); sc.scene = this.portScene;
-      if (await sc.check(ENV_HERO, 0xa0, st.u8(0x2e18))) { sys.mouseHide(); await sc.run(ENV_HERO); sys.mouseShow(); await palette.fadeToTarget(); }
+      if (await sc.check(ENV_HERO, 0xa0, getDaysAtSea(m))) { sys.mouseHide(); await sc.run(ENV_HERO); sys.mouseShow(); await palette.fadeToTarget(); }
     }
     let t = g.time;
     while (!this.c.palette.ending) {
@@ -124,23 +132,24 @@ export class GameClock {
   }
   // 19717 一天结束
   async dayEnd() {
-    const st = this.st, m = this.m, g = m.globals;
+    const m = this.m, g = m.globals;
     g.time = g.dailyFlags & 0x80 ? 0x18 : 0;
     g.weather &= 0x7f;
     g.dailyFlags = 0;
-    st.set8(0x2e18, st.u8(0x2e18) + 1);
+    setDaysAtSea(m, getDaysAtSea(m) + 1);
     await this.portScene.seaDaily();                                                 // 195d2 → 195b6 (只在海上)
     this.portsDaily();                                                               // 19648
     for (let i = 0; i < 30; i++) {                                                   // 196ef 酒吧女郎
       const bm = m.barmaid(i), v = bm.questDays; if (v !== GameConst.EMPTY_SLOT && v !== 0) bm.questDays = v - 1;
     }
-    if (st.u8(0x10a6)) st.set8(0x10a6, st.u8(0x10a6) - 1);
+    const cd = getSeaCooldown(m);
+    if (cd) setSeaCooldown(m, cd - 1);
     this.portScene.seaPanel();                                                       // 8067 (在港时不做任何事)
   }
   // 19648 各港每日: 支持度 >= 75 的国家取得该港; 所属国支持度 < 75 时变成无所属 (6);
   //   bit3 (待开发) 的港在商业价值 >= 150 时清除 bit3 并使 10 项物价各增加 min(random(5)+10, 100-值); [港+23] 倒数
   portsDaily() {
-    const st = this.st, m = this.m, rng = this.c.sys.rng;
+    const m = this.m, rng = this.c.sys.rng;
     for (let p = 0; p < 100; p++) {
       const port = m.port(p), eco = m.portEconomy(p);
       for (let i = 0; i < 6; i++) {
@@ -156,18 +165,19 @@ export class GameClock {
         port.region &= 0xf7;
         for (let k = 0; k < 10; k++) { const v = eco.getPrices(k); eco.setPrices(k, v + Math.min(rng.random(5) + 10, (100 - v) & 0xffff)); }
       }
-      const c = st.u8(eco.addr + 0x23); if (c !== GameConst.EMPTY_SLOT) st.set8(eco.addr + 0x23, c - Math.min(1, c));
+      const c = getPortEcoExtra(eco).buildDays;
+      if (c !== GameConst.EMPTY_SLOT) setPortBuildDays(eco, c - Math.min(1, c));
     }
   }
   // 17546 后半 (1721f) + 1623a 主循环
   async run() {
-    const { sys, palette, bgm } = this.c, st = this.st;
+    const { sys, palette, bgm } = this.c, g = this.m.globals;
     this.c.portAssets ??= await loadPortAssets(this.c);
     this.portScene = new SeaScene(this.c, this.c.portAssets); this.portScene.clock = this;
     for (;;) {
-      if (st.port !== 0xff) await this.portScene.enter();                            // 1721f: 8c53 进港
+      if (g.port !== GameConst.EMPTY_SLOT) await this.portScene.enter();             // 1721f: 8c53 进港
       else await this.portScene.enterSea();                                          //        851f 出海
-      if (!(st.options & OptionFlag.BGM)) bgm.fadeOut();
+      if (!(g.options & OptionFlag.BGM)) bgm.fadeOut();
       sys.mouseShow();
       await palette.fadeToTarget();
       await this.mainLoop();
@@ -228,17 +238,17 @@ export class GameClock {
   }
   // 1623a 主循环
   async mainLoop() {
-    const { palette } = this.c, st = this.st;
+    const { palette } = this.c, g = this.m.globals;
     for (;;) {
       // 16173
-      if (this.abort()) Object.assign(this.rt, { year: st.year, month: st.month, day: st.day, time: st.time });
+      if (this.abort()) Object.assign(this.rt, { year: g.year, month: g.month, day: g.day, time: g.time });
       if (palette.ending) break;
       this.portScene.seaYear();                                                      // 71ad
-      this.rt.month = st.month;
+      this.rt.month = g.month;
       while (this.rt.month < 12 && !palette.ending) {
         const days = this.daysInMonth();
         this.portScene.seaMonth();                                                   // 71c6
-        this.rt.day = st.day;
+        this.rt.day = g.day;
         while (!palette.ending && this.rt.day < days) { this.portScene.seaDay(); await this.day(); this.rt.day++; }   // 71f0
         if (!palette.ending && !this.abort()) await this.monthly.monthEnd();                        // 18ff5
         this.rt.month++;

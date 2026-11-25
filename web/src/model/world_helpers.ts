@@ -141,6 +141,7 @@ export function getCountryExtra(country: CountryView) {
     get rival(): number { return country.st.u8(country.addr + 2); },
     set rival(v: number) { country.st.set8(country.addr + 2, v); },
     get keyPort(): number { return country.st.u8(country.addr + 4); },
+    set keyPort(v: number) { country.st.set8(country.addr + 4, v); },
     clearAidExtra(): void { country.st.set8(country.addr + 6, 0); },
   };
 }
@@ -185,4 +186,93 @@ export function getListParam(m: WorldModel, kind: number, fieldIdx: number): num
 
 export function setListParam(m: WorldModel, kind: number, fieldIdx: number, v: number): void {
   m.st.set16(0x10a8 + kind * 10 + fieldIdx * 2, v);
+}
+
+/** 写入海流字节 */
+export function setWindCurrent(m: WorldModel, v: number): void {
+  m.st.set8(DS.WIND_CUR, v);
+}
+
+/** 读取/写入出航天数 */
+export function getDaysAtSea(m: WorldModel): number {
+  return m.st.u8(DS.DAYS_AT_SEA);
+}
+
+/** 读取/写入每日冷却计数器 (DS:0x10a6) */
+export function getSeaCooldown(m: WorldModel): number {
+  return m.st.u8(DS.COOLDOWN_10A6);
+}
+export function setSeaCooldown(m: WorldModel, v: number): void {
+  m.st.set8(DS.COOLDOWN_10A6, v);
+}
+
+/** 港口经济造船倒数天数写入 */
+export function setPortBuildDays(eco: PortEconomyView, days: number): void {
+  eco.st.set8(eco.addr + 0x23, days);
+}
+
+/** 人物附加读写 (stats 12 字节名/13 字节姓全量写入) */
+export function writePersonNamePart(p: PersonView, isFamily: boolean, src: Uint8Array, offset = 0): void {
+  const base = p.addr + (isFamily ? OFF.PERSON.FAMILY_NAME : OFF.PERSON.GIVEN_NAME);
+  for (let i = 0; i < 13; i++) p.st.set8(base + i, src[offset + i] ?? 0);
+}
+
+/** 读取/写入 32 位金钱（与 GlobalsView.money 同步） */
+export function setHeroMoney(m: WorldModel, v: number): void {
+  const clamped = v > 600_000_000 ? 600_000_000 : v;
+  m.st.set16(DS.MONEY, clamped & 0xffff);
+  m.st.set16(0x12b0, (clamped >>> 16) & 0xffff);
+}
+
+/** 写入工作标志 / 章节字节（仅限原版状态区间） */
+export function clearTradeLogsBuffer(m: WorldModel): Uint8Array {
+  const off = DS.TRADE_LOGS - DS.STATE_BASE;
+  m.st.b.fill(0xff, off, off + 0x300);
+  return m.st.b.slice(off, off + 0x300);
+}
+
+export function clearExploreMap(m: WorldModel): void {
+  const off = WorkDS.EXPLORE_MAP - DS.STATE_BASE;
+  m.st.b.fill(0, off, off + 0x21c);
+}
+
+export function markWorldCellExplored(m: WorldModel, col: number, row: number): void {
+  const a = WorkDS.EXPLORE_MAP + (col >> 3) + row * 12;
+  m.st.set8(a, m.st.u8(a) | (0x80 >> (col & 7)));
+  m.st.set16(WorkDS.EXPLORE_TOTAL, m.st.u16(WorkDS.EXPLORE_TOTAL) + 1);
+}
+
+export function markExploreLocationNode(m: WorldModel, nodeIdx: number): void {
+  const a = DS.EXPLORE_LOC + (nodeIdx >> 3);
+  m.st.set8(a, m.st.u8(a) | (0x80 >> (nodeIdx & 7)));
+}
+
+/** 同伴薪水/贡献基准字节 (DS:0x2e39 + slot) */
+export function getPartySalaryUnit(m: WorldModel, slot: number): number {
+  return m.st.u8(0x2e39 + slot);
+}
+
+/** 舰队补充视图 (舰员特长槽 +0x1d..+0x20 等) */
+export function getFleetOfficer(fleet: FleetView, i: number): number {
+  return fleet.st.u8(fleet.addr + 0x1d + i);
+}
+export function setFleetOfficer(fleet: FleetView, i: number, v: number): void {
+  fleet.st.set8(fleet.addr + 0x1d + i, v);
+}
+
+/** 国家记录额外扩展 (方针 +3, 资金援助附加 +6, 活跃度 +9, 占领港 +0x19+i) */
+export function getCountryMonthlyExtra(country: CountryView) {
+  return {
+    get policy(): number { return country.st.u8(country.addr + 3); },
+    set policy(v: number) { country.st.set8(country.addr + 3, v); },
+    get aggressiveness(): number { return country.st.u8(country.addr + 9); },
+    get aidExtra(): number { return country.st.u8(country.addr + 6); },
+    set aidExtra(v: number) { country.st.set8(country.addr + 6, v); },
+    setCapturedPort(i: number, portId: number): void { country.st.set8(country.addr + 0x19 + i, portId); },
+  };
+}
+
+/** 读人物任意偏移字节 (仅限未命名字节如 +0x1b, 待后续具名化) */
+export function getPersonByte(p: PersonView, off: number): number {
+  return p.st.u8(p.addr + off);
 }

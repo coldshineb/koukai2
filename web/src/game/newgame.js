@@ -4,8 +4,16 @@
 //   164b7 改名 (2e09:2a38 键盘)   164e0 / 16506 姓名备份/还原
 //   16949 新游戏初始化: 162e4, 16854 (发现物/宝物), 168ea (地图窗口), 1681a, 167bd + 1fd9:333a (已探索范围)
 import { NameInput } from "../ui/dos/nameinput.js";
-import { DS } from "../model/schema_views.ts";
-import { DiscoveryFlag, FleetFlag, WorkDS } from "../model/flags.ts";
+import { DiscoveryFlag, FleetFlag } from "../model/flags.ts";
+import {
+  clearExploreMap,
+  clearTradeLogsBuffer,
+  isWorldCellExplored,
+  markExploreLocationNode,
+  markWorldCellExplored,
+  personRawBytes,
+  writePersonNamePart,
+} from "../model/world_helpers.ts";
 import { renderWideTitle } from "../renderer/title.ts";
 import { captureConsoleText, decodeCleanCstr } from "../ui/text_util.ts";
 import { hasDom } from "../ui/modals.ts";
@@ -74,16 +82,17 @@ export class NewGame {
       const res = await runDomNewGameSelect(heroes, statLabels, di < 1);
       if (!res) return -1;
       this.m.globals.hero = res.id;
-      const writeIfChanged = (dest, origStr, newStr, maxBytes) => {
+      const writeIfChanged = (isFamily, origStr, newStr) => {
         if (!newStr || newStr === origStr) return;
         try {
-          const bts = this.c.font.encode(newStr).subarray(0, maxBytes);
-          for (let i = 0; i < bts.length; i++) this.st.set8(dest + i, bts[i]);
-          this.st.set8(dest + bts.length, 0);
+          const bts = this.c.font.encode(newStr).subarray(0, 12);
+          const padded = new Uint8Array(13);
+          padded.set(bts);
+          writePersonNamePart(this.m.heroPerson(), isFamily, padded);
         } catch { /* 若输入含字库未收录字符则保留原名 */ }
       };
-      writeIfChanged(this.personDS, heroes[res.id].given, res.given, 12);
-      writeIfChanged(this.personDS + 13, heroes[res.id].family, res.family, 12);
+      writeIfChanged(false, heroes[res.id].given, res.given);
+      writeIfChanged(true, heroes[res.id].family, res.family);
       return res.id;
     }
     await palette.fadeBlack();                                           // 99f2
@@ -107,11 +116,11 @@ export class NewGame {
       let ok = await this.confirm(0);
       if (ok) {
         await win.close();
-        const saved = this.st.bytes(this.personDS, 26).slice();         // 164e0
+        const raw = personRawBytes(this.m.heroPerson()), saved = raw.subarray(0, 26).slice(); // 164e0
         await this.rename();                                             // 164b7
         await this.info();
         ok = await this.confirm(1);
-        if (!ok) this.st.b.set(saved, this.personDS - DS.STATE_BASE);    // 16506
+        if (!ok) raw.set(saved);                                         // 16506
       }
       await win.close();
       if (ok) {
@@ -161,7 +170,7 @@ export class NewGame {
   }
   // ---------------- 16949 新游戏初始化 ----------------
   init() {
-    const st = this.st, m = this.m, g = m.globals, rng = this.c.sys.rng, p = m.heroPerson(), fl = m.fleet(p.fleet);
+    const m = this.m, g = m.globals, rng = this.c.sys.rng, p = m.heroPerson(), fl = m.fleet(p.fleet);
     fl.flags |= FleetFlag.AT_SEA;
     p.setStats(7, rng.random(0x65));
     g.port = fl.homePort;                                                 // 出发港
@@ -174,8 +183,7 @@ export class NewGame {
     this.c.windOffset = g.month >= 3 && g.month < 9 ? 0 : 0x1c2;
     { const r = (g.mouseSens + 2) * 2; this.c.sys.mickeyRatio = [r, r]; }
     this.exploreStart();                                                  // 167bd
-    st.b.fill(0xff, DS.TRADE_LOGS - DS.STATE_BASE, DS.TRADE_LOGS - DS.STATE_BASE + 0x300);   // [0c8e] 缓冲 0x300 bytes = FF
-    this.c.buf0c8e = st.b.slice(DS.TRADE_LOGS - DS.STATE_BASE, DS.TRADE_LOGS - DS.STATE_BASE + 0x300);
+    this.c.buf0c8e = clearTradeLogsBuffer(m);
   }
   // 16854: 98 个发现物先全部标成「未发现」(+6 bit7), 再随机取消 50 个;
   //   然后替宝物 #80..89 各随机指定一个仍未发现、且 +4 < 0x5a 的发现物 (+4 = 0x5a + 序号, 宝物 +0x12 = 发现物编号)
@@ -203,27 +211,22 @@ export class NewGame {
     if (vy < 0) vy = 0; else if (0x420 <= vy) vy = 0x420;
     g.seaViewX = vx; g.seaViewY = vy;
   }
-  // 167bd: 清除已探索点阵 WorkDS.EXPLORE_MAP (0x21c bytes, 每列 12 bytes = 96 格), 标记第 8..17 列 x 第 4..16 栏
+  // 167bd: 清除已探索点阵 EXPLORE_MAP (每列 12 bytes = 96 格), 标记第 8..17 列 x 第 4..16 栏
   exploreStart() {
-    const st = this.st;
-    st.b.fill(0, WorkDS.EXPLORE_MAP - DS.STATE_BASE, WorkDS.EXPLORE_MAP - DS.STATE_BASE + 0x21c);
+    const m = this.m;
+    clearExploreMap(m);
     for (let row = 8; row <= 0x11; row++) for (let col = 4; col <= 0x10; col++) {
-      const a = WorkDS.EXPLORE_MAP + (col >> 3) + row * 12;
-      st.set8(a, st.u8(a) | (0x80 >> (col & 7)));
-      st.set16(WorkDS.EXPLORE_TOTAL, st.u16(WorkDS.EXPLORE_TOTAL) + 1);
+      markWorldCellExplored(m, col, row);
     }
     this.markExplored();
   }
   // 1fd9:333a
   markExplored() {
-    const st = this.st, N = this.nodes, n = N.length >> 4;
+    const m = this.m, N = this.nodes, n = N.length >> 4;
     for (let i = 0; i < n; i++) {
       const w0 = N[i * 16] | (N[i * 16 + 1] << 8), w2 = ((N[i * 16 + 2] | (N[i * 16 + 3] << 8)) << 16) >> 16;
       const cx = Math.floor((w0 & 0x7fff) / 0x18), cy = Math.trunc(w2 / 0x18);
-      if (st.u8(WorkDS.EXPLORE_MAP + (cx >> 3) + cy * 12) & (0x80 >> (cx & 7))) {
-        const a = 0x1046 + (i >> 3);
-        st.set8(a, st.u8(a) | (0x80 >> (i & 7)));
-      }
+      if (isWorldCellExplored(m, cx, cy)) markExploreLocationNode(m, i);
     }
   }
 }
