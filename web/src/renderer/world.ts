@@ -197,6 +197,21 @@ function drawFloatingHud(scene: any, atSea: boolean) {
   syncDomWorldHud(scene, atSea);
 }
 
+let wideStageCanvas: HTMLCanvasElement | null = null;
+let wideStageCtx: CanvasRenderingContext2D | null = null;
+
+/** 取得与屏幕 DPR 无关的 1:1 整数像素离屏舞台画布，杜绝 HiDPI 缩放下拼接图块产生 1px 黑线 */
+function getWideStageCtx(fallback: CanvasRenderingContext2D): CanvasRenderingContext2D {
+  if (typeof document === "undefined") return fallback;
+  if (!wideStageCanvas) {
+    wideStageCanvas = document.createElement("canvas");
+    wideStageCanvas.width = VIEW_W;
+    wideStageCanvas.height = VIEW_H;
+    wideStageCtx = wideStageCanvas.getContext("2d", { alpha: false });
+  }
+  return wideStageCtx || fallback;
+}
+
 const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);
 const wrapMod = (v: number, mod: number) => ((v % mod) + mod) % mod;
 const wrapSignedDelta = (delta: number, mod: number) => {
@@ -311,16 +326,17 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
   const startRow = Math.max(0, Math.floor(camPxY / TILE));
   const endRow = Math.min(P_MAP_W - 1, Math.floor((camPxY + VIEW_H - 1) / TILE));
 
-  ctx.fillStyle = "#081424";
-  ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-  ctx.imageSmoothingEnabled = false;
+  const wctx = getWideStageCtx(ctx);
+  wctx.fillStyle = "#081424";
+  wctx.fillRect(0, 0, VIEW_W, VIEW_H);
+  wctx.imageSmoothingEnabled = false;
 
   for (let my = startRow; my <= endRow; my++) {
     const rowOff = my * P_MAP_W;
     const dy = my * TILE - camPxY;
     for (let mx = startCol; mx <= endCol; mx++) {
       const t = M[rowOff + mx];
-      drawSheetTileDirect(ctx, art, sheetName, t, mx * TILE - camPxX, dy, TILE, TILE, scr, true);
+      drawSheetTileDirect(wctx, art, sheetName, t, mx * TILE - camPxX, dy, TILE, TILE, scr, true);
     }
   }
 
@@ -341,7 +357,7 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
       const anim = i >= 4 ? (portScene._npcFrames?.[i - 4] ?? ((portScene.toggle ^ i) & 1)) : (((n.x + n.y) & 1) === 0 ? 1 : 0);
       const localIdx = i >= 4 ? (n.d + 12) * 2 + anim : ((i & 1) * 4 + n.d + 4) * 2 + anim;
       const globalIdx = 48 + Math.max(0, Math.min(23, localIdx - 8));
-      drawSheetTileDirect(ctx, art, "chars", globalIdx, sx, sy, TILE * 2, TILE * 2, scr, false);
+      drawSheetTileDirect(wctx, art, "chars", globalIdx, sx, sy, TILE * 2, TILE * 2, scr, false);
     }
   } else {
     portSmooth.npcs.fill(undefined);
@@ -353,7 +369,12 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
   const heroSpriteIdx = portScene.m.globals.hero * 8 + hDir * 2 + hPhase;
   const hxPx = Math.round(visHeroX * TILE) - camPxX;
   const hyPx = Math.round(visHeroY * TILE) - camPxY;
-  drawSheetTileDirect(ctx, art, "chars", heroSpriteIdx, hxPx, hyPx, TILE * 2, TILE * 2, scr, false);
+  drawSheetTileDirect(wctx, art, "chars", heroSpriteIdx, hxPx, hyPx, TILE * 2, TILE * 2, scr, false);
+
+  if (wideStageCanvas && wctx !== ctx) {
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(wideStageCanvas, 0, 0, VIEW_W, VIEW_H, 0, 0, VIEW_W, VIEW_H);
+  }
 
   // 悬浮现代 HUD（所有日夜时段色调直接由原版 16 色调色盘呈现，无人工打灯覆层）
   drawFloatingHud(portScene, false);
@@ -521,9 +542,10 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
     viewRows,
   };
 
-  ctx.fillStyle = "#082040";
-  ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-  ctx.imageSmoothingEnabled = false;
+  const wctx = getWideStageCtx(ctx);
+  wctx.fillStyle = "#082040";
+  wctx.fillRect(0, 0, VIEW_W, VIEW_H);
+  wctx.imageSmoothingEnabled = false;
 
   for (let r = 0; r < viewRows; r++) {
     const wy = baseWY + r;
@@ -531,7 +553,7 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
     const dy = r * TILE - offPxY;
     for (let c = 0; c < viewCols; c++) {
       const t = getGlobalSeaTile(seaScene, baseWX + c, wy);
-      drawSheetTileDirect(ctx, art, "seachip", t, c * TILE - offPxX, dy, TILE, TILE, scr, true);
+      drawSheetTileDirect(wctx, art, "seachip", t, c * TILE - offPxX, dy, TILE, TILE, scr, true);
     }
   }
 
@@ -569,7 +591,7 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
       ? (si + (((d * 2 + (seaScene.time & 1)) << 9) & 0xffff)) & 0xffff
       : (si + ((d << 10) & 0xffff) + (((k + seaScene.time) & 1) << 9)) & 0xffff;
     const idx = (si - 0x4000) >> 9;
-    drawSheetTileDirect(ctx, art, "sea_ships", idx, sx, sy, TILE * 2, TILE * 2, scr, false);
+    drawSheetTileDirect(wctx, art, "sea_ships", idx, sx, sy, TILE * 2, TILE * 2, scr, false);
   };
 
   if (w === 0 || w === 2) {
@@ -581,6 +603,11 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
     }
   } else {
     drawOneFleet(heroFl, 0, true);
+  }
+
+  if (wideStageCanvas && wctx !== ctx) {
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(wideStageCanvas, 0, 0, VIEW_W, VIEW_H, 0, 0, VIEW_W, VIEW_H);
   }
 
   drawFloatingHud(seaScene, true);
