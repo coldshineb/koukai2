@@ -7,8 +7,9 @@
 // 沿用選單引擎的狀態: cur=a160 prev=a15a count=a158 mouseFlag=a14e hit=a150 bracket=a162 rects=bdcc
 
 import { createWideListState, drawWideList, hitWideListRow, hitWideListBox } from "../canvas_ui/wide_list.ts";
-import { captureConsoleText, decodeCleanCstr } from "../canvas_ui/text_util.ts";
+import { captureConsoleText, decodeCleanCstr, toSimp } from "../canvas_ui/text_util.ts";
 import { hasDom, runDomList } from "../modern/dom_ui.ts";
+import { UI_STR } from "../modern/ui_strings.ts";
 
 const lsUmin = (a, b) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);   // seg0:4d7c (無號)
 const lsDiv = (a, b) => Math.trunc(a / b);                                          // idiv
@@ -66,7 +67,7 @@ export class ListSelect {
     this.total = count;
     this.k = al & 0x3f;
     const titleBytes = (this.titles ??= this.c.menuItems(0x2f))[this.k] ?? Uint8Array.of(0);
-    const title = decodeCleanCstr(codec, titleBytes);
+    const title = UI_STR.listTitles[this.k] ?? toSimp(decodeCleanCstr(codec, titleBytes));
     const rows = [];
     for (let i = 0; i < count; i++) rows.push(this.captureRowText(this.c.persons[i]));
     if (hasDom()) {

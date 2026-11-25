@@ -11,6 +11,9 @@ import { faFleet } from "./fleetai.js";
 import { Monthly } from "./monthly.js";
 import { mainEnding } from "./endgame.js";
 import { GameConst, OptionFlag } from "../model/flags.ts";
+import { hasDom, runDomStoryCard } from "../modern/dom_ui.ts";
+import { hideDomBattleHud } from "../modern/dom_battle.ts";
+import { captureConsoleText, toSimp } from "../canvas_ui/text_util.ts";
 
 const clockWarned = new Set();
 const clockTodo = name => { if (!clockWarned.has(name)) { clockWarned.add(name); console.warn("尚未移植: " + name); } };
@@ -192,8 +195,12 @@ export class GameClock {
     this.c.sfx?.off();                                                  // 9888
     await palette.fadeBlack();
     scr.wideRenderer = null;
+    scr._battleHudActive = false;
+    scr._battleMsg = null;
     scr.wideDialog = null;
     scr.wideOverlays.length = 0;
+    this.c.sys._battleViewport = null;
+    hideDomBattleHud();
     scr.clear(0);
     con.setCursor(0, 0); con.puts(Uint8Array.of(0x1b, 0x43, 0x37, 0x1b, 0x42, 0x30, 0));   // DS:a3d0
     let m = 0;
@@ -201,13 +208,20 @@ export class GameClock {
     palette.ending = 0;
     if (m) {
       const hero = this.m.heroPerson(), rt = this.rt;
-      if (m & 0x8000) await win.open(0x12, 0x50, 0x2c, 0xd8, 1);
-      else { graph.draw(0x3d, 0xb8, 0x20); await win.open(0x12, 0xd8, 0x2c, 0xa8, 1); }
-      message(m & 0x7fff, (rt.year & 0xff) + 1, rt.month & 0xff, rt.day & 0xff, hero.givenNameBytes, hero.familyNameBytes, hero.givenNameBytes, hero.familyNameBytes);
-      await palette.fadeToTarget();                                     // 99e8
-      await menu.waitPrompt();                                          // 147ab
-      await palette.fadeBlack();                                        // 99f2
-      await win.close();                                                // 796d
+      if (hasDom() && this.c.codec) {
+        const txt = toSimp(captureConsoleText(this.c, () =>
+          message(m & 0x7fff, (rt.year & 0xff) + 1, rt.month & 0xff, rt.day & 0xff, hero.givenNameBytes, hero.familyNameBytes, hero.givenNameBytes, hero.familyNameBytes),
+        ));
+        await runDomStoryCard(this.c.art, (m & 0x8000) ? null : 0x3d, txt, "航海终结", "返回标题");
+      } else {
+        if (m & 0x8000) await win.open(0x12, 0x50, 0x2c, 0xd8, 1);
+        else { graph.draw(0x3d, 0xb8, 0x20); await win.open(0x12, 0xd8, 0x2c, 0xa8, 1); }
+        message(m & 0x7fff, (rt.year & 0xff) + 1, rt.month & 0xff, rt.day & 0xff, hero.givenNameBytes, hero.familyNameBytes, hero.givenNameBytes, hero.familyNameBytes);
+        await palette.fadeToTarget();                                     // 99e8
+        await menu.waitPrompt();                                          // 147ab
+        await palette.fadeBlack();                                        // 99f2
+        await win.close();                                                // 796d
+      }
     }
     scr.clear(0);
     return true;

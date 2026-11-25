@@ -283,7 +283,7 @@ export function runDomNumPad(min: number, max: number, promptText = ""): Promise
     const done = (v: number) => { if (settled) return; settled = true; h.close(); resolve(v); };
 
     const h = createDomModal({
-      title: `${min} ~ ${max}`,
+      title: "请输入数量",
       size: "sm",
       cancelable: true,
       onCancel: () => done(min),
@@ -306,6 +306,7 @@ export function runDomNumPad(min: number, max: number, promptText = ""): Promise
 
     const slider = document.createElement("input");
     slider.type = "range";
+    slider.className = "uw2-slider";
     slider.min = String(min);
     slider.max = String(max);
     slider.value = String(value);
@@ -319,16 +320,20 @@ export function runDomNumPad(min: number, max: number, promptText = ""): Promise
     input.addEventListener("input", () => sync(Number(input.value)));
     slider.addEventListener("input", () => sync(Number(slider.value)));
 
+    const span = max - min;
+    const stepDefs: [string, () => void][] = [];
+    if (span >= 200) stepDefs.push(["-100", () => sync(value - 100)]);
+    if (span >= 20) stepDefs.push(["-10", () => sync(value - 10)]);
+    stepDefs.push(["-1", () => sync(value - 1)]);
+    stepDefs.push(["+1", () => sync(value + 1)]);
+    if (span >= 20) stepDefs.push(["+10", () => sync(value + 10)]);
+    if (span >= 200) stepDefs.push(["+100", () => sync(value + 100)]);
+    stepDefs.push(["最大", () => sync(max)]);
+
     const steps = document.createElement("div");
     steps.className = "uw2-step-row";
-    for (const [lb, fn] of [
-      ["-100", () => sync(value - 100)],
-      ["-10", () => sync(value - 10)],
-      ["-1", () => sync(value - 1)],
-      ["+1", () => sync(value + 1)],
-      ["+10", () => sync(value + 10)],
-      ["MAX", () => sync(max)],
-    ] as const) {
+    steps.style.flexWrap = "wrap";
+    for (const [lb, fn] of stepDefs) {
       const b = document.createElement("button");
       b.className = "uw2-step-btn";
       b.textContent = lb;
@@ -341,13 +346,63 @@ export function runDomNumPad(min: number, max: number, promptText = ""): Promise
     const okBtn = document.createElement("button");
     okBtn.className = "uw2-btn uw2-btn-primary";
     okBtn.style.padding = "8px 26px";
-    okBtn.textContent = "OK";
+    okBtn.textContent = "确定";
     okBtn.addEventListener("click", () => done(value));
     actions.appendChild(okBtn);
 
     h.body.append(input, slider, steps, actions);
     input.focus();
     input.select();
+  });
+}
+
+export function runDomStoryCard(
+  art: any,
+  graphId: number | null,
+  text: string,
+  title = "",
+  buttonLabel = "继续",
+): Promise<void> {
+  if (!hasDom()) return Promise.resolve();
+  return new Promise(resolve => {
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      h.close();
+      resolve();
+    };
+    const h = createDomModal({
+      title: title || "航海日志",
+      size: "md",
+      cancelable: true,
+      closeLabel: "×",
+      onCancel: () => done(),
+    });
+    if (graphId !== null && art) {
+      const entry = art.graphEntry?.("GRAPH.DAT", graphId);
+      if (entry) {
+        const img = document.createElement("img");
+        img.src = `${art.baseUrl}/${entry.path}`;
+        img.style.cssText = "width:100%;max-height:240px;object-fit:contain;border-radius:8px;border:1px solid var(--uw2-gold);background:#0c1728;image-rendering:pixelated;";
+        h.body.appendChild(img);
+      }
+    }
+    const body = document.createElement("div");
+    body.style.cssText = "font-size:16px;line-height:1.75;color:var(--uw2-ink);white-space:pre-wrap;padding:6px 4px;";
+    body.textContent = text;
+    h.body.appendChild(body);
+
+    const actions = document.createElement("div");
+    actions.className = "uw2-dialog-actions";
+    const btn = document.createElement("button");
+    btn.className = "uw2-btn uw2-btn-primary";
+    btn.style.padding = "8px 28px";
+    btn.textContent = buttonLabel;
+    btn.addEventListener("click", () => done());
+    actions.appendChild(btn);
+    h.body.appendChild(actions);
+    btn.focus();
   });
 }
 

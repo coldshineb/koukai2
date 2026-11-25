@@ -18,9 +18,9 @@ import { duelInBattle } from "./duel.js";
 import { marketTradeLog } from "./market.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
-import { hasDom } from "../modern/dom_ui.ts";
+import { hasDom, runDomStoryCard } from "../modern/dom_ui.ts";
 import { BATTLE_VIEWPORT, renderWideBattle, hideDomBattleHud, runDomBattleFleetModal, runDomBattlePersonModal, runDomBattleCrewModal, runDomBattleShipModal, runDomBattleOrdersModal, runDomBattleSignal, runDomBattleShipOrders } from "../modern/dom_battle.ts";
-import { createEscStripper } from "../canvas_ui/text_util.ts";
+import { captureConsoleText, createEscStripper, toSimp } from "../canvas_ui/text_util.ts";
 
 const btHex = s => Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16)));
 const btS16 = v => (v << 16) >> 16;
@@ -129,7 +129,7 @@ export class NavalBattle {
         });
         this._origBattlePutc = con.putc;
         con.putc = ch => {
-          if (con.left === 0x36 && con.right === 0x4b && con.y >= 0x148 && !this.sea.b._wideTalk) strip(ch);
+          if (con.left === 0x36 && con.right === 0x4b && con.x >= 0x35 && con.y >= 0x148 && !this.sea.b._wideTalk) strip(ch);
           return orig(ch);
         };
       }
@@ -2140,9 +2140,16 @@ export class NavalBattle {
     let si = 3, loot = 0;
     const P = this.person(other), f = st.u8(P + 0x2c), F = this.fleetOf(f);
     const say = async (n, ...a) => { message(n, ...a); await menu.waitPrompt(); await b.closeTalk(); };   // 訊息 → 147ab → 796d
-    const big = () => win.shadowedSaved(7, 0xb0, 0x26, 0x90, 0);       // 10657
-    const small = () => win.shadowedSaved(0x0a, 0xb0, 0x1e, 0x60, 0);  // 10620
-    const pic = n => graph.draw(n, 0x78, 0x20);                         // 1060a = 5b5d
+    const sayCard = async (picId, title, n, ...a) => {
+      if (this.c.scr._battleHudActive && hasDom() && this.c.codec) {
+        const txt = toSimp(captureConsoleText(this.c, () => message(n, ...a)));
+        await runDomStoryCard(this.c.art, picId, txt, title);
+        return;
+      }
+      if (picId !== null) graph.draw(picId, 0x78, 0x20);
+      win.shadowedSaved(7, 0xb0, 0x26, 0x90, 0);
+      await say(n, ...a);
+    };
     const Y = (rt.year & 0xff) + 0x5dd, Mo = (rt.month & 0xff) + 1, D = (rt.day & 0xff) + 1;
     switch (r) {
       case 0: case 2: case 4: case 6: {
@@ -2150,11 +2157,10 @@ export class NavalBattle {
         loot = r !== 2 ? 1 : 0;
         if (loot) {
           bgm.playSong(0x15);                                           // 9670(0x15) + 96eb(0): 勝利短曲只播一次
-          pic(0x35); big();
-          await say(0x341, st.cstr(H), st.cstr(H + 0x0d), this.nations[Math.floor(f / 10)], Y, Mo, D);
+          await sayCard(0x35, "海战胜利", 0x341, st.cstr(H), st.cstr(H + 0x0d), this.nations[Math.floor(f / 10)], Y, Mo, D);
           bgm.playSong(0x11);
           si = 3;
-        } else { pic(0x36); small(); await say(0x235); si = 1; }
+        } else { await sayCard(0x36, "战斗结束", 0x235); si = 1; }
         if ((st.u8(H + 0x31) & 0x0f) === 6) si *= 3;
         else { const c = this.classify(); if (c === 2) si <<= 1; else if (c === 3) si *= 3; else if (c === 4) si <<= 2; }
         const A = b.heroData, lv = st.u8(P + 0x25);
@@ -2163,11 +2169,11 @@ export class NavalBattle {
         break;
       }
       case 1:
-        marketTradeLog(st, rt, 2, f, 0, 0, 1); pic(0x37); small(); await say(0x233);
+        marketTradeLog(st, rt, 2, f, 0, 0, 1); await sayCard(0x37, "日落休战", 0x233);
         break;
       case 3: case 9:
         if (r === 9 && !(st.u8(F + OFF.FLEET.FLAGS) & 0x40) && st.u8(F + OFF.FLEET.MISSION) !== 7) this.sea.ai.goPort(0, st.u8(F + OFF.FLEET.HOME_PORT), F);   // 2e09:5891 回母港
-        marketTradeLog(st, rt, 2, f, 0, 0, 2); pic(0x36); small(); await say(r === 3 ? 0x234 : 0x236);
+        marketTradeLog(st, rt, 2, f, 0, 0, 2); await sayCard(0x36, r === 3 ? "撤离战场" : "向敌投降", r === 3 ? 0x234 : 0x236);
         for (let i = 0; i < 10; i++) {
           if ((st.u8(this.slot(i) + 8) & 0x30) !== 0x10) continue;
           const C = this.person(st.u8(this.crew(i) + 0x1b));
@@ -2177,8 +2183,8 @@ export class NavalBattle {
         }
         break;
       case 5: case 7:
-        bgm.playSong(0x14); pic(0x38); big();
-        await say(0x3f9, Y, Mo, D, st.cstr(H), st.cstr(H + 0x0d), st.cstr(H), st.cstr(H + 0x0d));
+        bgm.playSong(0x14);
+        await sayCard(0x38, "海战战败", 0x3f9, Y, Mo, D, st.cstr(H), st.cstr(H + 0x0d), st.cstr(H), st.cstr(H + 0x0d));
         await this.fadeOutField();                                      // bd26
         palette.ending = 0x1a;                                          // [03ea] = 0x1a → 1764f (clock.js ending)
         break;

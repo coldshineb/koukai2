@@ -4,7 +4,7 @@
 import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
 import { ListSelect } from "../ui/listsel.js";
-import { captureConsoleText, decodeCleanCstr, UI_FONT } from "../canvas_ui/text_util.ts";
+import { captureConsoleText, decodeCleanCstr, toSimp, UI_FONT } from "../canvas_ui/text_util.ts";
 import { createDomModal, getPersonPortraitSrc, preserveScroll } from "./dom_ui.ts";
 import { UI_STR } from "./ui_strings.ts";
 
@@ -1114,14 +1114,23 @@ export async function runDomBelongings(cmd: any): Promise<void> {
           const it = itemIds[selIdx];
           const R = DS.TBL_ITEM + it * 0x14;
           const imgUrl = art?.discoveryUrl?.(st.u8(R + 0x0f) + 0x55);
-          const origGraphDraw = c.graph?.draw;
-          let lines: string[] = [];
-          try {
-            if (c.graph) c.graph.draw = () => {};
-            lines = cap(() => b.itemInfo(it, 1)).split("\n").filter(Boolean);
-          } finally {
-            if (c.graph && origGraphDraw) c.graph.draw = origGraphDraw;
+          const itemType = st.u8(R + 0x13) & 0x0f;
+          const itemVal = st.u8(R + 0x12);
+          const isEquipped = !!(st.u8(R + 0x13) & 0x10);
+          const typeName = b.BG?.itemTypes?.[itemType] ? dec(b.BG.itemTypes[itemType]) : "";
+          const lvItems = c.menuItems(0x22);
+          const lines: string[] = [
+            `${dec(st.cstr(R))}${typeName ? `（${typeName}）` : ""}${isEquipped ? "  [已装备]" : ""}`,
+          ];
+          if (itemType <= 3) {
+            const gIdx = itemVal >= 0x23 ? 4 : Math.max(0, Math.min(4, Math.trunc((itemVal - 5) / 6)));
+            lines.push(`攻击力：${dec(lvItems[gIdx] ?? Uint8Array.of(0))}`);
+          } else if (itemType === 6) {
+            const gIdx = itemVal > 0x28 ? 4 : Math.max(0, Math.min(4, Math.trunc((itemVal - 10) / 10)));
+            lines.push(`防御力：${dec(lvItems[gIdx] ?? Uint8Array.of(0))}`);
           }
+          const rawDesc = c.portAssets?.itemMes?.[it];
+          if (rawDesc) lines.push(toSimp(String(rawDesc).replace(/\s+/g, " ").trim()));
 
           const head = document.createElement("div");
           head.style.cssText = "display:flex;gap:16px;align-items:flex-start;";

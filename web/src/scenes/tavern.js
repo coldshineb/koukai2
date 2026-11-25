@@ -460,7 +460,7 @@ class TavernMixin {
     const st = this.st, { con, printf, kao, scr, font } = this.c, B = this.BG, R = DS.TBL_ITEM + it * 0x14, t = st.u8(R + 0x13) & 0x0f, v = st.u8(R + 0x12);
     const desc = font.encode(this.c.portAssets.itemMes[it]);
     con.setCursor(0x10, 0x90); printf(B.itemHdr, st.cstr(R), B.itemTypes[t]);
-    kao.drawItem(scr, st.u8(R + 0x0f) + 0x55, 0x10, 0xc0);
+    if (!scr.wideRenderer) kao.drawItem(scr, st.u8(R + 0x0f) + 0x55, 0x10, 0xc0);
     if (flag && (st.u8(R + 0x13) & 0x10)) con.puts(B.equip);
     const lv = this.c.menuItems(0x22);
     con.setCursor(0x10, 0xa8);

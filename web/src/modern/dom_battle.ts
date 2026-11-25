@@ -396,7 +396,7 @@ export async function runDomBattleCrewModal(battle: any, personIds: number[], ti
           const fn = dec(st.cstr(R + OFF.PERSON.FAMILY_NAME));
           const btn = document.createElement("button");
           btn.className = `uw2-row-card ${i === selIdx ? "selected" : ""}`;
-          btn.innerHTML = `<span style="font-weight:700;">${fn ? `${gn}·${fn}` : gn}</span><span style="font-size:12px;color:var(--uw2-ink-muted);">战 ${st.u8(R + OFF.PERSON.BATTLE_LEVEL)}</span>`;
+          btn.innerHTML = `<span style="font-weight:700;">${fn ? `${gn}·${fn}` : gn}</span><span style="font-size:12px;color:var(--uw2-ink-muted);">战斗等级 ${st.u8(R + OFF.PERSON.BATTLE_LEVEL)}</span>`;
           btn.addEventListener("click", () => { selIdx = i; render(); });
           left.appendChild(btn);
         });

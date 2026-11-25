@@ -276,6 +276,9 @@ html, body {
 #uw2-overlay > * {
   pointer-events: auto;
 }
+#uw2-overlay > .uw2-world-hud {
+  pointer-events: none;
+}
 
 /* 暫停角標 */
 .uw2-pause-badge {
@@ -1042,4 +1045,9 @@ body[data-uw2-battle="1"] .uw2-dialog-floating {
 .uw2-battle-cmd-btn:disabled {
   opacity: 0.36;
   cursor: not-allowed;
+}
+
+/* 防止任何彈窗內部出現多餘的橫向捲軸 */
+.uw2-modal-body {
+  overflow-x: hidden !important;
 }
