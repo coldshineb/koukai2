@@ -501,45 +501,23 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
         return true;
       };
 
-      // 一鍵按合適比例補滿（withCombat = true 同時補足資材/砲彈；false 僅水糧 1:1 補滿）
-      const autoFill = (withCombat: boolean) => {
+      // 全補給：僅按水 1:1 食物均衡補滿各船剩餘載重（不補資材、不補砲彈），受現有金幣上限約束
+      const autoFillWaterFood = () => {
         const n = b.fleetShips();
         if (!n) return;
-        // 先以現有貨艙計算每艘船可用補級空間
         let budget = b.money >>> 0;
-        // 扣掉已暫存的費用以外的可支配預算：先還原未確認草稿重算
         resetDraft();
-        const pFood = unitPrice(1), pMat = unitPrice(2), pAmmo = unitPrice(3);
+        const pFood = unitPrice(1);
 
         for (let i = 0; i < n; i++) {
           const slot = c.persons[i] & 0xff;
-          const S = b.fleetSlot(slot), ship = b.shipOf(slot);
+          const ship = b.shipOf(slot);
           const maxCargo = domS16(st.u16(ship + 0x14));
           const orig = readShipVals(slot);
           const cur: [number, number, number, number] = [...orig];
           const usedGoods = goodsUsed(slot);
           let free = Math.max(0, maxCargo - usedGoods - (cur[0] + cur[1] + cur[2] + cur[3]));
 
-          if (withCombat && free > 0) {
-            // 砲彈：有火砲時補至最多 min(火砲數*2, 空間的 12%)
-            const guns = st.u8(S + OFF.DOCK_SLOT.GUNS);
-            if (guns > 0 && pAmmo >= 0) {
-              const targetAmmo = Math.min(guns * 2, Math.max(guns, Math.floor(maxCargo * 0.12)));
-              const need = Math.max(0, targetAmmo - cur[3]);
-              const afford = pAmmo > 0 ? Math.floor(budget / pAmmo) : need;
-              const add = Math.min(need, free, afford);
-              if (add > 0) { cur[3] += add; free -= add; budget -= add * pAmmo; }
-            }
-            // 資材：補至最多 min(最大耐久/4, 空間的 8%)
-            const maxDur = st.u8(S + OFF.DOCK_SLOT.MAX_DURABILITY);
-            const targetMat = Math.min(Math.max(5, Math.floor(maxDur / 4)), Math.floor(maxCargo * 0.08));
-            const needM = Math.max(0, targetMat - cur[2]);
-            const affordM = pMat > 0 ? Math.floor(budget / pMat) : needM;
-            const addM = Math.min(needM, free, affordM);
-            if (addM > 0) { cur[2] += addM; free -= addM; budget -= addM * pMat; }
-          }
-
-          // 水與食物 1:1 均衡補滿剩餘空間（先拉平水/糧差額，再 1:1 平分）
           if (free > 0) {
             if (cur[0] < cur[1]) {
               const addW = Math.min(cur[1] - cur[0], free);
@@ -676,13 +654,8 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
           spacer.style.flex = "1";
           const btnFull = document.createElement("button");
           btnFull.className = "uw2-btn uw2-btn-primary";
-          btnFull.textContent = "一键全补给";
-          btnFull.addEventListener("click", () => autoFill(true));
-
-          const btnWF = document.createElement("button");
-          btnWF.className = "uw2-btn";
-          btnWF.textContent = "补满水粮";
-          btnWF.addEventListener("click", () => autoFill(false));
+          btnFull.textContent = "全补给";
+          btnFull.addEventListener("click", () => autoFillWaterFood());
 
           const btnReset = document.createElement("button");
           btnReset.className = "uw2-btn";
@@ -690,7 +663,7 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
           btnReset.textContent = "重置";
           btnReset.addEventListener("click", () => { resetDraft(); toastMsg = ""; render(); });
 
-          toolbar.append(spacer, btnFull, btnWF, btnReset);
+          toolbar.append(spacer, btnFull, btnReset);
         }
 
         preserveScroll(h.body, () => {
@@ -759,15 +732,18 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
             h.body.appendChild(grid);
           } else {
             // ---- 船塢標籤頁（保管 / 配备 / 交换） ----
+            // 先保存艦隊槽位再呼 dockScan()（因 dockScan() 內部的 dockList() 會覆寫 c.persons）
+            const fleetSlots: number[] = [];
+            for (let i = 0; i < n; i++) fleetSlots.push(c.persons[i] & 0xff);
             b.dockScan();
             const fleetList: { slot: number; name: string; capName: string; crew: number; isHero: boolean }[] = [];
-            for (let i = 0; i < n; i++) {
-              const slot = c.persons[i] & 0xff, S = b.fleetSlot(slot), M = b.crewData(slot);
+            for (const slot of fleetSlots) {
+              const S = b.fleetSlot(slot), M = b.crewData(slot);
               const capId = st.u8(M + OFF.CREW_SLOT.CAPTAIN);
               fleetList.push({
                 slot,
                 name: dec(b.dstr(b.shipOf(slot))),
-                capName: dec(st.cstr(st.personRecord(capId))),
+                capName: capId < 0x78 ? dec(st.cstr(st.personRecord(capId))) : "----",
                 crew: st.u16(S),
                 isHero: capId === st.hero,
               });
