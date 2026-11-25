@@ -10,7 +10,7 @@ import math
 import os
 from PIL import Image
 import numpy as np
-from scipy.ndimage import gaussian_filter, label, sobel
+from scipy.ndimage import binary_closing, gaussian_filter, label, sobel
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ART_SHEETS = os.path.join(ROOT, "web", "assets", "art", "sheets")
@@ -71,6 +71,11 @@ MODERN_SPRITE_PAL = np.array([
     [240, 228, 210],  # 15: 亮象牙白
 ], dtype=np.float32)
 
+# 建筑专用色盘：将原版暗蓝青阴影 index 13 压成沉稳石青瓦灰，消除木门和灰墙里跳眼的鲜绿点
+MODERN_ARCH_PAL = MODERN_GROUND_PAL.copy()
+MODERN_ARCH_PAL[13] = [44, 72, 74]
+MODERN_ARCH_PAL[14] = [52, 136, 96]
+
 # 仅对“真正纯大面积平铺”的沙地/草坪/水体做棋盘格消噪，保留砖块与木门肌理
 GROUND_DITHER_PAIRS = {
     (10, 11), (11, 10),
@@ -82,13 +87,14 @@ GROUND_DITHER_PAIRS = {
     (8, 7), (7, 8),
 }
 
-# 建筑只去除大块白灰粉墙与天蓬的大片抖动，不抹掉石砖和门条纹
+# 建筑只去除大块白灰粉墙与门扇的阴影点阵，保留石砖与木门框结构
 ARCH_DITHER_PAIRS = {
     (11, 15), (15, 11),
     (11, 7), (7, 11),
     (12, 15), (15, 12),
     (12, 7), (7, 12),
     (13, 14), (14, 13),
+    (10, 13), (13, 10),
     (9, 12), (12, 9),
     (0, 10), (10, 0),
     (0, 13), (13, 0),
@@ -152,12 +158,13 @@ def periodic_noise(sz: int, freqs=(4, 8, 16), seed=42) -> np.ndarray:
     wsum = 0.0
     for idx_f, freq in enumerate(freqs):
         w = 1.0 / (1.0 + idx_f * 0.75)
-        for _ in range(4):
+        n_dir = 10
+        for _ in range(n_dir):
             kx = int(rng.integers(1, freq + 1)) * (1 if rng.random() > 0.5 else -1)
             ky = int(rng.integers(1, freq + 1)) * (1 if rng.random() > 0.5 else -1)
             ph = float(rng.uniform(0, 2.0 * math.pi))
             acc += w * np.sin(kx * xx + ky * yy + ph)
-        wsum += w * 4.0
+        wsum += w * n_dir
     acc /= max(1e-5, wsum)
     m = np.max(np.abs(acc))
     return acc / max(1e-5, m)
@@ -321,10 +328,25 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats):
                 deep_cnt = int(np.sum(comp_m & (tile_idx == 9)))
                 if area >= 14 and deep_cnt >= 6:
                     water_base |= comp_m
-            blue_pad = np.pad(water_base.astype(np.int32), ((1, 1), (1, 1)), mode="edge")
-            blue_sum = sum(blue_pad[dy:dy + tile_sz, dx:dx + tile_sz] for dy in range(3) for dx in range(3))
-            is_water = water_base | (((tile_idx == 0) | (tile_idx == 8)) & (blue_sum >= 5))
 
+            # 检测“纯水上波纹/水面倒影影块” (如 153 号水面倒影黑波，仅有 0/8/9/12 无木/石/砖结构；或 105 号海浪白沫)
+            non_water_solids = np.sum((tile_idx == 10) | (tile_idx == 11) | (tile_idx == 13) | (tile_idx == 14) | (tile_idx == 1) | (tile_idx == 6))
+            pure_water_ripple_tile = (non_water_solids == 0 and int(np.sum(tile_idx == 9)) >= 80) or (
+                int(np.sum(is_blue)) >= 140 and non_water_solids == 0
+            )
+            if pure_water_ripple_tile:
+                is_water = np.ones_like(is_blue, dtype=bool)
+            else:
+                blue_pad = np.pad(water_base.astype(np.int32), ((1, 1), (1, 1)), mode="edge")
+                blue_sum = sum(blue_pad[dy:dy + tile_sz, dx:dx + tile_sz] for dy in range(3) for dx in range(3))
+                # 靠船体水面中孤立的 0/8 水面阴影（若 3x3 内无实体黄木/白帆且邻域多为深水）也转为柔和深水，避免池塘里飘黑杂草
+                solid_hull = (tile_idx == 10) | (tile_idx == 11) | (tile_idx == 15) | (tile_idx == 13) | (tile_idx == 14)
+                hull_pad = np.pad(solid_hull.astype(np.int32), ((1, 1), (1, 1)), mode="edge")
+                hull_near = sum(hull_pad[dy:dy + tile_sz, dx:dx + tile_sz] for dy in range(3) for dx in range(3))
+                is_water = water_base | (((tile_idx == 0) | (tile_idx == 8)) & (blue_sum >= 4) & (hull_near == 0))
+
+            is_tree_tile = (t_id >= p2) and (int(np.sum(tile_idx == 14)) >= 70) and not np.any(is_water)
+            is_shore_tile = (t_id >= p2) and np.any(is_water) and (int(np.sum((tile_idx == 13) | (tile_idx == 14))) >= 18)
             sem[is_water] = 1
             if t_id < p2:
                 is_grass = (tile_idx == 13) | (tile_idx == 14)
@@ -333,20 +355,25 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats):
                 sem[is_grass] = 3
             else:
                 if np.any(is_water):
+                    sem[((tile_idx == 13) | (tile_idx == 14)) & ~is_water] = 3
                     blk_pad = np.pad((tile_idx == 0).astype(np.int32), ((1, 1), (1, 1)), mode="edge")
                     blk_near = sum(blk_pad[dy:dy + tile_sz, dx:dx + tile_sz] for dy in range(3) for dx in range(3))
-                    sem[((tile_idx == 13) | (tile_idx == 14)) & (blk_near == 0)] = 3
                     sem[((tile_idx == 10) | (tile_idx == 11)) & (blk_near == 0) & ~is_water] = 2
-                elif int(np.sum(tile_idx == 14)) >= 70:
+                elif is_tree_tile:
                     blk_pad = np.pad((tile_idx == 0).astype(np.int32), ((1, 1), (1, 1)), mode="edge")
                     blk_near = sum(blk_pad[dy:dy + tile_sz, dx:dx + tile_sz] for dy in range(3) for dx in range(3))
                     sem[(tile_idx == 14) & (blk_near == 0)] = 3
             sem[tile_idx == 0] = 0
             sem[is_water] = 1
 
-            # 1) Albedo: 地面平铺做彻底去抖动 + 石板/草丛质感；建筑保持锐利结构质感，拒绝模糊！
-            pairs = GROUND_DITHER_PAIRS if is_walk else ARCH_DITHER_PAIRS
-            base_16 = dedither_tile_rgb(tile_idx, MODERN_GROUND_PAL, pairs, is_water=is_water, wrap_edges=(t_id < p1))
+            # 1) Albedo: 地面、海岸草坡与树格使用草地色盘，其余实体建筑使用建筑色盘（含压沉的门扇阴影 13）
+            pairs = GROUND_DITHER_PAIRS if (is_walk or is_shore_tile) else ARCH_DITHER_PAIRS
+            tile_pal = MODERN_GROUND_PAL if (is_walk or is_tree_tile or is_shore_tile) else MODERN_ARCH_PAL
+            base_16 = dedither_tile_rgb(tile_idx, tile_pal, pairs, is_water=is_water, wrap_edges=(t_id < p1))
+            if pure_water_ripple_tile:
+                # 153 等水上影波纹格：只保留柔和深暗水波层次，不生成刺眼黑刺团块
+                dark_ripple = (tile_idx == 0) | (tile_idx == 8)
+                base_16[dark_ripple] = MODERN_GROUND_PAL[9] * 0.72 + np.array([4.0, 12.0, 28.0], dtype=np.float32)
             if t_id < p2 or np.any(is_water):
                 smooth_16 = base_16.copy()
                 for m_val, alpha, sig in ((1, 0.88, 0.95), (2, 0.85, 0.85), (3, 0.78, 0.78)):
@@ -414,16 +441,18 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats):
             )
             micro_height = gaussian_filter(micro_height, sigma=0.75, mode="nearest")
 
-            # 物理高程：地上行走层 (~0.02)，水岸边低矮石栏 (~0.35)，实心建筑/树冠/帆船 (~0.75..0.95)
-            if t_id < p1:
+            # 物理高程：地上行走层 (~0.00)，纯水波纹 (~0.00)，半阻挡石栏 (~0.32)，实心建筑/树冠/船体 (~0.82)
+            # 对实心建筑做 3x3 闭运算填平砖缝微小孔洞，保证投射出的建筑影子浑然一体不碎裂
+            if t_id < p1 or pure_water_ripple_tile:
                 tile_elev = np.zeros_like(micro_height)
             elif t_id < p2:
-                # 半阻挡缘边：仅实体结构部分有中等高度
-                tile_elev = np.where((sem64 == 4) | (sem64 == 0), 0.38, 0.02)
+                solid_m = binary_closing((sem64 == 4) | (sem64 == 0), structure=np.ones((5, 5), dtype=bool))
+                tile_elev = gaussian_filter(np.where(solid_m & (sem64 != 1), 0.34, 0.0).astype(np.float32), sigma=1.4, mode="nearest")
             else:
-                # 高大建筑、帆船、堤岸墙体与树冠
-                base_e = np.where(sem64 == 1, 0.0, np.where((sem64 == 2) | (sem64 == 3), 0.04, 0.85))
-                tile_elev = gaussian_filter(base_e.astype(np.float32), sigma=1.2, mode="nearest")
+                caster_raw = (sem64 == 4) | (sem64 == 0)
+                solid_m = binary_closing(caster_raw, structure=np.ones((7, 7), dtype=bool)) & (sem64 != 1)
+                base_e = np.where(solid_m, 0.85, 0.0)
+                tile_elev = gaussian_filter(base_e.astype(np.float32), sigma=1.6, mode="nearest")
 
             nrm_tile = height_to_normal_rgba(micro_height, tile_elev, strength=3.4)
 

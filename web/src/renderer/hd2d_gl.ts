@@ -272,21 +272,22 @@ void main() {
 
   vec2 texel = 1.0 / uViewSize;
 
-  // 1. 屏幕空间太阳斜向阴影光线步进 (屋顶/石墙/船身投射长影子到广场与海面)
+  // 1. 连续细腻太阳斜向阴影光线步进（20 步高密度小步长 + 屏幕空间交错梯度噪点抖动，彻底消灭锯齿与重影条纹）
   float sunShadow = 1.0;
   if (elev < 0.36 && uOvercastMix < 0.85) {
-    vec2 rayStep = vec2(sunDir.x, sunDir.y) * texel * 5.2;
-    float hitAccum = 0.0;
-    for (int s = 1; s <= 12; s++) {
-      float fs = float(s);
+    float ign = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+    vec2 rayStep = vec2(sunDir.x, sunDir.y) * texel * 1.45;
+    float maxHit = 0.0;
+    for (int s = 1; s <= 20; s++) {
+      float fs = float(s) - 0.5 + ign * 0.85;
       vec2 suv = clamp(vUV + rayStep * fs, vec2(0.002), vec2(0.998));
       float sh = texture(uNrmTex, suv).a;
-      float needed = elev + fs * 0.052;
-      if (sh > needed && sh > 0.50) {
-        hitAccum += (1.0 - fs / 13.0) * 0.42;
-      }
+      float needed = elev + fs * 0.024;
+      float occ = smoothstep(needed, needed + 0.14, sh);
+      float atten = 1.0 - (fs / 21.0);
+      maxHit = max(maxHit, occ * atten * 0.92);
     }
-    sunShadow = clamp(1.0 - hitAccum * mix(1.0, 0.45, uOvercastMix), 0.24, 1.0);
+    sunShadow = clamp(1.0 - maxHit * mix(1.0, 0.40, uOvercastMix), 0.36, 1.0);
   }
 
   // 2. 接触环境光遮蔽 (Contact AO): 让墙脚、台阶、行道树与码头边缘厚重立体
@@ -676,7 +677,7 @@ export class Hd2dPortRenderer {
     const chAlbTex = this.getImageTex("chAlb", p.charsAlb, true);
     const chNrmTex = this.getImageTex("chNrm", p.charsNrm, true);
 
-    const tiltStrength = 0.14;
+    const tiltStrength = 0.0;
 
     // ---- Pass 1: MRT G-Buffer ----
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboGbuf);
@@ -808,7 +809,7 @@ export class Hd2dPortRenderer {
     gl.uniform1i(gl.getUniformLocation(this.progFinal, "uBloomTex"), 1);
     gl.uniform2f(gl.getUniformLocation(this.progFinal, "uViewSize"), p.vw, p.vh);
     gl.uniform1f(gl.getUniformLocation(this.progFinal, "uFade"), p.fade);
-    gl.uniform1f(gl.getUniformLocation(this.progFinal, "uDofStrength"), 0.58);
+    gl.uniform1f(gl.getUniformLocation(this.progFinal, "uDofStrength"), 0.45);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
     return this.canvas;
