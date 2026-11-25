@@ -1,38 +1,32 @@
-// canvas_ui/wide_title.ts — Stage 4: 原生 16:9 (1280×720) 現代 Canvas 2D 標題畫面
-// 直接使用原版提取的 GRAPH.DAT #0x3c 標題徽章與 #0x3e 副標 PNG，零杜撰文本。
+// canvas_ui/wide_title.ts — 原生 16:9 (1280×720) 標題底圖渲染（深海航海漸層 + 經緯底紋，供載入/選角/設定彈窗作為統一背景）
 import { VIEW_W, VIEW_H } from "../core/screen.js";
 
-export function renderWideTitle(ctx: CanvasRenderingContext2D, art: any) {
+export function renderWideTitle(ctx: CanvasRenderingContext2D, _art?: any) {
   ctx.save();
-  // 深海星夜漸層背景 + 柔和海平線光暈
-  const bg = ctx.createLinearGradient(0, 0, 0, VIEW_H);
-  bg.addColorStop(0, "#071224");
-  bg.addColorStop(0.55, "#102848");
-  bg.addColorStop(1, "#060e1c");
+  const bg = ctx.createRadialGradient(VIEW_W / 2, VIEW_H * 0.32, 30, VIEW_W / 2, VIEW_H * 0.45, VIEW_W * 0.65);
+  bg.addColorStop(0, "#1c3e68");
+  bg.addColorStop(0.55, "#0d1f3a");
+  bg.addColorStop(1, "#071120");
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 
-  const glow = ctx.createRadialGradient(VIEW_W / 2, 220, 20, VIEW_W / 2, 220, 420);
-  glow.addColorStop(0, "rgba(218, 178, 102, 0.22)");
-  glow.addColorStop(1, "rgba(218, 178, 102, 0)");
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+  // 淡金經緯海圖線
+  ctx.strokeStyle = "rgba(200, 162, 88, 0.06)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = 48; x < VIEW_W; x += 48) { ctx.moveTo(x, 0); ctx.lineTo(x, VIEW_H); }
+  for (let y = 48; y < VIEW_H; y += 48) { ctx.moveTo(0, y); ctx.lineTo(VIEW_W, y); }
+  ctx.stroke();
 
-  // 原版標題徽章 (GRAPH.DAT #0x3c, 208×112 -> 416×224)
-  const logoEntry = art?.graphEntry?.("GRAPH.DAT", 0x3c);
-  const logoImg = logoEntry ? art.getImage(`${art.baseUrl}/${logoEntry.path}`) : null;
-  if (logoImg) {
-    ctx.imageSmoothingEnabled = (logoImg.naturalWidth || 208) > 208;
-    ctx.drawImage(logoImg, Math.round((VIEW_W - 416) / 2), 68, 416, 224);
-  }
-
-  // 原版副標 (GRAPH.DAT #0x3e, 320×40 -> 640×80)
-  const subEntry = art?.graphEntry?.("GRAPH.DAT", 0x3e);
-  const subImg = subEntry ? art.getImage(`${art.baseUrl}/${subEntry.path}`) : null;
-  if (subImg) {
-    ctx.imageSmoothingEnabled = (subImg.naturalWidth || 320) > 320;
-    ctx.drawImage(subImg, Math.round((VIEW_W - 640) / 2), 308, 640, 80);
-  }
+  // 中央淡金羅盤圓環
+  ctx.strokeStyle = "rgba(214, 174, 96, 0.14)";
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.arc(VIEW_W / 2, VIEW_H / 2, 220, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(VIEW_W / 2, VIEW_H / 2, 165, 0, Math.PI * 2);
+  ctx.stroke();
 
   ctx.restore();
 }
