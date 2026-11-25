@@ -8,6 +8,7 @@ import { DS } from "../model/schema_views.ts";
 import { captureConsoleText, decodeCleanCstr, toSimp } from "../canvas_ui/text_util.ts";
 import { runWideInfoLinesModal } from "../canvas_ui/wide_panels.ts";
 import { createDomModal, hasDom, preserveScroll } from "../modern/dom_ui.ts";
+import { UI_STR } from "../modern/ui_strings.ts";
 
 const isHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const isS16 = v => (v << 16) >> 16;
@@ -41,7 +42,7 @@ export class ItemShop {
     const t = this.c.rt.time;
     const capMsg = (id, ...args) => toSimp(captureConsoleText(this.c, () => message(id, ...args)).trim());
     const initGreet = b.noEvent() ? capMsg(t >= 12 && t < 18 ? 0x2fc : 0xeb) : "";
-    const tabLabels = this.c.menuItems(MenuId.ITEM_SHOP).slice(0, 2).map(raw => decodeCleanCstr(codec, raw).replace(/\s+/g, ""));
+    const tabLabels = [...UI_STR.itemShopTabs];
     const portName = decodeCleanCstr(codec, m.port(b.port).nameBytes);
 
     return new Promise(resolve => {

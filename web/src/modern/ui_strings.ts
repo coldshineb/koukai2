@@ -34,6 +34,25 @@ export const UI_STR = {
   belongingsActions: ["佩戴", "使用"] as const,
   formationTitle: "队形变更",
   newGameTitle: "开始新航海",
+  titleMenu: ["继续航海进度", "开始新航海", "环境设定"] as const,
+
+  palaceTabs: ["晋见国王", "势力状况", "许可与归化", "王室援助"] as const,
+  palaceActions: {
+    audience: "晋见国王",
+    situation: "势力状况",
+    letterOfMarque: "私掠许可证",
+    taxFree: "免税证",
+    naturalize: "申请国籍",
+    funds: "资金援助",
+    shipAid: "船舶援助",
+  } as const,
+  bankTabs: ["存款", "提款", "贷款", "还款"] as const,
+  officeTabs: ["工作介绍", "各国情报"] as const,
+  innTabs: ["与航海者闲聊", "海港支持度", "就寝"] as const,
+  churchTabs: ["礼拜", "赠献"] as const,
+  fortuneTabs: ["人生运", "事业运", "恋爱运", "朋友运"] as const,
+  tavernTabs: ["水手雇用", "水手解雇", "饮酒叙话", "与航海者闲聊", "酒吧女郎", "赌博"] as const,
+  itemShopTabs: ["买进", "卖出"] as const,
 
   listTitles: {
     0: "选择舰船",

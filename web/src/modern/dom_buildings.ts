@@ -2,10 +2,11 @@
 // 涵蓋：王宮 (Palace)、銀行 (Bank)、事務所 (Office)、旅館 (Inn)、教會 (Church)、占卜師 (Fortune)
 // 統一結構：createDomModal(wide) + headerRight(.uw2-pill + 關閉) + .uw2-modal-toolbar(.uw2-tab-btn) + .uw2-split + .uw2-modal-footer
 import { DS, OFF } from "../model/schema_views.ts";
-import { GameConst, MenuId, OptionFlag, ShipSlotFlag, TreatyFlag, WorkDS } from "../model/flags.ts";
+import { GameConst, OptionFlag, TreatyFlag, WorkDS } from "../model/flags.ts";
 import { domS16, calcDepositLimit, canTakeLoan, calcLoanLimit } from "../domain/economy.ts";
 import { captureConsoleText, decodeCleanCstr, toSimp } from "../canvas_ui/text_util.ts";
 import { createDomModal, getPersonPortraitSrc, preserveScroll } from "./dom_ui.ts";
+import { UI_STR } from "./ui_strings.ts";
 import { ENV_COMMON, ENV_HERO } from "../game/scenario.js";
 import { mainEnding } from "../game/endgame.js";
 
@@ -122,12 +123,10 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
         const same = palace.same(7);
         const c5e = g.commonChap;
         const canNaturalize = !(same || (c5e !== 0 && c5e !== 0xff && plS16(st.u16(WorkDS.CUR_KIND)) >= 6) || (st.u8(WorkDS.FLAGS) & 6));
-        const tabs = [
-          { label: "晋见国王", disabled: false },
-          { label: "势力状况", disabled: false },
-          { label: "许可与归化", disabled: false },
-          { label: "王室援助", disabled: !same },
-        ];
+        const tabs = UI_STR.palaceTabs.map((label, idx) => ({
+          label,
+          disabled: idx === 3 && !same,
+        }));
 
         shell.toolbar.innerHTML = "";
         tabs.forEach((tb, idx) => {
@@ -215,7 +214,7 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
           const btnAud = document.createElement("button");
           btnAud.className = "uw2-btn uw2-btn-primary";
           btnAud.style.cssText = "padding:10px 20px;align-self:flex-start;";
-          btnAud.textContent = decodeCleanCstr(codec, c.menuItems(MenuId.PALACE)[0]).replace(/\s+/g, "");
+          btnAud.textContent = UI_STR.palaceActions.audience;
           btnAud.addEventListener("click", () => {
             pendingAction = "royal_event";
             done();
@@ -224,7 +223,7 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
           const btnSit = document.createElement("button");
           btnSit.className = "uw2-btn";
           btnSit.style.cssText = "padding:9px 18px;align-self:flex-start;";
-          btnSit.textContent = decodeCleanCstr(codec, c.menuItems(MenuId.PALACE_AUDIENCE)[0]).replace(/\s+/g, "");
+          btnSit.textContent = UI_STR.palaceActions.situation;
           btnSit.addEventListener("click", () => { tab = 1; render(); });
 
           box.append(btnAud, btnSit);
@@ -271,7 +270,7 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
           // 1. 私掠許可證
           const lomBtn = document.createElement("button");
           lomBtn.className = "uw2-row-card";
-          lomBtn.textContent = decodeCleanCstr(codec, c.menuItems(MenuId.PALACE_AUDIENCE)[1]).replace(/\s+/g, "");
+          lomBtn.textContent = UI_STR.palaceActions.letterOfMarque;
           lomBtn.addEventListener("click", () => {
             const target = (palace.nation + 0x1d) & 0xff;
             const slot = palace.invSlot(target);
@@ -294,7 +293,7 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
           const tfBtn = document.createElement("button");
           tfBtn.className = "uw2-row-card";
           tfBtn.disabled = !palace.same();
-          tfBtn.textContent = decodeCleanCstr(codec, c.menuItems(MenuId.PALACE_AUDIENCE)[2]).replace(/\s+/g, "");
+          tfBtn.textContent = UI_STR.palaceActions.taxFree;
           tfBtn.addEventListener("click", () => {
             const slot = palace.invSlot(tfTarget);
             if (slot === -1) { notice = capMsg(c, 0x368); render(); return; }
@@ -313,7 +312,7 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
           const natBtn = document.createElement("button");
           natBtn.className = "uw2-row-card";
           natBtn.disabled = !canNaturalize;
-          natBtn.textContent = decodeCleanCstr(codec, c.menuItems(MenuId.PALACE)[1]).replace(/\s+/g, "");
+          natBtn.textContent = UI_STR.palaceActions.naturalize;
           natBtn.addEventListener("click", () => {
             const hero = m.heroPerson();
             const oldNat = hero.face & 7, newNat = palace.nation;
@@ -344,7 +343,7 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
 
           const fundsBtn = document.createElement("button");
           fundsBtn.className = "uw2-row-card";
-          fundsBtn.textContent = decodeCleanCstr(codec, c.menuItems(MenuId.PALACE)[2]).replace(/\s+/g, "");
+          fundsBtn.textContent = UI_STR.palaceActions.funds;
           fundsBtn.addEventListener("click", () => {
             if (!country.aidMoneyK) { notice = capMsg(c, 0x1cd); render(); return; }
             if (((palace.money + country.aidMoneyK * 1000) | 0) > GameConst.MAX_CASH) { notice = capMsg(c, 0x212); render(); return; }
@@ -358,7 +357,7 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
 
           const shipBtn = document.createElement("button");
           shipBtn.className = "uw2-row-card";
-          shipBtn.textContent = decodeCleanCstr(codec, c.menuItems(MenuId.PALACE)[3]).replace(/\s+/g, "");
+          shipBtn.textContent = UI_STR.palaceActions.shipAid;
           shipBtn.addEventListener("click", () => {
             if (!country.aidShipCount) { notice = capMsg(c, 0x1cd); render(); return; }
             pendingAction = "ship_aid";
@@ -405,7 +404,7 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
 export function runDomBankWorkbench(bank: any): Promise<void> {
   const b = bank.b, c = bank.c, m = bank.m, g = m.globals, codec = c.codec;
   const portName = decodeCleanCstr(codec, m.port(b.port).nameBytes);
-  const tabLabels = c.menuItems(MenuId.BANK).slice(0, 4).map((raw: Uint8Array) => decodeCleanCstr(codec, raw).replace(/\s+/g, ""));
+  const tabLabels = [...UI_STR.bankTabs];
   const initGreet = b.noEvent()
     ? (b.port === GameConst.VENICE_PORT_ID ? capMsg(c, 0x61) : capMsg(c, 0x62, m.port(b.port).nameBytes))
     : "";
@@ -598,7 +597,7 @@ export function runDomBankWorkbench(bank: any): Promise<void> {
 export async function runDomOfficeWorkbench(office: any): Promise<void> {
   const b = office.b, c = office.c, st = office.st, m = office.m, g = m.globals, codec = c.codec;
   const portName = decodeCleanCstr(codec, m.port(b.port).nameBytes);
-  const tabLabels = c.menuItems(1).slice(0, 2).map((raw: Uint8Array) => decodeCleanCstr(codec, raw).replace(/\s+/g, ""));
+  const tabLabels = [...UI_STR.officeTabs];
   const nationNames = office.nations.slice(0, 6).map((raw: Uint8Array) => decodeCleanCstr(codec, raw).replace(/\s+/g, ""));
   const initGreet = b.noEvent() ? capMsg(c, 0x55) : "";
 
@@ -820,7 +819,7 @@ export async function runDomOfficeWorkbench(office: any): Promise<void> {
 export async function runDomInnWorkbench(b: any): Promise<void> {
   const c = b.c, st = b.st, codec = c.codec, art = c.art;
   const portName = decodeCleanCstr(codec, st.model.port(b.port).nameBytes);
-  const tabLabels = c.menuItems(4).map((raw: Uint8Array) => decodeCleanCstr(codec, raw).replace(/\s+/g, ""));
+  const tabLabels = [...UI_STR.innTabs];
   let isCapital = false;
   for (let i = 0; i < 6; i++) if (st.u8(DS.TBL_COUNTRY + i * 0x20 + 0x0a) === b.port) isCapital = true;
   const initGreet = b.noEvent() ? capMsg(c, 0x42) : "";
@@ -964,7 +963,7 @@ export async function runDomInnWorkbench(b: any): Promise<void> {
 export function runDomChurchWorkbench(b: any, base: number): Promise<void> {
   const c = b.c, st = b.st, codec = c.codec;
   const portName = decodeCleanCstr(codec, st.model.port(b.port).nameBytes);
-  const tabLabels = c.menuItems(7).map((raw: Uint8Array) => decodeCleanCstr(codec, raw).replace(/\s+/g, ""));
+  const tabLabels = [...UI_STR.churchTabs];
   const initGreet = b.noEvent() ? capMsg(c, base + 0x5b) : "";
 
   return new Promise(resolve => {
@@ -1087,7 +1086,7 @@ export function runDomChurchWorkbench(b: any, base: number): Promise<void> {
 export function runDomFortuneWorkbench(b: any): Promise<void> {
   const c = b.c, st = b.st, codec = c.codec;
   const portName = decodeCleanCstr(codec, st.model.port(b.port).nameBytes);
-  const tabLabels = c.menuItems(17).map((raw: Uint8Array) => decodeCleanCstr(codec, raw).replace(/\s+/g, ""));
+  const tabLabels = [...UI_STR.fortuneTabs];
   const initGreet = b.noEvent() ? capMsg(c, 0x12a) : "";
 
   const expNeed = (lv: number) => { const m = Math.min(lv, 0x12); return (m * m * 30) & 0xffff; };
@@ -1214,7 +1213,7 @@ export function runDomFortuneWorkbench(b: any): Promise<void> {
 export async function runDomTavernWorkbench(b: any, drinkNameBytes: Uint8Array, onGamble: () => Promise<void>): Promise<void> {
   const c = b.c, st = b.st, codec = c.codec, art = c.art;
   const portName = decodeCleanCstr(codec, st.model.port(b.port).nameBytes);
-  const tabLabels = c.menuItems(15).map((raw: Uint8Array) => decodeCleanCstr(codec, raw).replace(/\s+/g, ""));
+  const tabLabels = [...UI_STR.tavernTabs];
   const drinkName = decodeCleanCstr(codec, drinkNameBytes);
   const k = st.u8(b.eco + 0x24);
   const drinkPrice = b.T.liquorPrice[k];
