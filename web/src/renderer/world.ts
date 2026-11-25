@@ -436,15 +436,13 @@ function getGlobalSeaTile(seaScene: any, wx: number, wy: number): number {
   return chunk[(wy % 24) * 24 + (gwx % 24)];
 }
 
-interface SeaTween {
-  fromX: number;
-  fromY: number;
-  toX: number;
-  toY: number;
-  prevRawX: number;
-  prevRawY: number;
-  elapsed: number;
-  dur: number;
+interface SeaSmoothTrack {
+  visX: number;
+  visY: number;
+  velX: number;
+  velY: number;
+  rawX: number;
+  rawY: number;
   avgStepMs: number;
   sinceStepMs: number;
 }
@@ -454,7 +452,7 @@ interface SeaSmoothState {
   lastMs: number;
   camWX: number;
   camWY: number;
-  fleets: Map<number, SeaTween>;
+  fleets: Map<number, SeaSmoothTrack>;
 }
 
 let seaSmooth: SeaSmoothState | null = null;
@@ -468,83 +466,84 @@ function exactFleetPos(seaScene: any, fl: any): [number, number] {
   return [wx, wy];
 }
 
-/** 海上亚格位置线性自适应补间（依实测步进间隔匀速插值，避免指数阻尼一快一慢脉冲） */
-function stepSeaTween(
-  tw: SeaTween | undefined,
+/**
+ * 海上航行 60fps 恒速前馈 + 半步平滑跟随：
+ * 先依据实测逻辑步长估算平滑航速 vel，在相邻逻辑步之间持续匀速推进 vis，
+ * 使画面彻底免疫单帧 vsync / seaTick 节拍抖动带来的「一快一慢」现象；停船或阻塞时自动平滑归位。
+ */
+function stepSeaSmooth(
+  tr: SeaSmoothTrack | undefined,
   rawWX: number,
   rawWY: number,
   dt: number,
   fallbackStepMs: number,
+  forceStop: boolean,
   reset: boolean,
-): SeaTween {
-  if (!tw || reset) {
+): SeaSmoothTrack {
+  if (!tr || reset) {
     return {
-      fromX: rawWX,
-      fromY: rawWY,
-      toX: rawWX,
-      toY: rawWY,
-      prevRawX: rawWX,
-      prevRawY: rawWY,
-      elapsed: fallbackStepMs,
-      dur: fallbackStepMs,
+      visX: rawWX,
+      visY: rawWY,
+      velX: 0,
+      velY: 0,
+      rawX: rawWX,
+      rawY: rawWY,
       avgStepMs: fallbackStepMs,
       sinceStepMs: fallbackStepMs,
     };
   }
-  const jumpX = wrapSignedDelta(rawWX - tw.prevRawX, SEA_WORLD_W);
-  const jumpY = rawWY - tw.prevRawY;
+  const jumpX = wrapSignedDelta(rawWX - tr.rawX, SEA_WORLD_W);
+  const jumpY = rawWY - tr.rawY;
   if (Math.hypot(jumpX, jumpY) > 2.5) {
     return {
-      fromX: rawWX,
-      fromY: rawWY,
-      toX: rawWX,
-      toY: rawWY,
-      prevRawX: rawWX,
-      prevRawY: rawWY,
-      elapsed: tw.avgStepMs,
-      dur: tw.avgStepMs,
-      avgStepMs: tw.avgStepMs,
-      sinceStepMs: tw.avgStepMs,
+      visX: rawWX,
+      visY: rawWY,
+      velX: 0,
+      velY: 0,
+      rawX: rawWX,
+      rawY: rawWY,
+      avgStepMs: tr.avgStepMs,
+      sinceStepMs: tr.avgStepMs,
     };
   }
 
-  const prevDone = tw.elapsed >= tw.dur;
-  tw.elapsed = Math.min(tw.dur, tw.elapsed + dt);
-  tw.sinceStepMs += dt;
-  const t = tw.dur > 0 ? clamp(tw.elapsed / tw.dur, 0, 1) : 1;
-  const curX = wrapMod(tw.fromX + wrapSignedDelta(tw.toX - tw.fromX, SEA_WORLD_W) * t, SEA_WORLD_W);
-  const curY = clamp(tw.fromY + (tw.toY - tw.fromY) * t, 0, SEA_WORLD_H - 1);
-
+  tr.sinceStepMs += dt;
   if (Math.abs(jumpX) > 1e-4 || Math.abs(jumpY) > 1e-4) {
-    const sampleMs = tw.sinceStepMs;
-    const avgStepMs =
-      sampleMs >= 14 && sampleMs <= 260 ? tw.avgStepMs * 0.72 + sampleMs * 0.28 : tw.avgStepMs;
-    const dur = clamp(avgStepMs * 1.06, 26, 240);
-    return {
-      fromX: curX,
-      fromY: curY,
-      toX: rawWX,
-      toY: rawWY,
-      prevRawX: rawWX,
-      prevRawY: rawWY,
-      elapsed: prevDone ? dt : 0,
-      dur,
-      avgStepMs,
-      sinceStepMs: 0,
-    };
+    if (tr.sinceStepMs >= 12 && tr.sinceStepMs <= 300) {
+      tr.avgStepMs = tr.avgStepMs * 0.75 + tr.sinceStepMs * 0.25;
+      const stepVx = jumpX / tr.sinceStepMs;
+      const stepVy = jumpY / tr.sinceStepMs;
+      const blend = Math.hypot(tr.velX, tr.velY) < 1e-7 ? 1 : 0.32;
+      tr.velX = tr.velX * (1 - blend) + stepVx * blend;
+      tr.velY = tr.velY * (1 - blend) + stepVy * blend;
+    }
+    tr.rawX = rawWX;
+    tr.rawY = rawWY;
+    tr.sinceStepMs = 0;
   }
-  return tw;
+
+  const stopThreshold = Math.max(tr.avgStepMs * 1.75, 170);
+  if (forceStop || tr.sinceStepMs > stopThreshold) {
+    tr.velX = 0;
+    tr.velY = 0;
+    const settleAlpha = 1 - Math.exp((-22 * dt) / 1000);
+    tr.visX = wrapMod(tr.visX + wrapSignedDelta(tr.rawX - tr.visX, SEA_WORLD_W) * settleAlpha, SEA_WORLD_W);
+    tr.visY = clamp(tr.visY + (tr.rawY - tr.visY) * settleAlpha, 0, SEA_WORLD_H - 1);
+    return tr;
+  }
+
+  const lagMs = Math.min(tr.avgStepMs * 0.5, 70);
+  const aimX = wrapMod(tr.rawX - tr.velX * lagMs, SEA_WORLD_W);
+  const aimY = clamp(tr.rawY - tr.velY * lagMs, 0, SEA_WORLD_H - 1);
+  const corr = Math.min(1, (8 * dt) / 1000);
+  const errX = wrapSignedDelta(aimX - tr.visX, SEA_WORLD_W);
+  const errY = aimY - tr.visY;
+  tr.visX = wrapMod(tr.visX + tr.velX * dt + errX * corr, SEA_WORLD_W);
+  tr.visY = clamp(tr.visY + tr.velY * dt + errY * corr, 0, SEA_WORLD_H - 1);
+  return tr;
 }
 
-function evalSeaTween(tw: SeaTween): { wx: number; wy: number } {
-  const t = tw.dur > 0 ? clamp(tw.elapsed / tw.dur, 0, 1) : 1;
-  return {
-    wx: wrapMod(tw.fromX + wrapSignedDelta(tw.toX - tw.fromX, SEA_WORLD_W) * t, SEA_WORLD_W),
-    wy: clamp(tw.fromY + (tw.toY - tw.fromY) * t, 0, SEA_WORLD_H - 1),
-  };
-}
-
-/** 16:9 全球无缝海面渲染器（结合 subX/subY 与 60fps 匀速船只插值及平滑相机） */
+/** 16:9 全球无缝海面渲染器（结合 subX/subY 与 60fps 恒速船只追踪及平滑相机） */
 export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene: any) {
   const art = seaScene.c.art;
   if (!art || !seaScene.wm) return;
@@ -566,13 +565,15 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
   const gapReset = !seaSmooth || seaSmooth.scene !== seaScene || tNow - seaSmooth.lastMs > 220;
   const dt = gapReset ? 16 : Math.min(50, Math.max(0, tNow - seaSmooth!.lastMs));
   const speedScale = Math.max(0.25, seaScene.c?.sys?.timeScale || 1);
-  const defaultSeaStepMs = clamp(((1 + (m.globals.seaSpeed || 0)) * 16.581) / speedScale, 26, 220);
+  const defaultSeaStepMs = clamp(((1 + (m.globals.seaSpeed || 0)) * 16.581) / speedScale, 24, 220);
   const camAlpha = 1 - Math.exp((-12 * Math.max(1, speedScale) * dt) / 1000);
+  const paused = (seaScene.c?.sys?.timeScale ?? 1) === 0;
+  const heroStopped = paused || !!(m.globals.seaFlags2 & 0x20) || (heroFl.dir & 0xff) === 8;
 
-  const fleetsMap = gapReset ? new Map<number, SeaTween>() : seaSmooth!.fleets;
-  const heroTw = stepSeaTween(fleetsMap.get(F), heroRawWX, heroRawWY, dt, defaultSeaStepMs, gapReset);
-  fleetsMap.set(F, heroTw);
-  const heroSmooth = evalSeaTween(heroTw);
+  const fleetsMap = gapReset ? new Map<number, SeaSmoothTrack>() : seaSmooth!.fleets;
+  const heroTr = stepSeaSmooth(fleetsMap.get(F), heroRawWX, heroRawWY, dt, defaultSeaStepMs, heroStopped, gapReset);
+  fleetsMap.set(F, heroTr);
+  const heroSmooth = { wx: heroTr.visX, wy: heroTr.visY };
 
   const viewColsF = VIEW_W / TILE; // 40
   const viewRowsF = VIEW_H / TILE; // 22.5
@@ -641,9 +642,9 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
       pos = heroSmooth;
     } else {
       const [rwx, rwy] = exactFleetPos(seaScene, fl);
-      const tw = stepSeaTween(fleetsMap.get(fl.addr), rwx, rwy, dt, defaultSeaStepMs, gapReset);
-      fleetsMap.set(fl.addr, tw);
-      pos = evalSeaTween(tw);
+      const tr = stepSeaSmooth(fleetsMap.get(fl.addr), rwx, rwy, dt, defaultSeaStepMs, paused, gapReset);
+      fleetsMap.set(fl.addr, tr);
+      pos = { wx: tr.visX, wy: tr.visY };
     }
     const fx = wrapSignedDelta(pos.wx - baseWX, WORLD_W);
     const fy = pos.wy - baseWY;

@@ -49,7 +49,7 @@ export class Palette {
     const inv = this.cur.map(v => 15 - v); this.scr.setPaletteRaw(inv);
   }
   // 9918 一步; 返回是否有变化
-  async fadeStep(raw) {
+  async fadeStep(raw, wait = true) {
     let changed = 0;
     for (let i = 0; i < 48; i++) {
       const t = raw[i];
@@ -58,10 +58,10 @@ export class Palette {
     if (!changed) return 0;
     this.writeDAC();
     this.onStep?.(this.cur);
-    await this.sys.waitTicks(1);
+    if (wait) await this.sys.waitTicks(1);
     return 1;
   }
-  async fadeStepTarget() { return this.fadeStep(this.target); }                      // 99c5
+  async fadeStepTarget(wait = true) { return this.fadeStep(this.target, wait); }                      // 99c5
   async fadeTo(raw) { if (this.ending) return; while (await this.fadeStep(raw)); }    // 99ce
   async fadeToTarget() { return this.fadeTo(this.target); }                           // 99e8
   async fadeBlack() { return this.fadeTo(new Uint8Array(48)); }                      // 99f2

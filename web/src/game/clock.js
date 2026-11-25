@@ -82,7 +82,7 @@ export class GameClock {
     const { palette } = this.c, g = this.m.globals;
     switch (palette.fadeState) {                                                     // [a4aa]
       case 0: if (!(g.weather & 15)) palette.fadeState = palette.timeTransition(this.rt.time); break;
-      case 1: palette.fadeState = await palette.fadeStepTarget(); break;
+      case 1: palette.fadeState = await palette.fadeStepTarget(g.port !== GameConst.EMPTY_SLOT); break;
       case 2: palette.fadeState = 0; await palette.fadeToTarget(); break;
     }
     if (g.port === GameConst.EMPTY_SLOT) {                                           // 1b284 海上
