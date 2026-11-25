@@ -855,6 +855,7 @@ html, body {
 }
 .uw2-hud-tr-wrap .uw2-hud-card {
   position: static;
+  width: 296px;
 }
 .uw2-hud-pm {
   pointer-events: auto;
