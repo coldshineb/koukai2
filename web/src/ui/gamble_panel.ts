@@ -1,5 +1,6 @@
 // ui/gamble_panel.ts — 现代羊皮纸酒馆赌博工作台（二十一点 + 扑克骰子，含赌场插图与 NPC/主角头像，100% 沿用原版洗牌/判定/赔率）
 import { createDomModal, getComposedPortraitSrc, getGraphArtUrl, getPersonPortraitSrc, hasDom, mountBuildingBanner } from "./modals.ts";
+import { personRawBytes } from "../model/world_helpers.ts";
 
 const SUITS = ["♠", "♥", "♦", "♣"];
 const RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
@@ -62,7 +63,7 @@ export async function runDomGamble(gamble: any): Promise<void> {
   const rollFive = () => Array.from({ length: 5 }, () => gamble.rng.random(6) + 1);
 
   const art = gamble.c?.art;
-  const heroRec = gamble.st.bytes(gamble.b.hero, 0x32);
+  const heroRec = personRawBytes(gamble.st.model.heroPerson());
   let heroPortraitUrl: string | null = null;
   let dealerPortraitUrl: string | null = null;
   let opp1PortraitUrl: string | null = null;

@@ -1,5 +1,6 @@
 // renderer/world.ts — 16:9 (1280×720) 全屏 Canvas 2D 港口/海面视口渲染器
-import { DS, OFF } from "../model/schema_views.ts";
+import { FleetFlag, GameConst } from "../model/flags.ts";
+import { WorldConst, fleetByAddr, fleetShipSlot } from "../model/world_helpers.ts";
 import { VIEW_W, VIEW_H } from "../core/screen.js";
 import { syncDomWorldHud } from "../ui/hud.ts";
 
@@ -261,13 +262,13 @@ let seaChunkTmp: Uint8Array | null = null;
 let seaChunkWmRef: any = null;
 let seaChunkDiscSig = -1;
 
-function calcSeaDiscoverySig(st: any): number {
+function calcSeaDiscoverySig(m: any): number {
   let sig = 0;
-  for (let p = 0; p < 130; p++) {
-    if (st.u8(DS.TBL_PORT + p * 0x16 + OFF.PORT.REGION) & 0x10) sig++;
+  for (let p = 0; p < WorldConst.TOTAL_PORTS; p++) {
+    if (m.port(p).region & WorldConst.PORT_DISCOVERED_BIT) sig++;
   }
-  for (let d = 0; d < 100; d++) {
-    if (st.u8(0x7f8c + d * 7 + 6) & 0x40) sig += 256;
+  for (let d = 0; d < WorldConst.TOTAL_DISCOVERIES; d++) {
+    if (m.discovery(d).flags & WorldConst.DISCOVERY_CHART_BIT) sig += 256;
   }
   return sig;
 }
@@ -314,7 +315,8 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
   if (!art || !seaScene.wm) return;
 
   // 若新发现港口或发现物则自动失效海域块缓存，确保海面立即显示新发现的港口与遗迹
-  const discSig = calcSeaDiscoverySig(seaScene.st);
+  const m = seaScene.st.model;
+  const discSig = calcSeaDiscoverySig(m);
   if (discSig !== seaChunkDiscSig) {
     seaChunkCache.clear();
     seaChunkDiscSig = discSig;
@@ -364,12 +366,12 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
   }
 
   // 绘制可见舰队 (主角 + 海上其他舰队)
-  const st = seaScene.st;
-  const w = st.u8(DS.WEATHER) & 15;
+  const w = m.globals.weather & 15;
   const Tdir = seaScene.SJ.tab.shipDir;
-  const drawOneFleet = (Fl: number, k: number, isHero: boolean) => {
-    const fx = wrapDeltaX(seaScene.wx(Fl));
-    const fy = seaScene.wy(Fl) - camWY;
+  const heroId = m.globals.hero;
+  const drawOneFleet = (fl: any, k: number, isHero: boolean) => {
+    const fx = wrapDeltaX(seaScene.wx(fl.addr));
+    const fy = seaScene.wy(fl.addr) - camWY;
     if (fx < -2 || fx > viewCols + 1 || fy < -2 || fy > viewRows + 1) return;
     const sx = fx * TILE;
     const sy = fy * TILE;
@@ -377,12 +379,14 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
     let si: number;
     if (isHero) {
       let i = 0;
-      while (i < 10 && st.u8(seaScene.crewOf(i) + 0x1b) !== st.u8(DS.HERO)) i++;
-      si = (st.u8(seaScene.shipRec(st.u8(seaScene.slotOf(i) + 7)) + 0x10) & 0x10) << 8;
+      while (i < GameConst.FLEET_SHIPS && m.crewSlot(i).captain !== heroId) i++;
+      const shipId = fleetShipSlot(fl, i).ship;
+      si = (m.ship(shipId).flags & WorldConst.SHIP_LARGE_BIT) << 8;
     } else {
-      si = (((st.u8(seaScene.shipRec(st.u8(Fl + 0x32)) + 0x10) & 0x10) << 8) + 0x2000) & 0xffff;
+      const shipId = fleetShipSlot(fl, 0).ship;
+      si = (((m.ship(shipId).flags & WorldConst.SHIP_LARGE_BIT) << 8) + 0x2000) & 0xffff;
     }
-    const d = Tdir[st.u8(Fl + OFF.FLEET.DIR) & 7] + 0x10;
+    const d = Tdir[fl.dir & 7] + 16;
     si = isHero
       ? (si + (((d * 2 + (seaScene.time & 1)) << 9) & 0xffff)) & 0xffff
       : (si + ((d << 10) & 0xffff) + (((k + seaScene.time) & 1) << 9)) & 0xffff;
@@ -391,14 +395,14 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
   };
 
   if (w === 0 || w === 2) {
-    for (let k = 0; k < 0x46; k++) {
-      const Fl = DS.TBL_FLEET + k * 0x85;
-      if (st.u8(Fl + OFF.FLEET.FLAGS) & 0x10 || !(st.u8(Fl + OFF.FLEET.FLAGS) & 1)) continue;
-      if (seaScene.landAt(seaScene.wx(Fl), seaScene.wy(Fl))) continue;
-      drawOneFleet(Fl, k, Fl === F);
+    for (let k = 0; k < WorldConst.TOTAL_FLEETS; k++) {
+      const fl = m.fleet(k);
+      if (fl.flags & FleetFlag.IN_PORT || !(fl.flags & FleetFlag.AT_SEA)) continue;
+      if (seaScene.landAt(seaScene.wx(fl.addr), seaScene.wy(fl.addr))) continue;
+      drawOneFleet(fl, k, fl.addr === F);
     }
   } else {
-    drawOneFleet(F, 0, true);
+    drawOneFleet(fleetByAddr(m, F), 0, true);
   }
 
   drawFloatingHud(seaScene, true);

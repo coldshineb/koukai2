@@ -1,6 +1,7 @@
 // ui/hud.ts — 16:9 港口/海面主界面羊皮纸现代 HTML/CSS HUD + 新建游戏选角界面
 // 与「读取进度 (save_modal.ts)」1:1 同套暖羊皮纸 + 古铜金边视觉，彻底取代老 Canvas 黑蓝框 HUD 与黑底选角页。
-import { DS } from "../model/schema_views.ts";
+import { GameConst, ShipSlotFlag } from "../model/flags.ts";
+import { fleetByAddr, fleetShipSlot, getSeaEnv, personRawBytes, toS16, WorldConst } from "../model/world_helpers.ts";
 import { decodeCleanCstr, toSimp } from "./text_util.ts";
 import { createDomModal, hasDom, getPersonPortraitSrc } from "./modals.ts";
 import { hideDomBattleHud } from "./battle_hud.ts";
@@ -130,21 +131,22 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
   let seaFood = ss?.food ?? 0;
   let seaLumber = ss?.lumber ?? 0;
   let seaAmmo = ss?.ammo ?? 0;
-  if (atSea && typeof scene.slotOf === "function" && typeof scene.crewOf === "function") {
+  if (atSea && scene.fleet) {
+    const fl = fleetByAddr(m, scene.fleet);
     let w = 0, f = 0, l = 0, a = 0;
-    for (let i = 0; i < 10; i++) {
-      const S = scene.slotOf(i);
-      if ((st.u8(S + 8) & 0x30) !== 0x10) continue;
-      const M = scene.crewOf(i);
-      w = (w + st.u16(M)) & 0xffff;
-      f = (f + st.u16(M + 2)) & 0xffff;
-      l = (l + st.u16(M + 4)) & 0xffff;
-      a = (a + st.u16(M + 6)) & 0xffff;
+    for (let i = 0; i < GameConst.FLEET_SHIPS; i++) {
+      const slot = fleetShipSlot(fl, i);
+      if ((slot.flags & ShipSlotFlag.STATE_MASK) !== ShipSlotFlag.ACTIVE) continue;
+      const crew = m.crewSlot(i);
+      w = (w + crew.water) & 0xffff;
+      f = (f + crew.food) & 0xffff;
+      l = (l + crew.material) & 0xffff;
+      a = (a + crew.ammo) & 0xffff;
     }
     seaWater = Math.floor(w / 10);
     seaFood = Math.floor(f / 10);
-    seaLumber = (l << 16) >> 16;
-    seaAmmo = (a << 16) >> 16;
+    seaLumber = toS16(l);
+    seaAmmo = toS16(a);
   }
   const tlKey = atSea && ss
     ? `S|${heroId}|${dateText}|${seaWater}|${seaFood}|${seaLumber}|${seaAmmo}`
@@ -155,7 +157,7 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
     const img = document.createElement("img");
     img.className = "uw2-portrait-img";
     img.style.cssText = "width:62px;height:78px;";
-    void getPersonPortraitSrc(art, st.bytes(st.personRecord(heroId), 0x32)).then(src => { if (src) img.src = src; });
+    void getPersonPortraitSrc(art, personRawBytes(m.person(heroId))).then(src => { if (src) img.src = src; });
 
     const info = document.createElement("div");
     info.style.cssText = "display:flex;flex-direction:column;gap:5px;min-width:258px;";
@@ -185,7 +187,7 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
   // 2. 右上：港情（含商业/工业投资额）+ 港内置筑一键直达  或  海上气象
   if (!atSea) {
     const P = scene.port;
-    if (P >= 130) return;
+    if (P >= WorldConst.TOTAL_PORTS) return;
     const portName = decodeCleanCstr(codec, m.port(P).nameBytes);
     const E = P < 100 ? m.portEconomy(P) : null;
     const regionName = E ? toSimp(c.messageText(0x181 + E.priceRegion).trim()) : "";
@@ -254,13 +256,10 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
       pmEl.style.display = "none";
     }
   } else {
-    const a = st.u8(DS.PORT_FLAGS);
-    const b = st.u8(DS.WIND_CUR);
-    const windDir = (a & 0x38) >> 3, windStr = a & 7;
-    const curDir = (b & 0x38) >> 3, curStr = b & 7;
-    const headDir = st.u8(scene.fleet + 0x1a);
+    const { windDir, windStr, curDir, curStr, daysAtSea: days } = getSeaEnv(m);
+    const fl = fleetByAddr(m, scene.fleet);
+    const headDir = fl.dir;
     const spd = (scene.speed + 1) >> 1;
-    const days = st.u8(DS.DAYS_AT_SEA);
     const trKey = `S|${windDir}|${windStr}|${curDir}|${curStr}|${headDir}|${spd}|${days}`;
     if (trKey !== lastTrKey) {
       lastTrKey = trKey;
@@ -300,14 +299,15 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
     if (ss) {
       let turn = ss.turn;
       let prop = ss.prop;
-      if ((turn === undefined || prop === undefined) && typeof scene.slotOf === "function") {
+      if ((turn === undefined || prop === undefined) && scene.fleet) {
+        const fl = fleetByAddr(m, scene.fleet);
         let minT = 100, minP = 100, found = false;
-        for (let i = 0; i < 10; i++) {
-          const S = scene.slotOf(i);
-          if ((st.u8(S + 8) & 0x30) !== 0x10) continue;
+        for (let i = 0; i < GameConst.FLEET_SHIPS; i++) {
+          const slot = fleetShipSlot(fl, i);
+          if ((slot.flags & ShipSlotFlag.STATE_MASK) !== ShipSlotFlag.ACTIVE) continue;
           found = true;
-          minT = Math.min(minT, st.u8(S + 4));
-          minP = Math.min(minP, st.u8(S + 5));
+          minT = Math.min(minT, slot.turn);
+          minP = Math.min(minP, slot.propulsion);
         }
         if (turn === undefined) turn = found ? minT : 0;
         if (prop === undefined) prop = found ? minP : 0;

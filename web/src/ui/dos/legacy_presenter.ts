@@ -1,6 +1,5 @@
 // ui/dos/legacy_presenter.ts — 原版 640×400 渲染管线的 IGameUI / IScenarioHost 适配器
 import type { IGameUI, IScenarioHost, ScenarioWindowDef } from "./protocol.ts";
-import { DS } from "../../model/schema_views.ts";
 import { GameConst } from "../../model/flags.ts";
 import { stripEscBytes, toSimp } from "../text_util.ts";
 
@@ -149,7 +148,7 @@ export class LegacyScenarioHost implements IScenarioHost {
     graph.useFile("GRAPH.DAT");
   }
   refreshPanels(): void {
-    if (this.c.state.u8(DS.PORT) !== GameConst.EMPTY_SLOT) this.getScene()?.panels?.();
+    if (this.c.state.model.globals.port !== GameConst.EMPTY_SLOT) this.getScene()?.panels?.();
   }
   recalcFleetStrength(fleetAddr: number): boolean {
     const ai = this.getScene()?.ai;

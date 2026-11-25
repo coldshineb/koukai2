@@ -4,7 +4,8 @@
 import { createDomModal, hasDom, getPersonPortraitSrc, preserveScroll } from "./modals.ts";
 import { hideDomWorldHud } from "./hud.ts";
 import { decodeCleanCstr, toSimp } from "./text_util.ts";
-import { DS, OFF } from "../model/schema_views.ts";
+import { GameConst, ShipSlotFlag } from "../model/flags.ts";
+import { fleetShipSlot, personRawBytes, shipSlotByAddr } from "../model/world_helpers.ts";
 
 export const BATTLE_VIEWPORT = { x: 20, y: 10, w: 728, h: 700, srcW: 416, srcH: 400 };
 
@@ -235,35 +236,34 @@ export function runDomBattleYesNo(promptText: string, yesLabel = "是", noLabel 
 /** 现代羊皮纸海战舰队情报弹窗（取代老 Canvas 蓝底舰队一览） */
 export async function runDomBattleFleetModal(battle: any, personId: number): Promise<void> {
   if (!hasDom()) return;
-  const st = battle.st, art = battle.c.art, codec = battle.c.codec;
+  const m = battle.st.model, art = battle.c.art, codec = battle.c.codec;
   const dec = (bts: Uint8Array) => toSimp(decodeCleanCstr(codec, bts));
-  const P = battle.person(personId);
-  const fId = st.u8(P + OFF.PERSON.FLEET);
-  const F = DS.TBL_FLEET + fId * 0x85;
-  const gName = dec(st.cstr(P));
-  const fName = dec(st.cstr(P + OFF.PERSON.FAMILY_NAME));
+  const p = m.person(personId);
+  const fl = m.fleet(p.fleet);
+  const gName = dec(p.givenNameBytes);
+  const fName = dec(p.familyNameBytes);
   const fullName = fName ? `${gName}·${fName}` : gName;
-  const portraitSrc = await getPersonPortraitSrc(art, st.bytes(P, 0x32));
+  const portraitSrc = await getPersonPortraitSrc(art, personRawBytes(p));
 
   const ships: { name: string; typeId: number; dur: number; maxDur: number; crew: number; maxCrew: number; turn: number; prop: number; cannons: number }[] = [];
   let totalCrew = 0, totalCannons = 0, minDur = 100, minTurn = 100, minProp = 100;
-  for (let i = 0; i < 10; i++) {
-    const S = F + OFF.FLEET.SHIPS + i * 9;
-    if ((st.u8(S + OFF.DOCK_SLOT.FLAGS) & 0x30) !== 0x10) continue;
-    const R = battle.shipRec(st.u8(S + OFF.DOCK_SLOT.SHIP));
-    const dur = st.u8(S + OFF.DOCK_SLOT.DURABILITY);
-    const maxDur = st.u8(S + OFF.DOCK_SLOT.MAX_DURABILITY);
-    const crew = st.u16(S);
-    const maxCrew = st.u16(R + 0x12);
-    const turn = st.u8(S + OFF.DOCK_SLOT.TURN);
-    const prop = st.u8(S + OFF.DOCK_SLOT.PROPULSION);
-    const cannons = st.u8(S + OFF.DOCK_SLOT.GUNS);
+  for (let i = 0; i < GameConst.FLEET_SHIPS; i++) {
+    const slot = fleetShipSlot(fl, i);
+    if ((slot.flags & ShipSlotFlag.STATE_MASK) !== ShipSlotFlag.ACTIVE) continue;
+    const ship = m.ship(slot.ship);
+    const dur = slot.durability;
+    const maxDur = slot.maxDurability;
+    const crew = slot.crew;
+    const maxCrew = ship.maxCrew;
+    const turn = slot.turn;
+    const prop = slot.propulsion;
+    const cannons = slot.guns;
     totalCrew += crew;
     totalCannons += cannons;
     if (dur < minDur) minDur = dur;
     if (turn < minTurn) minTurn = turn;
     if (prop < minProp) minProp = prop;
-    ships.push({ name: dec(st.cstr(R)), typeId: st.u8(R + 0x0f), dur, maxDur, crew, maxCrew, turn, prop, cannons });
+    ships.push({ name: dec(ship.nameBytes), typeId: ship.type, dur, maxDur, crew, maxCrew, turn, prop, cannons });
   }
 
   return new Promise(resolve => {
@@ -288,8 +288,8 @@ export async function runDomBattleFleetModal(battle: any, personId: number): Pro
     meta.style.cssText = "flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:6px 14px;font-size:13px;color:var(--uw2-ink);";
     meta.innerHTML =
       `<div>提督：<strong>${fullName}</strong></div>` +
-      `<div>航海等级：<strong>${st.u8(P + OFF.PERSON.NAV_LEVEL)}</strong></div>` +
-      `<div>战斗等级：<strong>${st.u8(P + OFF.PERSON.BATTLE_LEVEL)}</strong></div>` +
+      `<div>航海等级：<strong>${p.navLevel}</strong></div>` +
+      `<div>战斗等级：<strong>${p.battleLevel}</strong></div>` +
       `<div>舰船数量：<strong>${ships.length} 艘</strong></div>` +
       `<div>水手总数：<strong>${totalCrew} 名</strong></div>` +
       `<div>总炮门数：<strong>${totalCannons} 门</strong></div>` +
@@ -333,7 +333,7 @@ export async function runDomBattlePersonModal(battle: any, personId: number): Pr
 /** 现代羊皮纸左右分栏人物情报弹窗（左侧人名清单、右侧实时显示头像与能力，无需二次弹窗） */
 export async function runDomBattleCrewModal(battle: any, personIds: number[], title = "舰队人物"): Promise<void> {
   if (!hasDom() || !personIds.length) return;
-  const st = battle.st, art = battle.c.art, codec = battle.c.codec;
+  const m = battle.st.model, art = battle.c.art, codec = battle.c.codec;
   const dec = (bts: Uint8Array) => toSimp(decodeCleanCstr(codec, bts));
   let selIdx = 0;
 
@@ -349,10 +349,9 @@ export async function runDomBattleCrewModal(battle: any, personIds: number[], ti
     const render = () => {
       preserveScroll(h.body, () => {
         h.body.innerHTML = "";
-        const pid = personIds[selIdx];
-        const P = battle.person(pid);
-        const gName = dec(st.cstr(P));
-        const fName = dec(st.cstr(P + OFF.PERSON.FAMILY_NAME));
+        const p = m.person(personIds[selIdx]);
+        const gName = dec(p.givenNameBytes);
+        const fName = dec(p.familyNameBytes);
         const fullName = fName ? `${gName}·${fName}` : gName;
 
         const detail = document.createElement("div");
@@ -361,7 +360,7 @@ export async function runDomBattleCrewModal(battle: any, personIds: number[], ti
 
         const portWrap = document.createElement("div");
         portWrap.style.cssText = "width:68px;flex-shrink:0;";
-        void getPersonPortraitSrc(art, st.bytes(P, 0x32)).then(src => {
+        void getPersonPortraitSrc(art, personRawBytes(p)).then(src => {
           if (!src || !portWrap.isConnected) return;
           const img = document.createElement("img");
           img.src = src;
@@ -378,16 +377,16 @@ export async function runDomBattleCrewModal(battle: any, personIds: number[], ti
         const grid = document.createElement("div");
         grid.style.cssText = "display:grid;grid-template-columns:repeat(2,1fr);gap:8px 16px;font-size:14px;color:var(--uw2-ink);";
         const stats: [string, number][] = [
-          ["航海等级", st.u8(P + OFF.PERSON.NAV_LEVEL)],
-          ["战斗等级", st.u8(P + OFF.PERSON.BATTLE_LEVEL)],
-          ["统率力", st.u8(P + 0x1c)],
-          ["航海术", st.u8(P + 0x1d)],
-          ["知识", st.u8(P + 0x1e)],
-          ["直觉", st.u8(P + 0x1f)],
-          ["勇气", st.u8(P + 0x20)],
-          ["剑术", st.u8(P + 0x21)],
-          ["魅力", st.u8(P + 0x22)],
-          ["运气", st.u8(P + 0x23)],
+          ["航海等级", p.navLevel],
+          ["战斗等级", p.battleLevel],
+          ["统率力", p.getStats(0)],
+          ["航海术", p.getStats(1)],
+          ["知识", p.getStats(2)],
+          ["直觉", p.getStats(3)],
+          ["勇气", p.getStats(4)],
+          ["剑术", p.getStats(5)],
+          ["魅力", p.getStats(6)],
+          ["运气", p.getStats(7)],
         ];
         grid.innerHTML = stats.map(([k, v]) => `<div>${k}：<strong>${v}</strong></div>`).join("");
         rightCol.append(nameEl, grid);
@@ -403,12 +402,12 @@ export async function runDomBattleCrewModal(battle: any, personIds: number[], ti
         const left = document.createElement("div");
         left.className = "uw2-list-col";
         personIds.forEach((id, i) => {
-          const R = battle.person(id);
-          const gn = dec(st.cstr(R));
-          const fn = dec(st.cstr(R + OFF.PERSON.FAMILY_NAME));
+          const r = m.person(id);
+          const gn = dec(r.givenNameBytes);
+          const fn = dec(r.familyNameBytes);
           const btn = document.createElement("button");
           btn.className = `uw2-row-card ${i === selIdx ? "selected" : ""}`;
-          btn.innerHTML = `<span style="font-weight:700;">${fn ? `${gn}·${fn}` : gn}</span><span style="font-size:12px;color:var(--uw2-ink-muted);">战斗等级 ${st.u8(R + OFF.PERSON.BATTLE_LEVEL)}</span>`;
+          btn.innerHTML = `<span style="font-weight:700;">${fn ? `${gn}·${fn}` : gn}</span><span style="font-size:12px;color:var(--uw2-ink-muted);">战斗等级 ${r.battleLevel}</span>`;
           btn.addEventListener("click", () => { selIdx = i; render(); });
           left.appendChild(btn);
         });
@@ -424,7 +423,7 @@ export async function runDomBattleCrewModal(battle: any, personIds: number[], ti
 /** 现代羊皮纸作战一览弹窗（取代原版 Canvas 列表） */
 export function runDomBattleOrdersModal(battle: any): Promise<void> {
   if (!hasDom()) return Promise.resolve();
-  const st = battle.st, codec = battle.c.codec;
+  const m = battle.st.model, codec = battle.c.codec;
   const dec = (bts: Uint8Array) => toSimp(decodeCleanCstr(codec, bts));
   const flag = battle.u16(battle.u16(0x9bc0));
 
@@ -441,8 +440,8 @@ export function runDomBattleOrdersModal(battle: any): Promise<void> {
     for (let B = flag; B; B = battle.u16(B + 8)) {
       if (!battle.alive(B)) continue;
       const num = (battle.u8(B + 0x0d) & 0x0f) + 1;
-      const R = battle.shipRec(battle.u8(battle.u16(B + 2) + 7));
-      const shipName = dec(st.cstr(R));
+      const ship = m.ship(shipSlotByAddr(m, battle.u16(B + 2)).ship);
+      const shipName = dec(ship.nameBytes);
       const f = battle.u8(B + 0x0c);
       let desc = "";
       if (B === flag) {
@@ -539,10 +538,10 @@ export function runDomBattleSignal(battle: any, cur: number): Promise<void> {
 export async function runDomBattleShipOrders(battle: any, B: number): Promise<void> {
   const root = ensureBattleRoot();
   if (!root || !actionCard || !msgCard) return;
-  const st = battle.st, codec = battle.c.codec;
+  const m = battle.st.model, codec = battle.c.codec;
   const dec = (bts: Uint8Array) => toSimp(decodeCleanCstr(codec, bts));
-  const R = battle.shipRec(battle.u8(battle.u16(B + 2) + 7));
-  const shipLabel = `${(battle.u8(B + 0x0d) & 0x0f) + 1}号 ${dec(st.cstr(R))}`;
+  const ship = m.ship(shipSlotByAddr(m, battle.u16(B + 2)).ship);
+  const shipLabel = `${(battle.u8(B + 0x0d) & 0x0f) + 1}号 ${dec(ship.nameBytes)}`;
 
   for (;;) {
     const action = await new Promise<"strat" | "tactic" | "target" | "done">(resolve => {
@@ -629,20 +628,21 @@ export async function runDomBattleShipOrders(battle: any, B: number): Promise<vo
 /** 现代羊皮纸单船情报弹窗（海战我方/敌方舰船） */
 export async function runDomBattleShipModal(battle: any, slotAddr: number, titleOverride = ""): Promise<void> {
   if (!hasDom()) return;
-  const st = battle.st, art = battle.c.art, codec = battle.c.codec;
+  const m = battle.st.model, art = battle.c.art, codec = battle.c.codec;
   const dec = (bts: Uint8Array) => toSimp(decodeCleanCstr(codec, bts));
-  const R = battle.shipRec(st.u8(slotAddr + OFF.DOCK_SLOT.SHIP));
-  const T = battle.typeRec(st.u8(R + 0x0f));
-  const shipName = dec(st.cstr(R));
-  const shipUrl = art?.shipUrl?.(st.u8(R + 0x0f));
+  const slot = shipSlotByAddr(m, slotAddr);
+  const ship = m.ship(slot.ship);
+  const shipType = m.shipType(ship.type);
+  const shipName = dec(ship.nameBytes);
+  const shipUrl = art?.shipUrl?.(ship.type);
   const cannons = battle.sea.commandsObj().T.cannons;
-  const cannonName = dec(cannons[st.u8(slotAddr + OFF.DOCK_SLOT.FLAGS) & 7] ?? Uint8Array.of(0));
+  const cannonName = dec(cannons[slot.flags & ShipSlotFlag.CANNON_MASK] ?? Uint8Array.of(0));
 
-  const dur = st.u8(slotAddr + OFF.DOCK_SLOT.DURABILITY), maxDur = st.u8(slotAddr + OFF.DOCK_SLOT.MAX_DURABILITY);
-  const crew = st.u16(slotAddr), maxCrew = st.u16(R + 0x12);
-  const turn = st.u8(slotAddr + OFF.DOCK_SLOT.TURN), maxTurn = st.u8(T + 2);
-  const prop = st.u8(slotAddr + OFF.DOCK_SLOT.PROPULSION), maxProp = st.u8(T + 3);
-  const guns = st.u8(slotAddr + OFF.DOCK_SLOT.GUNS);
+  const dur = slot.durability, maxDur = slot.maxDurability;
+  const crew = slot.crew, maxCrew = ship.maxCrew;
+  const turn = slot.turn, maxTurn = shipType.turn;
+  const prop = slot.propulsion, maxProp = shipType.propulsion;
+  const guns = slot.guns;
 
   return new Promise(resolve => {
     const h = createDomModal({
@@ -681,11 +681,13 @@ export function syncDomBattleHud(battle: any) {
   root.style.display = "flex";
   document.body.dataset.uw2Battle = "1";
 
-  const st = battle.st;
+  const m = battle.st.model;
   const codec = battle.c.codec;
   const dec = (bts: Uint8Array) => toSimp(decodeCleanCstr(codec, bts));
 
-  let B = 0, di = 0, R = 0, T = 0;
+  let B = 0, flagSlot: ReturnType<typeof shipSlotByAddr> | null = null;
+  let flagShip: ReturnType<typeof m.ship> | null = null;
+  let flagType: ReturnType<typeof m.shipType> | null = null;
   let allyShips = 0, enemyShips = 0;
   const heroSideParity = battle.u16(0x9d3e) ? 0 : 1;
   for (let k = 0; k < 4; k++) {
@@ -693,9 +695,10 @@ export function syncDomBattleHud(battle: any) {
     if (battle.u16(E + 4) === battle.heroFleet) {
       B = battle.u16(E);
       if (B) {
-        di = battle.u16(B + 2);
-        R = battle.shipRec(st.u8(di + 7));
-        T = battle.typeRec(st.u8(R + 0x0f));
+        const di = battle.u16(B + 2);
+        flagSlot = shipSlotByAddr(m, di);
+        flagShip = m.ship(flagSlot.ship);
+        flagType = m.shipType(flagShip.type);
       }
     }
     for (let s = battle.u16(E); s; s = battle.u16(s + 8)) {
@@ -707,20 +710,20 @@ export function syncDomBattleHud(battle: any) {
     }
   }
 
-  const shipName = R ? dec(st.cstr(R)) : "旗舰";
+  const shipName = flagShip ? dec(flagShip.nameBytes) : "旗舰";
   const t = battle.c.rt.time & 0xff;
   const hh = String(Math.floor(t / 3)).padStart(2, "0");
   const mm = String((t % 3) * 20).padStart(2, "0");
   const windDir = battle.u8(0x9bf8) % 6;
   const windStr = battle.u8(0x9bf9);
-  const dur = di ? battle.u8(di + 2) : 0;
-  const maxDur = di ? battle.u8(di + 3) : 100;
-  const crew = di ? battle.u16(di) : 0;
-  const maxCrew = R ? battle.u16(R + 0x12) : 100;
-  const turn = di ? battle.u8(di + 4) : 0;
-  const maxTurn = T ? st.u8(T + 2) : 0;
-  const prop = di ? battle.u8(di + 5) : 0;
-  const maxProp = T ? st.u8(T + 3) : 0;
+  const dur = flagSlot ? flagSlot.durability : 0;
+  const maxDur = flagSlot ? flagSlot.maxDurability : 100;
+  const crew = flagSlot ? flagSlot.crew : 0;
+  const maxCrew = flagShip ? flagShip.maxCrew : 100;
+  const turn = flagSlot ? flagSlot.turn : 0;
+  const maxTurn = flagType ? flagType.turn : 0;
+  const prop = flagSlot ? flagSlot.propulsion : 0;
+  const maxProp = flagType ? flagType.propulsion : 0;
   const ammo = B ? battle.u16(B + 0x0e) : 0;
 
   const skey = `${shipName}|${hh}:${mm}|${windDir}|${windStr}|${dur}/${maxDur}|${crew}/${maxCrew}|${turn}/${maxTurn}|${prop}/${maxProp}|${ammo}|${allyShips}|${enemyShips}`;

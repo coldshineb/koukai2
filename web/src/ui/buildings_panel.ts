@@ -1,8 +1,20 @@
 // ui/buildings_panel.ts — 与交易所 / 码头 / 道具店 1:1 统一规格的六大建筑一体化工作台
 // 涵盖：王宫 (Palace)、银行 (Bank)、事务所 (Office)、旅馆 (Inn)、教会 (Church)、占卜师 (Fortune)
 // 统一结构：createDomModal(wide) + headerRight(.uw2-pill + 关闭) + .uw2-modal-toolbar(.uw2-tab-btn) + .uw2-split + .uw2-modal-footer
-import { DS, OFF } from "../model/schema_views.ts";
-import { DiscoveryFlag, GameConst, NobleFlag, OptionFlag, SkillFlag, TreatyFlag, WorkDS } from "../model/flags.ts";
+import { DiscoveryFlag, GameConst, NobleFlag, OptionFlag, ShipSlotFlag, SkillFlag, TreatyFlag } from "../model/flags.ts";
+import {
+  WorldConst,
+  barmaidByAddr,
+  getCountryExtra,
+  getPortEcoExtra,
+  getWorkState,
+  heroOrDockSlot,
+  personRawBytes,
+  revealEntireWorldMap,
+  setExploreUnrep,
+  setWorkCurParam,
+  writeShipName,
+} from "../model/world_helpers.ts";
 import { domS16, calcDepositLimit, canTakeLoan, calcLoanLimit } from "../domain/economy.ts";
 import { captureConsoleText, decodeCleanCstr, toSimp } from "./text_util.ts";
 import { createDomModal, getBuildingArtUrl, getPersonPortraitSrc, mountBuildingBanner, preserveScroll, runDomStoryCard } from "./modals.ts";
@@ -162,7 +174,7 @@ export function renderUnifiedInvestPane(opts: {
 // 1. 王宫一体化工作台 (Palace)
 // ============================================================================
 export async function runDomPalaceWorkbench(palace: any): Promise<void> {
-  const b = palace.b, c = palace.c, st = palace.st, m = palace.m;
+  const b = palace.b, c = palace.c, m = palace.m;
   const g = m.globals, hd = m.heroInfo(), codec = c.codec, art = c.art;
   const portName = decodeCleanCstr(codec, m.port(b.port).nameBytes);
   const K = palace.kingRec;
@@ -235,7 +247,8 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
 
         const same = palace.same(7);
         const c5e = g.commonChap;
-        const canNaturalize = !(same || (c5e !== 0 && c5e !== 0xff && plS16(st.u16(WorkDS.CUR_KIND)) >= 6) || (st.u8(WorkDS.FLAGS) & 6));
+        const wk = getWorkState(m);
+        const canNaturalize = !(same || (c5e !== 0 && c5e !== GameConst.EMPTY_SLOT && plS16(wk.curKind) >= 6) || (wk.flags & 6));
         const tabs = UI_STR.palaceTabs.map((label, idx) => ({
           label,
           disabled: idx === 3 && !same,
@@ -432,8 +445,9 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
             hero.face = (hero.face & 0xf0) | newNat;
             m.fleet(hero.fleet).homePort = b.port;
             const country = m.country(newNat);
-            if (st.u8(country.addr + 2) === 7) st.set8(country.addr + 2, 6);
-            country.aidMoneyK = 0; st.set8(country.addr + 6, 0); country.aidShipType = 0;
+            const ce = getCountryExtra(country);
+            if (ce.rival === 7) ce.rival = 6;
+            country.aidMoneyK = 0; ce.clearAidExtra(); country.aidShipType = 0;
             const oldVal = hd.getCountryStanding(oldNat);
             if (oldVal >= 30) hd.setCountryStanding(oldNat, (oldVal - 30) & 0xff);
             hd.setCountryStanding(newNat, plUmax(100, plUmin(hd.getCountryStanding(newNat) + 10, 200)));
@@ -489,8 +503,9 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
     });
 
     if (pendingAction === "royal_event") {
-      if (palace.same() && (st.u8(WorkDS.FLAGS) & 2)) {
-        g.commonChap = st.u8(WorkDS.ROYAL_CHAP); g.commonSec = 0;
+      const wk = getWorkState(m);
+      if (palace.same() && (wk.flags & 2)) {
+        g.commonChap = wk.royalChap; g.commonSec = 0;
         await palace.event(ENV_COMMON, 5);
       }
       await palace.event(ENV_HERO, 0x15);
@@ -708,7 +723,7 @@ export function runDomBankWorkbench(bank: any): Promise<void> {
 // 3. 事务所一体化工作台 (Office — 补齐原先不可见的各国情报表)
 // ============================================================================
 export async function runDomOfficeWorkbench(office: any): Promise<void> {
-  const b = office.b, c = office.c, st = office.st, m = office.m, g = m.globals, codec = c.codec;
+  const b = office.b, c = office.c, m = office.m, g = m.globals, codec = c.codec;
   const portName = decodeCleanCstr(codec, m.port(b.port).nameBytes);
   const tabLabels = [...UI_STR.officeTabs];
   const nationNames = office.nations.slice(0, 6).map((raw: Uint8Array) => decodeCleanCstr(codec, raw).replace(/\s+/g, ""));
@@ -771,11 +786,12 @@ export async function runDomOfficeWorkbench(office: any): Promise<void> {
           const box = document.createElement("div");
           box.className = "uw2-action-box";
 
+          const wk = getWorkState(m);
           if (g.commonChap) {
             const p = document.createElement("div");
             p.style.cssText = "font-size:14px;color:var(--uw2-ink);line-height:1.6;";
-            if (plS16(st.u16(WorkDS.CUR_KIND)) < 6) {
-              const tp = st.u8(WorkDS.TARGET_PORT);
+            if (plS16(wk.curKind) < 6) {
+              const tp = wk.targetPort & 0xff;
               p.textContent = tp === b.port ? capMsg(c, 0x3a3) : capMsg(c, 0x152, office.portName(tp));
             } else {
               p.textContent = "当前已有正在执行的委托。";
@@ -791,7 +807,7 @@ export async function runDomOfficeWorkbench(office: any): Promise<void> {
             empty.className = "uw2-empty";
             empty.textContent = "请先完成当前委托";
             left.appendChild(empty);
-          } else if ((st.u8(WorkDS.FLAGS) & 3) === 3) {
+          } else if ((wk.flags & 3) === 3) {
             const msg = toSimp(captureConsoleText(c, () => {
               c.message(0x19a + (m.heroPerson().face & 0x0f));
               c.message(0x3a4);
@@ -804,7 +820,7 @@ export async function runDomOfficeWorkbench(office: any): Promise<void> {
             const list = document.createElement("div");
             list.className = "uw2-list-col";
             for (let i = 0; i < 3; i++) {
-              const k = st.u8(WorkDS.KINDS + i * 2);
+              const k = wk.kindAt(i) & 0xff;
               const btn = document.createElement("button");
               btn.className = "uw2-row-card";
               btn.textContent = decodeCleanCstr(codec, office.jobs[k]);
@@ -861,15 +877,17 @@ export async function runDomOfficeWorkbench(office: any): Promise<void> {
             box.append(p, payBtn);
           } else {
             const country = m.country(selNation);
+            const ce = getCountryExtra(country);
             const hd = m.heroInfo();
             const standing = hd.getCountryStanding(selNation);
             const contrib = 100 - standing;
-            const rival = st.u8(country.addr + 2);
-            const keyPort = decodeCleanCstr(codec, office.portName(st.u8(country.addr + 4)));
+            const rival = ce.rival;
+            const keyPortId = ce.keyPort;
+            const keyPort = decodeCleanCstr(codec, office.portName(keyPortId));
             const rivalTxt = rival < 7
               ? capMsg(c, 0x58, office.nations[selNation], office.nations[rival])
               : capMsg(c, 0x355, office.nations[selNation]);
-            const portTxt = capMsg(c, 0x59, office.portName(st.u8(country.addr + 4)));
+            const portTxt = capMsg(c, 0x59, office.portName(keyPortId));
 
             const top = document.createElement("div");
             top.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;";
@@ -915,10 +933,11 @@ export async function runDomOfficeWorkbench(office: any): Promise<void> {
       continue;
     }
     if (pickJobIdx >= 0) {
-      const k = st.u8(WorkDS.KINDS + pickJobIdx * 2);
+      const wk = getWorkState(m);
+      const k = wk.kindAt(pickJobIdx) & 0xff;
       g.commonSec = (k + 1) & 0xff;
-      st.set16(WorkDS.CUR_PARAM, st.u16(WorkDS.PARAMS + pickJobIdx * 2));
-      if (await office.event(6)) g.commonChap = st.u8(WorkDS.CUR_KIND);
+      setWorkCurParam(m, wk.paramAt(pickJobIdx));
+      if (await office.event(6)) g.commonChap = getWorkState(m).curKind & 0xff;
       g.commonSec = 0;
       b.after();
       continue;
@@ -931,11 +950,11 @@ export async function runDomOfficeWorkbench(office: any): Promise<void> {
 // 4. 旅馆一体化工作台 (Inn — 补齐原先不可见的海港支持度表)
 // ============================================================================
 export async function runDomInnWorkbench(b: any): Promise<void> {
-  const c = b.c, st = b.st, codec = c.codec, art = c.art;
-  const portName = decodeCleanCstr(codec, st.model.port(b.port).nameBytes);
+  const c = b.c, m = b.st.model, codec = c.codec, art = c.art;
+  const portName = decodeCleanCstr(codec, m.port(b.port).nameBytes);
   const tabLabels = [...UI_STR.innTabs];
   let isCapital = false;
-  for (let i = 0; i < 6; i++) if (st.u8(DS.TBL_COUNTRY + i * 0x20 + 0x0a) === b.port) isCapital = true;
+  for (let i = 0; i < WorldConst.TOTAL_COUNTRIES; i++) if (m.country(i).capitalPort === b.port) isCapital = true;
   const initGreet = capMsg(c, 0x42);
 
   let tab = 0;
@@ -993,8 +1012,9 @@ export async function runDomInnWorkbench(b: any): Promise<void> {
             grid.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;";
             for (let i = 0; i < n; i++) {
               const pid = c.persons[i] & 0xff;
-              const rec = st.bytes(st.personRecord(pid), 0x32);
-              const nm = `${decodeCleanCstr(codec, st.cstr(st.personRecord(pid)))} ${decodeCleanCstr(codec, st.cstr(st.personRecord(pid) + 13))}`.trim();
+              const pv = m.person(pid);
+              const rec = personRawBytes(pv);
+              const nm = `${decodeCleanCstr(codec, pv.givenNameBytes)} ${decodeCleanCstr(codec, pv.familyNameBytes)}`.trim();
               const card = document.createElement("button");
               card.className = "uw2-row-card";
               card.style.cssText = "display:flex;align-items:center;gap:10px;text-align:left;";
@@ -1013,9 +1033,8 @@ export async function runDomInnWorkbench(b: any): Promise<void> {
           }
           shell.h.body.appendChild(pane);
         } else if (tab === 1) {
-          const E = DS.TBL_PORT_ECONOMY + b.port * 0x25;
-          const R = DS.TBL_PORT + b.port * 0x16;
-          const allyIdx = st.u8(R + 0x15) & 7;
+          const eco = m.portEconomy(b.port);
+          const allyIdx = m.port(b.port).region & WorldConst.PORT_OWNER_MASK;
 
           const pane = document.createElement("div");
           pane.className = "uw2-pane";
@@ -1026,8 +1045,8 @@ export async function runDomInnWorkbench(b: any): Promise<void> {
 
           const box = document.createElement("div");
           box.className = "uw2-action-box";
-          for (let i = 0; i < 6; i++) {
-            const pct = st.u8(E + 8 + i);
+          for (let i = 0; i < WorldConst.TOTAL_COUNTRIES; i++) {
+            const pct = eco.getInfluence(i);
             const nn = decodeCleanCstr(codec, b.p.nations[i]);
             const row = document.createElement("div");
             row.style.cssText = "display:flex;flex-direction:column;gap:4px;";
@@ -1076,8 +1095,8 @@ export async function runDomInnWorkbench(b: any): Promise<void> {
 // 5. 教会 / 清真寺一体化工作台 (Church)
 // ============================================================================
 export function runDomChurchWorkbench(b: any, base: number): Promise<void> {
-  const c = b.c, st = b.st, codec = c.codec;
-  const portName = decodeCleanCstr(codec, st.model.port(b.port).nameBytes);
+  const c = b.c, m = b.st.model, codec = c.codec;
+  const portName = decodeCleanCstr(codec, m.port(b.port).nameBytes);
   const tabLabels = [...UI_STR.churchTabs];
   const initGreet = capMsg(c, base + 0x5b);
 
@@ -1125,8 +1144,9 @@ export function runDomChurchWorkbench(b: any, base: number): Promise<void> {
         btn.textContent = tabLabels[0] || "祈祷";
         btn.addEventListener("click", () => {
           if (b.worship) {
-            const H = b.hero, v = c.sys.rng.random(2) + st.u8(H + 0x23);
-            st.set8(H + 0x23, Math.min(100, v));
+            const hero = m.heroPerson();
+            const v = c.sys.rng.random(2) + hero.getStats(7);
+            hero.setStats(7, Math.min(100, v));
             b.worship = 0;
           }
           notice = capMsg(c, base + 0x5c);
@@ -1176,8 +1196,8 @@ export function runDomChurchWorkbench(b: any, base: number): Promise<void> {
             notice = capMsg(c, base + 0x5f);
             const r = ((c.sys.rng.random(5) + 1) * 100) & 0xffff;
             if (amt >= r) {
-              const H = b.hero;
-              st.set8(H + 0x23, Math.min(100, (st.u8(H + 0x23) - ratio + 0x0b) & 0xffff));
+              const hero = m.heroPerson();
+              hero.setStats(7, Math.min(100, (hero.getStats(7) - ratio + 11) & 0xffff));
             }
           }
           b.money = (b.money - amt) | 0;
@@ -1199,8 +1219,8 @@ export function runDomChurchWorkbench(b: any, base: number): Promise<void> {
 // 6. 占卜师一体化工作台 (Fortune)
 // ============================================================================
 export function runDomFortuneWorkbench(b: any): Promise<void> {
-  const c = b.c, st = b.st, codec = c.codec;
-  const portName = decodeCleanCstr(codec, st.model.port(b.port).nameBytes);
+  const c = b.c, m = b.st.model, codec = c.codec;
+  const portName = decodeCleanCstr(codec, m.port(b.port).nameBytes);
   const tabLabels = [...UI_STR.fortuneTabs];
   const initGreet = capMsg(c, 0x12a);
 
@@ -1236,7 +1256,7 @@ export function runDomFortuneWorkbench(b: any): Promise<void> {
       tabLabels.forEach((lbl: string, idx: number) => {
         const btn = document.createElement("button");
         btn.className = `uw2-btn uw2-tab-btn ${tab === idx ? "active" : ""}`;
-        btn.disabled = (idx === 3 && crewN === 0) || (idx === 2 && st.hero === 1);
+        btn.disabled = (idx === 3 && crewN === 0) || (idx === 2 && m.globals.hero === 1);
         btn.textContent = lbl;
         btn.addEventListener("click", () => { tab = idx; reading = ""; render(); });
         shell.toolbar.appendChild(btn);
@@ -1250,7 +1270,8 @@ export function runDomFortuneWorkbench(b: any): Promise<void> {
         const list = document.createElement("div");
         list.style.cssText = "display:flex;gap:8px;flex-wrap:wrap;";
         crewIds.forEach((pid, idx) => {
-          const nm = `${decodeCleanCstr(codec, st.cstr(st.personRecord(pid)))} ${decodeCleanCstr(codec, st.cstr(st.personRecord(pid) + 13))}`.trim();
+          const pv = m.person(pid);
+          const nm = `${decodeCleanCstr(codec, pv.givenNameBytes)} ${decodeCleanCstr(codec, pv.familyNameBytes)}`.trim();
           const cb = document.createElement("button");
           cb.className = `uw2-btn ${idx === selCrew ? "active" : ""}`;
           cb.textContent = nm;
@@ -1275,33 +1296,33 @@ export function runDomFortuneWorkbench(b: any): Promise<void> {
         b.p.panels();
         notice = capMsg(c, 0x12d);
         if (tab === 0) {
-          reading = capMsg(c, Math.trunc(st.u8(b.hero + 0x23) / 0x19) + 0x12e);
+          reading = capMsg(c, Math.trunc(m.heroPerson().getStats(7) / 25) + 0x12e);
         } else if (tab === 1) {
-          const H = b.hero, D = b.heroData;
+          const hero = m.heroPerson(), hd = m.heroInfo();
           const lines = [
-            capMsg(c, 0x221, (expNeed(st.u8(H + OFF.PERSON.NAV_LEVEL)) - st.u16(H + OFF.PERSON.NAV_EXP)) << 16 >> 16),
-            capMsg(c, 0x222, (expNeed(st.u8(H + OFF.PERSON.BATTLE_LEVEL)) - st.u16(H + OFF.PERSON.BATTLE_EXP)) << 16 >> 16),
+            capMsg(c, 0x221, (expNeed(hero.navLevel) - hero.navExp) << 16 >> 16),
+            capMsg(c, 0x222, (expNeed(hero.battleLevel) - hero.battleExp) << 16 >> 16),
           ];
-          if ((st.u8(H + OFF.PERSON.FACE) & 15) !== 6) {
-            let fame = 0; for (let i = 0; i < 3; i++) if (st.u16(D + i * 2) > fame) fame = st.u16(D + i * 2);
-            const need = b.p.P.data.titleFame[st.u8(D + 0x0d)];
+          if ((hero.face & 15) !== 6) {
+            const fame = Math.max(hd.tradeFame, hd.pirateFame, hd.adventureFame);
+            const need = b.p.P.data.titleFame[hd.rank];
             lines.push(need > fame ? capMsg(c, 0x223, (need - fame) & 0xffff) : capMsg(c, 0x2f2));
           }
           reading = lines.join("\n");
         } else if (tab === 2) {
-          let found = -1, rec = 0;
-          for (let i = 0; i < 0x1e; i++) {
-            const mRec = DS.TBL_BARMAID + i * 0x13;
-            if (st.u8(mRec + 0x0e) === b.port && (st.u8(mRec + 0x12) & 8) && !(st.u8(mRec + 0x12) & 0x40)) { found = i; rec = mRec; break; }
+          let foundGirl = null;
+          for (let i = 0; i < 30; i++) {
+            const bm = m.barmaid(i);
+            if (bm.port === b.port && (bm.flags & 8) && !(bm.flags & 0x40)) { foundGirl = bm; break; }
           }
-          if (found < 0) reading = capMsg(c, 0x149);
-          else if (st.u8(rec + 0x0f) >= 0x50) reading = capMsg(c, 0x146, st.cstr(rec));
-          else reading = capMsg(c, st.u8(rec + 0x0f) >= 0x32 ? 0x147 : 0x148);
+          if (!foundGirl) reading = capMsg(c, 0x149);
+          else if (foundGirl.affection >= 80) reading = capMsg(c, 0x146, foundGirl.nameBytes);
+          else reading = capMsg(c, foundGirl.affection >= 50 ? 0x147 : 0x148);
         } else if (crewIds.length) {
-          const P = st.personRecord(crewIds[selCrew]);
+          const pv = m.person(crewIds[selCrew]);
           reading = [
-            capMsg(c, 0x4e + Math.trunc(st.u8(P + 0x23) / 0x19)),
-            capMsg(c, 0x319 + Math.trunc(st.u8(P + 0x2b) / 0x19)),
+            capMsg(c, 0x4e + Math.trunc(pv.getStats(7) / 25)),
+            capMsg(c, 0x319 + Math.trunc(pv.loyalty / 25)),
           ].join("\n");
         }
         render();
@@ -1326,16 +1347,16 @@ export function runDomFortuneWorkbench(b: any): Promise<void> {
 // 7. 酒馆一体化工作台 (Tavern — 与交易所 / 码头 / 道具店 / 王宫 1:1 统一结构)
 // ============================================================================
 export async function runDomTavernWorkbench(b: any, drinkNameBytes: Uint8Array, onGamble: () => Promise<void>): Promise<void> {
-  const c = b.c, st = b.st, codec = c.codec, art = c.art;
-  const portName = decodeCleanCstr(codec, st.model.port(b.port).nameBytes);
+  const c = b.c, m = b.st.model, codec = c.codec, art = c.art;
+  const portName = decodeCleanCstr(codec, m.port(b.port).nameBytes);
   const tabLabels = [...UI_STR.tavernTabs];
   const drinkName = decodeCleanCstr(codec, drinkNameBytes);
-  const k = st.u8(b.eco + 0x24);
+  const k = m.portEconomy(b.port).liquor;
   const drinkPrice = b.T.liquorPrice[k];
   const initGreet = capMsg(c, 0x12, drinkNameBytes);
 
   let tab = 2;
-  if (b.fleetShips() && !(st.u8(DS.DAILY_FLAGS) & 1)) tab = 0;
+  if (b.fleetShips() && !(m.globals.dailyFlags & 1)) tab = 0;
   let rounds = 1;
   let notice = initGreet;
 
@@ -1359,7 +1380,7 @@ export async function runDomTavernWorkbench(b: any, drinkNameBytes: Uint8Array, 
         shell.toastEl.textContent = notice;
 
         const hasFleet = b.fleetShips() > 0;
-        const hiredToday = !!(st.u8(DS.DAILY_FLAGS) & 1);
+        const hiredToday = !!(m.globals.dailyFlags & 1);
         const hasGirl = !!b.girl;
 
         shell.toolbar.innerHTML = "";
@@ -1393,11 +1414,10 @@ export async function runDomTavernWorkbench(b: any, drinkNameBytes: Uint8Array, 
           const nShips = b.fleetShips();
           for (let i = 0; i < nShips; i++) {
             const slot = c.persons[i] & 0xff;
-            const S = b.fleetSlot(slot);
-            const shipId = st.u8(S + 7);
-            const curCrew = st.u16(S);
-            const ship = st.model.ship(shipId);
-            const cs = st.model.crewSlot(slot);
+            const slotView = heroOrDockSlot(m, slot);
+            const curCrew = slotView.crew;
+            const ship = m.ship(slotView.ship);
+            const cs = m.crewSlot(slot);
             const row = document.createElement("div");
             row.className = "uw2-slot-card";
             row.innerHTML =
@@ -1488,8 +1508,9 @@ export async function runDomTavernWorkbench(b: any, drinkNameBytes: Uint8Array, 
             grid.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;";
             for (let i = 0; i < n; i++) {
               const pid = c.persons[i] & 0xff;
-              const rec = st.bytes(st.personRecord(pid), 0x32);
-              const nm = `${decodeCleanCstr(codec, st.cstr(st.personRecord(pid)))} ${decodeCleanCstr(codec, st.cstr(st.personRecord(pid) + 13))}`.trim();
+              const pv = m.person(pid);
+              const rec = personRawBytes(pv);
+              const nm = `${decodeCleanCstr(codec, pv.givenNameBytes)} ${decodeCleanCstr(codec, pv.familyNameBytes)}`.trim();
               const card = document.createElement("button");
               card.className = "uw2-row-card";
               card.style.cssText = "display:flex;align-items:center;gap:10px;text-align:left;";
@@ -1511,8 +1532,9 @@ export async function runDomTavernWorkbench(b: any, drinkNameBytes: Uint8Array, 
           const box = document.createElement("div");
           box.className = "uw2-action-box";
           if (b.girl) {
-            const face = st.u8(b.girl + 0x10);
-            const gName = decodeCleanCstr(codec, b.dstr(b.girl));
+            const girl = barmaidByAddr(m, b.girl);
+            const face = girl.quest;
+            const gName = decodeCleanCstr(codec, girl.nameBytes);
             const head = document.createElement("div");
             head.style.cssText = "display:flex;align-items:center;gap:14px;";
             const url = art?.portraitUrl?.(face);
@@ -1558,15 +1580,15 @@ export async function runDomTavernWorkbench(b: any, drinkNameBytes: Uint8Array, 
     else if (act.kind === "dismiss") await b.dismiss();
     else if (act.kind === "drink") {
       const v = act.arg ?? 1;
-      const heat = Math.trunc(((v * 200) & 0xffff) / st.u16(b.eco));
-      const d = Math.trunc(domS16(heat * st.u8(b.hero + 0x22)) / 10) + b.tvA;
+      const heat = Math.trunc(((v * 200) & 0xffff) / m.portEconomy(b.port).commerce);
+      const d = Math.trunc(domS16(heat * m.heroPerson().getStats(6)) / 10) + b.tvA;
       b.tvA = Math.min(100, d);
       b.payMoney(domS16(drinkPrice * v));
       await b.rumor(heat);
     } else if (act.kind === "chat") {
       if (act.arg !== undefined) {
         const who = act.arg;
-        b.mate = st.personRecord(who);
+        b.mate = m.person(who).addr;
         b.talkPerson(who);
         b.mateNo = who;
         await b.chatMenu();
@@ -1584,30 +1606,30 @@ export async function runDomTavernWorkbench(b: any, drinkNameBytes: Uint8Array, 
 // 8. 造船厂一体化工作台 (Shipyard — 6 分页全部内置操作，零层叠弹窗)
 // ============================================================================
 export async function runDomShipyardWorkbench(b: any): Promise<void> {
-  const c = b.c, st = b.st, m = st.model, codec = c.codec, art = c.art;
+  const c = b.c, m = b.st.model, codec = c.codec, art = c.art;
   const portName = decodeCleanCstr(codec, m.port(b.port).nameBytes);
   const tabLabels = [...UI_STR.shipyardTabs];
   const remodelLabels = [...UI_STR.remodelTabs];
   const initGreet = capMsg(c, 0x4d);
 
   // 依原版 rmFigure / rmGuns 规则：每次切换到「船首像」或「武装」子分页时都进行 1/20 稀有品判定（与原版反复进出子菜单刷彩蛋完全一致）
-  const E = b.eco, H = b.hero, rng = c.sys.rng;
-  let figCount = Math.min(8, Math.trunc(st.u16(E) / 100) + 1);
-  let gunCount = Math.min(6, Math.trunc(((st.u16(E + 4) + st.u16(E)) & 0xffff) / 200) + 1);
+  const eco = m.portEconomy(b.port), ecoEx = getPortEcoExtra(eco), hero = m.heroPerson(), rng = c.sys.rng;
+  let figCount = Math.min(8, Math.trunc(eco.commerce / 100) + 1);
+  let gunCount = Math.min(6, Math.trunc(((eco.industry + eco.commerce) & 0xffff) / 200) + 1);
   let specialNotice = "";
   const rollFigureheads = () => {
-    figCount = Math.min(8, Math.trunc(st.u16(E) / 100) + 1);
-    if (st.u16(E + 4) > 800 && st.u16(E) > 800 && st.u8(H + 0x23) > 80 && !rng.random(20)) {
+    figCount = Math.min(8, Math.trunc(eco.commerce / 100) + 1);
+    if (eco.industry > 800 && eco.commerce > 800 && hero.getStats(7) > 80 && !rng.random(20)) {
       figCount++;
-      if (rng.random(st.u8(H + 0x23)) >= 90) figCount++;
+      if (rng.random(hero.getStats(7)) >= 90) figCount++;
       specialNotice = capMsg(c, 0x10a);
       return true;
     }
     return false;
   };
   const rollGuns = () => {
-    gunCount = Math.min(6, Math.trunc(((st.u16(E + 4) + st.u16(E)) & 0xffff) / 200) + 1);
-    if (st.u16(E + 4) > 900 && st.u16(E) > 900 && st.u8(H + 0x23) > 90 && !rng.random(20)) {
+    gunCount = Math.min(6, Math.trunc(((eco.industry + eco.commerce) & 0xffff) / 200) + 1);
+    if (eco.industry > 900 && eco.commerce > 900 && hero.getStats(7) > 90 && !rng.random(20)) {
       gunCount++;
       specialNotice = capMsg(c, 0x10a);
       return true;
@@ -1647,22 +1669,23 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
       };
 
       const getBuildableTypes = () => {
-        const ind = st.u16(E + 4);
-        const row = b.BT.levels[st.u8(E + 0x22)];
+        const ind = eco.industry;
+        const row = b.BT.levels[ecoEx.shipRegion];
         const out: number[] = [];
         for (let i = 0; i < 8; i++) {
           const t = row[i];
-          if (t === 0xff) break;
-          if (((10 * st.u8(b.typeRec(t))) & 0xffff) <= ind) out.push(t);
+          if (t === GameConst.EMPTY_SLOT) break;
+          if (((10 * m.shipType(t).shipClass) & 0xffff) <= ind) out.push(t);
         }
         return out;
       };
 
       const getUsedShips = () => {
+        const cache = m.usedShipCache(0);
         const out: { cacheIdx: number; type: number }[] = [];
         for (let i = 0; i < 5; i++) {
-          const t = st.u8(DS.TBL_USED_SHIP_CACHE + i);
-          if (t !== 0xff) out.push({ cacheIdx: i, type: t });
+          const t = cache.getShipTypes(i);
+          if (t !== GameConst.EMPTY_SLOT) out.push({ cacheIdx: i, type: t });
         }
         return out;
       };
@@ -1720,13 +1743,13 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
 
         if (tab === 0) {
           // ---- 0. 造新船 ----
-          const buildDays = st.u8(E + 0x23);
+          const buildDays = ecoEx.buildDays;
           const types = getBuildableTypes();
           if (selIdx >= types.length) selIdx = Math.max(0, types.length - 1);
 
           const lt = document.createElement("div");
           lt.className = "uw2-pane-title";
-          lt.textContent = buildDays !== 0xff ? `建造中（剩余 ${buildDays} 天）` : `可建造船型（工业 ${st.u16(E + 4)}）`;
+          lt.textContent = buildDays !== GameConst.EMPTY_SLOT ? `建造中（剩余 ${buildDays} 天）` : `可建造船型（工业 ${eco.industry}）`;
           left.appendChild(lt);
 
           const list = document.createElement("div");
@@ -1734,8 +1757,8 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
           list.style.maxHeight = "390px";
           types.forEach((t, idx) => {
             const tmpl = m.ship(t + 40);
-            const T = b.typeRec(t);
-            const basePrice = domS16(st.u16(T + 0x0a));
+            const stype = m.shipType(t);
+            const basePrice = domS16(stype.price);
             const row = document.createElement("button");
             row.className = `uw2-row-card ${idx === selIdx ? "selected" : ""}`;
             row.style.cssText = "display:flex;justify-content:space-between;align-items:center;";
@@ -1752,7 +1775,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
 
           const box = document.createElement("div");
           box.className = "uw2-action-box";
-          if (buildDays !== 0xff) {
+          if (buildDays !== GameConst.EMPTY_SLOT) {
             const p = document.createElement("div");
             p.style.cssText = "font-size:14px;color:var(--uw2-ink);";
             p.textContent = buildDays > 0 ? capMsg(c, 0x105, buildDays) : capMsg(c, 0x106, 0);
@@ -1768,9 +1791,8 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
           } else if (types.length) {
             const t = types[selIdx];
             const tmpl = m.ship(t + 40);
-            const T = b.typeRec(t);
-            const dur = st.u8(T + 1), turn = st.u8(T + 2), prop = st.u8(T + 3), cap = st.u16(T + 6);
-            renderShipHeader(box, t, decodeCleanCstr(codec, tmpl.nameBytes), `耐久 ${dur} · 转向 ${turn} · 推进 ${prop} · 容量 ${cap}`);
+            const stype = m.shipType(t);
+            renderShipHeader(box, t, decodeCleanCstr(codec, tmpl.nameBytes), `耐久 ${stype.durability} · 转向 ${stype.turn} · 推进 ${stype.propulsion} · 容量 ${stype.capacity}`);
             const desc = document.createElement("div");
             desc.className = "uw2-speech-box";
             desc.textContent = capMsg(c, b.BT.typeMsg[t]);
@@ -1798,7 +1820,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
           list.className = "uw2-list-col";
           usedList.forEach((u, idx) => {
             const tmpl = m.ship(u.type + 40);
-            const price = st.u16(b.typeRec(u.type) + 0x0a);
+            const price = m.shipType(u.type).price;
             const row = document.createElement("button");
             row.className = `uw2-row-card ${idx === selIdx ? "selected" : ""}`;
             row.style.cssText = "display:flex;justify-content:space-between;align-items:center;";
@@ -1818,8 +1840,8 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
           if (usedList.length) {
             const u = usedList[selIdx];
             const tmpl = m.ship(u.type + 40);
-            const T = b.typeRec(u.type);
-            renderShipHeader(box, u.type, decodeCleanCstr(codec, tmpl.nameBytes), `耐久 ${st.u8(T + 1)} · 转向 ${st.u8(T + 2)} · 推进 ${st.u8(T + 3)} · 容量 ${st.u16(T + 6)}`);
+            const stype = m.shipType(u.type);
+            renderShipHeader(box, u.type, decodeCleanCstr(codec, tmpl.nameBytes), `耐久 ${stype.durability} · 转向 ${stype.turn} · 推进 ${stype.propulsion} · 容量 ${stype.capacity}`);
             const desc = document.createElement("div");
             desc.className = "uw2-speech-box";
             desc.textContent = capMsg(c, b.BT.typeMsg[u.type]);
@@ -1844,8 +1866,8 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
           const list = document.createElement("div");
           list.className = "uw2-list-col";
           fleetSlots.forEach((slot, idx) => {
-            const S = b.fleetSlot(slot), ship = m.ship(st.u8(S + 7)), T = b.typeRec(ship.type);
-            const dmg = domS16(st.u8(S + OFF.DOCK_SLOT.MAX_DURABILITY) - st.u8(S + OFF.DOCK_SLOT.DURABILITY) - st.u8(S + OFF.DOCK_SLOT.TURN) - st.u8(S + OFF.DOCK_SLOT.PROPULSION) + st.u8(T + 2) + st.u8(T + 3));
+            const slotView = heroOrDockSlot(m, slot), ship = m.ship(slotView.ship), stype = m.shipType(ship.type);
+            const dmg = domS16(slotView.maxDurability - slotView.durability - slotView.turn - slotView.propulsion + stype.turn + stype.propulsion);
             const cost = dmg > 0 ? domS16(dmg * 20) : 0;
             const row = document.createElement("button");
             row.className = `uw2-row-card ${idx === selIdx ? "selected" : ""}`;
@@ -1867,12 +1889,12 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
           box.className = "uw2-action-box";
           if (fleetSlots.length) {
             const slot = fleetSlots[selIdx];
-            const S = b.fleetSlot(slot), ship = m.ship(st.u8(S + 7)), T = b.typeRec(ship.type);
-            const dur = st.u8(S + OFF.DOCK_SLOT.DURABILITY), maxDur = st.u8(S + OFF.DOCK_SLOT.MAX_DURABILITY);
-            const turn = st.u8(S + OFF.DOCK_SLOT.TURN), prop = st.u8(S + OFF.DOCK_SLOT.PROPULSION);
-            const dmg = domS16(maxDur - dur - turn - prop + st.u8(T + 2) + st.u8(T + 3));
+            const slotView = heroOrDockSlot(m, slot), ship = m.ship(slotView.ship), stype = m.shipType(ship.type);
+            const dur = slotView.durability, maxDur = slotView.maxDurability;
+            const turn = slotView.turn, prop = slotView.propulsion;
+            const dmg = domS16(maxDur - dur - turn - prop + stype.turn + stype.propulsion);
             const cost = dmg > 0 ? domS16(dmg * 20) : 0;
-            renderShipHeader(box, ship.type, decodeCleanCstr(codec, ship.nameBytes), `耐久 ${dur}/${maxDur} · 转向 ${turn}/${st.u8(T + 2)} · 推进 ${prop}/${st.u8(T + 3)}`);
+            renderShipHeader(box, ship.type, decodeCleanCstr(codec, ship.nameBytes), `耐久 ${dur}/${maxDur} · 转向 ${turn}/${stype.turn} · 推进 ${prop}/${stype.propulsion}`);
 
             const p = document.createElement("div");
             p.style.cssText = "font-size:14px;color:var(--uw2-ink);";
@@ -1887,9 +1909,9 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
             repBtn.addEventListener("click", () => {
               if (cost > b.money) { notice = capMsg(c, 0xcf); render(); return; }
               b.money = (b.money - cost) | 0;
-              st.set8(S + OFF.DOCK_SLOT.DURABILITY, maxDur);
-              st.set8(S + OFF.DOCK_SLOT.TURN, st.u8(T + 2));
-              st.set8(S + OFF.DOCK_SLOT.PROPULSION, st.u8(T + 3));
+              slotView.durability = maxDur;
+              slotView.turn = stype.turn;
+              slotView.propulsion = stype.propulsion;
               b.p.panels();
               notice = capMsg(c, 0xcc);
               render();
@@ -1908,7 +1930,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
           const list = document.createElement("div");
           list.className = "uw2-list-col";
           fleetSlots.forEach((slot, idx) => {
-            const S = b.fleetSlot(slot), ship = m.ship(st.u8(S + 7));
+            const ship = m.ship(heroOrDockSlot(m, slot).ship);
             const val = Math.trunc(b.shipPrice(slot) / 2);
             const row = document.createElement("button");
             row.className = `uw2-row-card ${idx === selIdx ? "selected" : ""}`;
@@ -1930,10 +1952,10 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
             box.textContent = capMsg(c, 0xd0);
           } else {
             const slot = fleetSlots[selIdx];
-            const S = b.fleetSlot(slot), M = b.crewData(slot), ship = m.ship(st.u8(S + 7));
+            const slotView = heroOrDockSlot(m, slot), cs = m.crewSlot(slot), ship = m.ship(slotView.ship);
             const val = Math.trunc(b.shipPrice(slot) / 2);
-            const isHeroShip = st.u8(M + 0x1b) === st.hero;
-            renderShipHeader(box, ship.type, decodeCleanCstr(codec, ship.nameBytes), `载货 ${b.cargoUsed(slot)} · 水手 ${st.u16(S)}/${ship.maxCrew}`);
+            const isHeroShip = cs.captain === m.globals.hero;
+            renderShipHeader(box, ship.type, decodeCleanCstr(codec, ship.nameBytes), `载货 ${b.cargoUsed(slot)} · 水手 ${slotView.crew}/${ship.maxCrew}`);
 
             const p = document.createElement("div");
             p.style.cssText = "font-size:14px;color:var(--uw2-ink);";
@@ -1950,7 +1972,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
               lbl.textContent = capMsg(c, 0xd2);
               repRow.appendChild(lbl);
               others.forEach(os => {
-                const oShip = m.ship(st.u8(b.fleetSlot(os) + 7));
+                const oShip = m.ship(heroOrDockSlot(m, os).ship);
                 const ob = document.createElement("button");
                 ob.className = `uw2-btn ${replaceSlot === os ? "active" : ""}`;
                 ob.textContent = decodeCleanCstr(codec, oShip.nameBytes);
@@ -1966,7 +1988,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
             sellBtn.textContent = `${tabLabels[3]}（${val.toLocaleString()} 金币）`;
             sellBtn.addEventListener("click", () => {
               b.b2f4 = slot;
-              b.b2f5 = isHeroShip ? replaceSlot : 0xff;
+              b.b2f5 = isHeroShip ? replaceSlot : GameConst.EMPTY_SLOT;
               b.sellDone();
               selIdx = 0;
               replaceSlot = -1;
@@ -1986,11 +2008,11 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
           const list = document.createElement("div");
           list.className = "uw2-list-col";
           fleetSlots.forEach((slot, idx) => {
-            const S = b.fleetSlot(slot), ship = m.ship(st.u8(S + 7));
+            const slotView = heroOrDockSlot(m, slot), ship = m.ship(slotView.ship);
             const row = document.createElement("button");
             row.className = `uw2-row-card ${idx === selIdx ? "selected" : ""}`;
             row.style.cssText = "display:flex;justify-content:space-between;align-items:center;";
-            row.innerHTML = `<span class="uw2-item-name">${decodeCleanCstr(codec, ship.nameBytes)}</span><span class="uw2-item-meta">火炮 ${st.u8(S + OFF.DOCK_SLOT.GUNS)}/${ship.maxGuns}</span>`;
+            row.innerHTML = `<span class="uw2-item-name">${decodeCleanCstr(codec, ship.nameBytes)}</span><span class="uw2-item-meta">火炮 ${slotView.guns}/${ship.maxGuns}</span>`;
             row.addEventListener("click", () => { selIdx = idx; render(); });
             list.appendChild(row);
           });
@@ -2021,7 +2043,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
           box.appendChild(subBar);
 
           const slot = fleetSlots[selIdx];
-          const S = b.fleetSlot(slot), M = b.crewData(slot), ship = m.ship(st.u8(S + 7));
+          const slotView = heroOrDockSlot(m, slot), cs = m.crewSlot(slot), ship = m.ship(slotView.ship);
 
           if (rmSub === 0) {
             // 船首像
@@ -2050,7 +2072,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
             okBtn.addEventListener("click", () => {
               if (b.money < price) { notice = capMsg(c, 0xcf); render(); return; }
               b.money = (b.money - price) | 0;
-              st.set8(M + 0x1d, selFig);
+              cs.figurehead = selFig;
               b.p.panels();
               notice = figTab[selFig] ? decodeCleanCstr(codec, figTab[selFig]) : "";
               render();
@@ -2073,9 +2095,9 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
             }
             box.appendChild(gGrid);
 
-            const same = (st.u8(S + OFF.DOCK_SLOT.FLAGS) & 7) === selGun;
+            const same = (slotView.flags & ShipSlotFlag.CANNON_MASK) === selGun;
             const maxG = ship.maxGuns;
-            const curG = st.u8(S + OFF.DOCK_SLOT.GUNS);
+            const curG = slotView.guns;
             const room = same ? Math.max(0, maxG - curG) : maxG;
             if (gunQty > room) gunQty = room;
             if (gunQty < 1 && room > 0) gunQty = 1;
@@ -2113,8 +2135,8 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
                 if (total > b.money) { notice = capMsg(c, 0xcf); render(); return; }
                 b.money = (b.money - total) | 0;
                 const nextQ = same ? (curG + gunQty) & 0xff : gunQty & 0xff;
-                st.set8(S + OFF.DOCK_SLOT.GUNS, nextQ);
-                st.set8(S + OFF.DOCK_SLOT.FLAGS, (st.u8(S + OFF.DOCK_SLOT.FLAGS) & 0xf8) | (selGun & 0xff));
+                slotView.guns = nextQ;
+                slotView.flags = (slotView.flags & ~ShipSlotFlag.CANNON_MASK) | (selGun & 0xff);
                 b.p.panels();
                 notice = `${decodeCleanCstr(codec, b.BT.cannons[selGun])} × ${nextQ}`;
                 render();
@@ -2123,7 +2145,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
             }
           } else if (rmSub === 2) {
             // 积载比例变更
-            const cost = domS16(st.u16(b.typeRec(ship.type) + 0x0a));
+            const cost = domS16(m.shipType(ship.type).price);
             const p = document.createElement("div");
             p.style.fontSize = "14px";
             p.textContent = capMsg(c, 0x112, cost);
@@ -2149,9 +2171,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
               const nv = inp.value.trim();
               if (!nv) return;
               try {
-                const bts = c.font.encode(nv).subarray(0, 14);
-                for (let i = 0; i < bts.length; i++) st.set8(ship.addr + i, bts[i]);
-                st.set8(ship.addr + bts.length, 0);
+                writeShipName(ship, c.font.encode(nv));
                 b.p.panels();
                 notice = nv;
                 render();
@@ -2163,7 +2183,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
         } else {
           // ---- 5. 工业投资（与交易所商业投资 1:1 统一面板） ----
           shell.toastEl.textContent = "";
-          const curInv = st.u16(E + 6);
+          const curInv = eco.industryInvest;
           const capAmt = b.money >= GameConst.MAX_INVEST ? GameConst.MAX_INVEST : b.money & 0xffff;
           const maxInv = b.isCapital() ? 0 : Math.min(capAmt, Math.max(0, GameConst.MAX_INVEST - curInv));
           if (investAmt > maxInv) investAmt = maxInv;
@@ -2173,7 +2193,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
             leftTitle: "港口工业",
             rightTitle: tabLabels[5],
             statLabel: "工业价值",
-            statValue: st.u16(E + 4),
+            statValue: eco.industry,
             investLabel: "本月工业投资",
             curInvest: curInv,
             maxInvest: maxInv,
@@ -2184,7 +2204,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
             onAmountChange: v => { investAmt = v; },
             onConfirm: v => {
               if (v <= 0) { investReply = capMsg(c, 0x0d); render(); return; }
-              st.set16(E + 6, st.u16(E + 6) + v);
+              eco.industryInvest += v;
               b.investSupport(v);
               b.investOwner();
               b.money = (b.money - v) | 0;
@@ -2216,15 +2236,15 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
       await b.usedShip();
     } else if (act.kind === "ratio" && act.arg !== undefined) {
       const slot = act.arg;
-      const ship = m.ship(st.u8(b.fleetSlot(slot) + 7));
-      const cost = domS16(st.u16(b.typeRec(ship.type) + 0x0a));
+      const ship = m.ship(heroOrDockSlot(m, slot).ship);
+      const cost = domS16(m.shipType(ship.type).price);
       if (cost <= b.money && (await b.design(slot))) {
         b.money = (b.money - cost) | 0;
         b.p.panels();
       }
     }
     b.after();
-    if (st.u8(DS.DAILY_FLAGS) & 2) break;
+    if (m.globals.dailyFlags & 2) break;
   }
 }
 
@@ -2232,11 +2252,11 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
 // 9. 住宅一体化工作台 (House — 发现物收购 / 地图制作 / 测量技术 / 砲术)
 // =========================================================================
 export async function runDomHouseWorkbench(house: any): Promise<void> {
-  const b = house.b, c = house.c, st = house.st, m = house.m, noble = house.noble;
+  const b = house.b, c = house.c, m = house.m, noble = house.noble;
   const { codec, art, sys } = c;
   const kind = noble.kind;
   const portName = decodeCleanCstr(codec, m.port(b.port).nameBytes);
-  const nobleName = decodeCleanCstr(codec, st.cstr(noble.addr));
+  const nobleName = decodeCleanCstr(codec, noble.nameBytes);
   const hero = m.heroPerson();
 
   const hsS16 = (v: number) => (v << 16) >> 16;
@@ -2363,8 +2383,9 @@ export async function runDomHouseWorkbench(house: any): Promise<void> {
         } else if (kind === 1) {
           const kvBox = document.createElement("div");
           kvBox.style.cssText = "display:flex;flex-direction:column;gap:8px;margin-top:8px;";
-          const unrep = st.u16(WorkDS.EXPLORE_UNREP);
-          const total = st.u16(WorkDS.EXPLORE_TOTAL);
+          const wk = getWorkState(m);
+          const unrep = wk.exploreUnrep;
+          const total = wk.exploreTotal;
           kvBox.innerHTML =
             `<div class="uw2-kv-row"><span class="uw2-kv-label">地图制作技能</span><span class="uw2-kv-val">${hero.skills & SkillFlag.CARTOGRAPHY ? "已习得" : "未习得"}</span></div>` +
             `<div class="uw2-kv-row"><span class="uw2-kv-label">未报告探索格数</span><span class="uw2-kv-val">${unrep}</span></div>` +
@@ -2512,7 +2533,7 @@ export async function runDomHouseWorkbench(house: any): Promise<void> {
                 if (!(hero.skills & SkillFlag.CARTOGRAPHY)) { speechText = capMsg(c, 0x1f0); notice = speechText; render(); return; }
                 for (let i = 0; i < 20; i++) { const n = m.noble(i); if (n.kind === 1) n.flags &= ~NobleFlag.CONTRACTED; }
                 noble.flags |= NobleFlag.CONTRACTED;
-                st.set16(WorkDS.EXPLORE_UNREP, 0);
+                setExploreUnrep(m, 0);
                 speechText = capMsg(c, 0x1f4);
                 notice = speechText;
                 render();
@@ -2563,7 +2584,7 @@ export async function runDomHouseWorkbench(house: any): Promise<void> {
               right.appendChild(btn);
             }
           } else if (activeTab === 2) {
-            const unrep = st.u16(WorkDS.EXPLORE_UNREP);
+            const unrep = getWorkState(m).exploreUnrep;
             const pay = Math.imul(Math.imul(hsS16(5 - (noble.flags & NobleFlag.REWARD_MASK)), unrep), 20);
             const box = document.createElement("div");
             box.className = "uw2-speech-box";
@@ -2576,18 +2597,15 @@ export async function runDomHouseWorkbench(house: any): Promise<void> {
               btn.textContent = `${tabLabels[2]}（+${pay.toLocaleString()} 金币）`;
               btn.addEventListener("click", () => {
                 reportedGeo = true;
-                const total = st.u16(WorkDS.EXPLORE_TOTAL);
+                const total = getWorkState(m).exploreTotal;
                 const hd = m.heroInfo();
                 hd.adventureFame = (hd.adventureFame + hsUmin((GameConst.MAX_FAME - hd.adventureFame) & 0xffff, Math.imul(5, unrep))) & 0xffff;
                 const room = (GameConst.MAX_CASH - house.money) | 0;
                 house.money = (house.money + (room > pay ? pay : room)) | 0;
-                st.set16(WorkDS.EXPLORE_UNREP, 0);
+                setExploreUnrep(m, 0);
                 b.p.panels();
                 if (total >= 3300) {
-                  for (let r = 0; r < 45; r++) {
-                    for (let k = 0; k < 11; k++) st.set8(WorkDS.EXPLORE_MAP + r * 12 + k, 0xff);
-                    st.set8(WorkDS.EXPLORE_MAP + r * 12 + 11, 0xc0);
-                  }
+                  revealEntireWorldMap(m);
                   const txt = capMsg(c, 0x1fb);
                   speechText = capMsg(c, 0x1fc, pay);
                   notice = speechText;

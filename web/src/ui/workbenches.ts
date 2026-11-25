@@ -1,7 +1,7 @@
 // ui/workbenches.ts — 与「读取进度 (save_modal.ts)」1:1 同款视觉的三大一体化工作台 + 舰船/人物情报卡
 // 涵盖：交易所一体化工作台、码头补给与出航工作台、舰队经营一体化大面板、人物情报卡（修正拼合头像）、舰船情报卡。
-import { DS, OFF } from "../model/schema_views.ts";
-import { GameConst, MenuId } from "../model/flags.ts";
+import { GameConst, SeaFlag2, ShipSlotFlag } from "../model/flags.ts";
+import { WorldConst, fleetByAddr, heroOrDockSlot, personRawBytes, setDaysAtSea } from "../model/world_helpers.ts";
 import { domS16, domUmin16, calcBuyPriceShift, calcSellPriceShift, clampPriceIndexUp, clampPriceIndexDown } from "../domain/economy.ts";
 import { marketTradeLog } from "../scenes/market.js";
 import { decodeCleanCstr } from "./text_util.ts";
@@ -75,7 +75,7 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
       const out: { slot: number; name: string; used: number; max: number; free: number; cargoSlots: { j: number; g: number; name: string; amt: number; sellPrice: number }[] }[] = [];
       for (let i = 0; i < n; i++) {
         const slot = c.persons[i] & 0xff;
-        const shipId = market.st.u8(b.fleetSlot(slot) + 7);
+        const shipId = heroOrDockSlot(market.m, slot).ship;
         const ship = market.m.ship(shipId);
         const max = domS16(ship.maxCargo);
         const used = domS16(b.cargoUsed(slot));
@@ -394,36 +394,36 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
 // 2. 码头一体化工作台（合并「补给」+「船坞」双标签 + 购物车差额结算 + 一键按比例全补给 + 出航）
 // ============================================================================
 export async function runDomWharfWorkbench(b: any): Promise<number> {
-  const c = b.c, st = b.st, codec = c.codec;
+  const c = b.c, st = b.st, m = st.model, codec = c.codec;
   const dec = (bts: Uint8Array) => decodeCleanCstr(codec, bts);
   const wharfTitle = UI_STR.wharfTitle;
-  const portName = dec(st.model.port(b.port).nameBytes);
+  const portName = dec(m.port(b.port).nameBytes);
   const wharfMenu = [UI_STR.wharfDepart, ...UI_STR.wharfTabs];
   const dockMenu = [...UI_STR.dockActions];
   const supNames = [...UI_STR.supplies];
 
   const unitPrice = (item: number) => {
     if (item === 0) return 0;
-    const [cx, off] = [[0x14, 0x10], [0x5a, 0x17], [0x78, 0x10]][item - 1];
-    return Math.trunc(((st.u8(b.eco + off) + 0x32) * cx) / 100);
+    const [cx, priceIdx] = [[20, 2], [90, 9], [120, 2]][item - 1];
+    return Math.trunc(((m.portEconomy(b.port).getPrices(priceIdx) + 50) * cx) / 100);
   };
 
   const readShipVals = (slot: number): [number, number, number, number] => {
-    const M = b.crewData(slot);
+    const cs = m.crewSlot(slot);
     return [
-      Math.trunc(domS16(st.u16(M)) / 10),
-      Math.trunc(domS16(st.u16(M + 2)) / 10),
-      domS16(st.u16(M + 4)),
-      domS16(st.u16(M + 6)),
+      Math.trunc(domS16(cs.water) / 10),
+      Math.trunc(domS16(cs.food) / 10),
+      domS16(cs.material),
+      domS16(cs.ammo),
     ];
   };
 
   // 纯补级载重以外的货舱占用（仅商业货物）
   const goodsUsed = (slot: number): number => {
-    const M = b.crewData(slot);
+    const cs = m.crewSlot(slot);
     let sum = 0;
-    for (let j = 0; j < 5; j++) {
-      if (st.u8(M + OFF.CREW_SLOT.CARGO_GOODS + j) !== 0xff) sum += domS16(st.u16(M + OFF.CREW_SLOT.CARGO_AMTS + 2 * j));
+    for (let j = 0; j < GameConst.CARGO_SLOTS; j++) {
+      if (cs.getCargoGoods(j) !== GameConst.EMPTY_SLOT) sum += domS16(cs.getCargoAmts(j));
     }
     return sum;
   };
@@ -481,12 +481,12 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
         const n = b.fleetShips();
         for (let i = 0; i < n; i++) {
           const slot = c.persons[i] & 0xff;
-          const M = b.crewData(slot);
+          const cs = m.crewSlot(slot);
           const cur = getDraft(slot);
-          for (let k = 0; k < 4; k++) {
-            const mul = k < 2 ? 10 : 1;
-            st.set16(M + k * 2, cur[k] * mul);
-          }
+          cs.water = cur[0] * 10;
+          cs.food = cur[1] * 10;
+          cs.material = cur[2];
+          cs.ammo = cur[3];
           b.loadTotal(slot);
         }
         if (cost > 0) b.money = (b.money - cost) | 0;
@@ -507,8 +507,8 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
 
         for (let i = 0; i < n; i++) {
           const slot = c.persons[i] & 0xff;
-          const ship = b.shipOf(slot);
-          const maxCargo = domS16(st.u16(ship + 0x14));
+          const ship = m.ship(heroOrDockSlot(m, slot).ship);
+          const maxCargo = domS16(ship.maxCargo);
           const orig = readShipVals(slot);
           const cur: [number, number, number, number] = [...orig];
           const usedGoods = goodsUsed(slot);
@@ -600,18 +600,19 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
         let noDriver = false, crewT = 0, waterT = 0, foodT = 0;
         const ships: any[] = [];
         for (let i = 0; i < n; i++) {
-          const slot = c.persons[i] & 0xff, M = b.crewData(slot), S = b.fleetSlot(slot), ship = b.shipOf(slot);
-          const crew = domS16(st.u16(S));
-          const drv = Math.trunc(crew * st.u8(M + 9) / 100), look = Math.trunc(crew * st.u8(M + 8) / 100);
+          const slot = c.persons[i] & 0xff;
+          const cs = m.crewSlot(slot), slotView = heroOrDockSlot(m, slot), ship = m.ship(slotView.ship);
+          const crew = domS16(slotView.crew);
+          const drv = Math.trunc(crew * cs.lookRatio / 100), look = Math.trunc(crew * cs.navRatio / 100);
           if (!drv) noDriver = true;
           const vals = getDraft(slot);
           waterT = (waterT + vals[0] * 10) & 0xffff;
           foodT = (foodT + vals[1] * 10) & 0xffff;
-          crewT = (crewT + st.u16(S)) & 0xffff;
+          crewT = (crewT + slotView.crew) & 0xffff;
           const used = goodsUsed(slot) + vals[0] + vals[1] + vals[2] + vals[3];
-          const max = domS16(st.u16(ship + 0x14));
+          const max = domS16(ship.maxCargo);
           ships.push({
-            slot, name: dec(b.dstr(ship)), drv, look, deck: Math.max(0, crew - drv - look),
+            slot, name: dec(ship.nameBytes), drv, look, deck: Math.max(0, crew - drv - look),
             used, max, free: Math.max(0, max - used), vals,
           });
         }
@@ -732,23 +733,24 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
             b.dockScan();
             const fleetList: { slot: number; name: string; capName: string; crew: number; isHero: boolean }[] = [];
             for (const slot of fleetSlots) {
-              const S = b.fleetSlot(slot), M = b.crewData(slot);
-              const capId = st.u8(M + OFF.CREW_SLOT.CAPTAIN);
+              const slotView = heroOrDockSlot(m, slot), cs = m.crewSlot(slot);
+              const capId = cs.captain;
               fleetList.push({
                 slot,
-                name: dec(b.dstr(b.shipOf(slot))),
-                capName: capId < 0x78 ? dec(st.cstr(st.personRecord(capId))) : "----",
-                crew: st.u16(S),
-                isHero: capId === st.hero,
+                name: dec(m.ship(slotView.ship).nameBytes),
+                capName: capId < WorldConst.TOTAL_PERSONS ? dec(m.person(capId).givenNameBytes) : "----",
+                crew: slotView.crew,
+                isHero: capId === m.globals.hero,
               });
             }
             const dockList: { slot: number; name: string; maxCrew: number }[] = [];
             for (let i = 0; i < b.b066; i++) {
               const dSlot = b.b06a[i];
+              const dShip = m.ship(heroOrDockSlot(m, dSlot).ship);
               dockList.push({
                 slot: dSlot,
-                name: dec(b.dstr(b.shipOf(dSlot))),
-                maxCrew: domS16(st.u16(b.shipOf(dSlot) + 0x12)),
+                name: dec(dShip.nameBytes),
+                maxCrew: domS16(dShip.maxCrew),
               });
             }
             if (selFleetDockIdx >= fleetList.length) selFleetDockIdx = Math.max(0, fleetList.length - 1);
@@ -809,12 +811,12 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
               if (!selF || selF.isHero || b.b066 >= b.b068) return;
               const d = b.b06a[b.b066];
               b.swapSlots(selF.slot, d);
-              const Mf = b.crewData(selF.slot), Md = b.crewData(d);
-              st.set8(Mf + 0x1c, 0); st.set8(Md + 0x1c, 0);
-              st.set16(b.fleetSlot(selF.slot), 0); st.set16(b.fleetSlot(d), 0);
-              st.set8(Mf + 0x1b, 0xff);
-              st.set8(st.personRecord(st.u8(Md + 0x1b)) + 0x2e, 6);
-              st.set8(Md + 0x1b, b.port | 0x80);
+              const mf = m.crewSlot(selF.slot), md = m.crewSlot(d);
+              mf.morale = 0; md.morale = 0;
+              heroOrDockSlot(m, selF.slot).crew = 0; heroOrDockSlot(m, d).crew = 0;
+              mf.captain = GameConst.EMPTY_SLOT;
+              m.person(md.captain).role = 6;
+              md.captain = b.port | 0x80;
               b.compactSlots();
               resetDraft();
               toastOk = true; toastMsg = b.captureMessage(0x11a);
@@ -828,15 +830,15 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
             takeBtn.disabled = !selD || b.b064 <= b.b062;
             takeBtn.addEventListener("click", () => {
               if (!selD || b.b064 <= b.b062) return;
-              let f = 0; for (let i = 0; i < 10; i++) if (b.slotState(i) !== 0x10) { f = i; break; }
+              let f = 0; for (let i = 0; i < GameConst.FLEET_SHIPS; i++) if (b.slotState(i) !== ShipSlotFlag.ACTIVE) { f = i; break; }
               b.swapSlots(f, selD.slot);
-              const Mf = b.crewData(f), Md = b.crewData(selD.slot);
-              st.set8(Mf + 0x1c, 0); st.set8(Md + 0x1c, 0);
-              st.set16(b.fleetSlot(f), 0); st.set16(b.fleetSlot(selD.slot), 0);
+              const mf = m.crewSlot(f), md = m.crewSlot(selD.slot);
+              mf.morale = 0; md.morale = 0;
+              heroOrDockSlot(m, f).crew = 0; heroOrDockSlot(m, selD.slot).crew = 0;
               b.crewList();
-              st.set8(Mf + 0x1b, c.persons[0]);
-              st.set8(st.personRecord(c.persons[0]) + 0x2e, 2);
-              st.set8(Md + 0x1b, b.port | 0x80);
+              mf.captain = c.persons[0];
+              m.person(c.persons[0]).role = 2;
+              md.captain = b.port | 0x80;
               b.compactSlots();
               resetDraft();
               toastOk = true; toastMsg = b.captureMessage(0x11e);
@@ -850,14 +852,15 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
             swapBtn.disabled = !selF || !selD;
             swapBtn.addEventListener("click", () => {
               if (!selF || !selD) return;
-              const cap = domS16(st.u16(b.shipOf(selD.slot) + 0x12));
+              const cap = domS16(m.ship(heroOrDockSlot(m, selD.slot).ship).maxCrew);
               b.swapSlots(selF.slot, selD.slot);
-              const Mf = b.crewData(selF.slot), Md = b.crewData(selD.slot);
-              st.set8(Mf + 0x1c, st.u8(Md + 0x1c)); st.set8(Md + 0x1c, 0);
-              st.set16(b.fleetSlot(selF.slot), domUmin16(st.u16(b.fleetSlot(selD.slot)), cap));
-              st.set16(b.fleetSlot(selD.slot), 0);
-              st.set8(Mf + 0x1b, st.u8(Md + 0x1b));
-              st.set8(Md + 0x1b, b.port | 0x80);
+              const mf = m.crewSlot(selF.slot), md = m.crewSlot(selD.slot);
+              mf.morale = md.morale; md.morale = 0;
+              const sfSlot = heroOrDockSlot(m, selF.slot), sdSlot = heroOrDockSlot(m, selD.slot);
+              sfSlot.crew = domUmin16(sdSlot.crew, cap);
+              sdSlot.crew = 0;
+              mf.captain = md.captain;
+              md.captain = b.port | 0x80;
               b.compactSlots();
               resetDraft();
               toastOk = true; toastMsg = b.captureMessage(0x11f);
@@ -877,15 +880,15 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
 
     if (action.type === "depart" && action.days) {
       marketTradeLog(st, c.rt, 1, action.days, 0, 0, b.port);
-      st.set8(DS.DAYS_AT_SEA, 0);
+      setDaysAtSea(m, 0);
       const sea = b.p;
-      st.set8(sea.fleet + 0x1a, 8);
+      fleetByAddr(m, sea.fleet).dir = 8;
       c.sys.mickeys();
-      st.set8(DS.SEA_FLAGS2, st.u8(DS.SEA_FLAGS2) & 0xdf);
+      m.globals.seaFlags2 &= ~SeaFlag2.STOPPED;
       sea.foodDaily();
       sea.waterDaily();
       await sea.enterSea();
-      st.set8(DS.LAST_PORT, 0xff);
+      m.globals.lastPort = GameConst.EMPTY_SLOT;
       return 1;
     }
     return 0;
@@ -896,7 +899,7 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
 // 3. 舰队经营一体化大面板（左选船、右切 船长与舰船 / 水手与比例 / 人事变更 / 积载）
 // ============================================================================
 export function runDomFleetHub(cmd: any): Promise<void> {
-  const c = cmd.c, st = cmd.st, b = cmd.b, { codec, art } = c;
+  const c = cmd.c, m = cmd.st.model, b = cmd.b, { codec, art } = c;
   const dec = (bts: Uint8Array) => decodeCleanCstr(codec, bts);
   const m1b = c.menuItems(0x1b).slice(0, 6).map(dec);
   const tabLabels = [...UI_STR.fleetHubTabs];
@@ -913,8 +916,8 @@ export function runDomFleetHub(cmd: any): Promise<void> {
     const tryClose = () => {
       if (b.fleetShips() > 0) {
         let heroCap = false;
-        for (let i = 0; i < 10; i++) {
-          if ((st.u8(b.fleetSlot(i) + 8) & 0x30) === 0x10 && st.u8(b.crewData(i) + 0x1b) === st.hero) { heroCap = true; break; }
+        for (let i = 0; i < GameConst.FLEET_SHIPS; i++) {
+          if ((heroOrDockSlot(m, i).flags & ShipSlotFlag.STATE_MASK) === ShipSlotFlag.ACTIVE && m.crewSlot(i).captain === m.globals.hero) { heroCap = true; break; }
         }
         if (!heroCap) { toastMsg = cmd.cap(() => c.message(0xe2)); render(); return; }
       }
@@ -960,11 +963,11 @@ export function runDomFleetHub(cmd: any): Promise<void> {
     h.modal.appendChild(footer);
 
     const scanPosts = () => {
-      const posts = [0xff, 0xff, 0xff];
-      for (let i = 0; i < 0x1e; i++) {
-        const n = st.u8(DS.PARTY_CREW + i);
-        if (n === 0xff) continue;
-        const r = st.u8(st.personRecord(n) + 0x2e);
+      const posts = [GameConst.EMPTY_SLOT, GameConst.EMPTY_SLOT, GameConst.EMPTY_SLOT];
+      for (let i = 0; i < GameConst.PARTY_SLOTS; i++) {
+        const n = m.partyCrew(i);
+        if (n === GameConst.EMPTY_SLOT) continue;
+        const r = m.person(n).role;
         if (r >= 3 && r <= 5) posts[r - 3] = n;
       }
       return posts;
@@ -973,47 +976,47 @@ export function runDomFleetHub(cmd: any): Promise<void> {
     const getShips = () => {
       const n = b.fleetShips(), out = [];
       for (let i = 0; i < n; i++) {
-        const slot = c.persons[i] & 0xff, S = b.fleetSlot(slot), M = b.crewData(slot);
-        const capId = st.u8(M + OFF.CREW_SLOT.CAPTAIN);
+        const slot = c.persons[i] & 0xff, slotView = heroOrDockSlot(m, slot), cs = m.crewSlot(slot);
+        const capId = cs.captain;
         if (capId & 0x80) continue;
-        const ship = DS.TBL_SHIP + st.u8(S + OFF.DOCK_SLOT.SHIP) * 0x16;
+        const ship = m.ship(slotView.ship);
         out.push({
-          slot, name: dec(st.cstr(ship)), typeId: st.u8(ship + 0x0f), capId,
-          capName: dec(st.cstr(st.personRecord(capId))),
-          crew: st.u16(S), maxCrew: st.u16(ship + 0x12),
-          dur: st.u8(S + OFF.DOCK_SLOT.DURABILITY), maxDur: st.u8(S + OFF.DOCK_SLOT.MAX_DURABILITY),
-          turn: st.u8(S + OFF.DOCK_SLOT.TURN), prop: st.u8(S + OFF.DOCK_SLOT.PROPULSION),
-          used: domS16(b.cargoUsed(slot)), maxCargo: domS16(st.u16(ship + 0x14)),
+          slot, name: dec(ship.nameBytes), typeId: ship.type, capId,
+          capName: dec(m.person(capId).givenNameBytes),
+          crew: slotView.crew, maxCrew: ship.maxCrew,
+          dur: slotView.durability, maxDur: slotView.maxDurability,
+          turn: slotView.turn, prop: slotView.propulsion,
+          used: domS16(b.cargoUsed(slot)), maxCargo: domS16(ship.maxCargo),
           speed: (b.shipSpeed(slot) + 1) >> 1,
-          navR: st.u8(M + OFF.CREW_SLOT.NAV_RATIO), lookR: st.u8(M + OFF.CREW_SLOT.LOOK_RATIO),
+          navR: cs.navRatio, lookR: cs.lookRatio,
         });
       }
       return out;
     };
 
     const adjustSailors = (slot: number, delta: number) => {
-      const M = b.crewData(slot), S = b.fleetSlot(slot);
-      const ship = DS.TBL_SHIP + st.u8(S + OFF.DOCK_SLOT.SHIP) * 0x16;
-      const cur = st.u16(S), maxCrew = st.u16(ship + 0x12), mor = st.u8(M + OFF.CREW_SLOT.MORALE);
+      const cs = m.crewSlot(slot), slotView = heroOrDockSlot(m, slot);
+      const ship = m.ship(slotView.ship);
+      const cur = slotView.crew, maxCrew = ship.maxCrew, mor = cs.morale;
       const next = Math.max(0, Math.min(cur + delta, Math.min(cur + pool, maxCrew)));
       if (next === cur) return;
-      st.set16(S, next);
+      slotView.crew = next;
       const prevPool = pool;
       pool = (pool - next + cur) & 0xffff;
-      st.set8(M + OFF.CREW_SLOT.MORALE, 0);
-      if (next) st.set8(M + OFF.CREW_SLOT.MORALE, cur < next ? Math.trunc((mor * cur + (next - cur) * poolMorale) / next) : mor);
+      cs.morale = 0;
+      if (next) cs.morale = cur < next ? Math.trunc((mor * cur + (next - cur) * poolMorale) / next) : mor;
       poolMorale = 0;
       if (pool) poolMorale = (cur < next ? poolMorale : Math.trunc((poolMorale * prevPool + (cur - next) * mor) / pool)) & 0xff;
       render();
     };
 
     const stepRatio = (slot: number, r: number, times = 1) => {
-      const M = b.crewData(slot);
+      const cs = m.crewSlot(slot);
       for (let k = 0; k < times; k++) {
-        const a = st.u8(M + OFF.CREW_SLOT.NAV_RATIO), b9 = st.u8(M + OFF.CREW_SLOT.LOOK_RATIO), rest = (100 - a - b9) & 0xff;
-        if (r <= 1) { const t = [b9, a, rest]; cmd.ratioStep(r, t); st.set8(M + OFF.CREW_SLOT.NAV_RATIO, t[1]); st.set8(M + OFF.CREW_SLOT.LOOK_RATIO, t[0]); }
-        else if (r <= 3) { const t = [a, rest, b9]; cmd.ratioStep(r, t); st.set8(M + OFF.CREW_SLOT.NAV_RATIO, t[0]); st.set8(M + OFF.CREW_SLOT.LOOK_RATIO, t[2]); }
-        else { const t = [rest, b9, a]; cmd.ratioStep(r, t); st.set8(M + OFF.CREW_SLOT.NAV_RATIO, t[2]); st.set8(M + OFF.CREW_SLOT.LOOK_RATIO, t[1]); }
+        const a = cs.navRatio, b9 = cs.lookRatio, rest = (100 - a - b9) & 0xff;
+        if (r <= 1) { const t = [b9, a, rest]; cmd.ratioStep(r, t); cs.navRatio = t[1]; cs.lookRatio = t[0]; }
+        else if (r <= 3) { const t = [a, rest, b9]; cmd.ratioStep(r, t); cs.navRatio = t[0]; cs.lookRatio = t[2]; }
+        else { const t = [rest, b9, a]; cmd.ratioStep(r, t); cs.navRatio = t[2]; cs.lookRatio = t[1]; }
       }
       render();
     };
@@ -1081,13 +1084,13 @@ export function runDomFleetHub(cmd: any): Promise<void> {
         });
         const scrapBtn = document.createElement("button");
         scrapBtn.className = "uw2-step-btn";
-        scrapBtn.disabled = ships.length <= 1 || curShip.capId === st.hero;
+        scrapBtn.disabled = ships.length <= 1 || curShip.capId === m.globals.hero;
         scrapBtn.textContent = m1b[4];
         scrapBtn.addEventListener("click", async () => {
           await cmd.scrapShip(curShip.slot);
-          for (let i = 0; i < 10; i++) {
-            const S = b.fleetSlot(i);
-            if ((st.u8(S + OFF.DOCK_SLOT.FLAGS) & 0x30) === 0x10 && st.u8(b.crewData(i) + 0x1b) === 0xff) st.set8(S + OFF.DOCK_SLOT.FLAGS, 0);
+          for (let i = 0; i < GameConst.FLEET_SHIPS; i++) {
+            const slotView = heroOrDockSlot(m, i);
+            if ((slotView.flags & ShipSlotFlag.STATE_MASK) === ShipSlotFlag.ACTIVE && m.crewSlot(i).captain === GameConst.EMPTY_SLOT) slotView.flags = 0;
           }
           render();
         });
@@ -1170,10 +1173,10 @@ export function runDomFleetHub(cmd: any): Promise<void> {
           img.style.height = "105px";
           const nameEl = document.createElement("div");
           nameEl.style.cssText = "font-weight:700;font-size:15px;color:var(--uw2-ink);";
-          if (pid !== 0xff) {
-            const P = st.personRecord(pid);
-            nameEl.textContent = dec(st.cstr(P));
-            void getPersonPortraitSrc(art, st.bytes(P, 0x32)).then(src => { if (src) img.src = src; });
+          if (pid !== GameConst.EMPTY_SLOT) {
+            const p = m.person(pid);
+            nameEl.textContent = dec(p.givenNameBytes);
+            void getPersonPortraitSrc(art, personRawBytes(p)).then(src => { if (src) img.src = src; });
           } else {
             nameEl.textContent = "----";
           }
@@ -1187,9 +1190,9 @@ export function runDomFleetHub(cmd: any): Promise<void> {
         }
         right.appendChild(grid);
       } else if (activeTab === 3 && curShip) {
-        const M = b.crewData(curShip.slot);
+        const cs = m.crewSlot(curShip.slot);
         const supNames = b.LO.supplies.map(dec);
-        const supVals = [Math.trunc(domS16(st.u16(M)) / 10), Math.trunc(domS16(st.u16(M + 2)) / 10), domS16(st.u16(M + 4)), domS16(st.u16(M + 6))];
+        const supVals = [Math.trunc(domS16(cs.water) / 10), Math.trunc(domS16(cs.food) / 10), domS16(cs.material), domS16(cs.ammo)];
         const supRow = document.createElement("div");
         supRow.style.cssText = "display:grid;grid-template-columns:repeat(4,1fr);gap:8px;";
         for (let k = 0; k < 4; k++) {
@@ -1203,9 +1206,9 @@ export function runDomFleetHub(cmd: any): Promise<void> {
 
         const clist = document.createElement("div");
         clist.className = "uw2-list-col";
-        for (let k = 0; k < 5; k++) {
-          const g = st.u8(M + OFF.CREW_SLOT.CARGO_GOODS + k);
-          const amt = domS16(st.u16(M + OFF.CREW_SLOT.CARGO_AMTS + 2 * k));
+        for (let k = 0; k < GameConst.CARGO_SLOTS; k++) {
+          const g = cs.getCargoGoods(k);
+          const amt = domS16(cs.getCargoAmts(k));
           if (g >= 46 || amt <= 0) continue;
           const card = document.createElement("div");
           card.className = "uw2-slot-card";

@@ -9,6 +9,8 @@
 import { captureConsoleText, decodeCleanCstr, toSimp } from "../text_util.ts";
 import { hasDom, runDomList } from "../modals.ts";
 import { UI_STR } from "../strings.ts";
+import { GameConst, ItemFlag } from "../../model/flags.ts";
+import { fleetShipSlot, getListParam, heroFleet, heroOrDockSlot, setListParam } from "../../model/world_helpers.ts";
 
 const lsUmin = (a, b) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);   // seg0:4d7c (无号)
 const lsDiv = (a, b) => Math.trunc(a / b);                                          // idiv
@@ -28,15 +30,14 @@ const MARK_NONE = lsHex("20");                    // DS:a1d1 " "
 
 export class ListSelect {
   constructor(ctx) { this.c = ctx; this.k = 0; this.total = 0; this.titles = null; }
-  get st() { return this.c.state; }
+  get model() { return this.c.state.model; }
   get m() { return this.c.menu; }
-  // ---- 参数表 DS:10a8 ----
-  pa(i) { return 0x10a8 + this.k * 10 + i * 2; }
-  get col() { return lsS16(this.st.u16(this.pa(0))); } set col(v) { this.st.set16(this.pa(0), v); }
-  get y() { return lsS16(this.st.u16(this.pa(1))); } set y(v) { this.st.set16(this.pa(1), v); }
-  get w() { return lsS16(this.st.u16(this.pa(2))); }
-  get vis() { return lsS16(this.st.u16(this.pa(3))); }
-  get start() { return lsS16(this.st.u16(this.pa(4))); } set start(v) { this.st.set16(this.pa(4), v); }
+  // ---- 参数表 (col, y, w, vis, start) ----
+  get col() { return getListParam(this.model, this.k, 0); } set col(v) { setListParam(this.model, this.k, 0, v); }
+  get y() { return getListParam(this.model, this.k, 1); } set y(v) { setListParam(this.model, this.k, 1, v); }
+  get w() { return getListParam(this.model, this.k, 2); }
+  get vis() { return getListParam(this.model, this.k, 3); }
+  get start() { return getListParam(this.model, this.k, 4); } set start(v) { setListParam(this.model, this.k, 4, v); }
 
   // 0fea:5bd0
   async select(al, count) {
@@ -147,8 +148,8 @@ export class ListSelect {
       case 1: return this.fmtGoodsTotal(v);
       case 6: return this.fmtPerson(v);
       case 3: case 12: return this.fmtPerson(v);         // 1497e (DS:a190 与 a1a6 同为「%s•%s」; 战斗对象 / 交涉对象 = 舰队指挥者)
-      case 2: { const s = this.st.cstr(ListSelect.shipRec(this.st.u8(ListSelect.fleetSlot(this.st, v) + 7))); this.c.con.puts(s); return lsStrlen(s); }   // 14954 船名
-      case 5: { const s = this.st.cstr(0x5f54 + (((v & 0xff) * 0x16) & 0xffff) + 4); this.c.con.puts(s); return lsStrlen(s); }   // 14a3a 港口名 (seg0:5c9a(al) + 4; 委任目的地)
+      case 2: { const s = this.model.ship(heroOrDockSlot(this.model, v).ship).nameBytes; this.c.con.puts(s); return lsStrlen(s); }   // 14954 船名
+      case 5: { const s = this.model.port(v & 0xff).nameBytes; this.c.con.puts(s); return lsStrlen(s); }   // 14a3a 港口名 (委任目的地)
       case 4: return this.fmtCapacity(v);
       case 7: return this.fmtShip(v);
       case 9: return this.fmtCrew(v);
@@ -156,7 +157,7 @@ export class ListSelect {
       case 10: return this.fmtRepair(v);
       case 11: return this.fmtWater(v);
       case 13: return this.fmtItem(v);
-      case 14: { const s = this.st.cstr(ListSelect.shipRec(v)); this.c.con.puts(s); return lsStrlen(s); }   // 14930 船记录名 (造船清单: 样板船 0x28+船型)
+      case 14: { const s = this.model.ship(v).nameBytes; this.c.con.puts(s); return lsStrlen(s); }   // 14930 船记录名 (造船清单: 样板船 0x28+船型)
       case 15: return this.fmtTable("materials", v);    // 14c96 DS:0930[v] 材质
       case 16: return this.fmtTable("figureheads", v);  // 14cb3 DS:093c[v] 船首像
       case 17: return this.fmtTable("cannons", v);      // 14cd0 DS:07cc[v] 砲
@@ -175,49 +176,49 @@ export class ListSelect {
   }
   // 14a87 种类 9: 船员「名 (补空白到 15) 船名或职务」; 担任舰队船长的以颜色 6 显示 (DS:a1ad / a1b1 / a1b5 / a1b7)
   fmtCrew(n) {
-    const st = this.st, con = this.c.con, P = st.personRecord(n & 0xff);
-    let slot = 0xff;
-    for (let i = 0; i < 10; i++) if (st.u8(0x52d4 + i * 0x1e + 0x1b) === (n & 0xff)) slot = i;
-    con.puts(slot !== 0xff ? CREW_CAPTAIN : CREW_NORMAL);
-    const name = st.cstr(P); con.puts(name);
+    const md = this.model, con = this.c.con, pv = md.person(n & 0xff);
+    let slot = GameConst.EMPTY_SLOT;
+    for (let i = 0; i < GameConst.FLEET_SHIPS; i++) if (md.crewSlot(i).captain === (n & 0xff)) slot = i;
+    con.puts(slot !== GameConst.EMPTY_SLOT ? CREW_CAPTAIN : CREW_NORMAL);
+    const name = pv.givenNameBytes; con.puts(name);
     let si = lsStrlen(name);
     for (; si < 0x0f; si++) con.puts(SPACE);
-    const s = slot !== 0xff ? st.cstr(ListSelect.shipRec(st.u8(ListSelect.fleetSlot(st, slot) + 7)))
-      : (this.roles ??= this.c.portAssets.data.tavern.crewRoles.map(lsHex))[st.u8(P + 0x2e)];
+    const s = slot !== GameConst.EMPTY_SLOT ? md.ship(heroOrDockSlot(md, slot).ship).nameBytes
+      : (this.roles ??= this.c.portAssets.data.tavern.crewRoles.map(lsHex))[pv.role];
     con.puts(s); si += lsStrlen(s);
     con.puts(CREW_NORMAL);
     return si;
   }
   // 149f4 种类 4: 「船名 尚可装载量」 (DS:a19d "%15s %5d"; 已用载货 seg0:5d36)
   fmtCapacity(slot) {
-    const st = this.st, S = ListSelect.fleetSlot(st, slot), ship = ListSelect.shipRec(st.u8(S + 7));
-    this.c.printf(this.capFmt ??= lsHex(this.c.portAssets.data.market.fmt.listCap), st.cstr(ship), lsS16(st.u16(ship + 0x14) - this.c.cargoUsed(slot)));
+    const md = this.model, ship = md.ship(heroOrDockSlot(md, slot).ship);
+    this.c.printf(this.capFmt ??= lsHex(this.c.portAssets.data.market.fmt.listCap), ship.nameBytes, lsS16(ship.maxCargo - this.c.cargoUsed(slot)));
     return 0x15;
   }
   // 148c1 种类 0x0a: 船名 (上陆 修理 3453b; 耐久 < 最大、转向 < 船型 +2 或推进 < 船型 +3 时以 DS:a183 颜色 2), DS:a187「%s？」, DS:a18c 颜色 0; 返回 名称长 + 2
   fmtRepair(slot) {
-    const st = this.st, S = ListSelect.fleetSlot(st, slot), ship = ListSelect.shipRec(st.u8(S + 7)), T = 0x5e28 + st.u8(ship + 0x0f) * 0x0c;
+    const md = this.model, sv = heroOrDockSlot(md, slot), ship = md.ship(sv.ship), stype = md.shipType(ship.type);
     const s = (this.seaStr ??= Object.fromEntries(Object.entries(this.c.portAssets.sea.str).map(([k, h]) => [k, lsHex(h)])));
-    if (st.u8(S + 2) < st.u8(S + 3) || st.u8(T + 2) > st.u8(S + 4) || st.u8(T + 3) > st.u8(S + 5)) this.c.con.puts(s.lsMark);
-    this.c.printf(s.lsShip, st.cstr(ship));
+    if (sv.durability < sv.maxDurability || stype.turn > sv.turn || stype.propulsion > sv.propulsion) this.c.con.puts(s.lsMark);
+    this.c.printf(s.lsShip, ship.nameBytes);
     this.c.con.puts(s.lsColor0);
-    return lsStrlen(st.cstr(ship)) + 2;
+    return lsStrlen(ship.nameBytes) + 2;
   }
-  // 14bc1 种类 0x0b: 船名 (舰队船位 [c2d4] + 2b + 9×n, 不经 5c58) 以 DS:a1c5 补到 0x11 字, DS:a1c7「%4d/%4d」= 水 / 10、水 / 10 + 尚可装载量; 返回 0x1a (上陆 补水 345b2)
+  // 14bc1 种类 0x0b: 船名 以 DS:a1c5 补到 0x11 字, DS:a1c7「%4d/%4d」= 水 / 10、水 / 10 + 尚可装载量; 返回 0x1a (上陆 补水 345b2)
   fmtWater(slot) {
-    const st = this.st, con = this.c.con, M = 0x52d4 + (slot & 0xff) * 0x1e;
-    const S = (0x2e76 + st.u8(st.personRecord(st.hero) + 0x2c) * 0x85 + 0x2b + Math.imul(9, lsS16(slot))) & 0xffff, ship = ListSelect.shipRec(st.u8(S + 7));
+    const md = this.model, con = this.c.con, cs = md.crewSlot(slot & 0xff);
+    const sv = fleetShipSlot(heroFleet(md), lsS16(slot)), ship = md.ship(sv.ship);
     const s = (this.seaStr ??= Object.fromEntries(Object.entries(this.c.portAssets.sea.str).map(([k, h]) => [k, lsHex(h)])));
-    con.puts(st.cstr(ship));
-    for (let n = lsStrlen(st.cstr(ship)); n < 0x11; n++) con.puts(s.lsPad);
-    const free = lsS16(-(this.c.cargoUsed(slot) - st.u16(ship + 0x14))), w = lsDiv(lsS16(st.u16(M)), 10);
+    con.puts(ship.nameBytes);
+    for (let n = lsStrlen(ship.nameBytes); n < 0x11; n++) con.puts(s.lsPad);
+    const free = lsS16(-(this.c.cargoUsed(slot) - ship.maxCargo)), w = lsDiv(lsS16(cs.water), 10);
     this.c.printf(s.lsWater, w, lsS16(w + free));
     return 0x1a;
   }
-  // 14c68 种类 0x0d: 随身物 (DS:8248 + 0x14×n), 已装备 (+13 bit4) 前面加「*」
+  // 14c68 种类 0x0d: 随身物, 已装备前面加「*」
   fmtItem(n) {
-    const st = this.st, R = 0x8248 + (n & 0xff) * 0x14, name = st.cstr(R);
-    this.c.con.puts(st.u8(R + 0x13) & 0x10 ? MARK_EQUIP : MARK_NONE); this.c.con.puts(name);
+    const item = this.model.item(n & 0xff), name = item.nameBytes;
+    this.c.con.puts(item.kindFlags & ItemFlag.EQUIPPED ? MARK_EQUIP : MARK_NONE); this.c.con.puts(name);
     return lsStrlen(name) + 1;
   }
   // 14ced 种类 0x12: 发现物名 (COLONY.DAT 第 n 笔, 2e09:66f3)
@@ -234,24 +235,24 @@ export class ListSelect {
   }
   // 14890 种类 0: 「船名号」
   fmtShipName(slot) {
-    const st = this.st, ship = ListSelect.shipRec(st.u8(ListSelect.fleetSlot(st, slot) + 7));
-    this.c.printf(FMT_SHIPROW0, st.cstr(ship));
-    return lsStrlen(st.cstr(ship)) + 2;
+    const md = this.model, name = md.ship(heroOrDockSlot(md, slot).ship).nameBytes;
+    this.c.printf(FMT_SHIPROW0, name);
+    return lsStrlen(name) + 2;
   }
   // 14a55 种类 6: 人物 「名　姓」
   fmtPerson(n) {
-    const st = this.st, P = st.personRecord(n & 0xff);
-    this.c.printf(FMT_PERSONROW, st.cstr(P), st.cstr(P + 0x0d));
-    return lsStrlen(st.cstr(P + 0x0d)) + lsStrlen(st.cstr(P)) + 2;
+    const pv = this.model.person(n & 0xff);
+    this.c.printf(FMT_PERSONROW, pv.givenNameBytes, pv.familyNameBytes);
+    return lsStrlen(pv.familyNameBytes) + lsStrlen(pv.givenNameBytes) + 2;
   }
   // 14b5c 种类 7: 舰队船只 「船名 (补空白到 17) 水手/最多水手」
   fmtShip(slot) {
-    const st = this.st, { con, printf } = this.c;
-    const S = ListSelect.fleetSlot(st, slot), ship = 0x5892 + st.u8(S + 7) * 0x16;
-    const name = st.cstr(ship);
+    const md = this.model, { con, printf } = this.c;
+    const sv = heroOrDockSlot(md, slot), ship = md.ship(sv.ship);
+    const name = ship.nameBytes;
     con.puts(name);
     for (let n = lsStrlen(name); n < 0x11; n++) con.puts(SPACE);
-    printf(FMT_SHIPROW, lsS16(st.u16(S)), lsS16(st.u16(ship + 0x12)));
+    printf(FMT_SHIPROW, lsS16(sv.crew), lsS16(ship.maxCrew));
     return 0x1a;
   }
   // seg0:5c58: 0..9 = 主角舰队 ([c2d4] = 0x2e76 + 舰队编号×0x85) 第 slot 艘船, 10..39 = 各港船坞 (DS:572a + 9×slot) (+0 水手数, +7 船编号, +8 bit4-5 = 1 有船)

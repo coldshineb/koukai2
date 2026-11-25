@@ -3,6 +3,8 @@ import { hasDom, getPersonPortraitSrc } from "./modals.ts";
 import { hideDomWorldHud } from "./hud.ts";
 import { hideDomBattleHud } from "./battle_hud.ts";
 import { decodeCleanCstr, toSimp } from "./text_util.ts";
+import { GameConst } from "../model/flags.ts";
+import { personByAddr, personRawBytes } from "../model/world_helpers.ts";
 
 let duelRoot: HTMLElement | null = null;
 let topBar: HTMLElement | null = null;
@@ -43,24 +45,26 @@ export function syncDomDuelHud(duel: any) {
   if (!root || !topBar) return;
   root.style.display = "flex";
 
-  const st = duel.st, codec = duel.c.codec, art = duel.c.art, h = duel.h;
+  const m = duel.st.model, codec = duel.c.codec, art = duel.c.art, h = duel.h;
   const dec = (bts: Uint8Array) => toSimp(decodeCleanCstr(codec, bts));
   const heroAddr = h === 0 ? duel.u16(0x9d44) : duel.u16(0x9d46);
   const enemyAddr = h === 0 ? duel.u16(0x9d46) : duel.u16(0x9d44);
   if (!heroAddr || !enemyAddr) return;
 
-  const fullName = (addr: number) => {
-    const g = dec(st.cstr(addr)), f = dec(st.cstr(addr + 0x0d));
+  const heroP = personByAddr(m, heroAddr);
+  const enemyP = personByAddr(m, enemyAddr);
+  const fullName = (p: ReturnType<typeof personByAddr>) => {
+    const g = dec(p.givenNameBytes), f = dec(p.familyNameBytes);
     return f ? `${g}·${f}` : g;
   };
   const itemText = (addr: number) => {
     const n = duel.u8(addr);
-    return n === 0xff ? "无" : dec(duel.itemName(n));
+    return n === GameConst.EMPTY_SLOT ? "无" : dec(duel.itemName(n));
   };
 
   const k = 7 * h;
-  const enemyName = fullName(enemyAddr);
-  const heroName = fullName(heroAddr);
+  const enemyName = fullName(enemyP);
+  const heroName = fullName(heroP);
   const enemyWep = itemText(0xa025 - k), enemyArm = itemText(0xa026 - k);
   const heroWep = itemText(0xa01e + k), heroArm = itemText(0xa01f + k);
   const v = duel.u8(0x9c2a);
@@ -97,10 +101,10 @@ export function syncDomDuelHud(duel: any) {
 
   const eSlot = topBar.querySelector('[data-side="enemy"]');
   const hSlot = topBar.querySelector('[data-side="hero"]');
-  void getPersonPortraitSrc(art, st.bytes(enemyAddr, 0x32)).then(src => {
+  void getPersonPortraitSrc(art, personRawBytes(enemyP)).then(src => {
     if (src && eSlot && eSlot.isConnected) eSlot.innerHTML = `<img src="${src}" class="uw2-portrait-img" style="width:52px;height:64px;" />`;
   });
-  void getPersonPortraitSrc(art, st.bytes(heroAddr, 0x32)).then(src => {
+  void getPersonPortraitSrc(art, personRawBytes(heroP)).then(src => {
     if (src && hSlot && hSlot.isConnected) hSlot.innerHTML = `<img src="${src}" class="uw2-portrait-img" style="width:52px;height:64px;" />`;
   });
 }

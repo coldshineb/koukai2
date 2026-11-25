@@ -1,8 +1,17 @@
 // ui/info_hub.ts — F1「情报中心」一体化多标签页工作台 +「随身物」一体化面板
 // 与「读取进度 (save_modal.ts)」1:1 同套暖羊皮纸视觉，彻底消灭多层嵌套菜单，并完整呈现所有原版插图
 // （发现物插图、道具插图、高清船图、船首像、具名与 5 层拼合人物头像）。100% 原版游戏文本。
-import { DS, OFF } from "../model/schema_views.ts";
-import { WorkDS } from "../model/flags.ts";
+import { DiscoveryFlag, GameConst, ItemFlag, ShipSlotFlag, SkillFlag } from "../model/flags.ts";
+import {
+  WorldConst,
+  fleetShipSlot,
+  getTradeLogEntry,
+  getWorkState,
+  heroFleet,
+  heroOrDockSlot,
+  isWorldCellExplored,
+  personRawBytes,
+} from "../model/world_helpers.ts";
 import { ListSelect } from "./dos/listsel.js";
 import { captureConsoleText, decodeCleanCstr, toSimp, UI_FONT } from "./text_util.ts";
 import { createDomModal, getPersonPortraitSrc, preserveScroll } from "./modals.ts";
@@ -44,17 +53,17 @@ export function mountDomWorldChart(container: HTMLElement, c: any, scene?: any) 
   wrap.append(topBar, stage, legend);
   container.appendChild(wrap);
 
-  const F = DS.TBL_FLEET + st.u8(st.personRecord(st.hero) + 0x2c) * 0x85;
-  const fx = st.u16(F), fy = st.u16(F + OFF.FLEET.Y);
+  const fl = heroFleet(st.model);
+  const fx = fl.x, fy = fl.y;
   const toX = (wx: number) => (((wx / 24) + 30) % 90) * cw;
   const toY = (wy: number) => (wy / 24) * ch;
 
   const ports: { wx: number; wy: number; x: number; y: number; name: string; supply: boolean }[] = [];
-  for (let p = 0; p < 130; p++) {
-    const R = DS.TBL_PORT + p * 0x16;
-    if (!(st.u8(R + OFF.PORT.REGION) & 0x10)) continue;
-    const wx = st.u16(R), wy = st.u16(R + 2);
-    ports.push({ wx, wy, x: toX(wx), y: toY(wy), name: dec(st.cstr(R + OFF.PORT.NAME)), supply: p >= 100 });
+  for (let p = 0; p < WorldConst.TOTAL_PORTS; p++) {
+    const pv = st.model.port(p);
+    if (!(pv.region & WorldConst.PORT_DISCOVERED_BIT)) continue;
+    const wx = pv.x, wy = pv.y;
+    ports.push({ wx, wy, x: toX(wx), y: toY(wy), name: dec(pv.nameBytes), supply: p >= WorldConst.NORMAL_PORTS });
   }
 
   const mapEntry = art?.graphEntry?.("GRAPH.DAT", 0x19);
@@ -69,11 +78,7 @@ export function mountDomWorldChart(container: HTMLElement, c: any, scene?: any) 
   let zoomCol = 0;
   let zoomRow = 0;
 
-  const isCellSeen = (wcol: number, row: number) => {
-    if (row < 0 || row >= 45) return false;
-    const c0 = ((wcol % 90) + 90) % 90;
-    return !!(st.u8(WorkDS.EXPLORE_MAP + 12 * row + (c0 >> 3)) & (0x80 >> (c0 & 7)));
-  };
+  const isCellSeen = (wcol: number, row: number) => isWorldCellExplored(st.model, wcol, row);
 
   const renderTopAndLegend = () => {
     topBar.innerHTML = "";
@@ -464,7 +469,7 @@ export function runDomPortMapModal(c: any, p: any, title = "海港地图"): Prom
 
 /** F1 情报中心：10 项原版情报全部平铺为一体化标签页，零嵌套菜单 */
 export async function runDomInfoHub(cmd: any): Promise<void> {
-  const c = cmd.c, st = cmd.st, b = cmd.b, p = cmd.p, art = c.art;
+  const c = cmd.c, m = cmd.st.model, b = cmd.b, p = cmd.p, art = c.art;
   const dec = (bts: Uint8Array) => decodeCleanCstr(c.codec, bts);
   const cap = (fn: () => void) => captureConsoleText(c, fn);
   const tabLabels = [...UI_STR.infoTabs];
@@ -472,9 +477,9 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
 
   const hasShips = () => b.fleetShips() > 0;
   const hasDisc = () => !!cmd.discList(1);
-  const hasWorld = () => !!st.u16(WorkDS.EXPLORE_TOTAL);
-  const hasLog = () => st.u16(DS.TRADE_LOGS) !== 0xffff;
-  const inPort = () => st.port !== 0xff;
+  const hasWorld = () => !!getWorkState(m).exploreTotal;
+  const hasLog = () => getTradeLogEntry(m, 0).dateWord !== 0xffff;
+  const inPort = () => m.globals.port !== GameConst.EMPTY_SLOT;
 
   const isDisabled = (idx: number): boolean => {
     if (idx === 0 || idx === 1 || idx === 4 || idx === 5) return !hasShips();
@@ -538,36 +543,34 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
 
       // ---- Tab 0: 自舰队情报 ----
       const renderFleetTab = (root: HTMLElement) => {
-        const f = st.u8(st.personRecord(st.hero) + 0x2c);
-        const F = DS.TBL_FLEET + f * 0x85;
-        const A = st.personRecord(st.u8(F + OFF.FLEET.ADMIRAL));
+        const fl = heroFleet(m);
+        const admiral = m.person(fl.admiral);
         const T = cmd.T;
-        const wind = Math.abs(((st.u8(DS.PORT_FLAGS) & 0x38) >> 3) - st.u8(F + OFF.FLEET.DIR)) & 0xff;
+        const wind = Math.abs(((m.globals.portFlags & 0x38) >> 3) - fl.dir) & 0xff;
         const WT = T.windSpeed, wbase = wind << 3;
-        let best = 10000, slow = F + OFF.FLEET.SHIPS, sumSail = 0, sumGuns = 0, sumX = 0, minDur = 100;
+        let best = 10000, slow = fleetShipSlot(fl, 0), sumSail = 0, sumGuns = 0, sumX = 0, minDur = 100;
 
         const grid = document.createElement("div");
         grid.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:10px;";
 
-        for (let i = 0; i < 10; i++) {
-          const S = F + OFF.FLEET.SHIPS + i * 9;
-          if ((st.u8(S + OFF.DOCK_SLOT.FLAGS) & 0x30) !== 0x10) continue;
-          const ship = DS.TBL_SHIP + st.u8(S + OFF.DOCK_SLOT.SHIP) * 0x16;
-          const t = st.u8(ship + 0x0f), TR = DS.TBL_SHIP_TYPE + t * 0x0c;
-          const minS = st.u8(TR + 5), sail = s16(st.u16(S));
-          sumSail = (sumSail + st.u16(S)) & 0xffff;
-          const M = b.crewData(i);
-          const r8 = st.u8(M + OFF.CREW_SLOT.NAV_RATIO);
-          const r9 = st.u8(M + OFF.CREW_SLOT.LOOK_RATIO);
-          const w = s16(st.u16(M + OFF.CREW_SLOT.LOAD_TOTAL));
-          const capId = st.u8(M + OFF.CREW_SLOT.CAPTAIN);
-          const maxw = s16(st.u16(TR + 6)), s5 = st.u8(S + OFF.DOCK_SLOT.PROPULSION);
-          const CP = st.personRecord(capId), pc = st.u8(CP + 0x24), pd = st.u8(CP + 0x1d);
-          sumGuns = (sumGuns + st.u8(S + OFF.DOCK_SLOT.GUNS)) & 0xffff;
+        for (let i = 0; i < GameConst.FLEET_SHIPS; i++) {
+          const slot = fleetShipSlot(fl, i);
+          if ((slot.flags & ShipSlotFlag.STATE_MASK) !== ShipSlotFlag.ACTIVE) continue;
+          const ship = m.ship(slot.ship);
+          const t = ship.type, shipType = m.shipType(t);
+          const minS = shipType.minCrew, sail = s16(slot.crew);
+          sumSail = (sumSail + slot.crew) & 0xffff;
+          const cs = m.crewSlot(i);
+          const r8 = cs.navRatio;
+          const r9 = cs.lookRatio;
+          const w = s16(cs.loadTotal);
+          const maxw = s16(shipType.capacity), s5 = slot.propulsion;
+          const capP = m.person(cs.captain), pc = capP.navLevel, pd = capP.getStats(1);
+          sumGuns = (sumGuns + slot.guns) & 0xffff;
           const deck = umin(300, Math.trunc(s16((100 - r9 - r8) * sail) / 100) & 0xffff);
-          const k = st.u8(S + OFF.DOCK_SLOT.FLAGS) & 7;
-          const g = Math.trunc((umin(st.u8(S + OFF.DOCK_SLOT.GUNS), deck) * ((2 * T.gunA[k] + T.gunB[k]) & 0xffff)) / 10) & 0xffff;
-          sumX = (sumX + 2 * st.u8(S + OFF.DOCK_SLOT.DURABILITY) + g + deck) & 0xffff;
+          const k = slot.flags & ShipSlotFlag.CANNON_MASK;
+          const g = Math.trunc((umin(slot.guns, deck) * ((2 * T.gunA[k] + T.gunB[k]) & 0xffff)) / 10) & 0xffff;
+          sumX = (sumX + 2 * slot.durability + g + deck) & 0xffff;
           const di2 = s16(WT[wbase + t] * s5);
           const q = umin(100, Math.trunc((r9 * sail) / (minS || 1)) & 0xffff);
           const cc = umin(150, (180 - umin(180, Math.trunc(s16(100 * w) / (maxw || 1)) & 0xffff)) & 0xffff);
@@ -575,8 +578,8 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
           const di3 = Math.trunc(((x * cc) >>> 0) / 100) & 0xffff;
           const v = umin(30, (Math.trunc(s16(di3 * pc) / 10) + di3) & 0xffff);
           const sp = umin(40, Math.trunc(s16(v * pd) / 75) & 0xffff);
-          if (sp < best) { best = sp; slow = S; }
-          if (st.u8(S + OFF.DOCK_SLOT.DURABILITY) < minDur) minDur = st.u8(S + OFF.DOCK_SLOT.DURABILITY);
+          if (sp < best) { best = sp; slow = slot; }
+          if (slot.durability < minDur) minDur = slot.durability;
 
           const card = document.createElement("button");
           card.className = "uw2-pers-card";
@@ -590,10 +593,10 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
           }
           const nm = document.createElement("div");
           nm.style.cssText = "font-weight:700;font-size:14px;color:var(--uw2-ink);";
-          nm.textContent = dec(st.cstr(ship));
+          nm.textContent = dec(ship.nameBytes);
           const sub = document.createElement("div");
           sub.className = "uw2-slot-sub";
-          sub.textContent = `耐久 ${st.u8(S + OFF.DOCK_SLOT.DURABILITY)}/${st.u8(S + OFF.DOCK_SLOT.MAX_DURABILITY)} · 水手 ${st.u16(S)} · 炮 ${st.u8(S + OFF.DOCK_SLOT.GUNS)}`;
+          sub.textContent = `耐久 ${slot.durability}/${slot.maxDurability} · 水手 ${slot.crew} · 炮 ${slot.guns}`;
           card.append(nm, sub);
           const targetIdx = grid.children.length;
           card.addEventListener("click", () => { selShipIdx = targetIdx; activeTab = 1; render(); });
@@ -605,15 +608,15 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
         summary.style.cssText = "flex-direction:row;align-items:center;gap:16px;";
         const pImg = document.createElement("img");
         pImg.className = "uw2-portrait-img";
-        void getPersonPortraitSrc(art, st.bytes(A, 0x32)).then(src => { if (src) pImg.src = src; });
+        void getPersonPortraitSrc(art, personRawBytes(admiral)).then(src => { if (src) pImg.src = src; });
         summary.appendChild(pImg);
 
         const col1 = document.createElement("div");
         col1.style.cssText = "flex:1;display:flex;flex-direction:column;gap:4px;font-size:14px;font-weight:600;";
         for (const l of [
-          cap(() => c.message(0x397, st.cstr(A))),
-          cap(() => c.message(0x398, st.u8(A + OFF.PERSON.NAV_LEVEL))),
-          cap(() => c.message(0x399, st.u8(A + OFF.PERSON.BATTLE_LEVEL))),
+          cap(() => c.message(0x397, admiral.givenNameBytes)),
+          cap(() => c.message(0x398, admiral.navLevel)),
+          cap(() => c.message(0x399, admiral.battleLevel)),
         ]) {
           const d = document.createElement("div");
           d.textContent = l;
@@ -622,8 +625,8 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
         const col2 = document.createElement("div");
         col2.style.cssText = "flex:1.4;display:flex;flex-direction:column;gap:4px;font-size:14px;font-weight:600;";
         for (const l of [
-          cap(() => c.message(0x39a, st.u8(slow + 4), sumSail)),
-          cap(() => c.message(0x39b, st.u8(slow + 5), sumGuns)),
+          cap(() => c.message(0x39a, slow.turn, sumSail)),
+          cap(() => c.message(0x39b, slow.propulsion, sumGuns)),
           cap(() => c.message(0x39c, minDur, sumX)),
         ]) {
           const d = document.createElement("div");
@@ -646,10 +649,10 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
         const left = document.createElement("div");
         left.className = "uw2-list-col";
         slots.forEach((slot, i) => {
-          const ship = DS.TBL_SHIP + st.u8(b.fleetSlot(slot) + 7) * 0x16;
+          const ship = m.ship(heroOrDockSlot(m, slot).ship);
           const btn = document.createElement("button");
           btn.className = `uw2-row-card ${i === selShipIdx ? "selected" : ""}`;
-          btn.textContent = dec(st.cstr(ship));
+          btn.textContent = dec(ship.nameBytes);
           btn.addEventListener("click", () => { selShipIdx = i; render(); });
           left.appendChild(btn);
         });
@@ -729,10 +732,10 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
         const left = document.createElement("div");
         left.className = "uw2-list-col";
         pids.forEach((pid, i) => {
-          const P = st.personRecord(pid);
+          const pv = m.person(pid);
           const btn = document.createElement("button");
           btn.className = `uw2-row-card ${i === selPersonIdx ? "selected" : ""}`;
-          btn.innerHTML = `<span style="font-weight:700;">${dec(st.cstr(P))}</span><span class="uw2-slot-sub">${dec(b.T.crewRoles[st.u8(P + 0x2e)])}</span>`;
+          btn.innerHTML = `<span style="font-weight:700;">${dec(pv.givenNameBytes)}</span><span class="uw2-slot-sub">${dec(b.T.crewRoles[pv.role])}</span>`;
           btn.addEventListener("click", () => { selPersonIdx = i; render(); });
           left.appendChild(btn);
         });
@@ -787,9 +790,9 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
 
       // ---- Tab 3: 主公情报 ----
       const renderLordTab = (root: HTMLElement) => {
-        const lab = c.menuItems(0x2a), H = DS.TBL_HERO_DATA + st.hero * 0x0e;
-        const money = (st.u16(DS.MONEY) | (st.u16(0x12b0) << 16)) | 0;
-        const heroP = st.personRecord(st.hero);
+        const lab = c.menuItems(0x2a), hd = m.heroInfo();
+        const money = m.globals.money;
+        const heroP = m.heroPerson();
 
         const split = document.createElement("div");
         split.className = "uw2-split";
@@ -801,7 +804,7 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
         topCard.style.cssText = "flex-direction:row;align-items:center;gap:14px;";
         const img = document.createElement("img");
         img.className = "uw2-portrait-img";
-        void getPersonPortraitSrc(art, st.bytes(heroP, 0x32)).then(src => { if (src) img.src = src; });
+        void getPersonPortraitSrc(art, personRawBytes(heroP)).then(src => { if (src) img.src = src; });
         topCard.appendChild(img);
         const mCol = document.createElement("div");
         mCol.style.cssText = "display:flex;flex-direction:column;gap:4px;font-size:15px;font-weight:600;";
@@ -822,18 +825,19 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
         fh.className = "uw2-pane-title";
         fh.textContent = cap(() => c.message(0x391));
         fameBox.appendChild(fh);
+        const fameVals = [hd.tradeFame, hd.pirateFame, hd.adventureFame];
         for (let i = 0; i < 3; i++) {
-          const val = st.u16(H + 2 * i);
+          const val = fameVals[i];
           const row = document.createElement("div");
-          row.innerHTML = `<div style="font-size:14px;font-weight:600;margin-bottom:4px;">${cap(() => c.message(0x392, lab[i], val))}</div><div class="uw2-bar-track"><div class="uw2-bar-fill" style="width:${Math.min(100, (val / 50000) * 100)}%"></div></div>`;
+          row.innerHTML = `<div style="font-size:14px;font-weight:600;margin-bottom:4px;">${cap(() => c.message(0x392, lab[i], val))}</div><div class="uw2-bar-track"><div class="uw2-bar-fill" style="width:${Math.min(100, (val / GameConst.MAX_FAME) * 100)}%"></div></div>`;
           fameBox.appendChild(row);
         }
         left.append(topCard, fameBox);
 
         const right = document.createElement("div");
         right.className = "uw2-action-box";
-        for (let i = 0; i < 6; i++) {
-          const v = st.u8(H + 6 + i), diff = v - 100;
+        for (let i = 0; i < WorldConst.TOTAL_COUNTRIES; i++) {
+          const v = hd.getCountryStanding(i), diff = v - 100;
           const row = document.createElement("div");
           row.innerHTML = `<div style="display:flex;justify-content:space-between;font-size:14px;font-weight:700;margin-bottom:4px;"><span>${cap(() => c.message(0x393, p.nations[i]))}</span><span style="color:${v >= 100 ? "#247544" : "#b83d3d"};">${diff < 0 ? `-${Math.abs(diff)}` : String(diff)}</span></div><div class="uw2-bar-track"><div class="uw2-bar-fill ${v >= 100 ? "green" : "red"}" style="width:${Math.min(100, (v / 200) * 100)}%"></div></div>`;
           right.appendChild(row);
@@ -854,10 +858,10 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
         const left = document.createElement("div");
         left.className = "uw2-list-col";
         slots.forEach((slot, i) => {
-          const ship = DS.TBL_SHIP + st.u8(b.fleetSlot(slot) + 7) * 0x16;
+          const ship = m.ship(heroOrDockSlot(m, slot).ship);
           const btn = document.createElement("button");
           btn.className = `uw2-row-card ${i === selCargoShipIdx ? "selected" : ""}`;
-          btn.textContent = dec(st.cstr(ship));
+          btn.textContent = dec(ship.nameBytes);
           btn.addEventListener("click", () => { selCargoShipIdx = i; render(); });
           left.appendChild(btn);
         });
@@ -865,20 +869,20 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
         const right = document.createElement("div");
         right.className = "uw2-action-box";
         if (slots.length) {
-          const slot = slots[selCargoShipIdx], M = b.crewData(slot);
-          const ship = DS.TBL_SHIP + st.u8(b.fleetSlot(slot) + 7) * 0x16;
+          const slot = slots[selCargoShipIdx], cs = m.crewSlot(slot);
+          const ship = m.ship(heroOrDockSlot(m, slot).ship);
           const title = document.createElement("div");
           title.className = "uw2-pane-title";
-          title.textContent = cap(() => c.message(0x374, st.cstr(ship)));
+          title.textContent = cap(() => c.message(0x374, ship.nameBytes));
           right.appendChild(title);
           let count = 0;
-          for (let k = 0; k < 5; k++) {
-            const g = st.u8(M + OFF.CREW_SLOT.CARGO_GOODS + k);
-            if (g === 0xff) continue;
+          for (let k = 0; k < GameConst.CARGO_SLOTS; k++) {
+            const g = cs.getCargoGoods(k);
+            if (g === GameConst.EMPTY_SLOT) continue;
             count++;
             const card = document.createElement("div");
             card.className = "uw2-slot-card";
-            card.textContent = cap(() => c.message(0x395, p.goods[g], st.u16(M + OFF.CREW_SLOT.CARGO_AMTS + 2 * k)));
+            card.textContent = cap(() => c.message(0x395, p.goods[g], cs.getCargoAmts(k)));
             right.appendChild(card);
           }
           if (!count) {
@@ -895,13 +899,13 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
       // ---- Tab 5: 积载一览表 ----
       const renderCargoSummaryTab = (root: HTMLElement) => {
         const totals = new Map<number, number>();
-        for (let i = 0; i < 10; i++) {
-          if ((st.u8(b.fleetSlot(i) + 8) & 0x30) !== 0x10) continue;
-          const M = b.crewData(i);
-          for (let j = 0; j < 5; j++) {
-            const g = st.u8(M + OFF.CREW_SLOT.CARGO_GOODS + j);
-            if (g === 0xff) continue;
-            totals.set(g, ((totals.get(g) ?? 0) + st.u16(M + OFF.CREW_SLOT.CARGO_AMTS + 2 * j)) & 0xffff);
+        for (let i = 0; i < GameConst.FLEET_SHIPS; i++) {
+          if ((heroOrDockSlot(m, i).flags & ShipSlotFlag.STATE_MASK) !== ShipSlotFlag.ACTIVE) continue;
+          const cs = m.crewSlot(i);
+          for (let j = 0; j < GameConst.CARGO_SLOTS; j++) {
+            const g = cs.getCargoGoods(j);
+            if (g === GameConst.EMPTY_SLOT) continue;
+            totals.set(g, ((totals.get(g) ?? 0) + cs.getCargoAmts(j)) & 0xffff);
           }
         }
         const goodsList = Array.from(totals.entries());
@@ -930,19 +934,19 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
         right.className = "uw2-pane";
         if (goodsList.length) {
           const [g] = goodsList[selGoodIdx];
-          const R = DS.TBL_PORT + cmd.bestPort(g) * 0x16;
-          const hero = st.personRecord(st.hero);
+          const bestPortName = m.port(cmd.bestPort(g)).nameBytes;
+          const hero = m.heroPerson();
           const remarks: { pid: number; text: string }[] = [];
-          if (st.u8(hero + 0x30) & 2) {
-            remarks.push({ pid: st.hero, text: cap(() => c.message(0x350, p.goods[g], st.cstr(R + OFF.PORT.NAME))) });
+          if (hero.skills & SkillFlag.ACCOUNTING) {
+            remarks.push({ pid: m.globals.hero, text: cap(() => c.message(0x350, p.goods[g], bestPortName)) });
           } else {
-            for (let i = 0; i < 0x1e; i++) {
-              const cid = st.u8(DS.PARTY_CREW + i);
-              if (cid === 0xff) continue;
-              const C = st.personRecord(cid);
-              if (st.u8(C + 0x2e) !== 4) continue;
-              const txt = (st.u8(C + 0x30) & 2)
-                ? cap(() => c.message(0x351, p.goods[g], st.cstr(R + OFF.PORT.NAME)))
+            for (let i = 0; i < GameConst.PARTY_SLOTS; i++) {
+              const cid = m.partyCrew(i);
+              if (cid === GameConst.EMPTY_SLOT) continue;
+              const cp = m.person(cid);
+              if (cp.role !== 4) continue;
+              const txt = (cp.skills & SkillFlag.ACCOUNTING)
+                ? cap(() => c.message(0x351, p.goods[g], bestPortName))
                 : cap(() => c.message(0x352, p.goods[g]));
               remarks.push({ pid: cid, text: txt });
             }
@@ -953,7 +957,7 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
             box.style.cssText = "flex-direction:row;align-items:center;gap:14px;";
             const img = document.createElement("img");
             img.className = "uw2-portrait-img";
-            void getPersonPortraitSrc(art, st.bytes(st.personRecord(rm.pid), 0x32)).then(src => { if (src) img.src = src; });
+            void getPersonPortraitSrc(art, personRawBytes(m.person(rm.pid))).then(src => { if (src) img.src = src; });
             const txt = document.createElement("div");
             txt.style.cssText = "flex:1;font-size:15px;line-height:1.6;color:var(--uw2-ink);";
             txt.textContent = rm.text;
@@ -989,7 +993,7 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
         right.className = "uw2-action-box";
         if (ids.length) {
           const id = ids[selDiscIdx];
-          const d = DS.TBL_DISCOVERY + id * 7;
+          const disc = m.discovery(id);
           const imp = c.menuItems(0x22);
           const rec = ListSelect.colonyRec(c, id);
           const B = b.BG;
@@ -1010,10 +1014,10 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
           tEl.textContent = dec(rec);
           const cEl = document.createElement("div");
           cEl.style.cssText = "font-size:14px;color:#8a5d17;font-weight:600;";
-          cEl.textContent = cap(() => c.printf(B.cat, B.discCats[st.u8(d + 6) & 7]));
+          cEl.textContent = cap(() => c.printf(B.cat, B.discCats[disc.flags & DiscoveryFlag.KIND_MASK]));
           const iEl = document.createElement("div");
           iEl.style.cssText = "font-size:14px;color:var(--uw2-ink-muted);";
-          iEl.textContent = cap(() => c.printf(B.imp, imp[Math.trunc(st.u8(d + 5) / 0x19)] ?? Uint8Array.of(0)));
+          iEl.textContent = cap(() => c.printf(B.imp, imp[Math.trunc(disc.importance / 25)] ?? Uint8Array.of(0)));
           meta.append(tEl, cEl, iEl);
           head.appendChild(meta);
 
@@ -1029,22 +1033,22 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
 
       // ---- Tab 8: 航海日志 ----
       const renderLogTab = (root: HTMLElement) => {
-        const L = DS.TRADE_LOGS, S = cmd.S;
+        const S = cmd.S;
         const entries: { date: string; text: string }[] = [];
-        for (let i = 0; i < 0x30; i++) {
-          const e = L + i * 16, w = st.u16(e);
+        for (let i = 0; i < GameConst.TRADE_LOG_COUNT; i++) {
+          const e = getTradeLogEntry(m, i), w = e.dateWord;
           if (w === 0xffff) break;
-          const d = Math.trunc(w / 31), m = Math.trunc(d / 12);
-          const date = cap(() => c.printf(S.logDate, m + 0x5dd, d % 12 + 1, w % 31 + 1));
-          const t = st.u16(e + 2), a = e + 4;
+          const d = Math.trunc(w / 31), mon = Math.trunc(d / 12);
+          const date = cap(() => c.printf(S.logDate, mon + 1501, d % 12 + 1, w % 31 + 1));
+          const t = e.type;
           const text = cap(() => {
-            if (t === 0 || t === 1) c.message(t ? 0x16f : 0x16e, st.u16(a), st.cstr(DS.TBL_PORT + st.u8(a + 2) * 0x16 + 4));
+            if (t === 0 || t === 1) c.message(t ? 0x16f : 0x16e, e.argU16(0), m.port(e.argU8(2)).nameBytes);
             else if (t === 2) {
-              const m34 = c.menuItems(0x34), m35 = c.menuItems(0x35), v = st.u16(a);
-              const k = v >= 0x3c ? 0 : v % 10 === 0 ? 0 : v % 10 < 5 ? 1 : 2;
-              c.message(0x345, p.nations[Math.trunc(v / 10)], m34[k], m35[st.u16(a + 2)]);
-            } else if (t === 9) c.message(0x17d, st.cstr(DS.TBL_PORT + st.u8(a) * 0x16 + 4));
-            else if (t === 0x0c) c.message(0x180, p.goods[st.u16(a)], (st.u16(a + 4) | (st.u16(a + 2) << 16)) | 0, st.u16(a + 6));
+              const m34 = c.menuItems(0x34), m35 = c.menuItems(0x35), v = e.argU16(0);
+              const k = v >= 60 ? 0 : v % 10 === 0 ? 0 : v % 10 < 5 ? 1 : 2;
+              c.message(0x345, p.nations[Math.trunc(v / 10)], m34[k], m35[e.argU16(2)]);
+            } else if (t === 9) c.message(0x17d, m.port(e.argU8(0)).nameBytes);
+            else if (t === 12) c.message(0x180, p.goods[e.argU16(0)], e.argI32HiLo(2), e.argU16(6));
           });
           entries.push({ date, text });
         }
@@ -1072,9 +1076,8 @@ export async function runDomInfoHub(cmd: any): Promise<void> {
 
 /** 随身物一体化工作台：左侧道具清单 + 右侧高清道具插图、属性、原版说明与佩戴/使用按钮 */
 export async function runDomBelongings(cmd: any): Promise<void> {
-  const c = cmd.c, st = cmd.st, b = cmd.b, art = c.art;
+  const c = cmd.c, m = cmd.st.model, b = cmd.b, art = c.art;
   const dec = (bts: Uint8Array) => decodeCleanCstr(c.codec, bts);
-  const cap = (fn: () => void) => captureConsoleText(c, fn);
   const title = UI_STR.belongingsTitle;
   const actLabels = [...UI_STR.belongingsActions];
 
@@ -1113,11 +1116,11 @@ export async function runDomBelongings(cmd: any): Promise<void> {
           const left = document.createElement("div");
           left.className = "uw2-list-col";
           itemIds.forEach((it, i) => {
-            const R = DS.TBL_ITEM + it * 0x14;
-            const eq = !!(st.u8(R + 0x13) & 0x10);
+            const item = m.item(it);
+            const eq = !!(item.kindFlags & ItemFlag.EQUIPPED);
             const btn = document.createElement("button");
             btn.className = `uw2-row-card ${i === selIdx ? "selected" : ""}`;
-            btn.innerHTML = `<span style="font-weight:700;">${dec(st.cstr(R))}</span><span style="color:#8a5d17;font-weight:700;">${eq ? "★" : ""}</span>`;
+            btn.innerHTML = `<span style="font-weight:700;">${dec(item.nameBytes)}</span><span style="color:#8a5d17;font-weight:700;">${eq ? "★" : ""}</span>`;
             btn.addEventListener("click", () => { selIdx = i; render(); });
             left.appendChild(btn);
           });
@@ -1125,15 +1128,15 @@ export async function runDomBelongings(cmd: any): Promise<void> {
           const right = document.createElement("div");
           right.className = "uw2-action-box";
           const it = itemIds[selIdx];
-          const R = DS.TBL_ITEM + it * 0x14;
-          const imgUrl = art?.discoveryUrl?.(st.u8(R + 0x0f) + 0x55);
-          const itemType = st.u8(R + 0x13) & 0x0f;
-          const itemVal = st.u8(R + 0x12);
-          const isEquipped = !!(st.u8(R + 0x13) & 0x10);
+          const item = m.item(it);
+          const imgUrl = art?.discoveryUrl?.(item.icon + 0x55);
+          const itemType = item.kindFlags & ItemFlag.KIND_MASK;
+          const itemVal = item.power;
+          const isEquipped = !!(item.kindFlags & ItemFlag.EQUIPPED);
           const typeName = b.BG?.itemTypes?.[itemType] ? dec(b.BG.itemTypes[itemType]) : "";
           const lvItems = c.menuItems(0x22);
           const lines: string[] = [
-            `${dec(st.cstr(R))}${typeName ? `（${typeName}）` : ""}${isEquipped ? "  [已装备]" : ""}`,
+            `${dec(item.nameBytes)}${typeName ? `（${typeName}）` : ""}${isEquipped ? "  [已装备]" : ""}`,
           ];
           if (itemType <= 3) {
             const gIdx = itemVal >= 0x23 ? 4 : Math.max(0, Math.min(4, Math.trunc((itemVal - 5) / 6)));
@@ -1196,7 +1199,7 @@ export async function runDomBelongings(cmd: any): Promise<void> {
 
 /** 现代队形变更面板：上移 / 下移 / 置顶实时调整舰队顺序，一键确定写回原版槽位 */
 export function runDomFormation(cmd: any, title: string): Promise<void> {
-  const c = cmd.c, st = cmd.st, b = cmd.b, art = c.art;
+  const c = cmd.c, m = cmd.st.model, b = cmd.b, art = c.art;
   const dec = (bts: Uint8Array) => decodeCleanCstr(c.codec, bts);
   const n = b.fleetShips();
   if (n <= 1) return Promise.resolve();
@@ -1253,13 +1256,13 @@ export function runDomFormation(cmd: any, title: string): Promise<void> {
         list.style.maxHeight = "440px";
 
         order.forEach((slot, idx) => {
-          const S = b.fleetSlot(slot), M = b.crewData(slot);
-          const ship = DS.TBL_SHIP + st.u8(S + OFF.DOCK_SLOT.SHIP) * 0x16;
-          const typeId = st.u8(ship + 0x0f);
-          const capId = st.u8(M + OFF.CREW_SLOT.CAPTAIN);
-          const capName = (capId & 0x80) ? "----" : dec(st.cstr(st.personRecord(capId)));
-          const dur = st.u8(S + OFF.DOCK_SLOT.DURABILITY), maxDur = st.u8(S + OFF.DOCK_SLOT.MAX_DURABILITY);
-          const crew = st.u16(S), spd = (b.shipSpeed(slot) + 1) >> 1;
+          const slotView = heroOrDockSlot(m, slot), cs = m.crewSlot(slot);
+          const ship = m.ship(slotView.ship);
+          const typeId = ship.type;
+          const capId = cs.captain;
+          const capName = (capId & 0x80) ? "----" : dec(m.person(capId).givenNameBytes);
+          const dur = slotView.durability, maxDur = slotView.maxDurability;
+          const crew = slotView.crew, spd = (b.shipSpeed(slot) + 1) >> 1;
 
           const card = document.createElement("div");
           card.className = "uw2-slot-card";
@@ -1280,7 +1283,7 @@ export function runDomFormation(cmd: any, title: string): Promise<void> {
 
           const info = document.createElement("div");
           info.style.cssText = "flex:1;min-width:0;";
-          info.innerHTML = `<div class="uw2-slot-title">${dec(st.cstr(ship))}</div><div class="uw2-slot-sub">${capName} · 耐久 ${dur}/${maxDur} · 水手 ${crew} · ${spd}kt</div>`;
+          info.innerHTML = `<div class="uw2-slot-title">${dec(ship.nameBytes)}</div><div class="uw2-slot-sub">${capName} · 耐久 ${dur}/${maxDur} · 水手 ${crew} · ${spd}kt</div>`;
           card.appendChild(info);
 
           const ctrl = document.createElement("div");
