@@ -3,6 +3,7 @@
 import type { IScenarioHost, ScenarioWindowDef } from "../ui/protocol.ts";
 import { DS } from "../model/schema_views.ts";
 import { GameConst } from "../model/flags.ts";
+import { stripEscBytes, toSimp } from "../canvas_ui/text_util.ts";
 
 export interface ModernScenarioDeps {
   runDuel: (scenario: any, person: number) => Promise<void>;
@@ -30,9 +31,8 @@ export class ModernScenarioHost implements IScenarioHost {
 
   private decodeBytes(bytes: Uint8Array): string {
     if (!this.c?.codec) return "";
-    let end = bytes.indexOf(0);
-    if (end < 0) end = bytes.length;
-    return this.c.codec.decode(bytes.subarray(0, end)).replace(/\{[0-9A-F]{2}\}/g, "").trim();
+    const clean = stripEscBytes(bytes);
+    return toSimp(this.c.codec.decode(clean).replace(/\{[0-9A-F]{2}\}/g, "").trim());
   }
 
   private ensureCard(): void {

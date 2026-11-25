@@ -77,16 +77,14 @@ export function mountDomWorldChart(container: HTMLElement, c: any, scene?: any) 
   const renderTopAndLegend = () => {
     topBar.innerHTML = "";
     if (mode === "world") {
-      const hint = document.createElement("span");
-      hint.style.cssText = "font-size:13px;color:var(--uw2-ink-muted);font-weight:600;";
-      hint.textContent = wm ? "点击任意已探索海域，放大查看局部真实地形图" : "移动鼠标查看已知港口";
-      topBar.appendChild(hint);
-      legend.innerHTML = `<span><b style="color:#ff4d4d;">●</b> 当前舰队</span><span><b style="color:#d49d2a;">■</b> 港口</span><span><b style="color:#3898d8;">■</b> 补给港</span>`;
+      topBar.style.display = "none";
+      legend.innerHTML = `<span><b style="color:#ff4d4d;">●</b> 舰队</span><span><b style="color:#d49d2a;">■</b> 港口</span><span><b style="color:#3898d8;">■</b> 补给港</span>`;
     } else {
+      topBar.style.display = "flex";
       const backBtn = document.createElement("button");
       backBtn.className = "uw2-btn uw2-btn-primary";
       backBtn.style.padding = "5px 14px";
-      backBtn.textContent = "← 返回世界图";
+      backBtn.textContent = "← 返回";
       backBtn.addEventListener("click", () => { mode = "world"; tip.style.display = "none"; renderAll(); });
 
       const nav = document.createElement("div");
@@ -104,7 +102,7 @@ export function mountDomWorldChart(container: HTMLElement, c: any, scene?: any) 
         nav.appendChild(b);
       }
       topBar.append(backBtn, nav);
-      legend.innerHTML = `<span>局部 3×3 海域真实地形（72×72 格）</span><span>使用方向按钮可平移查看周边海域</span>`;
+      legend.innerHTML = "";
     }
   };
 
@@ -1197,21 +1195,21 @@ export function runDomFormation(cmd: any, title: string): Promise<void> {
       title: title || "队形变更",
       size: "md",
       cancelable: true,
-      closeLabel: "取消",
+      closeLabel: "×",
       onCancel: () => finish(false),
     });
 
     const footer = document.createElement("div");
     footer.className = "uw2-modal-footer";
     const cancelBtn = document.createElement("button");
-    cancelBtn.className = "uw2-step-btn";
-    cancelBtn.style.padding = "7px 20px";
+    cancelBtn.className = "uw2-btn";
+    cancelBtn.style.padding = "7px 22px";
     cancelBtn.textContent = "取消";
     cancelBtn.addEventListener("click", () => finish(false));
 
     const okBtn = document.createElement("button");
     okBtn.className = "uw2-btn uw2-btn-primary";
-    okBtn.style.padding = "7px 26px";
+    okBtn.style.padding = "7px 22px";
     okBtn.textContent = "确定";
     okBtn.addEventListener("click", () => finish(true));
 

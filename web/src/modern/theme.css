@@ -743,3 +743,60 @@ html, body {
   background: rgba(200, 162, 88, 0.25);
   border-color: var(--uw2-gold);
 }
+
+/* ==================== 16:9 懸浮羊皮紙主介面 HUD ==================== */
+.uw2-world-hud {
+  position: fixed;
+  inset: 42px 0 0 0;
+  pointer-events: none;
+  z-index: 40;
+}
+.uw2-hud-card {
+  position: absolute;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.uw2-hud-tl { top: 14px; left: 16px; }
+.uw2-hud-tr { top: 14px; right: 16px; }
+.uw2-hud-compass {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+.uw2-hud-cmdbar {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  gap: 10px;
+  pointer-events: auto;
+}
+.uw2-hud-cmdbtn {
+  min-width: 90px;
+  padding: 10px 16px;
+  font-size: 15px;
+  font-weight: 700;
+  background: linear-gradient(180deg, #faf0d7, #ead5a7);
+  color: #2b1d0e;
+  border: 1.5px solid #b3873a;
+  border-radius: 9px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.32);
+}
+.uw2-hud-cmdbtn:hover {
+  background: linear-gradient(180deg, #fff7e2, #f2ddaa);
+  border-color: #d4a64a;
+  transform: translateY(-1px);
+}

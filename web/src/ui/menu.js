@@ -305,7 +305,7 @@ export class MenuSystem {
     await this.waitRelease();
     const labels = table.map(bytes => decodeCleanCstr(this.codec, bytes));
     if (hasDom()) {
-      const r = await runDomMenu(labels, this.disabled, !!cancelable);
+      const r = await runDomMenu(labels, this.disabled, !!cancelable, this.wideMenuTitle || "");
       this.disabled = 0; this.lineH = 0x10; this.con.bg = 0x0f;
       await this.waitRelease();
       return r;

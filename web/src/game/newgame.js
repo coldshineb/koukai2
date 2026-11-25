@@ -8,6 +8,8 @@ import { DS } from "../model/schema_views.ts";
 import { DiscoveryFlag, FleetFlag, WorkDS } from "../model/flags.ts";
 import { renderWideNewGame, hitWideHeroCard } from "../canvas_ui/wide_newgame.ts";
 import { captureConsoleText, decodeCleanCstr } from "../canvas_ui/text_util.ts";
+import { hasDom } from "../modern/dom_ui.ts";
+import { runDomNewGameSelect, hideDomWorldHud } from "../modern/dom_hud.ts";
 
 const ngHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const ngDiv8 = v => (v < 0 ? -((-v) >> 3) : v >> 3);
@@ -67,6 +69,28 @@ export class NewGame {
         ...this.captureMessage(0x3a9).split(/\s+/),
         ...this.captureMessage(0x3aa).split(/\s+/),
       ].filter(Boolean).slice(0, 7);
+
+      if (hasDom()) {
+        hideDomWorldHud();
+        scr.wideRenderer = null;
+        scr.clear(0);
+        for (;;) {
+          const picked = await runDomNewGameSelect(heroes, statLabels, di < 1);
+          if (picked < 0) return -1;
+          this.m.globals.hero = picked;
+          const saved = this.st.bytes(this.personDS, 26).slice();
+          await this.rename();
+          heroes[picked] = buildHero(picked);
+          scr.wideDialog = { text: dec(this.S.all) + this.captureMessage(0x3b3), portraitId: picked, waiting: false };
+          scr.dirty = true;
+          const ok = await menu.yesNo();
+          scr.wideDialog = null;
+          scr.dirty = true;
+          if (ok) return picked;
+          this.st.b.set(saved, this.personDS - DS.STATE_BASE);
+          heroes[picked] = buildHero(picked);
+        }
+      }
 
       let selected = 0;
       const drawGallery = c2d => renderWideNewGame(c2d, art, heroes, selected, statLabels);

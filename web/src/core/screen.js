@@ -3,6 +3,7 @@
 // 讓任何高清重繪 PNG 皆可直接以原生真彩與高解析度繪製於 hdCanvas，並與原版文字/視窗圖層無縫合成。
 import { drawWideDialog } from "../canvas_ui/wide_dialog.ts";
 import { hasDom, syncDomDialog } from "../modern/dom_ui.ts";
+import { hideDomWorldHud } from "../modern/dom_hud.ts";
 import { toSimp } from "../modern/t2s.ts";
 
 export const SCREEN_W = 640;
@@ -590,7 +591,7 @@ export class Screen {
       this.dirty = false;
       return;
     }
-    if (hasDom()) syncDomDialog(null, null);
+    if (hasDom()) { syncDomDialog(null, null); hideDomWorldHud(); }
 
     // 模式 B: 非全屏過渡場景 (標題 / 建築內景 / 海戰 / 一騎打) 居中無黑邊高畫質顯示 (1152x720)
     this.ctx.fillStyle = "#081222";

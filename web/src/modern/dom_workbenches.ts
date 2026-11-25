@@ -395,15 +395,16 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
 }
 
 // ============================================================================
-// 2. 碼頭一體化工作台（行內水/食物/資材/砲彈補給 + 實時航行天數 + 一鍵出航）
+// 2. 碼頭一體化工作台（合併「補給」+「船塢」雙標籤 + 購物車差額結算 + 一鍵按比例全補給 + 出航）
 // ============================================================================
 export async function runDomWharfWorkbench(b: any): Promise<number> {
   const c = b.c, st = b.st, codec = c.codec;
   const dec = (bts: Uint8Array) => decodeCleanCstr(codec, bts);
   const bldLabels = c.menuItems(0x3a);
-  const wharfTitle = bldLabels?.[3] ? dec(bldLabels[3]) : "";
+  const wharfTitle = bldLabels?.[3] ? dec(bldLabels[3]) : "码头";
   const portName = dec(st.model.port(b.port).nameBytes);
   const wharfMenu = c.menuItems(9).map(dec);
+  const dockMenu = c.menuItems(8).map(dec); // 保管 / 配备 / 交换
   const supNames = dec(b.WF.supplyHdr).split(/\s+/).filter(Boolean).slice(0, 4);
 
   const unitPrice = (item: number) => {
@@ -412,14 +413,168 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
     return Math.trunc(((st.u8(b.eco + off) + 0x32) * cx) / 100);
   };
 
+  const readShipVals = (slot: number): [number, number, number, number] => {
+    const M = b.crewData(slot);
+    return [
+      Math.trunc(domS16(st.u16(M)) / 10),
+      Math.trunc(domS16(st.u16(M + 2)) / 10),
+      domS16(st.u16(M + 4)),
+      domS16(st.u16(M + 6)),
+    ];
+  };
+
+  // 純補級載重以外的貨艙占用（僅商業貨物）
+  const goodsUsed = (slot: number): number => {
+    const M = b.crewData(slot);
+    let sum = 0;
+    for (let j = 0; j < 5; j++) {
+      if (st.u8(M + OFF.CREW_SLOT.CARGO_GOODS + j) !== 0xff) sum += domS16(st.u16(M + OFF.CREW_SLOT.CARGO_AMTS + 2 * j));
+    }
+    return sum;
+  };
+
   for (;;) {
-    const action = await new Promise<{ type: "close" | "dock" | "depart"; days?: number }>(resolve => {
+    const action = await new Promise<{ type: "close" | "depart"; days?: number }>(resolve => {
+      let activeTab: 0 | 1 = 0; // 0 = 補給, 1 = 船塢
       let toastMsg = "";
+      let toastOk = false;
+      let selFleetDockIdx = 0;
+      let selDockShipIdx = 0;
+
+      // 購物車暫存：每艘船的目標 4 項補給數（修改時隨時可增可減，不提前扣款，確認時一次性結算）
+      const draft = new Map<number, [number, number, number, number]>();
+      const resetDraft = () => {
+        draft.clear();
+        const n = b.fleetShips();
+        for (let i = 0; i < n; i++) {
+          const slot = c.persons[i] & 0xff;
+          draft.set(slot, readShipVals(slot));
+        }
+      };
+      resetDraft();
+
+      const getDraft = (slot: number): [number, number, number, number] => {
+        let v = draft.get(slot);
+        if (!v) { v = readShipVals(slot); draft.set(slot, v); }
+        return v;
+      };
+
+      const calcDraftCostAndDirty = () => {
+        const n = b.fleetShips();
+        let cost = 0, dirty = false;
+        for (let i = 0; i < n; i++) {
+          const slot = c.persons[i] & 0xff;
+          const orig = readShipVals(slot);
+          const cur = getDraft(slot);
+          for (let k = 0; k < 4; k++) {
+            if (cur[k] !== orig[k]) dirty = true;
+            if (cur[k] > orig[k]) cost += Math.imul(cur[k] - orig[k], unitPrice(k));
+          }
+        }
+        return { cost, dirty };
+      };
+
+      const commitDraft = (): boolean => {
+        const { cost, dirty } = calcDraftCostAndDirty();
+        if (!dirty) return true;
+        if (cost > (b.money >>> 0)) {
+          toastOk = false;
+          toastMsg = b.captureMessage(0x4c) || "金币不足";
+          render();
+          return false;
+        }
+        const n = b.fleetShips();
+        for (let i = 0; i < n; i++) {
+          const slot = c.persons[i] & 0xff;
+          const M = b.crewData(slot);
+          const cur = getDraft(slot);
+          for (let k = 0; k < 4; k++) {
+            const mul = k < 2 ? 10 : 1;
+            st.set16(M + k * 2, cur[k] * mul);
+          }
+          b.loadTotal(slot);
+        }
+        if (cost > 0) b.money = (b.money - cost) | 0;
+        b.p.panels();
+        resetDraft();
+        toastOk = true;
+        toastMsg = cost > 0 ? `已补给 (-${cost})` : "已更新补给";
+        return true;
+      };
+
+      // 一鍵按合適比例補滿（withCombat = true 同時補足資材/砲彈；false 僅水糧 1:1 補滿）
+      const autoFill = (withCombat: boolean) => {
+        const n = b.fleetShips();
+        if (!n) return;
+        // 先以現有貨艙計算每艘船可用補級空間
+        let budget = b.money >>> 0;
+        // 扣掉已暫存的費用以外的可支配預算：先還原未確認草稿重算
+        resetDraft();
+        const pFood = unitPrice(1), pMat = unitPrice(2), pAmmo = unitPrice(3);
+
+        for (let i = 0; i < n; i++) {
+          const slot = c.persons[i] & 0xff;
+          const S = b.fleetSlot(slot), ship = b.shipOf(slot);
+          const maxCargo = domS16(st.u16(ship + 0x14));
+          const orig = readShipVals(slot);
+          const cur: [number, number, number, number] = [...orig];
+          const usedGoods = goodsUsed(slot);
+          let free = Math.max(0, maxCargo - usedGoods - (cur[0] + cur[1] + cur[2] + cur[3]));
+
+          if (withCombat && free > 0) {
+            // 砲彈：有火砲時補至最多 min(火砲數*2, 空間的 12%)
+            const guns = st.u8(S + OFF.DOCK_SLOT.GUNS);
+            if (guns > 0 && pAmmo >= 0) {
+              const targetAmmo = Math.min(guns * 2, Math.max(guns, Math.floor(maxCargo * 0.12)));
+              const need = Math.max(0, targetAmmo - cur[3]);
+              const afford = pAmmo > 0 ? Math.floor(budget / pAmmo) : need;
+              const add = Math.min(need, free, afford);
+              if (add > 0) { cur[3] += add; free -= add; budget -= add * pAmmo; }
+            }
+            // 資材：補至最多 min(最大耐久/4, 空間的 8%)
+            const maxDur = st.u8(S + OFF.DOCK_SLOT.MAX_DURABILITY);
+            const targetMat = Math.min(Math.max(5, Math.floor(maxDur / 4)), Math.floor(maxCargo * 0.08));
+            const needM = Math.max(0, targetMat - cur[2]);
+            const affordM = pMat > 0 ? Math.floor(budget / pMat) : needM;
+            const addM = Math.min(needM, free, affordM);
+            if (addM > 0) { cur[2] += addM; free -= addM; budget -= addM * pMat; }
+          }
+
+          // 水與食物 1:1 均衡補滿剩餘空間（先拉平水/糧差額，再 1:1 平分）
+          if (free > 0) {
+            if (cur[0] < cur[1]) {
+              const addW = Math.min(cur[1] - cur[0], free);
+              cur[0] += addW; free -= addW;
+            } else if (cur[1] < cur[0]) {
+              const needF = cur[0] - cur[1];
+              const affordF = pFood > 0 ? Math.floor(budget / pFood) : needF;
+              const addF = Math.min(needF, free, affordF);
+              cur[1] += addF; free -= addF; budget -= addF * pFood;
+            }
+            if (free > 0) {
+              const maxPairsBySpace = Math.floor(free / 2);
+              const maxPairsByMoney = pFood > 0 ? Math.floor(budget / pFood) : maxPairsBySpace;
+              const pairs = Math.min(maxPairsBySpace, maxPairsByMoney);
+              if (pairs > 0) {
+                cur[0] += pairs; cur[1] += pairs;
+                free -= pairs * 2;
+                budget -= pairs * pFood;
+              }
+              if (free > 0 && cur[0] <= cur[1]) { cur[0] += 1; free -= 1; }
+            }
+          }
+          draft.set(slot, cur);
+        }
+        toastOk = true;
+        toastMsg = "";
+        render();
+      };
+
       const h = createDomModal({
         title: `${portName} · ${wharfTitle}`,
         size: "wide",
         cancelable: true,
-        closeLabel: "关闭",
+        closeLabel: "×",
         onCancel: () => resolve({ type: "close" }),
       });
 
@@ -429,62 +584,46 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
       moneyPill.className = "uw2-pill";
       h.headerRight.prepend(daysPill, moneyPill);
 
+      const toolbar = document.createElement("div");
+      toolbar.className = "uw2-modal-toolbar";
+      h.modal.insertBefore(toolbar, h.body);
+
       const footer = document.createElement("div");
       footer.className = "uw2-modal-footer";
       const leftFoot = document.createElement("div");
-      leftFoot.style.cssText = "display:flex;align-items:center;gap:12px;";
+      leftFoot.style.cssText = "display:flex;align-items:center;gap:10px;flex-wrap:wrap;";
       const toastEl = document.createElement("span");
-      toastEl.style.cssText = "font-size:13px;font-weight:700;color:#b83d3d;";
-
-      if (b.isCapital() && wharfMenu[2]) {
-        const dockBtn = document.createElement("button");
-        dockBtn.className = "uw2-step-btn";
-        dockBtn.style.padding = "7px 18px";
-        dockBtn.textContent = wharfMenu[2];
-        dockBtn.addEventListener("click", () => { h.close(); resolve({ type: "dock" }); });
-        leftFoot.appendChild(dockBtn);
-      }
+      toastEl.style.cssText = "font-size:13px;font-weight:700;";
       leftFoot.appendChild(toastEl);
+
+      const rightFoot = document.createElement("div");
+      rightFoot.style.cssText = "display:flex;align-items:center;gap:10px;";
+      const confirmBtn = document.createElement("button");
+      confirmBtn.className = "uw2-btn";
+      confirmBtn.style.padding = "8px 18px";
+      confirmBtn.addEventListener("click", () => { if (commitDraft()) render(); });
 
       const departBtn = document.createElement("button");
       departBtn.className = "uw2-btn uw2-btn-primary";
-      departBtn.style.padding = "8px 28px";
-      departBtn.textContent = wharfMenu[0] || "";
-      footer.append(leftFoot, departBtn);
+      departBtn.style.padding = "8px 24px";
+      departBtn.textContent = wharfMenu[0] || "出航";
+      rightFoot.append(confirmBtn, departBtn);
+      footer.append(leftFoot, rightFoot);
       h.modal.appendChild(footer);
-
-      const adjust = (slot: number, item: number, delta: number) => {
-        const M = b.crewData(slot), off = item * 2, mul = item < 2 ? 10 : 1;
-        const cur = item < 2 ? Math.trunc(domS16(st.u16(M + off)) / 10) : domS16(st.u16(M + off));
-        if (delta > 0) {
-          const free = Math.max(0, domS16(st.u16(b.shipOf(slot) + 0x14)) - domS16(b.cargoUsed(slot)));
-          const price = unitPrice(item);
-          const byMoney = price > 0 ? Math.floor((b.money >>> 0) / price) : free;
-          const actual = Math.min(delta, free, byMoney);
-          if (actual <= 0) return;
-          st.set16(M + off, st.u16(M + off) + actual * mul);
-          if (price > 0) b.money = (b.money - Math.imul(actual, price)) | 0;
-        } else if (delta < 0) {
-          const actual = Math.min(-delta, cur);
-          if (actual <= 0) return;
-          st.set16(M + off, st.u16(M + off) - actual * mul);
-        }
-        b.loadTotal(slot);
-        b.p.panels();
-        render();
-      };
 
       let curDays = 0, curNoDriver = false, curShips = 0;
 
       departBtn.addEventListener("click", () => {
         if (curShips === 0) return;
-        if (curNoDriver) { toastMsg = b.captureMessage(0x39); render(); return; }
-        if (curDays <= 0) { toastMsg = b.captureMessage(0x3b); render(); return; }
+        const { dirty } = calcDraftCostAndDirty();
+        if (dirty && !commitDraft()) return;
+        if (curNoDriver) { toastOk = false; toastMsg = b.captureMessage(0x39); render(); return; }
+        if (curDays <= 0) { toastOk = false; toastMsg = b.captureMessage(0x3b); render(); return; }
         h.close();
         resolve({ type: "depart", days: curDays });
       });
 
-      const render = () => {
+      const render = (keepScroll = true) => {
         const n = b.fleetShips();
         curShips = n;
         let noDriver = false, crewT = 0, waterT = 0, foodT = 0;
@@ -494,72 +633,279 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
           const crew = domS16(st.u16(S));
           const drv = Math.trunc(crew * st.u8(M + 9) / 100), look = Math.trunc(crew * st.u8(M + 8) / 100);
           if (!drv) noDriver = true;
-          waterT = (waterT + st.u16(M)) & 0xffff;
-          foodT = (foodT + st.u16(M + 2)) & 0xffff;
+          const vals = getDraft(slot);
+          waterT = (waterT + vals[0] * 10) & 0xffff;
+          foodT = (foodT + vals[1] * 10) & 0xffff;
           crewT = (crewT + st.u16(S)) & 0xffff;
+          const used = goodsUsed(slot) + vals[0] + vals[1] + vals[2] + vals[3];
+          const max = domS16(st.u16(ship + 0x14));
           ships.push({
             slot, name: dec(b.dstr(ship)), drv, look, deck: Math.max(0, crew - drv - look),
-            used: domS16(b.cargoUsed(slot)), max: domS16(st.u16(ship + 0x14)),
-            vals: [Math.trunc(domS16(st.u16(M)) / 10), Math.trunc(domS16(st.u16(M + 2)) / 10), domS16(st.u16(M + 4)), domS16(st.u16(M + 6))],
+            used, max, free: Math.max(0, max - used), vals,
           });
         }
         curNoDriver = noDriver;
         curDays = crewT > 0 ? Math.trunc(domUmin16(waterT, foodT) / crewT) : 0;
+        const { cost, dirty } = calcDraftCostAndDirty();
 
-        daysPill.textContent = `${curDays} DAYS`;
+        daysPill.textContent = `${curDays} 天`;
         daysPill.className = `uw2-pill ${curDays > 0 && !noDriver ? "ok" : "err"}`;
         moneyPill.textContent = `金块 ${Math.trunc(b.money / 10000)}  ·  金币 ${b.money % 10000}`;
+        toastEl.style.color = toastOk ? "#247544" : "#b83d3d";
         toastEl.textContent = toastMsg;
+        confirmBtn.style.display = activeTab === 0 ? "inline-flex" : "none";
+        confirmBtn.disabled = !dirty || cost > (b.money >>> 0);
+        confirmBtn.textContent = dirty ? `确认补给 (${cost > 0 ? `-${cost}` : "0"})` : "已同步";
         departBtn.disabled = n === 0;
 
-        preserveScroll(h.body, () => {
-        h.body.innerHTML = "";
-        const hdr = document.createElement("div");
-        hdr.className = "uw2-wharf-row";
-        hdr.style.cssText = "background:transparent;border:none;padding:2px 10px;font-size:12px;font-weight:700;color:var(--uw2-ink-muted);";
-        hdr.innerHTML = `<span>${wharfMenu[1] || ""}</span>` + [0, 1, 2, 3].map(k => {
-          const p = unitPrice(k);
-          return `<span style="text-align:center;">${supNames[k] || ""}${p > 0 ? ` (${p})` : ""}</span>`;
-        }).join("");
-        h.body.appendChild(hdr);
+        toolbar.innerHTML = "";
+        const tabs: [string, boolean][] = [
+          [wharfMenu[1] || "补给", n === 0],
+          [wharfMenu[2] || "船坞", !b.isCapital()],
+        ];
+        tabs.forEach(([lb, dis], i) => {
+          const btn = document.createElement("button");
+          btn.className = `uw2-btn uw2-tab-btn ${i === activeTab ? "active" : ""}`;
+          btn.disabled = dis;
+          btn.textContent = lb;
+          btn.addEventListener("click", () => { activeTab = i as 0 | 1; toastMsg = ""; render(false); });
+          toolbar.appendChild(btn);
+        });
 
-        const grid = document.createElement("div");
-        grid.className = "uw2-wharf-grid";
-        for (const s of ships) {
-          const row = document.createElement("div");
-          row.className = "uw2-wharf-row";
-          const info = document.createElement("div");
-          info.innerHTML = `<div class="uw2-slot-title">${s.name}</div><div class="uw2-slot-sub">操帆${s.drv} 瞭望${s.look} 甲板${s.deck} · 装载 ${s.used}/${s.max}</div>`;
-          row.appendChild(info);
+        if (activeTab === 0 && n > 0) {
+          const spacer = document.createElement("div");
+          spacer.style.flex = "1";
+          const btnFull = document.createElement("button");
+          btnFull.className = "uw2-btn uw2-btn-primary";
+          btnFull.textContent = "一键全补给";
+          btnFull.addEventListener("click", () => autoFill(true));
 
-          for (let k = 0; k < 4; k++) {
-            const cell = document.createElement("div");
-            cell.className = "uw2-sup-cell";
-            const mk = (lb: string, d: number, dis = false) => {
-              const btn = document.createElement("button");
-              btn.className = "uw2-step-btn";
-              btn.style.padding = "3px 6px";
-              btn.disabled = dis;
-              btn.textContent = lb;
-              btn.addEventListener("click", () => adjust(s.slot, k, d));
-              return btn;
-            };
-            const val = document.createElement("span");
-            val.className = "uw2-sup-val";
-            val.textContent = String(s.vals[k]);
-            cell.append(mk("-10", -10, s.vals[k] <= 0), mk("-", -1, s.vals[k] <= 0), val, mk("+", 1), mk("+10", 10));
-            row.appendChild(cell);
-          }
-          grid.appendChild(row);
+          const btnWF = document.createElement("button");
+          btnWF.className = "uw2-btn";
+          btnWF.textContent = "补满水粮";
+          btnWF.addEventListener("click", () => autoFill(false));
+
+          const btnReset = document.createElement("button");
+          btnReset.className = "uw2-btn";
+          btnReset.disabled = !dirty;
+          btnReset.textContent = "重置";
+          btnReset.addEventListener("click", () => { resetDraft(); toastMsg = ""; render(); });
+
+          toolbar.append(spacer, btnFull, btnWF, btnReset);
         }
-        h.body.appendChild(grid);
-        }, true);
+
+        preserveScroll(h.body, () => {
+          h.body.innerHTML = "";
+
+          if (activeTab === 0) {
+            const hdr = document.createElement("div");
+            hdr.className = "uw2-wharf-row";
+            hdr.style.cssText = "background:transparent;border:none;padding:2px 10px;font-size:12px;font-weight:700;color:var(--uw2-ink-muted);";
+            hdr.innerHTML = `<span>${wharfMenu[1] || "补给"}</span>` + [0, 1, 2, 3].map(k => {
+              const p = unitPrice(k);
+              return `<span style="text-align:center;">${supNames[k] || ""}${p > 0 ? ` (${p})` : ""}</span>`;
+            }).join("");
+            h.body.appendChild(hdr);
+
+            const grid = document.createElement("div");
+            grid.className = "uw2-wharf-grid";
+            for (const s of ships) {
+              const row = document.createElement("div");
+              row.className = "uw2-wharf-row";
+              const info = document.createElement("div");
+              info.innerHTML = `<div class="uw2-slot-title">${s.name}</div><div class="uw2-slot-sub">操帆${s.drv} 瞭望${s.look} 甲板${s.deck} · 装载 ${s.used}/${s.max}</div>`;
+              row.appendChild(info);
+
+              for (let k = 0; k < 4; k++) {
+                const cell = document.createElement("div");
+                cell.className = "uw2-sup-cell";
+                const curVal = s.vals[k];
+                const maxForThis = curVal + s.free;
+
+                const inp = document.createElement("input");
+                inp.type = "number";
+                inp.min = "0";
+                inp.max = String(maxForThis);
+                inp.value = String(curVal);
+                inp.style.cssText = "width:64px;padding:4px 6px;font-size:14px;font-weight:700;text-align:center;border:1px solid var(--uw2-gold);border-radius:6px;background:#fffdf6;color:var(--uw2-ink);font-variant-numeric:tabular-nums;";
+                inp.addEventListener("change", () => {
+                  const v = Math.max(0, Math.min(maxForThis, Math.trunc(Number(inp.value) || 0)));
+                  const d = getDraft(s.slot);
+                  d[k] = v;
+                  render();
+                });
+
+                const maxBtn = document.createElement("button");
+                maxBtn.className = "uw2-step-btn";
+                maxBtn.style.padding = "4px 7px";
+                maxBtn.textContent = "满";
+                maxBtn.disabled = s.free <= 0;
+                maxBtn.addEventListener("click", () => {
+                  const d = getDraft(s.slot);
+                  const orig = readShipVals(s.slot);
+                  const price = unitPrice(k);
+                  const { cost: curCost } = calcDraftCostAndDirty();
+                  const remBudget = Math.max(0, (b.money >>> 0) - curCost);
+                  const extraNeed = maxForThis - Math.max(orig[k], d[k]);
+                  const affordExtra = price > 0 ? Math.floor(remBudget / price) : extraNeed;
+                  d[k] = Math.min(maxForThis, Math.max(d[k], Math.min(orig[k], maxForThis)) + Math.max(0, affordExtra));
+                  render();
+                });
+
+                cell.append(inp, maxBtn);
+                row.appendChild(cell);
+              }
+              grid.appendChild(row);
+            }
+            h.body.appendChild(grid);
+          } else {
+            // ---- 船塢標籤頁（保管 / 配备 / 交换） ----
+            b.dockScan();
+            const fleetList: { slot: number; name: string; capName: string; crew: number; isHero: boolean }[] = [];
+            for (let i = 0; i < n; i++) {
+              const slot = c.persons[i] & 0xff, S = b.fleetSlot(slot), M = b.crewData(slot);
+              const capId = st.u8(M + OFF.CREW_SLOT.CAPTAIN);
+              fleetList.push({
+                slot,
+                name: dec(b.dstr(b.shipOf(slot))),
+                capName: dec(st.cstr(st.personRecord(capId))),
+                crew: st.u16(S),
+                isHero: capId === st.hero,
+              });
+            }
+            const dockList: { slot: number; name: string; maxCrew: number }[] = [];
+            for (let i = 0; i < b.b066; i++) {
+              const dSlot = b.b06a[i];
+              dockList.push({
+                slot: dSlot,
+                name: dec(b.dstr(b.shipOf(dSlot))),
+                maxCrew: domS16(st.u16(b.shipOf(dSlot) + 0x12)),
+              });
+            }
+            if (selFleetDockIdx >= fleetList.length) selFleetDockIdx = Math.max(0, fleetList.length - 1);
+            if (selDockShipIdx >= dockList.length) selDockShipIdx = Math.max(0, dockList.length - 1);
+
+            const split = document.createElement("div");
+            split.className = "uw2-split";
+
+            const left = document.createElement("div");
+            left.className = "uw2-pane";
+            const lt = document.createElement("div");
+            lt.className = "uw2-pane-title";
+            lt.textContent = `舰队 (${fleetList.length}/10)`;
+            const flCol = document.createElement("div");
+            flCol.className = "uw2-list-col";
+            fleetList.forEach((f, i) => {
+              const row = document.createElement("button");
+              row.className = `uw2-row-card ${i === selFleetDockIdx ? "selected" : ""}`;
+              row.innerHTML = `<span style="font-weight:700;">${f.name}</span><span class="uw2-slot-sub">${f.capName} · 水手 ${f.crew}</span>`;
+              row.addEventListener("click", () => { selFleetDockIdx = i; render(); });
+              flCol.appendChild(row);
+            });
+            left.append(lt, flCol);
+
+            const right = document.createElement("div");
+            right.className = "uw2-pane";
+            const rt = document.createElement("div");
+            rt.className = "uw2-pane-title";
+            rt.textContent = `${wharfMenu[2] || "船坞"} (${dockList.length}/${b.b068})`;
+            const dkCol = document.createElement("div");
+            dkCol.className = "uw2-list-col";
+            if (!dockList.length) {
+              const empty = document.createElement("div");
+              empty.className = "uw2-slot-sub";
+              empty.style.padding = "12px";
+              empty.textContent = "—";
+              dkCol.appendChild(empty);
+            }
+            dockList.forEach((d, i) => {
+              const row = document.createElement("button");
+              row.className = `uw2-row-card ${i === selDockShipIdx ? "selected" : ""}`;
+              row.innerHTML = `<span style="font-weight:700;">${d.name}</span><span class="uw2-slot-sub">最大水手 ${d.maxCrew}</span>`;
+              row.addEventListener("click", () => { selDockShipIdx = i; render(); });
+              dkCol.appendChild(row);
+            });
+
+            const actBar = document.createElement("div");
+            actBar.className = "uw2-dialog-actions";
+            const selF = fleetList[selFleetDockIdx];
+            const selD = dockList[selDockShipIdx];
+
+            // 保管 (艦隊 → 船塢)
+            const keepBtn = document.createElement("button");
+            keepBtn.className = "uw2-btn";
+            keepBtn.textContent = dockMenu[0] || "保管";
+            keepBtn.disabled = !selF || selF.isHero || b.b066 >= b.b068;
+            keepBtn.addEventListener("click", () => {
+              if (!selF || selF.isHero || b.b066 >= b.b068) return;
+              const d = b.b06a[b.b066];
+              b.swapSlots(selF.slot, d);
+              const Mf = b.crewData(selF.slot), Md = b.crewData(d);
+              st.set8(Mf + 0x1c, 0); st.set8(Md + 0x1c, 0);
+              st.set16(b.fleetSlot(selF.slot), 0); st.set16(b.fleetSlot(d), 0);
+              st.set8(Mf + 0x1b, 0xff);
+              st.set8(st.personRecord(st.u8(Md + 0x1b)) + 0x2e, 6);
+              st.set8(Md + 0x1b, b.port | 0x80);
+              b.compactSlots();
+              resetDraft();
+              toastOk = true; toastMsg = b.captureMessage(0x11a);
+              render();
+            });
+
+            // 配備 (船塢 → 艦隊)
+            const takeBtn = document.createElement("button");
+            takeBtn.className = "uw2-btn";
+            takeBtn.textContent = dockMenu[1] || "配备";
+            takeBtn.disabled = !selD || b.b064 <= b.b062;
+            takeBtn.addEventListener("click", () => {
+              if (!selD || b.b064 <= b.b062) return;
+              let f = 0; for (let i = 0; i < 10; i++) if (b.slotState(i) !== 0x10) { f = i; break; }
+              b.swapSlots(f, selD.slot);
+              const Mf = b.crewData(f), Md = b.crewData(selD.slot);
+              st.set8(Mf + 0x1c, 0); st.set8(Md + 0x1c, 0);
+              st.set16(b.fleetSlot(f), 0); st.set16(b.fleetSlot(selD.slot), 0);
+              b.crewList();
+              st.set8(Mf + 0x1b, c.persons[0]);
+              st.set8(st.personRecord(c.persons[0]) + 0x2e, 2);
+              st.set8(Md + 0x1b, b.port | 0x80);
+              b.compactSlots();
+              resetDraft();
+              toastOk = true; toastMsg = b.captureMessage(0x11e);
+              render();
+            });
+
+            // 交換 (艦隊 ↔ 船塢)
+            const swapBtn = document.createElement("button");
+            swapBtn.className = "uw2-btn uw2-btn-primary";
+            swapBtn.textContent = dockMenu[2] || "交换";
+            swapBtn.disabled = !selF || !selD;
+            swapBtn.addEventListener("click", () => {
+              if (!selF || !selD) return;
+              const cap = domS16(st.u16(b.shipOf(selD.slot) + 0x12));
+              b.swapSlots(selF.slot, selD.slot);
+              const Mf = b.crewData(selF.slot), Md = b.crewData(selD.slot);
+              st.set8(Mf + 0x1c, st.u8(Md + 0x1c)); st.set8(Md + 0x1c, 0);
+              st.set16(b.fleetSlot(selF.slot), domUmin16(st.u16(b.fleetSlot(selD.slot)), cap));
+              st.set16(b.fleetSlot(selD.slot), 0);
+              st.set8(Mf + 0x1b, st.u8(Md + 0x1b));
+              st.set8(Md + 0x1b, b.port | 0x80);
+              b.compactSlots();
+              resetDraft();
+              toastOk = true; toastMsg = b.captureMessage(0x11f);
+              render();
+            });
+
+            actBar.append(keepBtn, takeBtn, swapBtn);
+            right.append(rt, dkCol, actBar);
+            split.append(left, right);
+            h.body.appendChild(split);
+          }
+        }, keepScroll);
       };
 
-      render();
+      render(false);
     });
 
-    if (action.type === "dock") { await b.dock(); continue; }
     if (action.type === "depart" && action.days) {
       marketTradeLog(st, c.rt, 1, action.days, 0, 0, b.port);
       st.set8(DS.DAYS_AT_SEA, 0);
@@ -596,11 +942,13 @@ export function runDomFleetHub(cmd: any): Promise<void> {
     let toastMsg = "";
 
     const tryClose = () => {
-      let heroCap = false;
-      for (let i = 0; i < 10; i++) {
-        if ((st.u8(b.fleetSlot(i) + 8) & 0x30) === 0x10 && st.u8(b.crewData(i) + 0x1b) === st.hero) { heroCap = true; break; }
+      if (b.fleetShips() > 0) {
+        let heroCap = false;
+        for (let i = 0; i < 10; i++) {
+          if ((st.u8(b.fleetSlot(i) + 8) & 0x30) === 0x10 && st.u8(b.crewData(i) + 0x1b) === st.hero) { heroCap = true; break; }
+        }
+        if (!heroCap) { toastMsg = cmd.cap(() => c.message(0xe2)); render(); return; }
       }
-      if (!heroCap) { toastMsg = cmd.cap(() => c.message(0xe2)); render(); return; }
       h.close();
       resolve();
     };

@@ -1,6 +1,7 @@
 // modern/hud.ts — 階段 5 現代側邊高清 HUD (港口資訊 + 一鍵港內直達 + 海上狀態 + F1-F4 快捷鍵)
 import { PortMove } from "../scenes/portmove.js";
 import { DS } from "../model/schema_views.ts";
+import { stripEscBytes, toSimp } from "../canvas_ui/text_util.ts";
 
 const BUILDING_NAMES = [
   "交易所", "酒馆", "造船厂", "码头",
@@ -44,9 +45,7 @@ export class ModernHud {
 
   private decodeBytes(bytes: Uint8Array): string {
     if (!this.ctx?.codec) return "";
-    let end = bytes.indexOf(0);
-    if (end < 0) end = bytes.length;
-    return this.ctx.codec.decode(bytes.subarray(0, end)).replace(/\{[0-9A-F]{2}\}/g, "").trim();
+    return toSimp(this.ctx.codec.decode(stripEscBytes(bytes)).replace(/\{[0-9A-F]{2}\}/g, "").trim());
   }
 
   private makeCmdSection(): HTMLElement {

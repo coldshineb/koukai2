@@ -3,6 +3,8 @@
 import { DS, OFF } from "../model/schema_views.ts";
 import { VIEW_W, VIEW_H } from "../core/screen.js";
 import { decodeCleanCstr, toSimp } from "./text_util.ts";
+import { hasDom } from "../modern/dom_ui.ts";
+import { syncDomWorldHud } from "../modern/dom_hud.ts";
 
 const TILE = 32; // 40×23 格 = 1280×736，無黑邊鋪滿整個 16:9 畫面
 const COLS = Math.ceil(VIEW_W / TILE) + 1;
@@ -165,6 +167,10 @@ function drawWideAtmosphere(ctx: CanvasRenderingContext2D, scr: any, focusX: num
 }
 
 function drawFloatingHud(ctx: CanvasRenderingContext2D, scene: any, atSea: boolean) {
+  if (hasDom()) {
+    syncDomWorldHud(scene, atSea);
+    return;
+  }
   const c = scene.c;
   const st = c.state;
   const m = st.model;

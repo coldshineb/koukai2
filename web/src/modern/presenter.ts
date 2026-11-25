@@ -1,6 +1,7 @@
 // modern/presenter.ts — ModernPresenter (階段 4 現代高清 DOM/CSS 互動組件庫，實作 IGameUI)
 // 供階段 5 逐場景從 640×400 幀緩衝切換至現代高清介面使用。
 import type { IGameUI } from "../ui/protocol.ts";
+import { stripEscBytes, toSimp } from "../canvas_ui/text_util.ts";
 
 export class ModernGameUI implements IGameUI {
   readonly root: HTMLElement;
@@ -14,9 +15,7 @@ export class ModernGameUI implements IGameUI {
 
   private decodeBytes(bytes: Uint8Array): string {
     if (!this.c?.codec) return "";
-    let end = bytes.indexOf(0);
-    if (end < 0) end = bytes.length;
-    return this.c.codec.decode(bytes.subarray(0, end)).replace(/\{[0-9A-F]{2}\}/g, "").trim();
+    return toSimp(this.c.codec.decode(stripEscBytes(bytes)).replace(/\{[0-9A-F]{2}\}/g, "").trim());
   }
 
   showMessage(msgId: number, ...args: unknown[]): void {

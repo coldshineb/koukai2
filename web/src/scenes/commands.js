@@ -78,11 +78,17 @@ export class Commands {
     this.c.scr.restoreRegion(this.pressSave, 0, 0x48 + 0x50 * n, 0x50);
   }
   // 20b0c 右側選單 (y, 項目)
-  async popMenu(y, items) {
+  async popMenu(y, items, title = "") {
     const m = this.c.menu;
     m.count = items.length;                                            // [a158]
     let w = 0; for (const s of items) w = Math.max(w, cmStrlen(s));    // 13847
-    return m.listMenu(0x4a - w, y, items, 1);
+    const prevTitle = m.wideMenuTitle;
+    m.wideMenuTitle = title;
+    try {
+      return await m.listMenu(0x4a - w, y, items, 1);
+    } finally {
+      m.wideMenuTitle = prevTitle;
+    }
   }
   // 20b40 重畫地圖視窗 (不畫主角) → 淡入 → 清鍵盤
   async redrawMap() {
@@ -1336,7 +1342,7 @@ export class Commands {
       if (st.port !== 0xff) menu.disabled |= 7;
       if (!b.fleetShips()) menu.disabled |= 0x18;
       if (!b.crewCount()) menu.disabled |= 0x20;
-      const r = await this.popMenu(0xe0, items);
+      const r = await this.popMenu(0xe0, items, "命令");
       switch (r) {
         case 0: await this.p.scout(); break;                            // 1feae 偵察 (以下 3 項在港時停用; scenes/sea.js)
         case 1: si = (await this.p.negotiate()) ? 0 : 1; break;          // 20a6d 交涉
@@ -1565,7 +1571,7 @@ export class Commands {
       if (st.port !== 0xff) menu.disabled |= 0x0f;
       if (!this.itemList()) menu.disabled |= 0x10;
       if (pm && st.port === 0xff) menu.disabled |= 0x40;
-      const r = await this.popMenu(pm ? 0xc8 : 0xe0, items);
+      const r = await this.popMenu(pm ? 0xc8 : 0xe0, items, "航海术");
       switch (r) {
         case 0: await this.p.delegate(); si = 1; break;                // 2e09:3223 委任 (以下 4 項在港時停用; scenes/sea.js)
         case 1: await this.p.stopToggle(); si = 1; break;              // 20ee3 停船 / 出航
@@ -1576,7 +1582,7 @@ export class Commands {
         case 6: si = await PortMove.choose(this); break;               // 擴充功能: 港內移動 (scenes/portmove.js)
         default: si = 1;
       }
-    } while (!si);
+    }
     if (!this.c.scr.wideRenderer) await this.redrawMap();
   }
   // 0fea:32a6 = 13146 隨身物 (DS:2e57, 20 格, FF = 空) → [0538], 回傳個數
@@ -1738,7 +1744,7 @@ export class Commands {
     const st = this.st, { menu, palette } = this.c, items = this.c.menuItems(0x14).slice(0, 4);
     while (!palette.ending) {
       menu.disabled = 0;
-      const r = await this.popMenu(0xf8, items);
+      const r = await this.popMenu(0xf8, items, "功能");
       switch (r) {
         case 0: {
           const o = st.options;
