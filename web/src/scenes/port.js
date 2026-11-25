@@ -10,6 +10,13 @@
 //   - 建筑内部: 见 scenes/buildings.js (部分移植); 4 个指令按钮见 scenes/commands.js
 //   - 剧本事件 (2e09:5481/53f0/55c2/5546): 目前视为「没有事件」
 import { loadBinary, loadJSON } from "../core/assets.js";
+import {
+  decodeMonsterJson,
+  decodePortMapJson,
+  decodeWindCurJson,
+  decodeWorldMapJson,
+  decodeZaDatJson,
+} from "../decoders/bin_json.ts";
 import { Buildings } from "./buildings.js";
 import { Commands } from "./commands.js";
 import { Scenario, ENV_COMMON, ENV_HERO } from "../game/scenario.js";
@@ -29,22 +36,27 @@ const pS16 = v => (v << 16) >> 16;
 
 export async function loadPortAssets(ctx) {
   const A = ctx.ASSETS;
-  const [za, map, data, wind, portchipMeta, colony, itemMes, commands, worldmap, sea, battle, fleet, duel, monster] = await Promise.all([
-    loadBinary(A + "/data/za_dat.bin"),
-    loadBinary(A + "/data/portmap.bin"),
+  const [zaJson, mapJson, data, windJson, portchipMeta, colony, itemMes, commands, worldmapJson, sea, battle, fleet, duel, monsterJson] = await Promise.all([
+    loadJSON(A + "/data/za_dat.json"),
+    loadJSON(A + "/data/portmap.json"),
     loadJSON(A + "/data/port.json"),
-    loadBinary(A + "/data/windcur.bin"),
+    loadJSON(A + "/data/windcur.json"),
     loadJSON(A + "/data/portchip.json"),
     loadJSON(A + "/text/colony.json"),
     loadJSON(A + "/text/item_mes.json"),
     loadJSON(A + "/data/commands.json"),
-    loadBinary(A + "/data/worldmap.bin"),
+    loadJSON(A + "/data/worldmap.json"),
     loadJSON(A + "/data/sea.json"),
     loadJSON(A + "/data/battle.json"),
     loadJSON(A + "/data/fleet.json"),
     loadDuelAssets(A, loadBinary, loadJSON),
-    loadBinary(A + "/data/monster.bin"),
+    loadJSON(A + "/data/monster.json"),
   ]);
+  const za = decodeZaDatJson(zaJson);
+  const map = decodePortMapJson(mapJson);
+  const wind = decodeWindCurJson(windJson);
+  const worldmap = decodeWorldMapJson(worldmapJson);
+  const monster = decodeMonsterJson(monsterJson);
   data.bld2 = await loadJSON(A + "/data/buildings2.json");
   // 预载全部场景 PNG 图集，确保港口 / 海上 / 海战 / 赌博零延迟呈现
   if (ctx.art) {

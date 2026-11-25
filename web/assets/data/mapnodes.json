@@ -1,0 +1,3737 @@
+{
+ "format": "uw2-mapnodes-v1",
+ "nodes": [
+  {
+   "x": 116,
+   "y": 349,
+   "hiFlag": 0,
+   "tailHex": "0100ffffb800ffff843b1cff"
+  },
+  {
+   "x": 117,
+   "y": 319,
+   "hiFlag": 0,
+   "tailHex": "000002000700030084e6d2ff"
+  },
+  {
+   "x": 160,
+   "y": 318,
+   "hiFlag": 0,
+   "tailHex": "01009a009900ffffe67147ff"
+  },
+  {
+   "x": 99,
+   "y": 267,
+   "hiFlag": 0,
+   "tailHex": "7c0098000100400095ffffff"
+  },
+  {
+   "x": 201,
+   "y": 199,
+   "hiFlag": 0,
+   "tailHex": "91000500ffff64026985ff8a"
+  },
+  {
+   "x": 205,
+   "y": 169,
+   "hiFlag": 0,
+   "tailHex": "04004100ffffffff85dbffff"
+  },
+  {
+   "x": 121,
+   "y": 197,
+   "hiFlag": 0,
+   "tailHex": "980064020800400024ffa0ff"
+  },
+  {
+   "x": 142,
+   "y": 287,
+   "hiFlag": 0,
+   "tailHex": "9a007d0001007c001fd1d235"
+  },
+  {
+   "x": 94,
+   "y": 176,
+   "hiFlag": 0,
+   "tailHex": "06000900ffffffffa0ffffff"
+  },
+  {
+   "x": 46,
+   "y": 157,
+   "hiFlag": 0,
+   "tailHex": "08000a003c00ffffffffdeff"
+  },
+  {
+   "x": 74,
+   "y": 94,
+   "hiFlag": 0,
+   "tailHex": "09000b00ffffffffffffffff"
+  },
+  {
+   "x": 79,
+   "y": 8,
+   "hiFlag": 0,
+   "tailHex": "0a00ffffffffffffffffffff"
+  },
+  {
+   "x": 180,
+   "y": 371,
+   "hiFlag": 0,
+   "tailHex": "ffff80006b028c0032535a4c"
+  },
+  {
+   "x": 274,
+   "y": 372,
+   "hiFlag": 0,
+   "tailHex": "b4001700ffffffff28407dff"
+  },
+  {
+   "x": 275,
+   "y": 401,
+   "hiFlag": 0,
+   "tailHex": "89000f00b4008b006cef45ba"
+  },
+  {
+   "x": 319,
+   "y": 402,
+   "hiFlag": 0,
+   "tailHex": "0e008b0083008700ef40f571"
+  },
+  {
+   "x": 332,
+   "y": 366,
+   "hiFlag": 0,
+   "tailHex": "8a005f02ffffffff2c2a3bff"
+  },
+  {
+   "x": 346,
+   "y": 349,
+   "hiFlag": 0,
+   "tailHex": "5f021200ffffffff312a3eff"
+  },
+  {
+   "x": 355,
+   "y": 341,
+   "hiFlag": 0,
+   "tailHex": "110013009c00ffff2a78493f"
+  },
+  {
+   "x": 382,
+   "y": 333,
+   "hiFlag": 0,
+   "tailHex": "1200ffff9b00ffff78f4aeff"
+  },
+  {
+   "x": 397,
+   "y": 320,
+   "hiFlag": 0,
+   "tailHex": "9c009b00ffffffffbd6ec6ff"
+  },
+  {
+   "x": 274,
+   "y": 333,
+   "hiFlag": 0,
+   "tailHex": "1600ffffffffffff61ffffff"
+  },
+  {
+   "x": 292,
+   "y": 349,
+   "hiFlag": 0,
+   "tailHex": "15001700ffffffff6147ffff"
+  },
+  {
+   "x": 291,
+   "y": 368,
+   "hiFlag": 0,
+   "tailHex": "16000d008b00ffff474070ff"
+  },
+  {
+   "x": 67,
+   "y": 475,
+   "hiFlag": 0,
+   "tailHex": "ffff19005902ffffffffccff"
+  },
+  {
+   "x": 66,
+   "y": 545,
+   "hiFlag": 0,
+   "tailHex": "18001a00ffffffffffffffff"
+  },
+  {
+   "x": 97,
+   "y": 581,
+   "hiFlag": 0,
+   "tailHex": "19001b00ffffffffff8bffff"
+  },
+  {
+   "x": 120,
+   "y": 602,
+   "hiFlag": 0,
+   "tailHex": "1a001c00ffffffff8bffffff"
+  },
+  {
+   "x": 176,
+   "y": 601,
+   "hiFlag": 0,
+   "tailHex": "1b001d00ffffffffff73ffff"
+  },
+  {
+   "x": 200,
+   "y": 588,
+   "hiFlag": 0,
+   "tailHex": "1c005b02ffffffff734f59ff"
+  },
+  {
+   "x": 227,
+   "y": 618,
+   "hiFlag": 0,
+   "tailHex": "5b021f00ffffffff4d6142ff"
+  },
+  {
+   "x": 225,
+   "y": 642,
+   "hiFlag": 0,
+   "tailHex": "1e002000ffffffff61bbffff"
+  },
+  {
+   "x": 248,
+   "y": 672,
+   "hiFlag": 0,
+   "tailHex": "1f0021001201ffffbbc575ff"
+  },
+  {
+   "x": 250,
+   "y": 711,
+   "hiFlag": 0,
+   "tailHex": "20002200ffffffffc51bffff"
+  },
+  {
+   "x": 245,
+   "y": 717,
+   "hiFlag": 0,
+   "tailHex": "21002300ffffffff1b11ffff"
+  },
+  {
+   "x": 242,
+   "y": 721,
+   "hiFlag": 0,
+   "tailHex": "22002400ffffffff1177ffff"
+  },
+  {
+   "x": 241,
+   "y": 749,
+   "hiFlag": 0,
+   "tailHex": "23002801ffffffff779943ff"
+  },
+  {
+   "x": 379,
+   "y": 804,
+   "hiFlag": 0,
+   "tailHex": "ffff26002e01ffff3d5968ff"
+  },
+  {
+   "x": 396,
+   "y": 789,
+   "hiFlag": 0,
+   "tailHex": "25002700ffffffff598affff"
+  },
+  {
+   "x": 396,
+   "y": 758,
+   "hiFlag": 0,
+   "tailHex": "2600ffff2800ffff8a9ae1ff"
+  },
+  {
+   "x": 426,
+   "y": 728,
+   "hiFlag": 0,
+   "tailHex": "ffff2900c9002700202f32e1"
+  },
+  {
+   "x": 429,
+   "y": 715,
+   "hiFlag": 0,
+   "tailHex": "28002a00ffffffff2f58ffff"
+  },
+  {
+   "x": 425,
+   "y": 693,
+   "hiFlag": 0,
+   "tailHex": "29002b00ffffffff58c5ffff"
+  },
+  {
+   "x": 426,
+   "y": 654,
+   "hiFlag": 0,
+   "tailHex": "2a002c00ffffffffc5ffffff"
+  },
+  {
+   "x": 474,
+   "y": 598,
+   "hiFlag": 0,
+   "tailHex": "2b002d00ffffffffff98ffff"
+  },
+  {
+   "x": 488,
+   "y": 568,
+   "hiFlag": 0,
+   "tailHex": "2c002e00ffffffff985bffff"
+  },
+  {
+   "x": 488,
+   "y": 545,
+   "hiFlag": 0,
+   "tailHex": "2d002f003000ffff5bf832ff"
+  },
+  {
+   "x": 443,
+   "y": 546,
+   "hiFlag": 0,
+   "tailHex": "2e00ffff30002101f831fdb9"
+  },
+  {
+   "x": 486,
+   "y": 531,
+   "hiFlag": 0,
+   "tailHex": "2e0031002f00ffff3261fdff"
+  },
+  {
+   "x": 508,
+   "y": 521,
+   "hiFlag": 0,
+   "tailHex": "30003200ffffffff6171ffff"
+  },
+  {
+   "x": 529,
+   "y": 504,
+   "hiFlag": 0,
+   "tailHex": "31003300ffffffff7153ffff"
+  },
+  {
+   "x": 542,
+   "y": 487,
+   "hiFlag": 0,
+   "tailHex": "3200ffffbb00ffff533636ff"
+  },
+  {
+   "x": 530,
+   "y": 460,
+   "hiFlag": 0,
+   "tailHex": "ffff6c023500bb003733993e"
+  },
+  {
+   "x": 563,
+   "y": 463,
+   "hiFlag": 0,
+   "tailHex": "3400d100ffffbb00994f585a"
+  },
+  {
+   "x": 599,
+   "y": 493,
+   "hiFlag": 0,
+   "tailHex": "ffff3700d200ffff303d33ff"
+  },
+  {
+   "x": 613,
+   "y": 502,
+   "hiFlag": 0,
+   "tailHex": "36003800ffffffff3d60ffff"
+  },
+  {
+   "x": 614,
+   "y": 526,
+   "hiFlag": 0,
+   "tailHex": "37003900ffffffff6040ffff"
+  },
+  {
+   "x": 621,
+   "y": 542,
+   "hiFlag": 0,
+   "tailHex": "3800ffffd300ffff405c5fff"
+  },
+  {
+   "x": 644,
+   "y": 575,
+   "hiFlag": 0,
+   "tailHex": "25013b00ffffd3006eb97542"
+  },
+  {
+   "x": 662,
+   "y": 542,
+   "hiFlag": 0,
+   "tailHex": "3a00ffff26012701b9556686"
+  },
+  {
+   "x": 8,
+   "y": 175,
+   "hiFlag": 0,
+   "tailHex": "3f0009004000ffff27deffff"
+  },
+  {
+   "x": 2149,
+   "y": 172,
+   "hiFlag": 0,
+   "tailHex": "3f003e00ffffffff2affffff"
+  },
+  {
+   "x": 2102,
+   "y": 195,
+   "hiFlag": 0,
+   "tailHex": "3d006601ffffffffffffffff"
+  },
+  {
+   "x": 2158,
+   "y": 180,
+   "hiFlag": 0,
+   "tailHex": "3d003c00ffffffff2a27ffff"
+  },
+  {
+   "x": 55,
+   "y": 227,
+   "hiFlag": 0,
+   "tailHex": "03003c000600ffffffffffff"
+  },
+  {
+   "x": 241,
+   "y": 148,
+   "hiFlag": 0,
+   "tailHex": "05004200ffffffffdb45ffff"
+  },
+  {
+   "x": 253,
+   "y": 134,
+   "hiFlag": 0,
+   "tailHex": "41006002ffffffff456d758c"
+  },
+  {
+   "x": 242,
+   "y": 210,
+   "hiFlag": 0,
+   "tailHex": "9100ffffffffb5005ad76381"
+  },
+  {
+   "x": 777,
+   "y": 542,
+   "hiFlag": 0,
+   "tailHex": "45005a00ffffffffff97ffff"
+  },
+  {
+   "x": 810,
+   "y": 574,
+   "hiFlag": 0,
+   "tailHex": "440046005a005b00ffdb6669"
+  },
+  {
+   "x": 846,
+   "y": 553,
+   "hiFlag": 0,
+   "tailHex": "45004700ffffffffdbe8ffff"
+  },
+  {
+   "x": 836,
+   "y": 511,
+   "hiFlag": 0,
+   "tailHex": "460048004900ffffe863d5ff"
+  },
+  {
+   "x": 825,
+   "y": 489,
+   "hiFlag": 0,
+   "tailHex": "4700ffffffffffff63ffffff"
+  },
+  {
+   "x": 865,
+   "y": 482,
+   "hiFlag": 0,
+   "tailHex": "47004a00ffffffffd57bffff"
+  },
+  {
+   "x": 890,
+   "y": 468,
+   "hiFlag": 0,
+   "tailHex": "49004b006e00ffff7b7e2aff"
+  },
+  {
+   "x": 909,
+   "y": 446,
+   "hiFlag": 0,
+   "tailHex": "4a004c006f00ffff7e5b13ff"
+  },
+  {
+   "x": 916,
+   "y": 424,
+   "hiFlag": 0,
+   "tailHex": "4b004d005100ffff5bffafff"
+  },
+  {
+   "x": 918,
+   "y": 373,
+   "hiFlag": 0,
+   "tailHex": "4c00ffff5200c600ff352628"
+  },
+  {
+   "x": 957,
+   "y": 356,
+   "hiFlag": 0,
+   "tailHex": "4f000d01ffffffff6bffffff"
+  },
+  {
+   "x": 957,
+   "y": 382,
+   "hiFlag": 0,
+   "tailHex": "4e0050005900ffff6b34cfff"
+  },
+  {
+   "x": 953,
+   "y": 396,
+   "hiFlag": 0,
+   "tailHex": "4f0051005300ffff344e6bff"
+  },
+  {
+   "x": 933,
+   "y": 392,
+   "hiFlag": 0,
+   "tailHex": "500052004c00ffff4e49afff"
+  },
+  {
+   "x": 929,
+   "y": 373,
+   "hiFlag": 0,
+   "tailHex": "51004d00ffffffff4926ffff"
+  },
+  {
+   "x": 960,
+   "y": 421,
+   "hiFlag": 0,
+   "tailHex": "50005400ffffffff6b53ffff"
+  },
+  {
+   "x": 977,
+   "y": 408,
+   "hiFlag": 0,
+   "tailHex": "5300ffffd700ffff53ff4bff"
+  },
+  {
+   "x": 1022,
+   "y": 394,
+   "hiFlag": 0,
+   "tailHex": "ffff5600d700ffffff9572ff"
+  },
+  {
+   "x": 1035,
+   "y": 364,
+   "hiFlag": 0,
+   "tailHex": "55005700ffffffff9552ffff"
+  },
+  {
+   "x": 1038,
+   "y": 343,
+   "hiFlag": 0,
+   "tailHex": "560058000e01ffff526b92ff"
+  },
+  {
+   "x": 1013,
+   "y": 336,
+   "hiFlag": 0,
+   "tailHex": "570059000a01ffff6baa98ff"
+  },
+  {
+   "x": 994,
+   "y": 366,
+   "hiFlag": 0,
+   "tailHex": "58004f00ffffffffaacfffff"
+  },
+  {
+   "x": 785,
+   "y": 574,
+   "hiFlag": 0,
+   "tailHex": "44005b004500ffff979166ff"
+  },
+  {
+   "x": 805,
+   "y": 599,
+   "hiFlag": 0,
+   "tailHex": "5a005c006400450091475869"
+  },
+  {
+   "x": 806,
+   "y": 618,
+   "hiFlag": 0,
+   "tailHex": "5b0064006d02620047511a48"
+  },
+  {
+   "x": 772,
+   "y": 596,
+   "hiFlag": 0,
+   "tailHex": "ffff5e006000d50075ba7171"
+  },
+  {
+   "x": 758,
+   "y": 561,
+   "hiFlag": 0,
+   "tailHex": "5d002f016000ffffba8549ff"
+  },
+  {
+   "x": 733,
+   "y": 514,
+   "hiFlag": 0,
+   "tailHex": "66022f01ffffffff557197ff"
+  },
+  {
+   "x": 751,
+   "y": 579,
+   "hiFlag": 0,
+   "tailHex": "5d005e00ffff300171493a66"
+  },
+  {
+   "x": 814,
+   "y": 638,
+   "hiFlag": 0,
+   "tailHex": "ffffffff620033015a4e206e"
+  },
+  {
+   "x": 820,
+   "y": 631,
+   "hiFlag": 0,
+   "tailHex": "5c00610063006d024820155c"
+  },
+  {
+   "x": 826,
+   "y": 631,
+   "hiFlag": 0,
+   "tailHex": "64006b006200ffff565d15ff"
+  },
+  {
+   "x": 825,
+   "y": 609,
+   "hiFlag": 0,
+   "tailHex": "630065005b005c0056b95851"
+  },
+  {
+   "x": 859,
+   "y": 593,
+   "hiFlag": 0,
+   "tailHex": "64006600ffffffffb976ffff"
+  },
+  {
+   "x": 881,
+   "y": 576,
+   "hiFlag": 0,
+   "tailHex": "650067006c00ffff763aa5ff"
+  },
+  {
+   "x": 895,
+   "y": 584,
+   "hiFlag": 0,
+   "tailHex": "66006800750079003a629c35"
+  },
+  {
+   "x": 891,
+   "y": 608,
+   "hiFlag": 0,
+   "tailHex": "670069003f01ffff62cfe9ff"
+  },
+  {
+   "x": 881,
+   "y": 647,
+   "hiFlag": 0,
+   "tailHex": "68006a0037013d01cf4d7192"
+  },
+  {
+   "x": 864,
+   "y": 658,
+   "hiFlag": 0,
+   "tailHex": "69006b00ffffffff4d64ffff"
+  },
+  {
+   "x": 841,
+   "y": 649,
+   "hiFlag": 0,
+   "tailHex": "6a006300ffffffff645dffff"
+  },
+  {
+   "x": 895,
+   "y": 544,
+   "hiFlag": 0,
+   "tailHex": "66006d007500ffffa5ff39ff"
+  },
+  {
+   "x": 901,
+   "y": 495,
+   "hiFlag": 0,
+   "tailHex": "6c006e007300ffffff9146ff"
+  },
+  {
+   "x": 901,
+   "y": 463,
+   "hiFlag": 0,
+   "tailHex": "6d006f004a00ffff91412aff"
+  },
+  {
+   "x": 913,
+   "y": 450,
+   "hiFlag": 0,
+   "tailHex": "6e0070004b00ffff415213ff"
+  },
+  {
+   "x": 920,
+   "y": 470,
+   "hiFlag": 0,
+   "tailHex": "6f00ffff7300ffff52483fff"
+  },
+  {
+   "x": 919,
+   "y": 521,
+   "hiFlag": 0,
+   "tailHex": "74007200ffffffff3e48ffff"
+  },
+  {
+   "x": 922,
+   "y": 502,
+   "hiFlag": 0,
+   "tailHex": "71007300ffffffff4838ffff"
+  },
+  {
+   "x": 918,
+   "y": 487,
+   "hiFlag": 0,
+   "tailHex": "720070006d00ffff383f46ff"
+  },
+  {
+   "x": 932,
+   "y": 532,
+   "hiFlag": 0,
+   "tailHex": "7100ffff7700d6003e2a3027"
+  },
+  {
+   "x": 908,
+   "y": 553,
+   "hiFlag": 0,
+   "tailHex": "650167006c007800379c393e"
+  },
+  {
+   "x": 934,
+   "y": 558,
+   "hiFlag": 0,
+   "tailHex": "d600770078007b0040463875"
+  },
+  {
+   "x": 942,
+   "y": 541,
+   "hiFlag": 0,
+   "tailHex": "76007400ffffffff4630ffff"
+  },
+  {
+   "x": 920,
+   "y": 565,
+   "hiFlag": 0,
+   "tailHex": "760079007500ffff383e3eff"
+  },
+  {
+   "x": 908,
+   "y": 577,
+   "hiFlag": 0,
+   "tailHex": "78007a006700ffff3e6135ff"
+  },
+  {
+   "x": 927,
+   "y": 592,
+   "hiFlag": 0,
+   "tailHex": "79007b003f01ffff618156ff"
+  },
+  {
+   "x": 953,
+   "y": 578,
+   "hiFlag": 0,
+   "tailHex": "7a007600ffffffff8175ffff"
+  },
+  {
+   "x": 129,
+   "y": 280,
+   "hiFlag": 0,
+   "tailHex": "ffff07000300970053359589"
+  },
+  {
+   "x": 181,
+   "y": 276,
+   "hiFlag": 0,
+   "tailHex": "1f010700ffffffff36d1ffff"
+  },
+  {
+   "x": 233,
+   "y": 327,
+   "hiFlag": 0,
+   "tailHex": "7f008100ffffffff52a8ffff"
+  },
+  {
+   "x": 212,
+   "y": 330,
+   "hiFlag": 0,
+   "tailHex": "7e00ffff8000ffff52598bff"
+  },
+  {
+   "x": 190,
+   "y": 352,
+   "hiFlag": 0,
+   "tailHex": "7f000c00ffffffff8b53ffff"
+  },
+  {
+   "x": 258,
+   "y": 352,
+   "hiFlag": 0,
+   "tailHex": "7e008800ffffffffa84fba38"
+  },
+  {
+   "x": 385,
+   "y": 406,
+   "hiFlag": 0,
+   "tailHex": "ffffb3008300ffff4f6158ff"
+  },
+  {
+   "x": 363,
+   "y": 410,
+   "hiFlag": 0,
+   "tailHex": "140182000f00b3003f58f55a"
+  },
+  {
+   "x": 364,
+   "y": 487,
+   "hiFlag": 0,
+   "tailHex": "ffff85001601ffff3c625aff"
+  },
+  {
+   "x": 368,
+   "y": 511,
+   "hiFlag": 0,
+   "tailHex": "8400ffff1701ffff62433aff"
+  },
+  {
+   "x": 378,
+   "y": 556,
+   "hiFlag": 0,
+   "tailHex": "ffffbf001801ffff79552cff"
+  },
+  {
+   "x": 339,
+   "y": 384,
+   "hiFlag": 0,
+   "tailHex": "8a000f00b300ffff2c7185ff"
+  },
+  {
+   "x": 242,
+   "y": 365,
+   "hiFlag": 0,
+   "tailHex": "890081008c00b4009d4fdfa0"
+  },
+  {
+   "x": 249,
+   "y": 398,
+   "hiFlag": 0,
+   "tailHex": "88000e00ffffffff9d6cffff"
+  },
+  {
+   "x": 328,
+   "y": 378,
+   "hiFlag": 0,
+   "tailHex": "10008b008700ffff2c4d2cff"
+  },
+  {
+   "x": 310,
+   "y": 387,
+   "hiFlag": 0,
+   "tailHex": "8a000f0017000e004d4070ba"
+  },
+  {
+   "x": 200,
+   "y": 369,
+   "hiFlag": 0,
+   "tailHex": "88000c00ffffffffdf4cffff"
+  },
+  {
+   "x": 299,
+   "y": 81,
+   "hiFlag": 0,
+   "tailHex": "1c019e00ffff9d00d1ffd656"
+  },
+  {
+   "x": 268,
+   "y": 103,
+   "hiFlag": 0,
+   "tailHex": "6002ffff9d00ffff27244143"
+  },
+  {
+   "x": 228,
+   "y": 240,
+   "hiFlag": 0,
+   "tailHex": "91009000ffffffff6836ffff"
+  },
+  {
+   "x": 213,
+   "y": 240,
+   "hiFlag": 0,
+   "tailHex": "8f00ffff91001f01363e6699"
+  },
+  {
+   "x": 220,
+   "y": 216,
+   "hiFlag": 0,
+   "tailHex": "040043008f009000695a6866"
+  },
+  {
+   "x": 274,
+   "y": 236,
+   "hiFlag": 0,
+   "tailHex": "ffff9300b500ffffd747437d"
+  },
+  {
+   "x": 292,
+   "y": 230,
+   "hiFlag": 0,
+   "tailHex": "92009400ffffffff47c8ffff"
+  },
+  {
+   "x": 308,
+   "y": 194,
+   "hiFlag": 0,
+   "tailHex": "9300ffff96001e01c8645642"
+  },
+  {
+   "x": 315,
+   "y": 151,
+   "hiFlag": 0,
+   "tailHex": "ffff1e01ffffffff8289ffff"
+  },
+  {
+   "x": 330,
+   "y": 193,
+   "hiFlag": 0,
+   "tailHex": "9400ffffffffffff56ffffff"
+  },
+  {
+   "x": 144,
+   "y": 253,
+   "hiFlag": 0,
+   "tailHex": "7c00ffffd800ffff89a49dff"
+  },
+  {
+   "x": 118,
+   "y": 207,
+   "hiFlag": 0,
+   "tailHex": "ffff06000300d8005824ff4e"
+  },
+  {
+   "x": 160,
+   "y": 299,
+   "hiFlag": 0,
+   "tailHex": "02009a00ffffffff4734ffff"
+  },
+  {
+   "x": 146,
+   "y": 295,
+   "hiFlag": 0,
+   "tailHex": "990002000700ffff34711fff"
+  },
+  {
+   "x": 418,
+   "y": 336,
+   "hiFlag": 0,
+   "tailHex": "14001300ffffffff6eaeffff"
+  },
+  {
+   "x": 359,
+   "y": 322,
+   "hiFlag": 0,
+   "tailHex": "120014001d01ffff49bda747"
+  },
+  {
+   "x": 285,
+   "y": 98,
+   "hiFlag": 0,
+   "tailHex": "8d008e00ffffffff5641ffff"
+  },
+  {
+   "x": 360,
+   "y": 84,
+   "hiFlag": 0,
+   "tailHex": "8d00a000ffffffffffffffff"
+  },
+  {
+   "x": 430,
+   "y": 139,
+   "hiFlag": 0,
+   "tailHex": "ffffa000ffffffffa684ffff"
+  },
+  {
+   "x": 430,
+   "y": 109,
+   "hiFlag": 0,
+   "tailHex": "9e009f00a100ffffff84aeff"
+  },
+  {
+   "x": 466,
+   "y": 107,
+   "hiFlag": 0,
+   "tailHex": "a000a200ffffa400aeff92ff"
+  },
+  {
+   "x": 531,
+   "y": 103,
+   "hiFlag": 0,
+   "tailHex": "a100ffffa300a800ffb0d11f"
+  },
+  {
+   "x": 492,
+   "y": 92,
+   "hiFlag": 0,
+   "tailHex": "a200a400ffffffffd18dffff"
+  },
+  {
+   "x": 487,
+   "y": 61,
+   "hiFlag": 0,
+   "tailHex": "a300a100a500ffff8dffffff"
+  },
+  {
+   "x": 545,
+   "y": 30,
+   "hiFlag": 0,
+   "tailHex": "a400a600ffffffffffffffff"
+  },
+  {
+   "x": 607,
+   "y": 24,
+   "hiFlag": 0,
+   "tailHex": "a500a700ffffffffff3effff"
+  },
+  {
+   "x": 599,
+   "y": 39,
+   "hiFlag": 0,
+   "tailHex": "a600a900ffffffff3effffff"
+  },
+  {
+   "x": 532,
+   "y": 94,
+   "hiFlag": 0,
+   "tailHex": "a200a900aa00ffff1f7cdfff"
+  },
+  {
+   "x": 525,
+   "y": 66,
+   "hiFlag": 0,
+   "tailHex": "a800a700ffffffff7cffffff"
+  },
+  {
+   "x": 574,
+   "y": 98,
+   "hiFlag": 0,
+   "tailHex": "a800ffff6301ffffdf9f96ff"
+  },
+  {
+   "x": 623,
+   "y": 69,
+   "hiFlag": 0,
+   "tailHex": "ffffac00ae00630172c5307e"
+  },
+  {
+   "x": 622,
+   "y": 108,
+   "hiFlag": 0,
+   "tailHex": "ab00ffffad001a01c5434f5a"
+  },
+  {
+   "x": 642,
+   "y": 103,
+   "hiFlag": 0,
+   "tailHex": "ac00ffffffffffff4fffffff"
+  },
+  {
+   "x": 636,
+   "y": 73,
+   "hiFlag": 0,
+   "tailHex": "ab00af00ffffffff3061ffff"
+  },
+  {
+   "x": 660,
+   "y": 71,
+   "hiFlag": 0,
+   "tailHex": "ae00b000b100ffff613334ff"
+  },
+  {
+   "x": 671,
+   "y": 80,
+   "hiFlag": 0,
+   "tailHex": "af00ffffffffffff3361ffff"
+  },
+  {
+   "x": 664,
+   "y": 57,
+   "hiFlag": 0,
+   "tailHex": "b200af00ffffffffff34ffff"
+  },
+  {
+   "x": 714,
+   "y": 37,
+   "hiFlag": 0,
+   "tailHex": "b100d900ffffffffff58ffff"
+  },
+  {
+   "x": 369,
+   "y": 388,
+   "hiFlag": 0,
+   "tailHex": "820087008300ffff61855aff"
+  },
+  {
+   "x": 271,
+   "y": 383,
+   "hiFlag": 0,
+   "tailHex": "0d000e008800ffff2845a0ff"
+  },
+  {
+   "x": 256,
+   "y": 236,
+   "hiFlag": 0,
+   "tailHex": "ffff92004300ffff154381ff"
+  },
+  {
+   "x": 589,
+   "y": 156,
+   "hiFlag": 0,
+   "tailHex": "ffff1a01b700ffff43b8a6ff"
+  },
+  {
+   "x": 590,
+   "y": 191,
+   "hiFlag": 0,
+   "tailHex": "b600ffffffffffffa6ffffff"
+  },
+  {
+   "x": 115,
+   "y": 357,
+   "hiFlag": 0,
+   "tailHex": "0000ffff6a02ffff1c1c36ff"
+  },
+  {
+   "x": 395,
+   "y": 454,
+   "hiFlag": 0,
+   "tailHex": "ffffba006302ffff56736eff"
+  },
+  {
+   "x": 408,
+   "y": 478,
+   "hiFlag": 0,
+   "tailHex": "b900ffff2001ffff73284bff"
+  },
+  {
+   "x": 542,
+   "y": 472,
+   "hiFlag": 0,
+   "tailHex": "330034003500ffff363e5aff"
+  },
+  {
+   "x": 472,
+   "y": 423,
+   "hiFlag": 0,
+   "tailHex": "ffffbd00be00240117526683"
+  },
+  {
+   "x": 469,
+   "y": 402,
+   "hiFlag": 0,
+   "tailHex": "bc002201ffffffff5237ffff"
+  },
+  {
+   "x": 460,
+   "y": 401,
+   "hiFlag": 0,
+   "tailHex": "bc002301ffffffff662dffff"
+  },
+  {
+   "x": 372,
+   "y": 577,
+   "hiFlag": 0,
+   "tailHex": "8600c000ffffffff556dffff"
+  },
+  {
+   "x": 380,
+   "y": 602,
+   "hiFlag": 0,
+   "tailHex": "bf00c100ffffffff6d6bffff"
+  },
+  {
+   "x": 373,
+   "y": 627,
+   "hiFlag": 0,
+   "tailHex": "c000c200ffffffff6b3bffff"
+  },
+  {
+   "x": 384,
+   "y": 639,
+   "hiFlag": 0,
+   "tailHex": "c100ffffffffffff3bffffff"
+  },
+  {
+   "x": 864,
+   "y": 388,
+   "hiFlag": 0,
+   "tailHex": "c4005202ffffffff2374ffff"
+  },
+  {
+   "x": 874,
+   "y": 386,
+   "hiFlag": 0,
+   "tailHex": "c300c500ffffffff2377ffff"
+  },
+  {
+   "x": 890,
+   "y": 363,
+   "hiFlag": 0,
+   "tailHex": "c400c600ffffffff7751ffff"
+  },
+  {
+   "x": 911,
+   "y": 364,
+   "hiFlag": 0,
+   "tailHex": "c5004d00c700ffff51282eff"
+  },
+  {
+   "x": 909,
+   "y": 351,
+   "hiFlag": 0,
+   "tailHex": "c600ffffffffffff2effffff"
+  },
+  {
+   "x": 457,
+   "y": 725,
+   "hiFlag": 0,
+   "tailHex": "c900cf00ffffffff6437ffff"
+  },
+  {
+   "x": 436,
+   "y": 738,
+   "hiFlag": 0,
+   "tailHex": "c800ffffce00280064364332"
+  },
+  {
+   "x": 435,
+   "y": 794,
+   "hiFlag": 0,
+   "tailHex": "cb00ffffce00ffffb679bdff"
+  },
+  {
+   "x": 472,
+   "y": 790,
+   "hiFlag": 0,
+   "tailHex": "6202ffffca00ffff4fa9b6ff"
+  },
+  {
+   "x": 482,
+   "y": 756,
+   "hiFlag": 0,
+   "tailHex": "ffffcd006202ffffa9743aff"
+  },
+  {
+   "x": 487,
+   "y": 729,
+   "hiFlag": 0,
+   "tailHex": "cc00d000ffffffff745effff"
+  },
+  {
+   "x": 435,
+   "y": 756,
+   "hiFlag": 0,
+   "tailHex": "c900ca00ffffffff43bdffff"
+  },
+  {
+   "x": 465,
+   "y": 712,
+   "hiFlag": 0,
+   "tailHex": "c800d000ffffffff3743ffff"
+  },
+  {
+   "x": 482,
+   "y": 706,
+   "hiFlag": 0,
+   "tailHex": "cf00cd00ffffffff435effff"
+  },
+  {
+   "x": 581,
+   "y": 473,
+   "hiFlag": 0,
+   "tailHex": "3500d200ffffffff4f2fffff"
+  },
+  {
+   "x": 587,
+   "y": 485,
+   "hiFlag": 0,
+   "tailHex": "d1003600ffffffff2f33ffff"
+  },
+  {
+   "x": 630,
+   "y": 564,
+   "hiFlag": 0,
+   "tailHex": "39003a00ffffffff5f42ffff"
+  },
+  {
+   "x": 714,
+   "y": 484,
+   "hiFlag": 0,
+   "tailHex": "ffffffff27016602441cff39"
+  },
+  {
+   "x": 790,
+   "y": 616,
+   "hiFlag": 0,
+   "tailHex": "ffff5d00ffff6d022b713a23"
+  },
+  {
+   "x": 927,
+   "y": 542,
+   "hiFlag": 0,
+   "tailHex": "ffff7400760065013127402f"
+  },
+  {
+   "x": 996,
+   "y": 402,
+   "hiFlag": 0,
+   "tailHex": "54005500ffffffff4b72ffff"
+  },
+  {
+   "x": 133,
+   "y": 221,
+   "hiFlag": 0,
+   "tailHex": "97009800ffffffff9d4effff"
+  },
+  {
+   "x": 736,
+   "y": 33,
+   "hiFlag": 0,
+   "tailHex": "b200da00ffffffff586bffff"
+  },
+  {
+   "x": 759,
+   "y": 21,
+   "hiFlag": 0,
+   "tailHex": "d900db00ffffffff6b51ffff"
+  },
+  {
+   "x": 780,
+   "y": 21,
+   "hiFlag": 0,
+   "tailHex": "da00dc00ffffffff519bffff"
+  },
+  {
+   "x": 812,
+   "y": 11,
+   "hiFlag": 0,
+   "tailHex": "db00dd00ffffffff9bffffff"
+  },
+  {
+   "x": 872,
+   "y": 37,
+   "hiFlag": 0,
+   "tailHex": "dc00de00df00ffffff6dffff"
+  },
+  {
+   "x": 852,
+   "y": 54,
+   "hiFlag": 0,
+   "tailHex": "dd00ffffffffffff6dffffff"
+  },
+  {
+   "x": 914,
+   "y": 58,
+   "hiFlag": 0,
+   "tailHex": "dd00e000ffffffffff73ffff"
+  },
+  {
+   "x": 939,
+   "y": 47,
+   "hiFlag": 0,
+   "tailHex": "df00e100ffffffff739bffff"
+  },
+  {
+   "x": 971,
+   "y": 57,
+   "hiFlag": 0,
+   "tailHex": "e000e200ed00ffff9b5effff"
+  },
+  {
+   "x": 957,
+   "y": 76,
+   "hiFlag": 0,
+   "tailHex": "e100e300ffffffff5e7affff"
+  },
+  {
+   "x": 952,
+   "y": 104,
+   "hiFlag": 0,
+   "tailHex": "e200e400ffffffff7abaffff"
+  },
+  {
+   "x": 932,
+   "y": 136,
+   "hiFlag": 0,
+   "tailHex": "e300e500ffffffffba5bffff"
+  },
+  {
+   "x": 934,
+   "y": 159,
+   "hiFlag": 0,
+   "tailHex": "e400e600ffffffff5b5fffff"
+  },
+  {
+   "x": 943,
+   "y": 181,
+   "hiFlag": 0,
+   "tailHex": "e500ffffffffffff5fffffff"
+  },
+  {
+   "x": 1038,
+   "y": 46,
+   "hiFlag": 0,
+   "tailHex": "ffffe800ec00ffff535822ff"
+  },
+  {
+   "x": 1058,
+   "y": 36,
+   "hiFlag": 0,
+   "tailHex": "e700e900ef00ffff5855a9ff"
+  },
+  {
+   "x": 1038,
+   "y": 27,
+   "hiFlag": 0,
+   "tailHex": "e800ea00ffffffff5566ffff"
+  },
+  {
+   "x": 1013,
+   "y": 29,
+   "hiFlag": 0,
+   "tailHex": "e900eb00ffffffff6656ffff"
+  },
+  {
+   "x": 1006,
+   "y": 50,
+   "hiFlag": 0,
+   "tailHex": "ea00ec00ffffffff565bffff"
+  },
+  {
+   "x": 1029,
+   "y": 50,
+   "hiFlag": 0,
+   "tailHex": "eb00e700ed00ee005b223677"
+  },
+  {
+   "x": 1027,
+   "y": 65,
+   "hiFlag": 0,
+   "tailHex": "ec00e100ee00ffff36ff66ff"
+  },
+  {
+   "x": 1052,
+   "y": 66,
+   "hiFlag": 0,
+   "tailHex": "ed00ec00ffff64016677b7b6"
+  },
+  {
+   "x": 1091,
+   "y": 49,
+   "hiFlag": 0,
+   "tailHex": "e800ffffffffffffa9ffffff"
+  },
+  {
+   "x": 1134,
+   "y": 82,
+   "hiFlag": 0,
+   "tailHex": "fffff1006401ffffffffffff"
+  },
+  {
+   "x": 1179,
+   "y": 96,
+   "hiFlag": 0,
+   "tailHex": "f000f200ffffffffffdeffff"
+  },
+  {
+   "x": 1221,
+   "y": 95,
+   "hiFlag": 0,
+   "tailHex": "f100f300ffffffffdea4ffff"
+  },
+  {
+   "x": 1255,
+   "y": 102,
+   "hiFlag": 0,
+   "tailHex": "f200f400ffffffffa4ffffff"
+  },
+  {
+   "x": 1311,
+   "y": 126,
+   "hiFlag": 0,
+   "tailHex": "f300f500ffffffffff59ffff"
+  },
+  {
+   "x": 1327,
+   "y": 142,
+   "hiFlag": 0,
+   "tailHex": "f400f60001020202594caf9c"
+  },
+  {
+   "x": 1311,
+   "y": 154,
+   "hiFlag": 0,
+   "tailHex": "f500f700f800ffff4c5d51ff"
+  },
+  {
+   "x": 1293,
+   "y": 169,
+   "hiFlag": 0,
+   "tailHex": "f600f800f900ffff5d73a6ff"
+  },
+  {
+   "x": 1320,
+   "y": 173,
+   "hiFlag": 0,
+   "tailHex": "f600f7000002ffff517353ff"
+  },
+  {
+   "x": 1265,
+   "y": 148,
+   "hiFlag": 0,
+   "tailHex": "f700fa00ffffffffa680ffff"
+  },
+  {
+   "x": 1256,
+   "y": 176,
+   "hiFlag": 0,
+   "tailHex": "f900fb00ffffffff8096ffff"
+  },
+  {
+   "x": 1224,
+   "y": 183,
+   "hiFlag": 0,
+   "tailHex": "fa00fc00ffffffff9669ffff"
+  },
+  {
+   "x": 1200,
+   "y": 192,
+   "hiFlag": 0,
+   "tailHex": "fb00fd00ffffffff6983ffff"
+  },
+  {
+   "x": 1171,
+   "y": 199,
+   "hiFlag": 0,
+   "tailHex": "fc00fe00ffffffff838effff"
+  },
+  {
+   "x": 1161,
+   "y": 229,
+   "hiFlag": 0,
+   "tailHex": "fd00ff00ffffffff8e5bffff"
+  },
+  {
+   "x": 1142,
+   "y": 242,
+   "hiFlag": 0,
+   "tailHex": "fe000001ffffffff5b6cffff"
+  },
+  {
+   "x": 1128,
+   "y": 264,
+   "hiFlag": 0,
+   "tailHex": "ff000101ffffffff6c69ffff"
+  },
+  {
+   "x": 1111,
+   "y": 245,
+   "hiFlag": 0,
+   "tailHex": "0001ffff0201ffff697da0ff"
+  },
+  {
+   "x": 1107,
+   "y": 211,
+   "hiFlag": 0,
+   "tailHex": "03010101ffffffffcea0ffff"
+  },
+  {
+   "x": 1067,
+   "y": 207,
+   "hiFlag": 0,
+   "tailHex": "02010401ffffffffcec0ffff"
+  },
+  {
+   "x": 1029,
+   "y": 213,
+   "hiFlag": 0,
+   "tailHex": "03010501ffffffffc06fffff"
+  },
+  {
+   "x": 1014,
+   "y": 235,
+   "hiFlag": 0,
+   "tailHex": "04010601ffffffff6f3affff"
+  },
+  {
+   "x": 1028,
+   "y": 243,
+   "hiFlag": 0,
+   "tailHex": "050107010b01ffff3a4391ff"
+  },
+  {
+   "x": 1046,
+   "y": 243,
+   "hiFlag": 0,
+   "tailHex": "06010801ffffffff43beffff"
+  },
+  {
+   "x": 1049,
+   "y": 281,
+   "hiFlag": 0,
+   "tailHex": "07010901ffffffffbe72ffff"
+  },
+  {
+   "x": 1041,
+   "y": 307,
+   "hiFlag": 0,
+   "tailHex": "08010a010e01ffff722a7bff"
+  },
+  {
+   "x": 1029,
+   "y": 307,
+   "hiFlag": 0,
+   "tailHex": "09010b015800ffff2a9198ff"
+  },
+  {
+   "x": 1028,
+   "y": 275,
+   "hiFlag": 0,
+   "tailHex": "0a0106010c01ffff91916bff"
+  },
+  {
+   "x": 1016,
+   "y": 298,
+   "hiFlag": 0,
+   "tailHex": "0b010d01ffffffff6baeffff"
+  },
+  {
+   "x": 992,
+   "y": 325,
+   "hiFlag": 0,
+   "tailHex": "0c014e00ffffffffaeffffff"
+  },
+  {
+   "x": 1064,
+   "y": 324,
+   "hiFlag": 0,
+   "tailHex": "57000901ffffffff927bffff"
+  },
+  {
+   "x": 219,
+   "y": 585,
+   "hiFlag": 0,
+   "tailHex": "ffff10015b02ffff48573bff"
+  },
+  {
+   "x": 206,
+   "y": 567,
+   "hiFlag": 0,
+   "tailHex": "0f011101ffffffff5756ffff"
+  },
+  {
+   "x": 192,
+   "y": 550,
+   "hiFlag": 0,
+   "tailHex": "1001ffff5d02ffff56b07eff"
+  },
+  {
+   "x": 273,
+   "y": 660,
+   "hiFlag": 0,
+   "tailHex": "20001301ffffffff75b5ffff"
+  },
+  {
+   "x": 302,
+   "y": 637,
+   "hiFlag": 0,
+   "tailHex": "1201ffffffffffffb5ffffff"
+  },
+  {
+   "x": 366,
+   "y": 427,
+   "hiFlag": 0,
+   "tailHex": "83001501ffffffff3f36ffff"
+  },
+  {
+   "x": 366,
+   "y": 442,
+   "hiFlag": 0,
+   "tailHex": "14011601ffffffff3666ffff"
+  },
+  {
+   "x": 373,
+   "y": 466,
+   "hiFlag": 0,
+   "tailHex": "15018400ffffffff665affff"
+  },
+  {
+   "x": 374,
+   "y": 526,
+   "hiFlag": 0,
+   "tailHex": "850018011901ffff3a434eff"
+  },
+  {
+   "x": 374,
+   "y": 544,
+   "hiFlag": 0,
+   "tailHex": "17018600ffffffff432cffff"
+  },
+  {
+   "x": 388,
+   "y": 541,
+   "hiFlag": 0,
+   "tailHex": "1701ffffffffffff4effffff"
+  },
+  {
+   "x": 616,
+   "y": 130,
+   "hiFlag": 0,
+   "tailHex": "ac00b600ffffffff5ab8ffff"
+  },
+  {
+   "x": 283,
+   "y": 12,
+   "hiFlag": 0,
+   "tailHex": "ffff1c01ffffffff8586ffff"
+  },
+  {
+   "x": 288,
+   "y": 42,
+   "hiFlag": 0,
+   "tailHex": "8d001b01ffffffffd186ffff"
+  },
+  {
+   "x": 324,
+   "y": 325,
+   "hiFlag": 0,
+   "tailHex": "9c00ffffffffffffa7ffffff"
+  },
+  {
+   "x": 300,
+   "y": 178,
+   "hiFlag": 0,
+   "tailHex": "95009400ffffffff8942ffff"
+  },
+  {
+   "x": 190,
+   "y": 264,
+   "hiFlag": 0,
+   "tailHex": "90007d006502ffff993658ff"
+  },
+  {
+   "x": 416,
+   "y": 496,
+   "hiFlag": 0,
+   "tailHex": "ba002101ffffffff4b48ffff"
+  },
+  {
+   "x": 425,
+   "y": 513,
+   "hiFlag": 0,
+   "tailHex": "20012f00ffffffff48b9ffff"
+  },
+  {
+   "x": 466,
+   "y": 387,
+   "hiFlag": 0,
+   "tailHex": "bd00ffffffffffff37ffffff"
+  },
+  {
+   "x": 450,
+   "y": 393,
+   "hiFlag": 0,
+   "tailHex": "be00ffffffffffff2dffffff"
+  },
+  {
+   "x": 491,
+   "y": 446,
+   "hiFlag": 0,
+   "tailHex": "bc006c02ffffffff83756fff"
+  },
+  {
+   "x": 668,
+   "y": 586,
+   "hiFlag": 0,
+   "tailHex": "3a002601ffffffff6e69ffff"
+  },
+  {
+   "x": 677,
+   "y": 562,
+   "hiFlag": 0,
+   "tailHex": "25013b00ffffffff6966ffff"
+  },
+  {
+   "x": 676,
+   "y": 515,
+   "hiFlag": 0,
+   "tailHex": "3b00d400ffffffff86ffffff"
+  },
+  {
+   "x": 253,
+   "y": 780,
+   "hiFlag": 0,
+   "tailHex": "2400ffff5c02ffff997e83ff"
+  },
+  {
+   "x": 274,
+   "y": 828,
+   "hiFlag": 0,
+   "tailHex": "ffff2a015c02ffff5c675eff"
+  },
+  {
+   "x": 277,
+   "y": 853,
+   "hiFlag": 0,
+   "tailHex": "29012b01ffffffff678cffff"
+  },
+  {
+   "x": 301,
+   "y": 873,
+   "hiFlag": 0,
+   "tailHex": "2a012c012d02ffff8c7effff"
+  },
+  {
+   "x": 328,
+   "y": 862,
+   "hiFlag": 0,
+   "tailHex": "2b012d01ffffffff7e61ffff"
+  },
+  {
+   "x": 350,
+   "y": 852,
+   "hiFlag": 0,
+   "tailHex": "2c012e01ffffffff6190ffff"
+  },
+  {
+   "x": 371,
+   "y": 828,
+   "hiFlag": 0,
+   "tailHex": "2d012500ffffffff9068ffff"
+  },
+  {
+   "x": 754,
+   "y": 531,
+   "hiFlag": 0,
+   "tailHex": "5f005e00ffffffff7185ffff"
+  },
+  {
+   "x": 741,
+   "y": 602,
+   "hiFlag": 0,
+   "tailHex": "60003101ffffffff669effff"
+  },
+  {
+   "x": 766,
+   "y": 625,
+   "hiFlag": 0,
+   "tailHex": "30013201ffffffff9ea7ffff"
+  },
+  {
+   "x": 786,
+   "y": 654,
+   "hiFlag": 0,
+   "tailHex": "31013301ffffffffa766ffff"
+  },
+  {
+   "x": 809,
+   "y": 664,
+   "hiFlag": 0,
+   "tailHex": "320134016100350166766e6b"
+  },
+  {
+   "x": 831,
+   "y": 681,
+   "hiFlag": 0,
+   "tailHex": "33013c01ffffffff769effff"
+  },
+  {
+   "x": 835,
+   "y": 665,
+   "hiFlag": 0,
+   "tailHex": "33013601ffffffff6b5bffff"
+  },
+  {
+   "x": 858,
+   "y": 664,
+   "hiFlag": 0,
+   "tailHex": "35013701ffffffff5b8cffff"
+  },
+  {
+   "x": 888,
+   "y": 673,
+   "hiFlag": 0,
+   "tailHex": "3601380169003d018cde714d"
+  },
+  {
+   "x": 930,
+   "y": 674,
+   "hiFlag": 0,
+   "tailHex": "37013901ffffffffde1cffff"
+  },
+  {
+   "x": 932,
+   "y": 682,
+   "hiFlag": 0,
+   "tailHex": "3a0138013b01ffffef1c35ff"
+  },
+  {
+   "x": 888,
+   "y": 684,
+   "hiFlag": 0,
+   "tailHex": "39013b013c01ffffefff63ff"
+  },
+  {
+   "x": 937,
+   "y": 696,
+   "hiFlag": 0,
+   "tailHex": "39013a014e01ffff35ff41ff"
+  },
+  {
+   "x": 864,
+   "y": 689,
+   "hiFlag": 0,
+   "tailHex": "3a013401ffffffff639effff"
+  },
+  {
+   "x": 907,
+   "y": 666,
+   "hiFlag": 0,
+   "tailHex": "3e013701690068025c4d9246"
+  },
+  {
+   "x": 917,
+   "y": 645,
+   "hiFlag": 0,
+   "tailHex": "3d013f01400168025cafb635"
+  },
+  {
+   "x": 934,
+   "y": 613,
+   "hiFlag": 0,
+   "tailHex": "3e01400168007a00af61e956"
+  },
+  {
+   "x": 951,
+   "y": 630,
+   "hiFlag": 0,
+   "tailHex": "3f013e0141014b0161b6de59"
+  },
+  {
+   "x": 993,
+   "y": 627,
+   "hiFlag": 0,
+   "tailHex": "40014201ffffffffdeffffff"
+  },
+  {
+   "x": 1042,
+   "y": 646,
+   "hiFlag": 0,
+   "tailHex": "41014301ffffffffff3cffff"
+  },
+  {
+   "x": 1057,
+   "y": 653,
+   "hiFlag": 0,
+   "tailHex": "420144014501ffff3cbf9cff"
+  },
+  {
+   "x": 1093,
+   "y": 640,
+   "hiFlag": 0,
+   "tailHex": "4301ffffffffffffbfffffff"
+  },
+  {
+   "x": 1070,
+   "y": 684,
+   "hiFlag": 0,
+   "tailHex": "43014601ffffffff9c4fffff"
+  },
+  {
+   "x": 1054,
+   "y": 697,
+   "hiFlag": 0,
+   "tailHex": "45014701ffffffff4f52ffff"
+  },
+  {
+   "x": 1040,
+   "y": 681,
+   "hiFlag": 0,
+   "tailHex": "46014801ffffffff5253ffff"
+  },
+  {
+   "x": 1021,
+   "y": 691,
+   "hiFlag": 0,
+   "tailHex": "470149014c014f015384655d"
+  },
+  {
+   "x": 995,
+   "y": 676,
+   "hiFlag": 0,
+   "tailHex": "48014a014d01ffff84827eff"
+  },
+  {
+   "x": 974,
+   "y": 655,
+   "hiFlag": 0,
+   "tailHex": "49014b01ffffffff8244ffff"
+  },
+  {
+   "x": 956,
+   "y": 652,
+   "hiFlag": 0,
+   "tailHex": "4a0140016802ffff445994ff"
+  },
+  {
+   "x": 1002,
+   "y": 707,
+   "hiFlag": 0,
+   "tailHex": "48014d01ffff62016595234c"
+  },
+  {
+   "x": 972,
+   "y": 694,
+   "hiFlag": 0,
+   "tailHex": "4c014e014901ffff95747eff"
+  },
+  {
+   "x": 949,
+   "y": 709,
+   "hiFlag": 0,
+   "tailHex": "4d013b01ffff610174412f47"
+  },
+  {
+   "x": 1037,
+   "y": 708,
+   "hiFlag": 0,
+   "tailHex": "4801ffff5001ffff5d524bff"
+  },
+  {
+   "x": 1045,
+   "y": 726,
+   "hiFlag": 0,
+   "tailHex": "4f015101ffffffff4b73ffff"
+  },
+  {
+   "x": 1058,
+   "y": 750,
+   "hiFlag": 0,
+   "tailHex": "50015201ffffffff73bbffff"
+  },
+  {
+   "x": 1081,
+   "y": 780,
+   "hiFlag": 0,
+   "tailHex": "51015301ffffffffbb7cffff"
+  },
+  {
+   "x": 1088,
+   "y": 808,
+   "hiFlag": 0,
+   "tailHex": "5201ffff6702ffff7ce24cff"
+  },
+  {
+   "x": 1081,
+   "y": 850,
+   "hiFlag": 0,
+   "tailHex": "ffff55016702ffffe2d25bff"
+  },
+  {
+   "x": 1062,
+   "y": 886,
+   "hiFlag": 0,
+   "tailHex": "540156010b021302d27cffff"
+  },
+  {
+   "x": 1034,
+   "y": 893,
+   "hiFlag": 0,
+   "tailHex": "550157011302ffff7c78bbff"
+  },
+  {
+   "x": 1006,
+   "y": 891,
+   "hiFlag": 0,
+   "tailHex": "5601ffff5801ffff787b75ff"
+  },
+  {
+   "x": 985,
+   "y": 873,
+   "hiFlag": 0,
+   "tailHex": "57015901ffffffff75aeffff"
+  },
+  {
+   "x": 958,
+   "y": 849,
+   "hiFlag": 0,
+   "tailHex": "58015a01ffffffffaeffffff"
+  },
+  {
+   "x": 907,
+   "y": 860,
+   "hiFlag": 0,
+   "tailHex": "59015b01ffffffffff9effff"
+  },
+  {
+   "x": 874,
+   "y": 868,
+   "hiFlag": 0,
+   "tailHex": "5a015c01ffffffff9e76ffff"
+  },
+  {
+   "x": 860,
+   "y": 844,
+   "hiFlag": 0,
+   "tailHex": "5b015d01ffffffff7699ffff"
+  },
+  {
+   "x": 851,
+   "y": 812,
+   "hiFlag": 0,
+   "tailHex": "5c015e01ffffffff996cffff"
+  },
+  {
+   "x": 849,
+   "y": 786,
+   "hiFlag": 0,
+   "tailHex": "5d015f01ffffffff6cefffff"
+  },
+  {
+   "x": 877,
+   "y": 752,
+   "hiFlag": 0,
+   "tailHex": "5e01ffff6001ffffefb9acff"
+  },
+  {
+   "x": 908,
+   "y": 734,
+   "hiFlag": 0,
+   "tailHex": "5f01ffff6101ffffacff94ff"
+  },
+  {
+   "x": 930,
+   "y": 710,
+   "hiFlag": 0,
+   "tailHex": "60014e01ffffffff9447ffff"
+  },
+  {
+   "x": 1004,
+   "y": 727,
+   "hiFlag": 0,
+   "tailHex": "ffff4c01ffffffff4f4cffff"
+  },
+  {
+   "x": 594,
+   "y": 72,
+   "hiFlag": 0,
+   "tailHex": "aa00ab00ffffffff967effff"
+  },
+  {
+   "x": 1089,
+   "y": 69,
+   "hiFlag": 0,
+   "tailHex": "ee00f000ffffffffb6ffffff"
+  },
+  {
+   "x": 914,
+   "y": 539,
+   "hiFlag": 0,
+   "tailHex": "d6007500ffffffff2f37ffff"
+  },
+  {
+   "x": 2058,
+   "y": 242,
+   "hiFlag": 0,
+   "tailHex": "3e006701ffffffffffdeffff"
+  },
+  {
+   "x": 2020,
+   "y": 224,
+   "hiFlag": 0,
+   "tailHex": "66016801ffffffffde70ffff"
+  },
+  {
+   "x": 2008,
+   "y": 200,
+   "hiFlag": 0,
+   "tailHex": "67016901ffffffff708dffff"
+  },
+  {
+   "x": 1996,
+   "y": 171,
+   "hiFlag": 0,
+   "tailHex": "68016a01ffffffff8de1ffff"
+  },
+  {
+   "x": 1990,
+   "y": 129,
+   "hiFlag": 0,
+   "tailHex": "69016b01ffffffffe1daffff"
+  },
+  {
+   "x": 1971,
+   "y": 92,
+   "hiFlag": 0,
+   "tailHex": "6a016c01ffffffffdad0ffff"
+  },
+  {
+   "x": 1931,
+   "y": 86,
+   "hiFlag": 0,
+   "tailHex": "6b016d01ffffffffd0c4ffff"
+  },
+  {
+   "x": 1905,
+   "y": 57,
+   "hiFlag": 0,
+   "tailHex": "6c016e01ffffffffc46bffff"
+  },
+  {
+   "x": 1893,
+   "y": 34,
+   "hiFlag": 0,
+   "tailHex": "6d016f017001ffff6b35ffff"
+  },
+  {
+   "x": 1906,
+   "y": 27,
+   "hiFlag": 0,
+   "tailHex": "6e01ffffffffffff35ffffff"
+  },
+  {
+   "x": 1858,
+   "y": 66,
+   "hiFlag": 0,
+   "tailHex": "6e0171017501ffffff8dffff"
+  },
+  {
+   "x": 1842,
+   "y": 93,
+   "hiFlag": 0,
+   "tailHex": "700172019901ffff8dff72ff"
+  },
+  {
+   "x": 1794,
+   "y": 93,
+   "hiFlag": 0,
+   "tailHex": "710173018401ffffffc1a0ff"
+  },
+  {
+   "x": 1771,
+   "y": 62,
+   "hiFlag": 0,
+   "tailHex": "7201740177017801c18799c0"
+  },
+  {
+   "x": 1790,
+   "y": 38,
+   "hiFlag": 0,
+   "tailHex": "730175017601ffff879fa1ff"
+  },
+  {
+   "x": 1812,
+   "y": 64,
+   "hiFlag": 0,
+   "tailHex": "74017001ffffffff9fffffff"
+  },
+  {
+   "x": 1770,
+   "y": 10,
+   "hiFlag": 0,
+   "tailHex": "7401ffffffffffffa1ffffff"
+  },
+  {
+   "x": 1747,
+   "y": 85,
+   "hiFlag": 0,
+   "tailHex": "730181018301ffff999b64ff"
+  },
+  {
+   "x": 1737,
+   "y": 44,
+   "hiFlag": 0,
+   "tailHex": "73017901ffffffffc0ffffff"
+  },
+  {
+   "x": 1688,
+   "y": 54,
+   "hiFlag": 0,
+   "tailHex": "78017a017f01ffffff6052ff"
+  },
+  {
+   "x": 1664,
+   "y": 53,
+   "hiFlag": 0,
+   "tailHex": "79017b01ffffffff60baffff"
+  },
+  {
+   "x": 1627,
+   "y": 46,
+   "hiFlag": 0,
+   "tailHex": "7a017c017d01ffffbaa24bff"
+  },
+  {
+   "x": 1593,
+   "y": 52,
+   "hiFlag": 0,
+   "tailHex": "7b0198017d01ffffa26189ff"
+  },
+  {
+   "x": 1621,
+   "y": 65,
+   "hiFlag": 0,
+   "tailHex": "7b017e017c01ffff4b8789ff"
+  },
+  {
+   "x": 1647,
+   "y": 81,
+   "hiFlag": 0,
+   "tailHex": "7d017f019601ffff87ffeaff"
+  },
+  {
+   "x": 1695,
+   "y": 74,
+   "hiFlag": 0,
+   "tailHex": "7e01800179018101ff8f524a"
+  },
+  {
+   "x": 1708,
+   "y": 103,
+   "hiFlag": 0,
+   "tailHex": "7f0181018201ffff8f6490ff"
+  },
+  {
+   "x": 1714,
+   "y": 79,
+   "hiFlag": 0,
+   "tailHex": "77017f018001ffff9b4a64ff"
+  },
+  {
+   "x": 1731,
+   "y": 125,
+   "hiFlag": 0,
+   "tailHex": "800183010902930190856682"
+  },
+  {
+   "x": 1756,
+   "y": 108,
+   "hiFlag": 0,
+   "tailHex": "82017701ffffffff8564ffff"
+  },
+  {
+   "x": 1765,
+   "y": 111,
+   "hiFlag": 0,
+   "tailHex": "72018501ffffffffa06cffff"
+  },
+  {
+   "x": 1784,
+   "y": 129,
+   "hiFlag": 0,
+   "tailHex": "84018601ffffffff6caaffff"
+  },
+  {
+   "x": 1819,
+   "y": 135,
+   "hiFlag": 0,
+   "tailHex": "85018701ffffffffaa79ffff"
+  },
+  {
+   "x": 1845,
+   "y": 146,
+   "hiFlag": 0,
+   "tailHex": "86018a018801ffff799977ff"
+  },
+  {
+   "x": 1861,
+   "y": 169,
+   "hiFlag": 0,
+   "tailHex": "870189018a01ffff77717eff"
+  },
+  {
+   "x": 1861,
+   "y": 196,
+   "hiFlag": 0,
+   "tailHex": "88018a018b019f01719d89d7"
+  },
+  {
+   "x": 1833,
+   "y": 177,
+   "hiFlag": 0,
+   "tailHex": "8801870189018d017e999d78"
+  },
+  {
+   "x": 1843,
+   "y": 221,
+   "hiFlag": 0,
+   "tailHex": "89018c019201ffff89af81ff"
+  },
+  {
+   "x": 1810,
+   "y": 206,
+   "hiFlag": 0,
+   "tailHex": "8b018d01ffffffffaf6effff"
+  },
+  {
+   "x": 1805,
+   "y": 180,
+   "hiFlag": 0,
+   "tailHex": "8c018a01ffff8e016e78ffff"
+  },
+  {
+   "x": 1760,
+   "y": 218,
+   "hiFlag": 0,
+   "tailHex": "8d018f01ffffffffffffffff"
+  },
+  {
+   "x": 1791,
+   "y": 253,
+   "hiFlag": 0,
+   "tailHex": "8e019001ffffffffffd3ffff"
+  },
+  {
+   "x": 1831,
+   "y": 261,
+   "hiFlag": 0,
+   "tailHex": "8f0191019201ffffd36273ff"
+  },
+  {
+   "x": 1835,
+   "y": 285,
+   "hiFlag": 0,
+   "tailHex": "9001ffffffffffff62ffffff"
+  },
+  {
+   "x": 1855,
+   "y": 248,
+   "hiFlag": 0,
+   "tailHex": "90018b01ffffffff7381ffff"
+  },
+  {
+   "x": 1706,
+   "y": 141,
+   "hiFlag": 0,
+   "tailHex": "82019401ffffffff8269ffff"
+  },
+  {
+   "x": 1681,
+   "y": 136,
+   "hiFlag": 0,
+   "tailHex": "93019501ffffffff69c7ffff"
+  },
+  {
+   "x": 1642,
+   "y": 141,
+   "hiFlag": 0,
+   "tailHex": "94019601ffffffffc79fffff"
+  },
+  {
+   "x": 1620,
+   "y": 115,
+   "hiFlag": 0,
+   "tailHex": "950197017e01ffff9fd2eaff"
+  },
+  {
+   "x": 1580,
+   "y": 108,
+   "hiFlag": 0,
+   "tailHex": "960198010802ffffd2a691ff"
+  },
+  {
+   "x": 1581,
+   "y": 73,
+   "hiFlag": 0,
+   "tailHex": "97017c01ffffffffa661ffff"
+  },
+  {
+   "x": 1869,
+   "y": 91,
+   "hiFlag": 0,
+   "tailHex": "71019a01ffffffff7287ffff"
+  },
+  {
+   "x": 1892,
+   "y": 111,
+   "hiFlag": 0,
+   "tailHex": "99019b01ffffffff87cdffff"
+  },
+  {
+   "x": 1924,
+   "y": 135,
+   "hiFlag": 0,
+   "tailHex": "9a019c01ffffffffcddbffff"
+  },
+  {
+   "x": 1953,
+   "y": 165,
+   "hiFlag": 0,
+   "tailHex": "9b019d01ffffffffdb76ffff"
+  },
+  {
+   "x": 1939,
+   "y": 189,
+   "hiFlag": 0,
+   "tailHex": "9c019e01ffffffff76bdffff"
+  },
+  {
+   "x": 1939,
+   "y": 227,
+   "hiFlag": 0,
+   "tailHex": "9d019f01a001ffffbde4ffff"
+  },
+  {
+   "x": 1899,
+   "y": 212,
+   "hiFlag": 0,
+   "tailHex": "9e018901ffffffffe4d7ffff"
+  },
+  {
+   "x": 1976,
+   "y": 269,
+   "hiFlag": 0,
+   "tailHex": "9e01a101ffffffffff95ffff"
+  },
+  {
+   "x": 1986,
+   "y": 300,
+   "hiFlag": 0,
+   "tailHex": "a001a201a601ffff95a579ff"
+  },
+  {
+   "x": 1955,
+   "y": 316,
+   "hiFlag": 0,
+   "tailHex": "a101a301a401a501a55b6780"
+  },
+  {
+   "x": 1932,
+   "y": 316,
+   "hiFlag": 0,
+   "tailHex": "a201a401ffffffff5b5affff"
+  },
+  {
+   "x": 1941,
+   "y": 337,
+   "hiFlag": 0,
+   "tailHex": "a201a701a301ffff674e5aff"
+  },
+  {
+   "x": 1972,
+   "y": 340,
+   "hiFlag": 0,
+   "tailHex": "a201a601a701ffff809849ff"
+  },
+  {
+   "x": 2001,
+   "y": 324,
+   "hiFlag": 0,
+   "tailHex": "a101a501ffffffff7998ffff"
+  },
+  {
+   "x": 1956,
+   "y": 351,
+   "hiFlag": 0,
+   "tailHex": "a501a401a801ffff494e39ff"
+  },
+  {
+   "x": 1947,
+   "y": 364,
+   "hiFlag": 0,
+   "tailHex": "a701a901ffffffff3960ffff"
+  },
+  {
+   "x": 1923,
+   "y": 364,
+   "hiFlag": 0,
+   "tailHex": "a801aa01ffffffff6090ffff"
+  },
+  {
+   "x": 1900,
+   "y": 386,
+   "hiFlag": 0,
+   "tailHex": "a901ab01ffffffff90b3ffff"
+  },
+  {
+   "x": 1868,
+   "y": 404,
+   "hiFlag": 0,
+   "tailHex": "aa01ac01ffffffffb361ffff"
+  },
+  {
+   "x": 1861,
+   "y": 427,
+   "hiFlag": 0,
+   "tailHex": "ab01ad01ffffffff61ffffff"
+  },
+  {
+   "x": 1831,
+   "y": 463,
+   "hiFlag": 0,
+   "tailHex": "ac01ae01ffffffffff49ffff"
+  },
+  {
+   "x": 1838,
+   "y": 481,
+   "hiFlag": 0,
+   "tailHex": "ad01af0119021802495d5b75"
+  },
+  {
+   "x": 1820,
+   "y": 496,
+   "hiFlag": 0,
+   "tailHex": "ae01b001140218025db34770"
+  },
+  {
+   "x": 1806,
+   "y": 462,
+   "hiFlag": 0,
+   "tailHex": "af01b101ffffffffb35bffff"
+  },
+  {
+   "x": 1783,
+   "y": 464,
+   "hiFlag": 0,
+   "tailHex": "b001b201b701ffff5b90ffff"
+  },
+  {
+   "x": 1766,
+   "y": 437,
+   "hiFlag": 0,
+   "tailHex": "b101b301ffffffff9063ffff"
+  },
+  {
+   "x": 1771,
+   "y": 413,
+   "hiFlag": 0,
+   "tailHex": "b201b401b501ffff633e73ff"
+  },
+  {
+   "x": 1756,
+   "y": 405,
+   "hiFlag": 0,
+   "tailHex": "b301ffffffffffff3effffff"
+  },
+  {
+   "x": 1782,
+   "y": 388,
+   "hiFlag": 0,
+   "tailHex": "b301b601ffffffff7352ffff"
+  },
+  {
+   "x": 1785,
+   "y": 367,
+   "hiFlag": 0,
+   "tailHex": "b501ffffffffffff52ffffff"
+  },
+  {
+   "x": 1733,
+   "y": 468,
+   "hiFlag": 0,
+   "tailHex": "b101b801ffffffffffc6ffff"
+  },
+  {
+   "x": 1729,
+   "y": 507,
+   "hiFlag": 0,
+   "tailHex": "b701b901ffffffffc666ffff"
+  },
+  {
+   "x": 1739,
+   "y": 530,
+   "hiFlag": 0,
+   "tailHex": "b801ba01ffffffff66afffff"
+  },
+  {
+   "x": 1771,
+   "y": 513,
+   "hiFlag": 0,
+   "tailHex": "b901bb01ffffffffafbaffff"
+  },
+  {
+   "x": 1782,
+   "y": 549,
+   "hiFlag": 0,
+   "tailHex": "ba01bc01ffffffffba8dffff"
+  },
+  {
+   "x": 1809,
+   "y": 565,
+   "hiFlag": 0,
+   "tailHex": "bb01bd011d02ffff8d6c91ff"
+  },
+  {
+   "x": 1811,
+   "y": 591,
+   "hiFlag": 0,
+   "tailHex": "bc01be01ffffffff6c36ffff"
+  },
+  {
+   "x": 1826,
+   "y": 593,
+   "hiFlag": 0,
+   "tailHex": "bd01c001ffffffff3645ffff"
+  },
+  {
+   "x": 1829,
+   "y": 603,
+   "hiFlag": 0,
+   "tailHex": "e801e901ffffffff4571ffff"
+  },
+  {
+   "x": 1844,
+   "y": 597,
+   "hiFlag": 0,
+   "tailHex": "be01c201ffffffff4591ffff"
+  },
+  {
+   "x": 1905,
+   "y": 577,
+   "hiFlag": 0,
+   "tailHex": "c301c201ffffffffa0adffff"
+  },
+  {
+   "x": 1869,
+   "y": 577,
+   "hiFlag": 0,
+   "tailHex": "c101c001ffffffffad91ffff"
+  },
+  {
+   "x": 1938,
+   "y": 586,
+   "hiFlag": 0,
+   "tailHex": "c101c4011e02ffffa0ae69ff"
+  },
+  {
+   "x": 1962,
+   "y": 613,
+   "hiFlag": 0,
+   "tailHex": "c301c501ffffffffae87ffff"
+  },
+  {
+   "x": 1990,
+   "y": 625,
+   "hiFlag": 0,
+   "tailHex": "c401c601ffffffff87eaffff"
+  },
+  {
+   "x": 2007,
+   "y": 665,
+   "hiFlag": 0,
+   "tailHex": "c501c701cc01ffffea92ffff"
+  },
+  {
+   "x": 1978,
+   "y": 679,
+   "hiFlag": 0,
+   "tailHex": "c601c801ffffffff9269ffff"
+  },
+  {
+   "x": 1953,
+   "y": 684,
+   "hiFlag": 0,
+   "tailHex": "c701c901ffffffff695affff"
+  },
+  {
+   "x": 1931,
+   "y": 678,
+   "hiFlag": 0,
+   "tailHex": "c801ca01ffffffff5a76ffff"
+  },
+  {
+   "x": 1905,
+   "y": 688,
+   "hiFlag": 0,
+   "tailHex": "c901cb01ffffffff7674ffff"
+  },
+  {
+   "x": 1878,
+   "y": 693,
+   "hiFlag": 0,
+   "tailHex": "ca01ffffffffffff74ffffff"
+  },
+  {
+   "x": 2070,
+   "y": 685,
+   "hiFlag": 0,
+   "tailHex": "c601cd01ffffffffffa9ffff"
+  },
+  {
+   "x": 2097,
+   "y": 708,
+   "hiFlag": 0,
+   "tailHex": "cc01ce01ffffffffa952ffff"
+  },
+  {
+   "x": 2094,
+   "y": 729,
+   "hiFlag": 0,
+   "tailHex": "cd01cf01ffffffff5222ffff"
+  },
+  {
+   "x": 2086,
+   "y": 735,
+   "hiFlag": 0,
+   "tailHex": "ce01d001ffffffff22ffffff"
+  },
+  {
+   "x": 2060,
+   "y": 797,
+   "hiFlag": 0,
+   "tailHex": "cf01d101ffffffffff9bffff"
+  },
+  {
+   "x": 2045,
+   "y": 827,
+   "hiFlag": 0,
+   "tailHex": "d001d201ffffffff9ba2ffff"
+  },
+  {
+   "x": 2012,
+   "y": 837,
+   "hiFlag": 0,
+   "tailHex": "d101d301ffffffffa2b0ffff"
+  },
+  {
+   "x": 1999,
+   "y": 871,
+   "hiFlag": 0,
+   "tailHex": "d201d401ffffffffb090ffff"
+  },
+  {
+   "x": 1978,
+   "y": 895,
+   "hiFlag": 0,
+   "tailHex": "d301d501ffffffff905dffff"
+  },
+  {
+   "x": 1962,
+   "y": 912,
+   "hiFlag": 0,
+   "tailHex": "d401d601d901ffff5d5fe2ff"
+  },
+  {
+   "x": 1939,
+   "y": 906,
+   "hiFlag": 0,
+   "tailHex": "d501d701ffffffff5fc5ffff"
+  },
+  {
+   "x": 1938,
+   "y": 867,
+   "hiFlag": 0,
+   "tailHex": "d601d801ffffffffc5a3ffff"
+  },
+  {
+   "x": 1962,
+   "y": 842,
+   "hiFlag": 0,
+   "tailHex": "d701ffffffffffffa3ffffff"
+  },
+  {
+   "x": 1934,
+   "y": 944,
+   "hiFlag": 0,
+   "tailHex": "d501da01ffffffffe2ffffff"
+  },
+  {
+   "x": 1901,
+   "y": 978,
+   "hiFlag": 0,
+   "tailHex": "d901db01ffffffffff99ffff"
+  },
+  {
+   "x": 1897,
+   "y": 1011,
+   "hiFlag": 0,
+   "tailHex": "da01dc015802ffff997478ff"
+  },
+  {
+   "x": 1874,
+   "y": 1026,
+   "hiFlag": 0,
+   "tailHex": "db01dd011f02ffff747570ff"
+  },
+  {
+   "x": 1854,
+   "y": 1045,
+   "hiFlag": 0,
+   "tailHex": "dc01ffff5102ffff759f2bff"
+  },
+  {
+   "x": 1838,
+   "y": 1015,
+   "hiFlag": 0,
+   "tailHex": "ffffdf015102ffff9fff73ff"
+  },
+  {
+   "x": 1838,
+   "y": 968,
+   "hiFlag": 0,
+   "tailHex": "de01ffff5e02ffffffff69ff"
+  },
+  {
+   "x": 1850,
+   "y": 908,
+   "hiFlag": 0,
+   "tailHex": "ffffe1015e02ffffffffabff"
+  },
+  {
+   "x": 1864,
+   "y": 856,
+   "hiFlag": 0,
+   "tailHex": "e001e201ffffffffffffffff"
+  },
+  {
+   "x": 1873,
+   "y": 789,
+   "hiFlag": 0,
+   "tailHex": "e101e301ffffffffffe1ffff"
+  },
+  {
+   "x": 1843,
+   "y": 759,
+   "hiFlag": 0,
+   "tailHex": "e201e401ffffffffe1baffff"
+  },
+  {
+   "x": 1829,
+   "y": 724,
+   "hiFlag": 0,
+   "tailHex": "e301e501ffffffffba21ffff"
+  },
+  {
+   "x": 1826,
+   "y": 715,
+   "hiFlag": 0,
+   "tailHex": "e401e601ffffffff218fffff"
+  },
+  {
+   "x": 1813,
+   "y": 686,
+   "hiFlag": 0,
+   "tailHex": "e501ffffe701ffff8fd2bbff"
+  },
+  {
+   "x": 1821,
+   "y": 649,
+   "hiFlag": 0,
+   "tailHex": "e601e801ffffffffbb87ffff"
+  },
+  {
+   "x": 1833,
+   "y": 621,
+   "hiFlag": 0,
+   "tailHex": "e701bf01ffffffff8745ffff"
+  },
+  {
+   "x": 1802,
+   "y": 603,
+   "hiFlag": 0,
+   "tailHex": "bf01ffffea01ffff71bfffff"
+  },
+  {
+   "x": 1768,
+   "y": 569,
+   "hiFlag": 0,
+   "tailHex": "e901eb01ffffffffffbdffff"
+  },
+  {
+   "x": 1735,
+   "y": 550,
+   "hiFlag": 0,
+   "tailHex": "ea01ec01ffffffffbd79ffff"
+  },
+  {
+   "x": 1707,
+   "y": 546,
+   "hiFlag": 0,
+   "tailHex": "eb01ed01ffffffff7982ffff"
+  },
+  {
+   "x": 1682,
+   "y": 530,
+   "hiFlag": 0,
+   "tailHex": "ec01ee01ffffffff82bdffff"
+  },
+  {
+   "x": 1660,
+   "y": 499,
+   "hiFlag": 0,
+   "tailHex": "ed01ef01f001ffffbde784ff"
+  },
+  {
+   "x": 1638,
+   "y": 462,
+   "hiFlag": 0,
+   "tailHex": "ee01ffffffffffffe7ffffff"
+  },
+  {
+   "x": 1634,
+   "y": 484,
+   "hiFlag": 0,
+   "tailHex": "ee01f101ffffffff847effff"
+  },
+  {
+   "x": 1621,
+   "y": 458,
+   "hiFlag": 0,
+   "tailHex": "f001fffff201ffff7ea182ff"
+  },
+  {
+   "x": 1601,
+   "y": 436,
+   "hiFlag": 0,
+   "tailHex": "f101f301ffffffff82ffffff"
+  },
+  {
+   "x": 1572,
+   "y": 391,
+   "hiFlag": 0,
+   "tailHex": "f201f401ffffffffff6bffff"
+  },
+  {
+   "x": 1565,
+   "y": 366,
+   "hiFlag": 0,
+   "tailHex": "f301f501ffffffff6b43ffff"
+  },
+  {
+   "x": 1567,
+   "y": 348,
+   "hiFlag": 0,
+   "tailHex": "f401f601ffffffff43dfffff"
+  },
+  {
+   "x": 1557,
+   "y": 307,
+   "hiFlag": 0,
+   "tailHex": "f501f701ffffffffdf7bffff"
+  },
+  {
+   "x": 1545,
+   "y": 281,
+   "hiFlag": 0,
+   "tailHex": "f601f801ffffffff7b71ffff"
+  },
+  {
+   "x": 1531,
+   "y": 258,
+   "hiFlag": 0,
+   "tailHex": "f701f901ffffffff71ffffff"
+  },
+  {
+   "x": 1496,
+   "y": 228,
+   "hiFlag": 0,
+   "tailHex": "f801fffffa01ffffffccffff"
+  },
+  {
+   "x": 1442,
+   "y": 207,
+   "hiFlag": 0,
+   "tailHex": "f901fb01ffffffffff18ffff"
+  },
+  {
+   "x": 1435,
+   "y": 207,
+   "hiFlag": 0,
+   "tailHex": "fa01fc01ffffffff18beffff"
+  },
+  {
+   "x": 1409,
+   "y": 235,
+   "hiFlag": 0,
+   "tailHex": "fb01fd01ffffffffbe97ffff"
+  },
+  {
+   "x": 1377,
+   "y": 243,
+   "hiFlag": 0,
+   "tailHex": "fc01fe01ffffffff975bffff"
+  },
+  {
+   "x": 1358,
+   "y": 230,
+   "hiFlag": 0,
+   "tailHex": "fd01ff01ffffffff5b66ffff"
+  },
+  {
+   "x": 1358,
+   "y": 205,
+   "hiFlag": 0,
+   "tailHex": "fe010002ffffffff6684ffff"
+  },
+  {
+   "x": 1340,
+   "y": 181,
+   "hiFlag": 0,
+   "tailHex": "ff01f8000102ffff845355ff"
+  },
+  {
+   "x": 1355,
+   "y": 165,
+   "hiFlag": 0,
+   "tailHex": "0002f500ffffffff55afffff"
+  },
+  {
+   "x": 1340,
+   "y": 111,
+   "hiFlag": 0,
+   "tailHex": "f5000302ffffffff9cc7ffff"
+  },
+  {
+   "x": 1375,
+   "y": 93,
+   "hiFlag": 0,
+   "tailHex": "02020402ffffffffc785ffff"
+  },
+  {
+   "x": 1405,
+   "y": 89,
+   "hiFlag": 0,
+   "tailHex": "03020502ffffffff857fffff"
+  },
+  {
+   "x": 1434,
+   "y": 93,
+   "hiFlag": 0,
+   "tailHex": "04020602ffffffff7f4fffff"
+  },
+  {
+   "x": 1454,
+   "y": 98,
+   "hiFlag": 0,
+   "tailHex": "05020702ffffffff4fffffff"
+  },
+  {
+   "x": 1508,
+   "y": 112,
+   "hiFlag": 0,
+   "tailHex": "06020802ffffffffffd7ffff"
+  },
+  {
+   "x": 1549,
+   "y": 116,
+   "hiFlag": 0,
+   "tailHex": "07029701ffffffffd791ffff"
+  },
+  {
+   "x": 1754,
+   "y": 135,
+   "hiFlag": 0,
+   "tailHex": "82010a02ffffffff6631ffff"
+  },
+  {
+   "x": 1747,
+   "y": 147,
+   "hiFlag": 0,
+   "tailHex": "0902ffffffffffff31ffffff"
+  },
+  {
+   "x": 1172,
+   "y": 925,
+   "hiFlag": 0,
+   "tailHex": "550112020c02ffffffae71ff"
+  },
+  {
+   "x": 1165,
+   "y": 951,
+   "hiFlag": 0,
+   "tailHex": "0b020d024102ffff7188ffff"
+  },
+  {
+   "x": 1194,
+   "y": 941,
+   "hiFlag": 0,
+   "tailHex": "0c020e02ffffffff8891ffff"
+  },
+  {
+   "x": 1214,
+   "y": 916,
+   "hiFlag": 0,
+   "tailHex": "0d020f021202ffff919561ff"
+  },
+  {
+   "x": 1235,
+   "y": 891,
+   "hiFlag": 0,
+   "tailHex": "0e021002ffffffff958cffff"
+  },
+  {
+   "x": 1215,
+   "y": 867,
+   "hiFlag": 0,
+   "tailHex": "0f021102ffffffff8c46ffff"
+  },
+  {
+   "x": 1205,
+   "y": 883,
+   "hiFlag": 0,
+   "tailHex": "10021202ffffffff4642ffff"
+  },
+  {
+   "x": 1197,
+   "y": 899,
+   "hiFlag": 0,
+   "tailHex": "11020b020e02ffff42ae61ff"
+  },
+  {
+   "x": 1042,
+   "y": 930,
+   "hiFlag": 0,
+   "tailHex": "550156013e02ffffffbbffff"
+  },
+  {
+   "x": 1814,
+   "y": 514,
+   "hiFlag": 0,
+   "tailHex": "af011502ffffffff4762ffff"
+  },
+  {
+   "x": 1837,
+   "y": 522,
+   "hiFlag": 0,
+   "tailHex": "14021602ffffffff6262ffff"
+  },
+  {
+   "x": 1860,
+   "y": 530,
+   "hiFlag": 0,
+   "tailHex": "150217021c021d0262387584"
+  },
+  {
+   "x": 1874,
+   "y": 523,
+   "hiFlag": 0,
+   "tailHex": "160218021a02ffff389ba2ff"
+  },
+  {
+   "x": 1844,
+   "y": 508,
+   "hiFlag": 0,
+   "tailHex": "1702af011902ae019b706975"
+  },
+  {
+   "x": 1860,
+   "y": 488,
+   "hiFlag": 0,
+   "tailHex": "1802ae01ffffffff695bffff"
+  },
+  {
+   "x": 1905,
+   "y": 538,
+   "hiFlag": 0,
+   "tailHex": "17021b021c02ffffa2856bff"
+  },
+  {
+   "x": 1935,
+   "y": 541,
+   "hiFlag": 0,
+   "tailHex": "1a021e02ffffffff8577ffff"
+  },
+  {
+   "x": 1881,
+   "y": 548,
+   "hiFlag": 0,
+   "tailHex": "1a021602ffffffff6b75ffff"
+  },
+  {
+   "x": 1834,
+   "y": 545,
+   "hiFlag": 0,
+   "tailHex": "1602bc01ffffffff8491ffff"
+  },
+  {
+   "x": 1951,
+   "y": 564,
+   "hiFlag": 0,
+   "tailHex": "1b02c301ffffffff7769ffff"
+  },
+  {
+   "x": 1886,
+   "y": 1050,
+   "hiFlag": 0,
+   "tailHex": "dc012002ffffffff70bdffff"
+  },
+  {
+   "x": 1917,
+   "y": 1072,
+   "hiFlag": 0,
+   "tailHex": "1f022102ffffffffbdbdffff"
+  },
+  {
+   "x": 1955,
+   "y": 1070,
+   "hiFlag": 0,
+   "tailHex": "20022202ffffffffbd77ffff"
+  },
+  {
+   "x": 1983,
+   "y": 1069,
+   "hiFlag": 0,
+   "tailHex": "21022302ffffffff77ffffff"
+  },
+  {
+   "x": 2050,
+   "y": 1068,
+   "hiFlag": 0,
+   "tailHex": "22022402ffffffffffffffff"
+  },
+  {
+   "x": 2097,
+   "y": 1065,
+   "hiFlag": 0,
+   "tailHex": "23022502ffffffffffffffff"
+  },
+  {
+   "x": 2152,
+   "y": 1070,
+   "hiFlag": 0,
+   "tailHex": "24022602ffffffffff4cffff"
+  },
+  {
+   "x": 12,
+   "y": 1069,
+   "hiFlag": 0,
+   "tailHex": "25022702ffffffff4cffffff"
+  },
+  {
+   "x": 63,
+   "y": 1070,
+   "hiFlag": 0,
+   "tailHex": "26022802ffffffffffffffff"
+  },
+  {
+   "x": 109,
+   "y": 1069,
+   "hiFlag": 0,
+   "tailHex": "27022902ffffffffffffffff"
+  },
+  {
+   "x": 164,
+   "y": 1070,
+   "hiFlag": 0,
+   "tailHex": "28022a02ffffffffff66ffff"
+  },
+  {
+   "x": 189,
+   "y": 1068,
+   "hiFlag": 0,
+   "tailHex": "29022b02ffffffff667effff"
+  },
+  {
+   "x": 214,
+   "y": 1053,
+   "hiFlag": 0,
+   "tailHex": "2a022c02ffffffff7eafffff"
+  },
+  {
+   "x": 250,
+   "y": 1049,
+   "hiFlag": 0,
+   "tailHex": "2b022d02ffffffffafffffff"
+  },
+  {
+   "x": 298,
+   "y": 1047,
+   "hiFlag": 0,
+   "tailHex": "2c022e022b01ffffffa0ffff"
+  },
+  {
+   "x": 332,
+   "y": 1051,
+   "hiFlag": 0,
+   "tailHex": "2d022f02ffffffffa0cdffff"
+  },
+  {
+   "x": 372,
+   "y": 1053,
+   "hiFlag": 0,
+   "tailHex": "2e023002ffffffffcde4ffff"
+  },
+  {
+   "x": 413,
+   "y": 1041,
+   "hiFlag": 0,
+   "tailHex": "2f023102ffffffffe492ffff"
+  },
+  {
+   "x": 445,
+   "y": 1037,
+   "hiFlag": 0,
+   "tailHex": "30023202ffffffff92c2ffff"
+  },
+  {
+   "x": 483,
+   "y": 1030,
+   "hiFlag": 0,
+   "tailHex": "31023302ffffffffc2cdffff"
+  },
+  {
+   "x": 523,
+   "y": 1033,
+   "hiFlag": 0,
+   "tailHex": "32023402ffffffffcdffffff"
+  },
+  {
+   "x": 578,
+   "y": 1035,
+   "hiFlag": 0,
+   "tailHex": "33023502ffffffffffffffff"
+  },
+  {
+   "x": 630,
+   "y": 1037,
+   "hiFlag": 0,
+   "tailHex": "34023602ffffffffffffffff"
+  },
+  {
+   "x": 685,
+   "y": 1038,
+   "hiFlag": 0,
+   "tailHex": "35023702ffffffffff6bffff"
+  },
+  {
+   "x": 711,
+   "y": 1037,
+   "hiFlag": 0,
+   "tailHex": "36023802ffffffff6b8affff"
+  },
+  {
+   "x": 742,
+   "y": 1037,
+   "hiFlag": 0,
+   "tailHex": "37023902ffffffff8affffff"
+  },
+  {
+   "x": 798,
+   "y": 1038,
+   "hiFlag": 0,
+   "tailHex": "38023a02ffffffffffbfffff"
+  },
+  {
+   "x": 836,
+   "y": 1033,
+   "hiFlag": 0,
+   "tailHex": "39023b02ffffffffbfcdffff"
+  },
+  {
+   "x": 876,
+   "y": 1033,
+   "hiFlag": 0,
+   "tailHex": "3a023c02ffffffffcd85ffff"
+  },
+  {
+   "x": 906,
+   "y": 1029,
+   "hiFlag": 0,
+   "tailHex": "3b023d02ffffffff85faffff"
+  },
+  {
+   "x": 951,
+   "y": 1033,
+   "hiFlag": 0,
+   "tailHex": "3c023e02fffffffffaffffff"
+  },
+  {
+   "x": 1014,
+   "y": 1036,
+   "hiFlag": 0,
+   "tailHex": "3d023f021302ffffffffffff"
+  },
+  {
+   "x": 1067,
+   "y": 1044,
+   "hiFlag": 0,
+   "tailHex": "3e024002ffffffffffffffff"
+  },
+  {
+   "x": 1118,
+   "y": 1060,
+   "hiFlag": 0,
+   "tailHex": "3f024102ffffffffffffffff"
+  },
+  {
+   "x": 1183,
+   "y": 1067,
+   "hiFlag": 0,
+   "tailHex": "400242020c02ffffffa1ffff"
+  },
+  {
+   "x": 1217,
+   "y": 1062,
+   "hiFlag": 0,
+   "tailHex": "41024302ffffffffa1ffffff"
+  },
+  {
+   "x": 1269,
+   "y": 1057,
+   "hiFlag": 0,
+   "tailHex": "42024402ffffffffffffffff"
+  },
+  {
+   "x": 1327,
+   "y": 1052,
+   "hiFlag": 0,
+   "tailHex": "43024502ffffffffffffffff"
+  },
+  {
+   "x": 1394,
+   "y": 1066,
+   "hiFlag": 0,
+   "tailHex": "44024602ffffffffffbdffff"
+  },
+  {
+   "x": 1432,
+   "y": 1067,
+   "hiFlag": 0,
+   "tailHex": "45024702ffffffffbd66ffff"
+  },
+  {
+   "x": 1457,
+   "y": 1066,
+   "hiFlag": 0,
+   "tailHex": "46024802ffffffff66efffff"
+  },
+  {
+   "x": 1501,
+   "y": 1068,
+   "hiFlag": 0,
+   "tailHex": "47024902ffffffffefffffff"
+  },
+  {
+   "x": 1556,
+   "y": 1062,
+   "hiFlag": 0,
+   "tailHex": "48024a02ffffffffffc5ffff"
+  },
+  {
+   "x": 1595,
+   "y": 1061,
+   "hiFlag": 0,
+   "tailHex": "49024b02ffffffffc5ffffff"
+  },
+  {
+   "x": 1651,
+   "y": 1072,
+   "hiFlag": 0,
+   "tailHex": "4a024c02ffffffffff5bffff"
+  },
+  {
+   "x": 1674,
+   "y": 1070,
+   "hiFlag": 0,
+   "tailHex": "4b02ffff4e02ffff5bffffff"
+  },
+  {
+   "x": 1806,
+   "y": 1067,
+   "hiFlag": 0,
+   "tailHex": "4e024f02ffffffffffffffff"
+  },
+  {
+   "x": 1744,
+   "y": 1060,
+   "hiFlag": 0,
+   "tailHex": "4c024d02ffffffffffffffff"
+  },
+  {
+   "x": 1861,
+   "y": 1066,
+   "hiFlag": 0,
+   "tailHex": "4d025002ffff5102ff565687"
+  },
+  {
+   "x": 1883,
+   "y": 1066,
+   "hiFlag": 0,
+   "tailHex": "4f02ffffffffffff56ffffff"
+  },
+  {
+   "x": 1842,
+   "y": 1042,
+   "hiFlag": 0,
+   "tailHex": "4f02de01dd01ffff87732bff"
+  },
+  {
+   "x": 849,
+   "y": 365,
+   "hiFlag": 0,
+   "tailHex": "c3005302ffffffff741bffff"
+  },
+  {
+   "x": 849,
+   "y": 357,
+   "hiFlag": 0,
+   "tailHex": "52025402ffffffff1b7dffff"
+  },
+  {
+   "x": 820,
+   "y": 356,
+   "hiFlag": 0,
+   "tailHex": "53025502ffffffff7d15ffff"
+  },
+  {
+   "x": 821,
+   "y": 362,
+   "hiFlag": 0,
+   "tailHex": "54025602ffffffff1574ffff"
+  },
+  {
+   "x": 798,
+   "y": 377,
+   "hiFlag": 0,
+   "tailHex": "5502ffffffffffff74ffffff"
+  },
+  {
+   "x": 1941,
+   "y": 1037,
+   "hiFlag": 0,
+   "tailHex": "5802ffffffffffff5bffffff"
+  },
+  {
+   "x": 1922,
+   "y": 1024,
+   "hiFlag": 0,
+   "tailHex": "5702db01ffffffff5b78ffff"
+  },
+  {
+   "x": 88,
+   "y": 441,
+   "hiFlag": 0,
+   "tailHex": "18005a02ffffffffcccbffff"
+  },
+  {
+   "x": 113,
+   "y": 410,
+   "hiFlag": 0,
+   "tailHex": "5902ffff6902ffffcba59aff"
+  },
+  {
+   "x": 216,
+   "y": 601,
+   "hiFlag": 0,
+   "tailHex": "1d000f011e00ffff4f3b4dff"
+  },
+  {
+   "x": 260,
+   "y": 809,
+   "hiFlag": 0,
+   "tailHex": "29012801ffffffff5e83ffff"
+  },
+  {
+   "x": 173,
+   "y": 528,
+   "hiFlag": 0,
+   "tailHex": "1101ffffffffffff7effffff"
+  },
+  {
+   "x": 1843,
+   "y": 943,
+   "hiFlag": 0,
+   "tailHex": "df01e001ffffffff69abffff"
+  },
+  {
+   "x": 333,
+   "y": 354,
+   "hiFlag": 0,
+   "tailHex": "11001000ffffffff312affff"
+  },
+  {
+   "x": 270,
+   "y": 114,
+   "hiFlag": 0,
+   "tailHex": "8e004200ffffffff276dffff"
+  },
+  {
+   "x": 500,
+   "y": 787,
+   "hiFlag": 0,
+   "tailHex": "6202ffffffffffff5dffffff"
+  },
+  {
+   "x": 482,
+   "y": 772,
+   "hiFlag": 0,
+   "tailHex": "6102cb00cc00ffff5d4f3aff"
+  },
+  {
+   "x": 379,
+   "y": 433,
+   "hiFlag": 0,
+   "tailHex": "b900ffffffffffff6effffff"
+  },
+  {
+   "x": 170,
+   "y": 201,
+   "hiFlag": 0,
+   "tailHex": "04000600ffff65028affbcef"
+  },
+  {
+   "x": 186,
+   "y": 242,
+   "hiFlag": 0,
+   "tailHex": "1f016402ffffffff58efffff"
+  },
+  {
+   "x": 727,
+   "y": 493,
+   "hiFlag": 0,
+   "tailHex": "d4005f00ffffffff3955ffff"
+  },
+  {
+   "x": 1088,
+   "y": 828,
+   "hiFlag": 0,
+   "tailHex": "53015401ffffffff4c5bffff"
+  },
+  {
+   "x": 924,
+   "y": 658,
+   "hiFlag": 0,
+   "tailHex": "3e013d014b01ffff354694ff"
+  },
+  {
+   "x": 131,
+   "y": 382,
+   "hiFlag": 0,
+   "tailHex": "6b025a026a02ffff7d9a46c5"
+  },
+  {
+   "x": 115,
+   "y": 372,
+   "hiFlag": 0,
+   "tailHex": "6902b800ffffffff4636ffff"
+  },
+  {
+   "x": 160,
+   "y": 382,
+   "hiFlag": 0,
+   "tailHex": "69020c00ffffffff7d5affff"
+  },
+  {
+   "x": 518,
+   "y": 452,
+   "hiFlag": 0,
+   "tailHex": "34002401ffffffff3375ffff"
+  },
+  {
+   "x": 799,
+   "y": 621,
+   "hiFlag": 0,
+   "tailHex": "d5005c006200ffff231a5cff"
+  }
+ ]
+}

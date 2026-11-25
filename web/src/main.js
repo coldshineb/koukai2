@@ -7,6 +7,7 @@ import { BGM } from "./core/audio.js";
 import { SfxPort } from "./core/sfx.js";
 import { loadJSON, loadBinary } from "./core/assets.js";
 import { Palette, paletteTables } from "./core/palette.js";
+import { decodeMapNodesJson } from "./decoders/bin_json.ts";
 import { createUI } from "./ui/dos/index.js";
 import { GameState } from "./game/state.js";
 import { TextCodec, encodeState } from "./game/data.js";
@@ -49,7 +50,7 @@ const ctx = {
 };
 ctx.palettes = (await loadJSON(ASSETS + "/data/palettes.json")).palettes;
 ctx.newgameData = await loadJSON(ASSETS + "/data/newgame.json");
-ctx.mapNodes = await loadBinary(ASSETS + "/data/mapnodes.bin");
+ctx.mapNodes = decodeMapNodesJson(await loadJSON(ASSETS + "/data/mapnodes.json"));
 ctx.palette = new Palette(scr, sys, paletteTables({ palettes: ctx.palettes }));
 ctx.palette.writeDAC();
 Object.assign(ctx, await createUI(ctx));

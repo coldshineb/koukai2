@@ -108,6 +108,28 @@
     eq("ScenarioMemoryAdapter zero unexpected todos", todos.length, 0);
   }
 
+  // ---- 5. Readable Data JSON Decoders (windcur/za_dat/monster/mapnodes/worldmap/portmap) ----
+  {
+    const fs = require("fs");
+    const path = require("path");
+    const {
+      decodeWindCurJson,
+      decodeZaDatJson,
+      decodeMonsterJson,
+      decodeMapNodesJson,
+      decodeWorldMapJson,
+      decodePortMapJson,
+    } = require(path.resolve(__dirname, "../../web/src/decoders/bin_json.ts"));
+    const dataDir = path.resolve(__dirname, "../../web/assets/data");
+    const rd = (f) => JSON.parse(fs.readFileSync(path.join(dataDir, f), "utf8"));
+    eq("windcur.json decoded byte length", decodeWindCurJson(rd("windcur.json")).length, 1350);
+    eq("za_dat.json decoded byte length", decodeZaDatJson(rd("za_dat.json")).length, 2424);
+    eq("monster.json decoded byte length", decodeMonsterJson(rd("monster.json")).length, 200);
+    eq("mapnodes.json decoded byte length", decodeMapNodesJson(rd("mapnodes.json")).length, 9952);
+    eq("worldmap.json decoded byte length", decodeWorldMapJson(rd("worldmap.json")).length, 583200);
+    eq("portmap.json decoded byte length", decodePortMapJson(rd("portmap.json")).length, 930816);
+  }
+
   console.log(`[domain_tests] passed=${passed} failed=${failed}`);
   if (failed > 0) process.exit(1);
 })();
