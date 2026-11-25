@@ -224,6 +224,126 @@ export class CellSelect {
     }
     return result;
   }
+  // 16:9 全視口海面目標格選擇（無 24×24 正方形框限制，全螢幕任意可見海面/港口/艦隊皆可點選）
+  async selectWideSeaWorld(initWX, initWY) {
+    const { sys, scr } = this.c, m = this.m;
+    const cam = scr._wideSeaCam;
+    if (!cam) return null;
+    await m.waitRelease();
+    const viewCols = cam.viewCols ?? 40;
+    const viewRows = cam.viewRows ?? 23;
+    const worldW = cam.worldW ?? 0x870;
+    const worldH = cam.worldH ?? 0x438;
+    const maxCol = viewCols - 2;
+    const maxRow = viewRows - 2;
+
+    let initCol = initWX - cam.baseWX;
+    if (initCol < -worldW / 2) initCol += worldW;
+    else if (initCol > worldW / 2) initCol -= worldW;
+    let curCol = Math.max(0, Math.min(maxCol, initCol | 0));
+    let curRow = Math.max(0, Math.min(maxRow, (initWY - cam.baseWY) | 0));
+
+    const promptText = this.widePrompt || "";
+    this.widePrompt = "";
+
+    const drawFn = ctx => {
+      const x = curCol * cam.tile;
+      const y = curRow * cam.tile;
+      const size = cam.tile * 2;
+      const pulse = 0.72 + 0.28 * Math.sin(performance.now() * 0.008);
+      ctx.save();
+      ctx.fillStyle = `rgba(245, 200, 92, ${(0.18 * pulse).toFixed(3)})`;
+      ctx.fillRect(x, y, size, size);
+      ctx.strokeStyle = `rgba(255, 224, 130, ${(0.95 * pulse).toFixed(3)})`;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x + 1.5, y + 1.5, size - 3, size - 3);
+      const cl = 14;
+      ctx.strokeStyle = "#fff4cc";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(x - 2, y + cl); ctx.lineTo(x - 2, y - 2); ctx.lineTo(x + cl, y - 2);
+      ctx.moveTo(x + size - cl, y - 2); ctx.lineTo(x + size + 2, y - 2); ctx.lineTo(x + size + 2, y + cl);
+      ctx.moveTo(x - 2, y + size - cl); ctx.lineTo(x - 2, y + size + 2); ctx.lineTo(x + cl, y + size + 2);
+      ctx.moveTo(x + size - cl, y + size + 2); ctx.lineTo(x + size + 2, y + size + 2); ctx.lineTo(x + size + 2, y + size - cl);
+      ctx.stroke();
+      ctx.restore();
+    };
+
+    let promptEl = null;
+    if (promptText && typeof document !== "undefined" && document.body) {
+      promptEl = document.createElement("div");
+      promptEl.className = "uw2-card";
+      promptEl.style.cssText =
+        "position:fixed;top:56px;left:50%;transform:translateX(-50%);z-index:60;pointer-events:none;" +
+        "padding:8px 22px;border-radius:8px;font-size:16px;font-weight:700;color:var(--uw2-ink);" +
+        "box-shadow:0 6px 20px rgba(0,0,0,0.35);white-space:nowrap;";
+      promptEl.textContent = promptText;
+      document.body.appendChild(promptEl);
+    }
+
+    const canvas = scr.canvas;
+    let clickResult = null;
+    const clientToView = e => {
+      if (!canvas) return { vx: -1, vy: -1 };
+      const r = canvas.getBoundingClientRect();
+      return {
+        vx: Math.max(0, Math.min(1279, Math.floor(((e.clientX - r.left) * 1280) / r.width))),
+        vy: Math.max(0, Math.min(719, Math.floor(((e.clientY - r.top) * 720) / r.height))),
+      };
+    };
+    const updateFromView = (vx, vy) => {
+      const nc = Math.max(0, Math.min(maxCol, Math.floor((vx - cam.tile * 0.5) / cam.tile)));
+      const nr = Math.max(0, Math.min(maxRow, Math.floor((vy - cam.tile * 0.5) / cam.tile)));
+      if (nc !== curCol || nr !== curRow) { curCol = nc; curRow = nr; scr.dirty = true; }
+    };
+    const onMove = e => { const { vx, vy } = clientToView(e); updateFromView(vx, vy); };
+    const onDown = e => {
+      if (e.button === 2) { clickResult = "cancel"; e.preventDefault(); return; }
+      if (e.button === 0) {
+        const { vx, vy } = clientToView(e);
+        updateFromView(vx, vy);
+        clickResult = "ok";
+        e.preventDefault();
+      }
+    };
+    canvas?.addEventListener("mousemove", onMove);
+    canvas?.addEventListener("mousedown", onDown);
+
+    scr.wideOverlays.push(drawFn);
+    scr.dirty = true;
+    sys.mouseShow();
+    let ok = false;
+    try {
+      for (;;) {
+        if (clickResult === "cancel") { ok = false; break; }
+        if (clickResult === "ok") { ok = true; break; }
+        const k = m.readEvent();
+        if (k === 0x1b || k === 0x30) { ok = false; break; }
+        if (k === 0x0d) { ok = true; break; }
+        if (k === 0x1c || k === 0x36) curCol = curCol < maxCol ? curCol + 1 : 0;
+        else if (k === 0x1d || k === 0x34) curCol = curCol > 0 ? curCol - 1 : maxCol;
+        else if (k === 0x1e || k === 0x38) curRow = curRow > 0 ? curRow - 1 : maxRow;
+        else if (k === 0x1f || k === 0x32) curRow = curRow < maxRow ? curRow + 1 : 0;
+        scr.dirty = true;
+        await sys.poll();
+      }
+    } finally {
+      promptEl?.remove();
+      canvas?.removeEventListener("mousemove", onMove);
+      canvas?.removeEventListener("mousedown", onDown);
+      const idx = scr.wideOverlays.indexOf(drawFn);
+      if (idx >= 0) scr.wideOverlays.splice(idx, 1);
+      scr.dirty = true;
+      await m.waitRelease();
+      if (sys.mouse) sys.mouse.lastClick = null;
+      sys.flush();
+      sys.mouseHide();
+    }
+    if (!ok) return null;
+    const wx = (((cam.baseWX + curCol) % worldW) + worldW) % worldW;
+    const wy = Math.max(0, Math.min(worldH - 1, cam.baseWY + curRow));
+    return { wx, wy };
+  }
   // 15b71 畫 / 擦游標 (第 cur 格)
   draw() {
     const { sys, scr, win, gfx } = this.c, m = this.m;

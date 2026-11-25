@@ -511,13 +511,22 @@ export class SeaScene extends PortScene {
       else { win.labelBox(0x1b, 0xc8, 0x12, 0x20); printf(this.SS.destPrompt); con.right = 0x50; }
     }
     await this.c.menu.waitRelease();                                   // 0fea:3343 = 131e3
-    const init = (Math.imul(0x18, seaS16(st.u16(F + OFF.FLEET.Y) - this.vy1008)) - this.vx1006 + st.u16(F)) & 0xffff;
-    const si = await this.cellSel().select(0x60, 8, 0x18, 0x10, 0x10, 0x18, seaS16(init));
-    if (sys.mouse) sys.mouse.lastClick = null;
-    if (!deleg && !isWide) await win.close();
-    sys.mouseShow();
-    if (si === -1) return 0;
-    const x = (si % 0x18) + this.vx1006, y = Math.trunc(si / 0x18) + this.vy1008;
+    let x, y;
+    if (isWide && this.c.scr._wideSeaCam) {
+      const pt = await this.cellSel().selectWideSeaWorld(this.wx(F), this.wy(F));
+      if (sys.mouse) sys.mouse.lastClick = null;
+      sys.mouseShow();
+      if (!pt) return 0;
+      x = pt.wx; y = pt.wy;
+    } else {
+      const init = (Math.imul(0x18, seaS16(st.u16(F + OFF.FLEET.Y) - this.vy1008)) - this.vx1006 + st.u16(F)) & 0xffff;
+      const si = await this.cellSel().select(0x60, 8, 0x18, 0x10, 0x10, 0x18, seaS16(init));
+      if (sys.mouse) sys.mouse.lastClick = null;
+      if (!deleg && !isWide) await win.close();
+      sys.mouseShow();
+      if (si === -1) return 0;
+      x = (si % 0x18) + this.vx1006; y = Math.trunc(si / 0x18) + this.vy1008;
+    }
     st.set16(F + OFF.FLEET.DEST_X, x); st.set16(F + OFF.FLEET.DEST_Y, y);
     if (this.portIdAt(x, y) !== 0xffff) { const W = this.ptLocal(x, y); this.nearSea(F, W); st.set16(F + OFF.FLEET.DEST_X, W.x); st.set16(F + OFF.FLEET.DEST_Y, W.y); }
     st.set16(F + OFF.FLEET.ROUTE_FLAGS, 0x6000);
@@ -1955,6 +1964,43 @@ export class SeaScene extends PortScene {
   //   0fea:31a8 該格的他艦隊: 0 → 0xd7「那兒什麼也沒有」0x80; 1 → 指揮者; 多個 → 清單 0x8c (種類 12) 選 (取消 0x80)
   async scoutPick() {
     const st = this.st, F = this.fleet, { win, printf, message, menu, scr } = this.c;
+    if (scr.wideRenderer && scr._wideSeaCam) {
+      this.cellSel().widePrompt = "请选择侦察目标";
+      const pt = await this.cellSel().selectWideSeaWorld(this.wx(F), this.wy(F));
+      if (!pt) return 0xff;
+      const WORLD_W = 0x870;
+      const wrapX = v => ((v % WORLD_W) + WORLD_W) % WORLD_W;
+      const probes = [
+        [0, 0], [-1, 0], [0, -1], [-1, -1], [1, 0], [0, 1],
+      ].map(([dx, dy]) => [wrapX(pt.wx + dx), pt.wy + dy]);
+      for (const [tx, ty] of probes) {
+        if (ty < 0 || ty >= 0x438) continue;
+        for (let di = 0; di < 0x82; di++) {
+          const R = DS.TBL_PORT + di * 0x16;
+          if (wrapX(st.u16(R)) !== tx || st.u16(R + 2) !== ty) continue;
+          if (!(st.u8(R + 0x15) & 0x10)) continue;
+          this.b.beginWideTalk(null);
+          printf(this.SS.scPort, st.cstr(R + 4));
+          await menu.waitPrompt(); await win.close();
+          return 0x80;
+        }
+        const P = this.c.persons;
+        let n = 0;
+        for (let k = 0; k < 0x46; k++) {
+          const Fl = DS.TBL_FLEET + k * 0x85;
+          if (!(st.u8(Fl + OFF.FLEET.FLAGS) & 1) || (st.u8(Fl + OFF.FLEET.FLAGS) & 0x10) || st.u8(Fl + OFF.FLEET.ADMIRAL) === st.u8(DS.HERO)) continue;
+          if (wrapX(st.u16(Fl)) === tx && st.u16(Fl + OFF.FLEET.Y) === ty) P[n++] = st.u8(Fl + OFF.FLEET.ADMIRAL);
+        }
+        if (n === 1) return P[0] & 0xff;
+        if (n > 1) {
+          const si = await this.b.listSel().select(0x8c, n);
+          if (si === -1) return 0x80;
+          return P[si] & 0xff;
+        }
+      }
+      this.b.beginWideTalk(null);
+      message(0xd7); await menu.waitPrompt(); await win.close(); return 0x80;
+    }
     const init = seaS16(Math.imul(seaS16(st.u16(F + OFF.FLEET.Y) - this.vy1008), 0x18) + seaS16(st.u16(F) - this.vx1006));
     if (scr.wideRenderer) this.cellSel().widePrompt = "请选择侦察目标";
     const c = await this.cellSel().select(0x60, 8, 0x18, 0x10, 0x10, 0x18, init);

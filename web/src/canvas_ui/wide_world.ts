@@ -511,41 +511,82 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
   drawFloatingHud(ctx, portScene, false);
 }
 
-/** 16:9 全屏海面渲染器 */
+// 全球 24×24 海域圖塊無縫快取（90×45 格 = 2160×1080 全球經度環繞，徹底消除跨 72×72 / 720 格邊界的相機卡頓與跳變）
+const SEA_WORLD_W = 0x870; // 2160
+const SEA_WORLD_H = 0x438; // 1080
+const seaChunkCache = new Map<number, Uint8Array>();
+let seaChunkTmp: Uint8Array | null = null;
+let seaChunkWmRef: any = null;
+
+function getGlobalSeaTile(seaScene: any, wx: number, wy: number): number {
+  if (wy < 0 || wy >= SEA_WORLD_H) return 0;
+  const gwx = ((wx % SEA_WORLD_W) + SEA_WORLD_W) % SEA_WORLD_W;
+  const wcol = Math.floor(gwx / 24);
+  const wrow = Math.floor(wy / 24);
+  const wm = seaScene.wm;
+  if (!wm?.decodeChart) return 0;
+  if (seaChunkWmRef !== wm) {
+    seaChunkCache.clear();
+    seaChunkWmRef = wm;
+  }
+  const key = wrow * 90 + wcol;
+  let chunk = seaChunkCache.get(key);
+  if (!chunk) {
+    seaChunkTmp ??= new Uint8Array(0x2400);
+    const itIdx = Math.floor(wcol / 30);
+    const lc = wcol % 30;
+    let c = lc - 1, ox = 24;
+    if (c < 0) { c = 0; ox = 0; } else if (c > 27) { c = 27; ox = 48; }
+    let r = wrow - 1, oy = 24;
+    if (r < 0) { r = 0; oy = 0; } else if (r > 42) { r = 42; oy = 48; }
+    wm.decodeChart(seaScene.st, itIdx, 30 * r + c, seaChunkTmp);
+    chunk = new Uint8Array(24 * 24);
+    for (let rr = 0; rr < 24; rr++) {
+      const srcOff = P_MAP_W * (oy + rr) + ox;
+      chunk.set(seaChunkTmp.subarray(srcOff, srcOff + 24), rr * 24);
+    }
+    if (seaChunkCache.size > 400) {
+      const firstKey = seaChunkCache.keys().next().value;
+      if (firstKey !== undefined) seaChunkCache.delete(firstKey);
+    }
+    seaChunkCache.set(key, chunk);
+  }
+  return chunk[(wy % 24) * 24 + (gwx % 24)];
+}
+
+/** 16:9 全球無縫海面渲染器 */
 export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene: any) {
   const art = seaScene.c.art;
-  const M = seaScene.map;
-  if (!M || !art) return;
+  if (!art || !seaScene.wm) return;
 
-  // 海上區域緩衝 seaBuf 步幅為 96 (P_MAP_W)，但 WORLDMAP 解碼只填寫左上 72×72 (3×3 海域格)
-  const SEA_VALID = 72;
-  const WORLD_W = 0x870; // 2160 格全球經度環繞
-  const item = seaScene.item >= 0 && seaScene.item < 3 ? seaScene.item : Math.trunc(seaScene.wx(seaScene.fleet) / 0x2d0);
-  const baseWX = item * 0x2d0 + seaScene.bda6;
-  const baseWY = seaScene.bdaa;
+  const WORLD_W = SEA_WORLD_W;
+  const F = seaScene.fleet;
+  const shipWX = ((seaScene.wx(F) % WORLD_W) + WORLD_W) % WORLD_W;
+  const shipWY = seaScene.wy(F);
+  const viewCols = Math.ceil(VIEW_W / TILE); // 40
+  const viewRows = Math.ceil(VIEW_H / TILE); // 23
+  const camWX = (((shipWX - Math.floor(viewCols / 2) + 1) % WORLD_W) + WORLD_W) % WORLD_W;
+  const camWY = Math.max(0, Math.min(SEA_WORLD_H - viewRows, shipWY - Math.floor(viewRows / 2) + 1));
+
   const wrapDeltaX = (wx: number) => {
-    let dx = wx - baseWX;
+    let dx = wx - camWX;
     if (dx < -WORLD_W / 2) dx += WORLD_W;
     else if (dx > WORLD_W / 2) dx -= WORLD_W;
     return dx;
   };
 
-  const F = seaScene.fleet;
-  const shipLX = wrapDeltaX(seaScene.wx(F));
-  const shipLY = seaScene.wy(F) - baseWY;
-  const viewCols = Math.ceil(VIEW_W / TILE); // 40
-  const viewRows = Math.ceil(VIEW_H / TILE); // 23
-  const camX = Math.max(0, Math.min(SEA_VALID - viewCols, shipLX - Math.floor(viewCols / 2) + 1));
-  const camY = Math.max(0, Math.min(SEA_VALID - viewRows, shipLY - Math.floor(viewRows / 2) + 1));
   scr._wideSeaCam = {
-    camX,
-    camY,
-    baseWX,
-    baseWY,
+    camX: 0,
+    camY: 0,
+    baseWX: camWX,
+    baseWY: camWY,
     tile: TILE,
     vx1006: seaScene.vx1006,
     vy1008: seaScene.vy1008,
     worldW: WORLD_W,
+    worldH: SEA_WORLD_H,
+    viewCols,
+    viewRows,
   };
 
   ctx.fillStyle = "#082040";
@@ -553,13 +594,10 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
   ctx.imageSmoothingEnabled = false;
 
   for (let r = 0; r < viewRows; r++) {
-    const my = camY + r;
-    if (my < 0 || my >= SEA_VALID) continue;
-    const rowOff = my * P_MAP_W;
+    const wy = camWY + r;
+    if (wy < 0 || wy >= SEA_WORLD_H) continue;
     for (let c = 0; c < viewCols; c++) {
-      const mx = camX + c;
-      if (mx < 0 || mx >= SEA_VALID) continue;
-      const t = M[rowOff + mx];
+      const t = getGlobalSeaTile(seaScene, camWX + c, wy);
       drawSheetTileDirect(ctx, art, "seachip", t, c * TILE, r * TILE, TILE, TILE, scr, true);
     }
   }
@@ -570,10 +608,10 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
   const Tdir = seaScene.SJ.tab.shipDir;
   const drawOneFleet = (Fl: number, k: number, isHero: boolean) => {
     const fx = wrapDeltaX(seaScene.wx(Fl));
-    const fy = seaScene.wy(Fl) - baseWY;
-    if (fx < -2 || fx >= SEA_VALID + 2 || fy < -2 || fy >= SEA_VALID + 2) return;
-    const sx = (fx - camX) * TILE;
-    const sy = (fy - camY) * TILE;
+    const fy = seaScene.wy(Fl) - camWY;
+    if (fx < -2 || fx > viewCols + 1 || fy < -2 || fy > viewRows + 1) return;
+    const sx = fx * TILE;
+    const sy = fy * TILE;
     if (sx < -64 || sx > VIEW_W || sy < -64 || sy > VIEW_H) return;
     let si: number;
     if (isHero) {
