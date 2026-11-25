@@ -1,9 +1,9 @@
-// cmd_order_route.js — 港口指令按鈕「命令」(1fd9:10a8 = 20e38) 差分測試設定 (先執行本檔, 再執行 port_tests.js)
-// 里斯本; 進港時兩邊同時寫入: 主角艦隊 2 艘 (船位 0 = 船 0 船型 0 船長主角; 船位 1 = 船 1 船型 4 船長人物 8, 與 shipyard_route 相同),
-//   船員欄 [2e1b] = 人物 8 (職務 2, 忠誠 100, 酬金 10) / 9 (職務 3, 忠誠 30, 酬金 50) / 10 (職務 1, 忠誠 40, 酬金 30)
-// F3 → 隊形變更: 第 1 艘選第 2 項 → Esc 取消 → 再選第 2 項 → 剩下的 → 是 (船位 0 ↔ 1 交換)
-//    → 糧食分配: 水 −1 +1 +1, 糧食 +1 −1 → Esc
-//    → 酬金設定: 人物 8 (忠誠 ≥ 80: 0xdc) / 人物 9 (本人發言: 40 < 50 → 0xe0 → 60) / 人物 10 (船員 9 代言: 100) → Esc → Esc
+// cmd_order_route.js — 港口指令按钮「命令」(1fd9:10a8 = 20e38) 差分测试设置 (先运行本档, 再运行 port_tests.js)
+// 里斯本; 进港时两边同时写入: 主角舰队 2 艘 (船位 0 = 船 0 船型 0 船长主角; 船位 1 = 船 1 船型 4 船长人物 8, 与 shipyard_route 相同),
+//   船员栏 [2e1b] = 人物 8 (职务 2, 忠诚 100, 酬金 10) / 9 (职务 3, 忠诚 30, 酬金 50) / 10 (职务 1, 忠诚 40, 酬金 30)
+// F3 → 队形变更: 第 1 艘选第 2 项 → Esc 取消 → 再选第 2 项 → 剩下的 → 是 (船位 0 ↔ 1 交换)
+//    → 粮食分配: 水 −1 +1 +1, 粮食 +1 −1 → Esc
+//    → 酬金设置: 人物 8 (忠诚 ≥ 80: 0xdc) / 人物 9 (本人发言: 40 < 50 → 0xe0 → 60) / 人物 10 (船员 9 代言: 100) → Esc → Esc
 "use strict";
 (function () {
 const S = session;
@@ -26,9 +26,9 @@ for (const [a, v] of S.CMD_POKE || []) b(a, v);
 S.PORT_SETUP = { port: 0, vx: 30, vy: 48, hx: 11, hy: 12, poke };
 const D = n => Array(n).fill(K.down), E = K.enter;
 S.PORT_KEYS = S.CMD_KEYS || [K.f3,
-  ...D(3), E, K.down, E, K.esc, K.down, E, E, E,                             // 隊形變更 → 是
-  ...D(4), E, E, K.right, E, E, K.down, E, K.left, E, K.esc,                 // 糧食分配
-  ...D(5), E, E, E,                                                          // 酬金設定 → 人物 8
+  ...D(3), E, K.down, E, K.esc, K.down, E, E, E,                             // 队形变更 → 是
+  ...D(4), E, E, K.right, E, E, K.down, E, K.left, E, K.esc,                 // 粮食分配
+  ...D(5), E, E, E,                                                          // 酬金设置 → 人物 8
   K.down, E, K.d4, K.d0, E, E, K.d6, K.d0, E, E,                             // 人物 9
   K.down, K.down, E, K.d1, K.d0, K.d0, E, E,                                 // 人物 10
   K.esc, K.esc];

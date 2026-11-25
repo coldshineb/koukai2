@@ -5,8 +5,8 @@ import os
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOTS = [0x12bba, 0x12b49]
 OUT = "re_duel.txt"
-DEPTH = 4                                    # 展開深度 (太深會跑很久)
+DEPTH = 4                                    # 展开深度 (太深会跑很久)
 NAMES = {0x12bba: "一騎打入口 (海戰)", 0x12b49: "劇本 E8 一騎打", 0x12998: "一騎打本體"}
-# 已移植、與一騎打無關的海戰函式不展開
+# 已移植、与一骑打无关的海战函数不展开
 SKIP = {0xbd26, 0xbe20, 0xc581, 0xbcfa, 0x07f7, 0x99f2, 0x99ce, 0x16ee, 0x1743, 0x5998, 0x5b5d, 0x0906, 0x03d2}
 exec(open(os.path.join(HERE, "battle3.py"), encoding="utf-8").read())

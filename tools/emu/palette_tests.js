@@ -1,4 +1,4 @@
-// palette_tests.js — 調色盤系統差分測試 (原版 vs core/palette.js)
+// palette_tests.js — 调色盘系统差分测试 (原版 vs core/palette.js)
 (async function () {
 const fs = require("fs"), S = session, U = S.UI, c = S.env.cpu, D = S.DSEG;
 const json = JSON.parse(fs.readFileSync(S.W + "/uw2_remake/web/assets/data/palettes.json", "utf8"));
@@ -24,7 +24,7 @@ const jsPal = (start, target) => {
 };
 const check = (name, ok, extra = "") => { if (!ok) fails++; rep.push(`${ok ? "OK  " : "FAIL"} ${name.padEnd(34)} ${extra}`); };
 const names = Object.keys(T);
-// 1) 99ce fadeTo: 各調色盤之間淡變 (起點 = 黑 / 其他調色盤)
+// 1) 99ce fadeTo: 各调色盘之间淡变 (起点 = 黑 / 其他调色盘)
 const pairs = [["black", "heroSelect"], ["heroSelect", "black"], ["night", "dawn"], ["dawn", "day"], ["day", "dusk"], ["dusk", "night"], ["day", "overcast"], ["ships", "chart"], ["chart", "battle"], ["battle", "default"], ["black", "ships"]];
 const zero = new Array(48).fill(0);
 for (const [a, b] of pairs) {
@@ -45,11 +45,11 @@ for (const [nm, lin, fn] of [["fadeBlack", 0x99f2, P => P.fadeBlack()], ["fadeTo
   const same = es.length === J.steps.length && es.every((s, i) => s === J.steps[i]);
   check(nm, same, `steps ${es.length}/${J.steps.length}`);
 }
-// 3) [03ea] ≠ 0 時 fadeTo 不動作
+// 3) [03ea] ≠ 0 时 fadeTo 不动作
 prep(); setMem(0xbcd6, Array.from(T.day)); setMem(0xe100, zero); c.mem[D * 16 + 0x03ea] = 0x10;
 { const es = emuFade(0x99ce, { bx: 0xe100 }); const J = jsPal(T.day); J.P.ending = 0x10; await J.P.fadeTo(new Uint8Array(48));
   check("fadeTo skipped when [03ea]≠0", es.length === 0 && J.steps.length === 0 && getMem(0xbcd6, 48).join() === Array.from(T.day).join(), `steps ${es.length}/${J.steps.length}`); }
-// 4) 1976e 時段/天候選擇: 全部時刻 0..71 x (港內/海上) x 天候 0..4
+// 4) 1976e 时段/天候选择: 全部时刻 0..71 x (港内/海上) x 天候 0..4
 let selFail = 0, selN = 0;
 const nameOf = arr => names.find(n => Array.from(T[n]).join() === arr.join()) ?? "?";
 for (let time = 0; time < 72; time++) for (const atSea of [0, 1]) for (const w of [0, 1, 2, 3, 4, 0x11]) {
@@ -61,7 +61,7 @@ for (let time = 0; time < 72; time++) for (const atSea of [0, 1]) for (const w o
   selN++; if (emuName !== jsName) { selFail++; if (selFail < 5) rep.push(`   mismatch t=${time} sea=${atSea} w=${w}: ${emuName}/${jsName}`); }
 }
 check("selectTimePalette (1976e)", selFail === 0, `${selN - selFail}/${selN}`);
-// 5) 197b4 時刻轉換
+// 5) 197b4 时刻转换
 let trFail = 0;
 for (let time = 0; time < 256; time++) {
   prep(); c.mem[D * 16 + 0x0535] = time; setMem(0x8c36, zero);

@@ -1,6 +1,6 @@
-// data.js — 遊戲狀態 JSON <-> 原版位元組 (與 tools/gamedata.py 相同規則, 依 assets/data/schema.json)
-//   world.json  = 新遊戲初值 (DATA1.LZW #15 + DGROUP 尾段), 執行時編碼成 0x8074 bytes 的 GameState
-//   存檔仍是原版二進位格式; 需要時可用 decodeState() 轉成 JSON 檢視/修改, encodeState() 寫回
+// data.js — 游戏状态 JSON <-> 原版字节 (与 tools/gamedata.py 相同规则, 依 assets/data/schema.json)
+//   world.json  = 新游戏初值 (DATA1.LZW #15 + DGROUP 尾段), 运行时编码成 0x8074 bytes 的 GameState
+//   存盘仍是原版二进位格式; 需要时可用 decodeState() 转成 JSON 查看/修改, encodeState() 写回
 export class TextCodec {
   constructor(charmap) {
     this.c2u = new Map(); this.u2c = new Map();
@@ -114,5 +114,5 @@ export function encodeState(d, schema, codec) {
   }
   return buf.slice(0, d.sourceLength ?? buf.length);
 }
-// 表記錄的原版 DS 位址 (與 MAIN.EXE 存取函式相同的計算)
+// 表记录的原版 DS 地址 (与 MAIN.EXE 访问函数相同的计算)
 export function recordAddr(schema, table, i) { const t = schema.tables.find(t => t.name === table); return t.ds + i * t.stride; }

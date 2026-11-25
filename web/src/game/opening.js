@@ -1,25 +1,25 @@
-// opening.js — 片頭 (原版 OPEN.EXE 的移植)
+// opening.js — 片头 (原版 OPEN.EXE 的移植)
 //
-// 原版流程: KOUKAI2.COM 依序執行 FMDRV.COM → OPEN.EXE → MAIN.EXE; 本模組 = OPEN.EXE, 結束 (播完或被跳過) 後由 main.js 進入標題。
-// 逐函式翻譯自 OPEN.EXE 反組譯 (tools/re/opening*.py → tools/work/re_open*.txt); 註解中的位址 = OPEN.EXE 載入映像線性偏移,
-//   [xxxx] = DGROUP (段 0a0b) 變數, DS:xxxx 常數表取自 assets/data/opening.json (tools/extract_open.py 原樣提取)。
+// 原版流程: KOUKAI2.COM 依序运行 FMDRV.COM → OPEN.EXE → MAIN.EXE; 本模块 = OPEN.EXE, 结束 (播完或被跳过) 后由 main.js 进入标题。
+// 逐函数翻译自 OPEN.EXE 反汇编 (tools/re/opening*.py → tools/work/re_open*.txt); 注释中的地址 = OPEN.EXE 加载映像线性偏移,
+//   [xxxx] = DGROUP (段 0a0b) 变量, DS:xxxx 常数表取自 assets/data/opening.json (tools/extract_open.py 原样提取)。
 //
-// 顯示: VGA mode 12h (640x480 16 色平面)。原版直接操作 VRAM 與 VGA 暫存器 (遊戲區 = 第 40..439 行, 片頭還會寫到上下黑邊),
-//   這裡以 OpVGA 模擬 4 平面 + 鎖存器 + 序列器映射遮罩 + 圖形控制器 (硬體行為), 函式庫逐句翻譯成對它的讀寫;
-//   呈現時把 480 行轉成索引畫面交給 Screen.full, DAC 以 Screen.setDac6 逐色設定 (與原版 17f0 相同)。
-// 計時: FMDRV INT 66h 倒數 (F1 01 設定 / F1 00 讀取, 1 tick = 16.58 ms) → sys.timer。
-// 跳過: 4f0d 系等待中按 Enter/空白鍵/滑鼠單鍵、4fd5 系等待中按 Esc → 4ee4 (音樂淡出、畫面淡黑) → 8747 結束程式。
-// 音樂: OPEN.EXE 內含自己的 FM 樂曲資料 (091a:0002, 以 INT 66h AH=0 載入), 場景 0 播放其中第 0 首 (驅動曲號 1)。
-//   該曲與 D2.MML 樂曲 21 (= 遊戲曲目 0) 逐位元組相同 (RE_NOTES 第 23 節), 網頁版以 BGM playSong(0) 播放。
+// 显示: VGA mode 12h (640x480 16 色平面)。原版直接操作 VRAM 与 VGA 寄存器 (游戏区 = 第 40..439 行, 片头还会写到上下黑边),
+//   这里以 OpVGA 模拟 4 平面 + 锁存器 + 串行器映射遮罩 + 图形控制器 (硬件行为), 函数库逐句翻译成对它的读写;
+//   呈现时把 480 行转成索引画面交给 Screen.full, DAC 以 Screen.setDac6 逐色设置 (与原版 17f0 相同)。
+// 计时: FMDRV INT 66h 倒数 (F1 01 设置 / F1 00 读取, 1 tick = 16.58 ms) → sys.timer。
+// 跳过: 4f0d 系等待中按 Enter/空白键/鼠标单键、4fd5 系等待中按 Esc → 4ee4 (音乐淡出、画面淡黑) → 8747 结束程序。
+// 音乐: OPEN.EXE 内含自己的 FM 乐曲数据 (091a:0002, 以 INT 66h AH=0 加载), 场景 0 播放其中第 0 首 (驱动曲号 1)。
+//   该曲与 D2.MML 乐曲 21 (= 游戏曲目 0) 逐字节相同 (RE_NOTES 第 23 节), 网页版以 BGM playSong(0) 播放。
 
-// ---------------- VGA 平面模型 (硬體行為, 與開發用模擬器 tools/emu/x86emu.js 的 VGA 相同) ----------------
+// ---------------- VGA 平面模型 (硬件行为, 与开发用模拟器 tools/emu/x86emu.js 的 VGA 相同) ----------------
 export class OpVGA {
   constructor() {
     this.planes = [0, 1, 2, 3].map(() => new Uint8Array(0x10000));
     this.latch = new Uint8Array(4);
     this.seq = new Uint8Array(8); this.seq[2] = 0x0f;
     this.gc = new Uint8Array(16); this.gc[8] = 0xff;
-    this.overscan = 0;                    // 屬性控制器 0x11 (外框色)
+    this.overscan = 0;                    // 属性控制器 0x11 (外框色)
     this.dirty = true;
   }
   outSeq(i, v) { this.seq[i & 7] = v & 255; }
@@ -28,7 +28,7 @@ export class OpVGA {
     off &= 0xffff;
     const L = this.latch, P = this.planes;
     L[0] = P[0][off]; L[1] = P[1][off]; L[2] = P[2][off]; L[3] = P[3][off];
-    if (this.gc[5] & 8) {                 // 讀取模式 1 (色彩比較)
+    if (this.gc[5] & 8) {                 // 读取模式 1 (色彩比较)
       const cc = this.gc[2], cd = this.gc[7]; let res = 0;
       for (let b = 0; b < 8; b++) {
         let ok = true;
@@ -57,7 +57,7 @@ export class OpVGA {
     }
     this.dirty = true;
   }
-  // 640x480 索引畫面
+  // 640x480 索引画面
   toIndexed(out) {
     const P = this.planes;
     for (let o = 0; o < 0x9600; o++) {
@@ -73,13 +73,13 @@ export class OpVGA {
 
 export class OpeningExit extends Error { constructor() { super("opening exit"); } }
 
-// 3df5 字碼 → 字序 (與 MAIN.EXE seg0:4554 同一規則; 逐句翻譯, 含首碼 0x91 等邊界的 8 位元回繞)
+// 3df5 字码 → 字序 (与 MAIN.EXE seg0:4554 同一规则; 逐句翻译, 含首码 0x91 等边界的 8 比特回绕)
 export function opCodeToGlyph(code) {
   const L = (code >> 8) & 255, T = code & 255;
   const digit = T >= 0x30 && T <= 0x39, upper = T >= 0x41 && T <= 0x5a, lower = T >= 0x61 && T <= 0x7a, hi = T >= 0x80 && T <= 0xfd;
   let si;
   if (L === 0x82) { if (T < 0xa0 || T > 0xf3) return 0x2228; return (((T + 0x60) & 255) + 0xeb) & 0xffff; }   // si = ((0x82+0x7e)&255)*0xbc = 0
-  const common = () => {                         // 3e4d / 3e6c / 3f44 (1.pat 0x81 列與 2.pat)
+  const common = () => {                         // 3e4d / 3e6c / 3f44 (1.pat 0x81 列与 2.pat)
     if (digit) return (T - 0x30 + si + 1) & 0xffff;
     if (upper) return (T - 0x41 + si + 0x0b) & 0xffff;
     if (lower) return (T - 0x61 + si + 0x25) & 0xffff;
@@ -112,22 +112,22 @@ export class Opening {
     const ds = data.json.ds; this.ds = new Uint8Array(ds.length / 2);
     for (let i = 0; i < this.ds.length; i++) this.ds[i] = parseInt(ds.substr(i * 2, 2), 16);
     this.dsBase = data.json.dsBase; this.tailStart = data.json.tailStart;
-    // 記憶體區塊 (8713 → 863a: 6 塊 0x1000 段 = 64KB; 原版 [004c][004e][0050] 一般記憶體, [0052][0054][0056] 優先 EMS)
+    // 内存区块 (8713 → 863a: 6 块 0x1000 段 = 64KB; 原版 [004c][004e][0050] 一般内存, [0052][0054][0056] 优先 EMS)
     this.B4c = new Uint8Array(0x10000); this.B4e = new Uint8Array(0x10000); this.B50 = new Uint8Array(0x10000);
     this.B52 = new Uint8Array(0x20000); this.B54 = new Uint8Array(0x20000); this.B56 = new Uint8Array(0x10000);
-    this.cur = new Uint8Array(48);         // [0e82] 目前調色盤 (16 色 × B,R,G 4 位元)
-    this.dac = new Uint8Array(48);         // DAC 0..15 (R,G,B 6 位元) — 測試比對用
-    this.invert = 0;                       // [005c] (此版本恆為 0)
+    this.cur = new Uint8Array(48);         // [0e82] 目前调色盘 (16 色 × B,R,G 4 比特)
+    this.dac = new Uint8Array(48);         // DAC 0..15 (R,G,B 6 比特) — 测试比对用
+    this.invert = 0;                       // [005c] (此版本恒为 0)
     this.page = 0;                         // [0468]
     this.cyc = 0;                          // [0366]
-    this.musicOn = 1;                      // [004a] 驅動載入樂曲成功
+    this.musicOn = 1;                      // [004a] 驱动加载乐曲成功
     this.flags = 0xff;                     // [0042]
     this.song = 0;                         // [00f4]
-    this.glyph = new Uint8Array(32);       // [0ec0] 字形緩衝 (28 bytes + [0edc..0edf])
-    this.T = new Uint16Array(8);           // cs:0da2 圖樣表 (11da)
+    this.glyph = new Uint8Array(32);       // [0ec0] 字形缓冲 (28 bytes + [0edc..0edf])
+    this.T = new Uint16Array(8);           // cs:0da2 图样表 (11da)
     this.dpat = 0; this.d2pat = 0; this.d2sel = 0;   // cs:2774 / cs:2842 / cs:2840
   }
-  // ---- DS 常數 ----
+  // ---- DS 常数 ----
   b(off) { return this.ds[off - this.dsBase]; }
   w(off) { const i = off - this.dsBase; return this.ds[i] | (this.ds[i + 1] << 8); }
   pal(off) { const i = off - this.dsBase; return this.ds.subarray(i, i + 48); }
@@ -139,7 +139,7 @@ export class Opening {
     catch (e) { if (!(e instanceof OpeningExit)) throw e; }
     finally {
       this.scr.full = null;
-      this.scr.setPaletteRaw(new Uint8Array(48));   // 原版結束時調色盤已淡成全黑 (MAIN.EXE 開機時目前調色盤亦為 0)
+      this.scr.setPaletteRaw(new Uint8Array(48));   // 原版结束时调色盘已淡成全黑 (MAIN.EXE 开机时目前调色盘亦为 0)
       this.scr.clear(0);
     }
   }
@@ -150,8 +150,8 @@ export class Opening {
   }
   async poll() { this.present(); await this.sys.poll(); }
 
-  // ================= 主程式 =================
-  async main() {                                      // 85aa (1.pat / 2.pat 已由 Font 載入)
+  // ================= 主程序 =================
+  async main() {                                      // 85aa (1.pat / 2.pat 已由 Font 加载)
     await this.init();                                // 8565
     await this.setup();                               // 872d
     await this.play();                                // 8481
@@ -161,30 +161,30 @@ export class Opening {
     this.flags = 0xff;                                // [0042]
     this.timerZero();                                 // 4836
     this.cls();                                       // 0810
-    // 8e7f: 記憶體區塊表初始化; 4bc2 → 1770: 屬性暫存器 i → i (恆等)
+    // 8e7f: 内存区块表初始化; 4bc2 → 1770: 属性寄存器 i → i (恒等)
     await this.palFade1(0x00f6);                      // 4dd9
-    // 8525: 檔名加上目前磁碟代號; 8559: 開啟 OPGRAPH.LZW
-    this.musicOn = 1;                                 // 1756: INT 66h AH=0 載入樂曲資料 → [004a]
+    // 8525: 文件名加上目前磁盘代号; 8559: 打开 OPGRAPH.LZW
+    this.musicOn = 1;                                 // 1756: INT 66h AH=0 加载乐曲数据 → [004a]
     await this.palFade1(0x0306);                      // 4de2
   }
   async setup() {                                     // 872d
     await this.palFade1(0x00f6);                      // 4dd9
-    // 8713: 863a 配置記憶體; 4580 滑鼠初始化; 4686(27f,18f) 滑鼠位置 (游標不顯示)
+    // 8713: 863a 配置内存; 4580 鼠标初始化; 4686(27f,18f) 鼠标位置 (光标不显示)
     await this.palFade1(0x00f6);                      // 4dd9
   }
   async play() {                                      // 8481
     this.flushKeys(); await this.waitNoInput();       // 2c57, 3856, 4e59
     this.page = 0;                                    // [0468]
     const S = [this.scene0, this.scene1, this.scene2, this.scene3, this.scene4, this.scene5, this.scene6, this.scene7, this.scene8, this.scene9, this.scene10, this.scene11];
-    for (const f of S) await f.call(this);            // DS:0b9a 場景表
+    for (const f of S) await f.call(this);            // DS:0b9a 场景表
     this.border(0);                                   // 2d0e(0)
   }
   async exit() {                                      // 8747
     await this.palFade1(0x0306);                      // 4de2
     this.cls();                                       // 0810
-    // 3cdd(0,0) 文字游標; 432c(DS:0c20 = ESC C7 ESC B0: 文字主控台顏色設定, 不輸出字元); 873c 關檔; 86dd 釋放記憶體
+    // 3cdd(0,0) 文字光标; 432c(DS:0c20 = ESC C7 ESC B0: 文字主控台颜色设置, 不输出字符); 873c 关档; 86dd 释放内存
     this.musicFade(0x14);                             // 4a0b(14h)
-    throw new OpeningExit();                          // 2edb(0) 結束程式
+    throw new OpeningExit();                          // 2edb(0) 结束程序
   }
   async abort() {                                     // 4ee4
     this.musicFade(0x14);
@@ -192,15 +192,15 @@ export class Opening {
     await this.exit();
   }
 
-  // ================= 計時 =================
+  // ================= 计时 =================
   timerGet() { return this.sys.timer.get(); }                     // 186d (F1 00)
   timerSet(n) { this.sys.timer.set(n & 0xffff); }                 // 1860 (F1 01)
   timerZero() { this.timerSet(0); }                               // 4836
   timerAdd(n) { this.timerSet(this.timerGet() + n); }             // 4846
   async wait(n) { this.timerAdd(n); while (this.timerGet()) await this.poll(); }   // 485d
-  // ================= 鍵盤 / 滑鼠 =================
-  kbhit() { return this.sys.kbhit() ? 1 : 0; }                    // 2ce1 (BIOS NumLock 強制開)
-  getch() { return this.sys.readRaw(); }                          // 2cfb: ASCII≠0 → ASCII, 否則 0x100|掃描碼
+  // ================= 键盘 / 鼠标 =================
+  kbhit() { return this.sys.kbhit() ? 1 : 0; }                    // 2ce1 (BIOS NumLock 强制开)
+  getch() { return this.sys.readRaw(); }                          // 2cfb: ASCII≠0 → ASCII, 否则 0x100|扫描码
   flushKeys() { while (this.kbhit()) this.getch(); }              // 3856
   translateKey() {                                                // 386d
     const si = this.getch();
@@ -221,7 +221,7 @@ export class Opening {
     return 0;
   }
   async waitNoInput() { while (this.inputState()) { this.flushKeys(); await this.poll(); } }   // 4e59
-  async prepWait() { this.flushKeys(); await this.waitNoInput(); }                   // 2c57 (磁碟重置), 3856, 4e59
+  async prepWait() { this.flushKeys(); await this.waitNoInput(); }                   // 2c57 (磁盘重置), 3856, 4e59
   async waitSkip() {                                                                 // 4f0d
     do { const k = this.input(); if (k === 0x0d || k === 0x20) await this.abort(); await this.poll(); } while (this.timerGet());
   }
@@ -235,7 +235,7 @@ export class Opening {
     while (await this.palStep(pal)) { this.timerAdd(n); await this.waitSkip(); }
   }
 
-  // ================= 調色盤 =================
+  // ================= 调色盘 =================
   writeColor(i, word) {                                                              // 17f0
     i &= 15;
     const r = (word & 0xf0) >> 2, g = ((word >> 8) & 0x0f) << 2, b = (word & 0x0f) << 2;
@@ -251,14 +251,14 @@ export class Opening {
       this.writeColor(i, w & 0xffff);
     }
   }
-  async palStep(off) {                                                               // 4d0d: 每色每通道朝目標走 1, 有變化就寫 DAC; 一律等 1 tick
+  async palStep(off) {                                                               // 4d0d: 每色每通道朝目标走 1, 有变化就写 DAC; 一律等 1 tick
     const t = this.pal(off), c = this.cur; let ch = 0;
     for (let i = 0; i < 48; i++) if (c[i] !== t[i]) { ch = 1; if (c[i] > t[i]) c[i]--; else c[i]++; }
     if (ch) this.writeAll();
     await this.wait(1);
     return ch;
   }
-  palCycleStep(off) {                                                                // 4bc8: 只動 [0366]%12 起每隔 12 的 4 個位元組, 寫全部 16 色, 不等待
+  palCycleStep(off) {                                                                // 4bc8: 只动 [0366]%12 起每隔 12 的 4 个字节, 写全部 16 色, 不等待
     const t = this.pal(off), c = this.cur, k = this.cyc % 12;
     for (let j = 0; j < 4; j++) { const i = k + 12 * j; if (c[i] !== t[i]) { if (c[i] > t[i]) c[i]--; else c[i]++; } }
     this.writeAll();
@@ -274,22 +274,22 @@ export class Opening {
   async fadeOut() { while (await this.palStep(0x0306)); }                            // 50e4
   async fadeOutSkipCls() { while (await this.palStep(0x0306)) await this.waitAddSkip(4); this.cls(); }   // 532c
 
-  // ================= 音樂 (INT 66h) =================
-  musicStatus() { return 0; }                                        // 4a32 (fn 3): 網頁版無法取得驅動狀態, 視為未播放 (與差分測試的模擬器相同)
+  // ================= 音乐 (INT 66h) =================
+  musicStatus() { return 0; }                                        // 4a32 (fn 3): 网页版无法取得驱动状态, 视为未播放 (与差分测试的模拟器相同)
   playSong(n) {                                                      // 4980
     if (!this.musicOn || !(this.flags & 4) || n > 0x17) return;
     if (this.musicStatus()) { if (this.song === n) return; this.musicFade(0x14); while (this.musicStatus()); }
-    // fn 1 (FMDRV 樂曲 n+1) + 49e4(1) 開啟重播: OPEN.EXE 內嵌樂曲 = D2.MML 樂曲 21 = 遊戲曲目 0 (RE_NOTES 第 23 節) → BGM 曲目 0 (循環)
+    // fn 1 (FMDRV 乐曲 n+1) + 49e4(1) 打开重播: OPEN.EXE 内嵌乐曲 = D2.MML 乐曲 21 = 游戏曲目 0 (RE_NOTES 第 23 节) → BGM 曲目 0 (循环)
     this.bgm?.playSong?.(n);
     this.musicFlag(1);
     this.song = n;
   }
-  musicFlag(v) { if (this.bgm?.el) this.bgm.el.loop = !!v; }        // 49e4 (fn 4: 重播旗標; 0 = 本遍播完即停)
+  musicFlag(v) { if (this.bgm?.el) this.bgm.el.loop = !!v; }        // 49e4 (fn 4: 重播标志; 0 = 本遍播完即停)
   musicFade(speed) { if (this.musicOn) this.bgm?.fadeOut?.(); }      // 4a0b (fn 2)
 
-  // ================= 繪圖函式庫 (0000..1000 段, 與 MAIN.EXE 同一套組合語言庫) =================
+  // ================= 绘图函数库 (0000..1000 段, 与 MAIN.EXE 同一套汇编语言库) =================
   gcReset() { const v = this.vga; v.outGC(1, 0); v.outGC(3, 0); v.outGC(5, 0); v.outGC(8, 0xff); }   // 0118
-  clip(col, y, w, h) {                                                            // 012e: 成功傳回 VRAM 位址 (並 0118), 失敗 -1
+  clip(col, y, w, h) {                                                            // 012e: 成功传回 VRAM 地址 (并 0118), 失败 -1
     col &= 0xffff; y &= 0xffff; w &= 0xffff; h &= 0xffff;
     if (col > 0x4f || !w || col + w > 0x50) return -1;
     if (y > 0x18f || !h || y + h > 0x190) return -1;
@@ -303,9 +303,9 @@ export class Opening {
     return 0;
   }
   border(c) { this.vga.overscan = c & 255; this.vga.dirty = true; }               // 2d0e: INT 10h AX=1001h
-  // 02a7 (經 03ce): 4 平面交錯 (每 8 像素 plane0..3 各 1 byte); mode 0 覆寫 (bit15 每行畫兩次) / 1 XOR / 2 AND / 3 OR / 4 透明
+  // 02a7 (经 03ce): 4 平面交错 (每 8 像素 plane0..3 各 1 byte); mode 0 覆写 (bit15 每行画两次) / 1 XOR / 2 AND / 3 OR / 4 透明
   put4(col, y, w, h, mode, off, buf) { return this.putN(4, col, y, w, h, mode & 0x7fff, mode, off, buf); }
-  // 0449 (經 055e, mode 恆為 0): 3 平面交錯
+  // 0449 (经 055e, mode 恒为 0): 3 平面交错
   put3(col, y, w, h, buf, off) { return this.putN(3, col, y, w, h, 0, 0, off, buf); }
   putN(np, col, y, w, h, m, mode, off, buf) {
     const v = this.vga;
@@ -343,7 +343,7 @@ export class Opening {
     } while ((h = (h - 1) & 0xffff));
     return 0;
   }
-  // 2aec: 3 平面 (來源為 4 平面交錯, 平面 3 保留), 不裁切、不重設圖形控制器; 來源到 lim 時回到 0 (循環捲動)
+  // 2aec: 3 平面 (来源为 4 平面交错, 平面 3 保留), 不裁切、不重设图形控制器; 来源到 lim 时回到 0 (循环滚动)
   put3stride(col, y, w, h, off, lim, buf) {
     const v = this.vga;
     let di = (col + (y + 0x28) * 80) & 0xffff, si = off & 0xffff;
@@ -360,7 +360,7 @@ export class Opening {
       if (!(lim > si)) si = 0;
     } while ((h = (h - 1) & 0xffff));
   }
-  // 2b5e: 畫面左移 8 像素 (平面 0..2); buf 不為 null 時右端補入 buf 的 1 byte/平面 (每行來源加 rowInc)
+  // 2b5e: 画面左移 8 像素 (平面 0..2); buf 不为 null 时右端补入 buf 的 1 byte/平面 (每行来源加 rowInc)
   scrollCopy(col, y, w, h, off, buf, rowInc) {
     const v = this.vga;
     let di = (col + (y + 0x28) * 80) & 0xffff, si = (di + 1) & 0xffff, bx = h;
@@ -381,14 +381,14 @@ export class Opening {
     let di = off & 0xffff, cx = count & 0xffff;
     do { this.vga.write(di, val); di = (di + 1) & 0xffff; } while ((cx = (cx - 1) & 0xffff));
   }
-  fillRect(col, y, w, h, color) {                                                 // 091f: 寫入模式 2 填色 (不還原)
+  fillRect(col, y, w, h, color) {                                                 // 091f: 写入模式 2 填色 (不还原)
     const v = this.vga;
     let di = this.clip(col, y, w, h); if (di < 0) return -1;
     v.outSeq(2, 0x0f); v.outGC(5, 2);
     do { for (let c = 0; c < w; c++) { v.write(di, color); di = (di + 1) & 0xffff; } di = (di + 0x50 - w) & 0xffff; } while ((h = (h - 1) & 0xffff));
     return 0;
   }
-  getImage(col, y, w, h, off, buf) {                                              // 29fe: 畫面 → 4 平面交錯緩衝
+  getImage(col, y, w, h, off, buf) {                                              // 29fe: 画面 → 4 平面交错缓冲
     const v = this.vga;
     let si = this.clip(col, y, w, h); if (si < 0) return;
     let di = off & 0xffff;
@@ -398,7 +398,7 @@ export class Opening {
       si = (s0 + 0x50) & 0xffff;
     } while ((h = (h - 1) & 0xffff));
   }
-  ditherPut(col, y, w, h, off, buf, setup) {                                      // 2775: 以 cs:2774 網點圖樣逐列混入 (4 平面)
+  ditherPut(col, y, w, h, off, buf, setup) {                                      // 2775: 以 cs:2774 网点图样逐列混入 (4 平面)
     if (setup) { this.dpat = setup & 255; return; }
     const v = this.vga;
     let di = this.clip(col, y, w, h); if (di < 0) return;
@@ -423,7 +423,7 @@ export class Opening {
     } while ((h = (h - 1) & 0xffff));
     this.dpat |= ror8(this.dpat, 5);
   }
-  ditherPlane(col, y, w, h, off, buf, setup, sel) {                               // 2843: 單一平面網點混入 (cs:2840 平面選擇, cs:2842 圖樣)
+  ditherPlane(col, y, w, h, off, buf, setup, sel) {                               // 2843: 单一平面网点混入 (cs:2840 平面选择, cs:2842 图样)
     if (setup) { this.d2pat = setup & 255; this.d2sel = sel; return; }
     const v = this.vga;
     let di = this.clip(col, y, w, h); if (di < 0) return;
@@ -442,7 +442,7 @@ export class Opening {
     } while ((h = (h - 1) & 0xffff));
     this.d2pat |= ror8(this.d2pat, 5);
   }
-  planeCopy(col, y, w, h, off, buf, sel) {                                        // 28f3: 4 平面交錯緩衝的一個平面 → 畫面平面 (sel a800/b000/b800/e000)
+  planeCopy(col, y, w, h, off, buf, sel) {                                        // 28f3: 4 平面交错缓冲的一个平面 → 画面平面 (sel a800/b000/b800/e000)
     const v = this.vga;
     let di = this.clip(col, y, w, h); if (di < 0) return;
     let si = off & 0xffff;
@@ -470,20 +470,20 @@ export class Opening {
   }
 
   // ================= OPGRAPH.LZW =================
-  loadEntry(buf, idx, limit = 0) {                                                // 8be3: 解壓第 idx 項到緩衝 0 起 (limit≠0 時最多 limit bytes)
+  loadEntry(buf, idx, limit = 0) {                                                // 8be3: 解压第 idx 项到缓冲 0 起 (limit≠0 时最多 limit bytes)
     const e = this.data.entries[idx];
     let n = e.length; if (limit && limit < n) n = limit;
     buf.set(e.subarray(0, n), 0);
     return n;
   }
   graphOfs(buf, n) { const o = n * 4; return ((buf[o] << 24) | (buf[o + 1] << 16) | (buf[o + 2] << 8) | buf[o + 3]) >>> 0; }   // 504e
-  rawRead(fileOfs, buf, bufOff, len) {                                            // 00aa lseek + 005b read (檔尾未壓縮部分)
+  rawRead(fileOfs, buf, bufOff, len) {                                            // 00aa lseek + 005b read (档尾未压缩部分)
     const s = fileOfs - this.tailStart, t = this.data.tail;
     for (let i = 0; i < len && s + i < t.length; i++) buf[(bufOff + i) & 0xffff] = t[s + i];
   }
-  // 11da (經 4905): 16 色 GRAPH 格式 → 4 平面交錯記憶體緩衝 (每單位 4 像素 = 4 個位元組的同一半位元組; 偶數單位在高半位元組)
+  // 11da (经 4905): 16 色 GRAPH 格式 → 4 平面交错内存缓冲 (每单位 4 像素 = 4 个字节的同一半字节; 偶数单位在高半字节)
   dec4(src, so, dst, doff = 0) { return this.decN(4, src, so, dst, doff); }
-  // 1513 (經 492d): 8 色格式 → 3 平面交錯緩衝
+  // 1513 (经 492d): 8 色格式 → 3 平面交错缓冲
   dec3(src, so, dst, doff = 0) { return this.decN(3, src, so, dst, doff); }
   decN(np, src, so, dst, doff) {
     let sp = so;
@@ -492,7 +492,7 @@ export class Opening {
     let cx = rd(); cx |= rd() << 8;
     bx = ((bx + 3) >> 2) & 0xffff; const dx = bx;
     if (np === 4) for (let i = 0; i < 8; i++) { const lo = rd(), hi = rd(); this.T[i] = lo | (hi << 8); }
-    const grp = u => doff + (((u >> 1) * np) & 0xffff);                           // 單位 → 位元組組的起點 (段內 16 位元回繞)
+    const grp = u => doff + (((u >> 1) * np) & 0xffff);                           // 单位 → 字节组的起点 (段内 16 比特回绕)
     const getU = (u, p) => { const b = dst[(grp(u) + p) & 0x1ffff]; return (u & 1) ? b & 0x0f : b >> 4; };
     const setU = (u, p, nib) => { const a = (grp(u) + p) & 0x1ffff; dst[a] = (u & 1) ? (dst[a] & 0xf0) | (nib & 0x0f) : (dst[a] & 0x0f) | ((nib & 0x0f) << 4); };
     let di = 0;
@@ -505,11 +505,11 @@ export class Opening {
         const d0 = di;
         if (al & 0x80) {
           cnt = (al & 0x0f) + 1;
-          if (al & 0x40) {                                                        // 1333 上方複製: 只依目的單位奇偶取來源位元組的同一半
+          if (al & 0x40) {                                                        // 1333 上方拷贝: 只依目的单位奇偶取来源字节的同一半
             let si = di, k = ((al & 0x30) >> 4) + 1; do { si = (si - dx) & 0xffff; } while (--k);
             const sbase = (si & ~1) | (di & 1);
             for (let i = 0; i < cnt; i++) for (let p = 0; p < np; p++) setU(di + i, p, getU(((sbase + i) & 0xffff), p));
-          } else {                                                                // 1252 同行回溯 (奇偶分 4 種, 等於逐單位複製)
+          } else {                                                                // 1252 同行回溯 (奇偶分 4 种, 等于逐单位拷贝)
             const si = (di - (((al & 0x30) >> 4) + 1)) & 0xffff;
             for (let i = 0; i < cnt; i++) for (let p = 0; p < np; p++) setU(di + i, p, getU((si + i) & 0xffff, p));
           }
@@ -551,7 +551,7 @@ export class Opening {
     const g = this.glyph; g[28] = g[29] = g[30] = g[31] = 0;
     const F = this.font;
     const fromPat = (arr) => {
-      const n = opCodeToGlyph(code);                                              // (n-1)*28 + (n-1)/18*8 的檔案位置讀 28 bytes; 超出檔尾時讀不到 (緩衝保留)
+      const n = opCodeToGlyph(code);                                              // (n-1)*28 + (n-1)/18*8 的文件位置读 28 bytes; 超出档尾时读不到 (缓冲保留)
       const cnt = arr.length / 28;
       if (n >= 1 && n <= cnt) g.set(arr.subarray((n - 1) * 28, n * 28), 0);
     };
@@ -562,7 +562,7 @@ export class Opening {
       this.glyphKind = 1;
     }
   }
-  glyph2x(x, y, buf, w) {                                                         // 5bf1: 字形放大 2 倍 (32x32) → 4 平面交錯緩衝 (色 7)
+  glyph2x(x, y, buf, w) {                                                         // 5bf1: 字形放大 2 倍 (32x32) → 4 平面交错缓冲 (色 7)
     const g = this.glyph, A = new Uint16Array(64);
     for (let r = 0; r < 32; r++) {
       let v = 0;
@@ -580,7 +580,7 @@ export class Opening {
       si = (si + w * 4) & 0xffff;
     }
   }
-  glyph1x(x, y, buf, w, inv) {                                                    // 5b6f / 5af3 (反白): 16x16 → 4 平面交錯緩衝
+  glyph1x(x, y, buf, w, inv) {                                                    // 5b6f / 5af3 (反白): 16x16 → 4 平面交错缓冲
     const g = this.glyph;
     let o0 = ((w * y + x) * 4) & 0xffff;
     for (let r = 0; r < 16; r++) {
@@ -592,7 +592,7 @@ export class Opening {
       o0 = (o0 + w * 4) & 0xffff;
     }
   }
-  textToBuf(buf, idx, w, h) {                                                     // 5d49: DS:0898[idx] (放大字) + DS:08ae[idx] (一般字) → 緩衝
+  textToBuf(buf, idx, w, h) {                                                     // 5d49: DS:0898[idx] (放大字) + DS:08ae[idx] (一般字) → 缓冲
     const n = (h * w * 4) & 0xffff;
     for (let i = 0; i < n; i++) buf[i] = 0;
     let y = 0, x = 0;
@@ -621,7 +621,7 @@ export class Opening {
     }
   }
 
-  // ================= 場景 (DS:0b9a 表) =================
+  // ================= 场景 (DS:0b9a 表) =================
   async scene0() {                                                                // 5348
     const { B4c, B50, B52 } = this;
     await this.palFade1(0x0306);
@@ -764,7 +764,7 @@ export class Opening {
     }
     this.border(0);
   }
-  async dissolve(col, y, w, h, buf) {                                             // 51a9: 平面 0→1→2 依序網點溶入, 最後平面 3 直接複製
+  async dissolve(col, y, w, h, buf) {                                             // 51a9: 平面 0→1→2 依序网点溶入, 最后平面 3 直接拷贝
     this.ditherPlane(0, 0, 0, 0, 0, null, 0x8080, 0xa800);
     let di = w;
     for (let si = 0; si < 4; si++) { this.ditherPlane(col, y, di, h, 0, buf, 0); await this.waitAddSkip(1); }
@@ -806,7 +806,7 @@ export class Opening {
           else {
             const w912 = this.sw(0x0912, si), w904 = this.sw(0x0904, si);
             const cx = s16(w912 - this.sw(0x092e, si)), dv = s16(this.sw(0x0920, si) - w904);
-            const prod = s16(Math.imul(s16(w904 - A[si]), cx));                 // imul 後 cwd: 只用乘積低 16 位元
+            const prod = s16(Math.imul(s16(w904 - A[si]), cx));                 // imul 后 cwd: 只用乘积低 16 比特
             di = s16(Math.trunc(prod / dv) + w912);
           }
           this.put4(A[si] & 0xffff, di & 0xffff, 4, 0x20, 3, (this.w(0x08c4 + 2 * k) << 9) & 0xffff, B54);
@@ -845,7 +845,7 @@ export class Opening {
       await this.waitSkip();
     }
   }
-  // 場景 4..7 共用的結尾: 文字網點溶入 (前 8 次) + 每 0x32 次眨眼 5 格 (DS:0898/08ae[idx])
+  // 场景 4..7 共用的结尾: 文字网点溶入 (前 8 次) + 每 0x32 次眨眼 5 格 (DS:0898/08ae[idx])
   async intro(idx, tcol, ty, tw, th, ecol, ey, ew, eh, estep, ebuf, eoff = 0) {
     for (let si = 0; si < 0x5a; si++) {
       this.timerAdd(2);
@@ -863,7 +863,7 @@ export class Opening {
   }
   async scene4() {                                                                // 65af
     const { B4c, B4e, B50, B52, B54, B56 } = this;
-    const X = [0, 0], Y = [0, 0];                                                 // [bp-8] / [bp-0ch] (以 [0468] 為索引)
+    const X = [0, 0], Y = [0, 0];                                                 // [bp-8] / [bp-0ch] (以 [0468] 为索引)
     this.timerAdd(0x3c);
     for (let si = 0; si < 3; si++) this.dec4(B4c, this.graphOfs(B4c, si), B54, (si * 0x3720) & 0xffff);
     await this.waitSkip();
@@ -911,7 +911,7 @@ export class Opening {
     await this.dissolve(0x18, 0x30, 0x2a, 0xe8, B52);
     await this.intro(1, 6, 0x40, 0x24, 0xb0, 0x36, 0x78, 6, 0x18, 0x240, B54);
   }
-  // 場景 5..7 前半: 頭像以平面 3 逐格移動 (位置表 tcol/trow, 格號表 tfrm), 每格前清掉上一格
+  // 场景 5..7 前半: 头像以平面 3 逐格移动 (位置表 tcol/trow, 格号表 tfrm), 每格前清掉上一格
   async walk(n, wait, tfrm, tcol, trow, w, h, stride, X, Y) {
     const p = () => this.page & 0xff;
     for (let si = 0; si < n; si++) {
@@ -1046,7 +1046,7 @@ export class Opening {
     }
     await this.dissolve(0x0b, 0x30, 0x3a, 0x118, B52);
     this.timerAdd(0x50);
-    // 緩衝段 [0052]: +0 / +48h / +b4h 段 (位元組 0 / 0x480 / 0xb40) 三組 3 格
+    // 缓冲段 [0052]: +0 / +48h / +b4h 段 (字节 0 / 0x480 / 0xb40) 三组 3 格
     for (let si = 0; si < 3; si++) {
       this.dec4(B4c, this.graphOfs(B4c, si + 6), B52, si * 0x180);
       this.dec4(B4c, this.graphOfs(B4c, si + 9), B52, 0x480 + si * 0x240);
@@ -1075,7 +1075,7 @@ export class Opening {
     const { B4c, B4e, B50, B52, B54, B56 } = this;
     this.timerAdd(0x4b);
     this.dec4(B4e, this.graphOfs(B4e, 0x0a), B52);
-    for (let si = 0; si < 5; si++) {                                              // 緩衝段 [0054] +0 / +1c2h 段
+    for (let si = 0; si < 5; si++) {                                              // 缓冲段 [0054] +0 / +1c2h 段
       this.dec4(B4e, this.graphOfs(B4e, si), B54, si * 0x5a0);
       this.dec4(B4e, this.graphOfs(B4e, si + 5), B54, 0x1c20 + si * 0x780);
     }
@@ -1117,7 +1117,7 @@ export class Opening {
     await this.fadeOutSkipCls();
     this.timerAdd(0x3c);
     while (await this.palStep(0x00f6));
-    this.loadEntry(B4e, 3, 0);                                                    // 上限 = 前面迴圈結束時的 ax (0)
+    this.loadEntry(B4e, 3, 0);                                                    // 上限 = 前面循环结束时的 ax (0)
     for (let si = 0; si < 5; si++) this.dec4(B4e, this.graphOfs(B4e, si), B56, 0x76c0 + (si << 9));   // [0056] +76ch 段
     for (let si = 0; si < 3; si++) this.dec4(B4c, this.graphOfs(B4c, si + 1), B56, 0x80c0 + si * 0x180);   // [0056] +80ch 段
     await this.waitSkip();
@@ -1206,7 +1206,7 @@ export class Opening {
   }
 }
 
-// 載入片頭資源 (瀏覽器)
+// 加载片头资源 (浏览器)
 export async function loadOpeningData(ASSETS, loadBinary, loadJSON) {
   const entries = await Promise.all([...Array(14)].map((_, i) => loadBinary(`${ASSETS}/gfx/opgraph/${String(i).padStart(2, "0")}.dat`)));
   const [tail, json] = await Promise.all([loadBinary(`${ASSETS}/gfx/opgraph/tail.dat`), loadJSON(`${ASSETS}/data/opening.json`)]);

@@ -1,4 +1,4 @@
-// domain_tests.js — 純 TS 領域層 (economy.ts / fleet.ts) 與 ScenarioMemoryAdapter 單元測試
+// domain_tests.js — 纯 TS 领域层 (economy.ts / fleet.ts) 与 ScenarioMemoryAdapter 单元测试
 (function () {
   if (typeof session === "undefined" && typeof globalThis.UI === "undefined") {
     const path = require("path");
@@ -21,7 +21,7 @@
     eq("bank normal encode rem", e1.rem, 45);
     eq("bank normal decode roundtrip", U.decodeBankBalance(e1.quotient, e1.rem), 12345);
 
-    // 原版貸款奇特性: -1000 存為 (quotient=-11, rem=100) -> 100 * -11 + 100 = -1000
+    // 原版贷款奇特性: -1000 存为 (quotient=-11, rem=100) -> 100 * -11 + 100 = -1000
     const e2 = U.encodeBankBalance(-1000, "loan");
     eq("bank loan -1000 quotient", U.domS16(e2.quotient), -11);
     eq("bank loan -1000 rem", e2.rem, 100);
@@ -30,14 +30,14 @@
     const e3 = U.encodeBankBalance(-1234, "loan");
     eq("bank loan -1234 decode", U.decodeBankBalance(e3.quotient, e3.rem), -1234);
 
-    // 還款清零 vs 部分還款
+    // 还款清零 vs 部分还款
     const e4 = U.encodeBankBalance(0, "repay");
     eq("bank repay 0 quotient", e4.quotient, 0);
     eq("bank repay 0 rem", e4.rem, 0);
     const e5 = U.encodeBankBalance(-500, "repay");
     eq("bank repay -500 decode", U.decodeBankBalance(e5.quotient, e5.rem), -500);
 
-    // 存款與貸款上限
+    // 存款与贷款上限
     eq("bank deposit limit capped by cash", U.calcDepositLimit(0, 0, 50000), 50000);
     eq("bank deposit limit capped by 1M", U.calcDepositLimit(9990, 50, 50000), 950);
     eq("bank canTakeLoan rank 0 at q=0", U.canTakeLoan(0, 0), true);

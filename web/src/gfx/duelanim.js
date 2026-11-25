@@ -1,9 +1,9 @@
-// gfx/duelanim.js — 一騎打的離屏平面畫布 (MAIN.EXE seg0:22ca / 23f7 / 2461 / 22f9 / 237c) 與 IAP / IAE 動畫檔 (docs/RE_NOTES.md 30.17)
-// 原版的遠端緩衝: 4 個平面各 planeSize bytes 連續排列 (段距 planeSize / 16), 平面 k 的位址 = k × planeSize + (偏移 & 0xffff)。
-// 偏移以 16 位元回繞 (原版是段內偏移); 回繞到 4 個平面之外的寫入落在多配置的 0x10000 bytes 內 (原版是別的記憶體, 不影響畫面)。
-//   主畫布 [a02c]: planeSize 0x2a30, 每列 0x5a bytes (720 點) × 0x78 列
-//   精靈畫布 [a02e] / [a030] / [a032]: planeSize 0x18c0, 每列 0x48 bytes × 0x58 列 (8 格 × 9 欄)
-// 交錯緩衝 ([0c8a] 合成用、[03ee] 解壓用): Uint8Array 0x10000, 每 8 點 4 bytes (平面 0..3), 段內偏移回繞
+// gfx/duelanim.js — 一骑打的离屏平面画布 (MAIN.EXE seg0:22ca / 23f7 / 2461 / 22f9 / 237c) 与 IAP / IAE 动画档 (docs/RE_NOTES.md 30.17)
+// 原版的远程缓冲: 4 个平面各 planeSize bytes 连续排列 (段距 planeSize / 16), 平面 k 的地址 = k × planeSize + (偏移 & 0xffff)。
+// 偏移以 16 比特回绕 (原版是段内偏移); 回绕到 4 个平面之外的写入落在多配置的 0x10000 bytes 内 (原版是别的内存, 不影响画面)。
+//   主画布 [a02c]: planeSize 0x2a30, 每列 0x5a bytes (720 点) × 0x78 列
+//   精灵画布 [a02e] / [a030] / [a032]: planeSize 0x18c0, 每列 0x48 bytes × 0x58 列 (8 格 × 9 栏)
+// 交错缓冲 ([0c8a] 合成用、[03ee] 解压用): Uint8Array 0x10000, 每 8 点 4 bytes (平面 0..3), 段内偏移回绕
 import { lsEntries, lsDecode } from "../core/ls11.js";
 
 const daCount = n => (n & 0xffff) || 0x10000;                    // loop / dec word: 0 代表 65536 次 (照搬)
@@ -11,8 +11,8 @@ const daCount = n => (n & 0xffff) || 0x10000;                    // loop / dec w
 export class PlanarBuf {
   constructor(planeSize, stride) { this.ps = planeSize; this.stride = stride; this.m = new Uint8Array(planeSize * 3 + 0x10000); }
   at(k, off) { return k * this.ps + (off & 0xffff); }
-  start(x, y) { return (x + Math.imul(y & 0xffff, this.stride)) & 0xffff; }   // di = x + y × [22be] (mul: 低 16 位元)
-  // 23f7: 以單色填滿 (色的 bit0..3 → 平面 0..3 各寫 0x00 / 0xff)
+  start(x, y) { return (x + Math.imul(y & 0xffff, this.stride)) & 0xffff; }   // di = x + y × [22be] (mul: 低 16 比特)
+  // 23f7: 以单色填满 (色的 bit0..3 → 平面 0..3 各写 0x00 / 0xff)
   fill(x, y, w, h, color) {
     const m = this.m, v = [color & 1, color & 2, color & 4, color & 8].map(b => (b ? 0xff : 0));
     let di = this.start(x, y);
@@ -22,7 +22,7 @@ export class PlanarBuf {
       di = (di + this.stride) & 0xffff;
     }
   }
-  // 2461: 交錯來源 (每欄 p0 p1 p2 p3) 原樣寫入
+  // 2461: 交错来源 (每栏 p0 p1 p2 p3) 原样写入
   copyIn(x, y, w, h, src, off) {
     const m = this.m; let di = this.start(x, y), si = off & 0xffff;
     for (let r = daCount(h); r > 0; r--) {
@@ -31,7 +31,7 @@ export class PlanarBuf {
       di = (di + this.stride) & 0xffff;
     }
   }
-  // 22f9: 來源每欄第 4 byte = 遮罩 bh; 平面 0..2 = (原值 & bh) | 來源, bl = ~bh | 新平面 0 | 1 | 2, 平面 3 = ~bl
+  // 22f9: 来源每栏第 4 byte = 遮罩 bh; 平面 0..2 = (原值 & bh) | 来源, bl = ~bh | 新平面 0 | 1 | 2, 平面 3 = ~bl
   maskIn(x, y, w, h, src, off, srcCols) {
     const m = this.m, skip = ((srcCols - w) << 2) & 0xffff; let di = this.start(x, y), si = off & 0xffff;
     for (let r = daCount(h); r > 0; r--) {
@@ -44,7 +44,7 @@ export class PlanarBuf {
       di = (di + this.stride) & 0xffff; si = (si + skip) & 0xffff;
     }
   }
-  // 237c: 畫布 → 交錯目的 dst; 遮罩 = 平面 3: 目的 p0..p2 = (原值 & 平面 3) | 平面 k, p3 = 0
+  // 237c: 画布 → 交错目的 dst; 遮罩 = 平面 3: 目的 p0..p2 = (原值 & 平面 3) | 平面 k, p3 = 0
   compose(x, y, w, h, dst, off, dstCols) {
     const m = this.m, skip = ((dstCols - w) << 2) & 0xffff; let si = this.start(x, y), di = off & 0xffff;
     for (let r = daCount(h); r > 0; r--) {
@@ -59,7 +59,7 @@ export class PlanarBuf {
   }
 }
 
-// LS10 / LS11 檔的第 i 項解到交錯緩衝 buf 的 off 起 (2e09:752b / 71f4; max ≠ 0 時以 max 截斷, 段內回繞)
+// LS10 / LS11 档的第 i 项解到交错缓冲 buf 的 off 起 (2e09:752b / 71f4; max ≠ 0 时以 max 截断, 段内回绕)
 export class LsFile {
   constructor(bytes) { this.b = bytes; this.e = lsEntries(bytes); }
   decodeTo(i, buf, off, max = 0) {
@@ -68,7 +68,7 @@ export class LsFile {
   }
 }
 
-// 格標頭 (每格 8 bytes: x, y, w, h, big-endian 32 位元偏移): 回傳 {x, y, w, h, off (低 16 位元)}
+// 格头部 (每格 8 bytes: x, y, w, h, big-endian 32 比特偏移): 返回 {x, y, w, h, off (低 16 比特)}
 export function frameHeader(buf, p) {
   const b = k => buf[(p + k) & 0xffff];
   return { x: b(0), y: b(1), w: b(2), h: b(3), off: ((b(6) << 8) | b(7)) & 0xffff };

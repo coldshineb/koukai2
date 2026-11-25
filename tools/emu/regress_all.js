@@ -1,11 +1,11 @@
-// regress_all.js — 全部差分測試的回歸 (RE_NOTES 32.8): 依序執行各路線 (設定檔 → … → port_tests.js) 與單元差分測試, 收集每項的結果行
-// 前提: 已載入 emu_boot.js、ui_bundle.js, 且 tools/work/runf.js 已把 tools/emu/*.js 登記成 session.RUNF[檔名]() (tools/emu/make_runf.py)
-// 用法: await session.RUNF["regress_all.js"]();  之後 await session.regress({ from: 0, to: 20, model: true })  → session.regResults
-//   model: 先以 installCostModel 包裝移植版的類別方法 (記帳只累計 CPU.cyc), 確認測試模式不受耗時模型影響
+// regress_all.js — 全部差分测试的回归 (RE_NOTES 32.8): 依序运行各路线 (设置档 → … → port_tests.js) 与单元差分测试, 收集每项的结果行
+// 前提: 已加载 emu_boot.js、ui_bundle.js, 且 tools/work/runf.js 已把 tools/emu/*.js 登记成 session.RUNF[文件名]() (tools/emu/make_runf.py)
+// 用法: await session.RUNF["regress_all.js"]();  之后 await session.regress({ from: 0, to: 20, model: true })  → session.regResults
+//   model: 先以 installCostModel 包装移植版的类别方法 (记帐只累计 CPU.cyc), 确认测试模式不受耗时模型影响
 "use strict";
 (function () {
 const S = session;
-// extra: 每項另加的 session 設定 (函式 m => {...} 或物件); 海上 / 海戰的長路線一律 FB_HASH = 10 (只存雜湊, 比對一樣嚴格, 省記憶體)
+// extra: 每项另加的 session 设置 (函数 m => {...} 或对象); 海上 / 海战的长路线一律 FB_HASH = 10 (只存哈希, 比对一样严格, 省内存)
 const M = (route, varName, modes, chain = [], extra = {}) => modes.map(m => ({ name: `${route}${m ? ":" + m : ""}`,
   set: { ...(varName && m ? { [varName]: m } : {}), ...(typeof extra === "function" ? extra(m) : extra) }, files: [route + ".js", ...chain, "port_tests.js"] }));
 const LONG = { FB_HASH: 10 };
@@ -34,21 +34,21 @@ const LIST = [
   ...M("supply_route", "SUP_MODE", ["ok", "cancel", "dup"]),
   ...M("portmove_route", "PM_MODE", ["market", "tavern", "menu", "closed", "event", "guard", "guard_door", "night_guard", "overlap", "overlap_closed"]),
   { name: "sea_depart_route", files: ["sea_depart_route.js", "port_tests.js"], set: LONG },
-  ...M("storm_route", "STORM_MODE", ["run", "start"], SEA, LONG),                                   // 海上暴風雨 (效果音 0c5a, RE_NOTES 35.6)
+  ...M("storm_route", "STORM_MODE", ["run", "start"], SEA, LONG),                                   // 海上暴风雨 (效果音 0c5a, RE_NOTES 35.6)
   { name: "worldmap_tests (接在出海之後)", files: ["worldmap_tests.js"], plain: true },
   ...M("land_route", "LAND_MODE", ["cant", "no", "leave", "camp", "repair", "nomat", "water", "water0", "treasure", "disc_ok", "disc_fail", "disc_native", "nofood",
-    "ev0", "ev1", "ev2", "ev2b", "ev3", "ev4", "ev5", "ev5b", "ev6", "ev7", "ev8", "ev8b", "ev9"], SEA, LONG),               // 上陸探索 / 海上特殊地點 (RE_NOTES 36.10)
-  ...M("sea5_route", "SEA5", ["navi", "navi2", "scout", "dest", "deleg", "deleg0", "chart", "mapitem"], SEA, m => (m === "scout" ? { CURSOR_LAG: 4 } : m === "chart" ? { CURSOR_LAG: 10 } : LONG)),   // scout / chart 照原設定不用 FB_HASH (雜湊模式的游標遮罩與完整比對不同, scout 會差 3 張)
+    "ev0", "ev1", "ev2", "ev2b", "ev3", "ev4", "ev5", "ev5b", "ev6", "ev7", "ev8", "ev8b", "ev9"], SEA, LONG),               // 上陆探索 / 海上特殊地点 (RE_NOTES 36.10)
+  ...M("sea5_route", "SEA5", ["navi", "navi2", "scout", "dest", "deleg", "deleg0", "chart", "mapitem"], SEA, m => (m === "scout" ? { CURSOR_LAG: 4 } : m === "chart" ? { CURSOR_LAG: 10 } : LONG)),   // scout / chart 照原设置不用 FB_HASH (哈希模式的光标遮罩与完整比对不同, scout 会差 3 张)
   ...M("battle_route", "BATTLE", ["open", "stop", "tail", "gun_sink", "gun_unmanned", "board_unmanned", "cpu_long"], SEA, LONG),
   ...M("duel_route", "DUEL", ["cpu", "tail"], ["battle_route.js", ...SEA], LONG),
   ...M("nego_route", "NEGO", ["n8", "n1", "n3", "n4", "n5", "n11", "nff", "map", "maphave", "mapno", "mappoor"], SEA, LONG),
   ...M("fleet_route", "FLEET_MODE", ["month", "year", "launch", "misc", "pirate", "unpaid"], [], LONG), ...M("fleet_route", "FLEET_MODE", ["seamonth"], SEA, LONG),
-  ...M("mouse_route", "MOUSE_MODE", ["list", "yesno", "walk"]),                                           // 滑鼠操作 (RE_NOTES 38)
+  ...M("mouse_route", "MOUSE_MODE", ["list", "yesno", "walk"]),                                           // 鼠标操作 (RE_NOTES 38)
   ...M("mouse_route", "MOUSE_MODE", ["popup"], ["battle_route.js", ...SEA], LONG), ...M("mouse_route", "MOUSE_MODE", ["sea"], SEA, LONG),
-  ...M("title_settings_route", null, [""]),                                                                 // 標題選單 環境設定 (RE_NOTES 38.7)
+  ...M("title_settings_route", null, [""]),                                                                 // 标题菜单 环境设置 (RE_NOTES 38.7)
 ];
 S.REGRESS_LIST = LIST;
-// 每項執行前把上一項設定的 session 大寫鍵 (路線設定) 清掉; S.QUIET 讓 port_tests 只印不一致的畫面與總計
+// 每项运行前把上一项设置的 session 大写键 (路线设置) 清掉; S.QUIET 让 port_tests 只印不一致的画面与总计
 S.regress = async (o = {}) => {
   const U = S.UI, base = S.__regBase ??= new Set(Object.keys(S));
   if (o.model && !S.__regModel) { U.installCostModel(U); S.__regModel = true; }
@@ -56,7 +56,7 @@ S.regress = async (o = {}) => {
   for (let i = o.from ?? 0; i < Math.min(o.to ?? LIST.length, LIST.length); i++) {
     const T = LIST[i];
     for (const k of Object.keys(S)) if (!base.has(k) && /^[A-Z][A-Z0-9_]*$/.test(k)) delete S[k];
-    Object.assign(S, T.set || {}); if (!T.plain) { S.QUIET = 1; S.SFX_LOG ??= 1; }      // 路線一律比對效果音呼叫 (RE_NOTES 35.6)
+    Object.assign(S, T.set || {}); if (!T.plain) { S.QUIET = 1; S.SFX_LOG ??= 1; }      // 路线一律比对效果音调用 (RE_NOTES 35.6)
     const lines = [], t0 = Date.now(), c0 = U.CPU.cyc;
     console.log = (...a) => lines.push(a.join(" "));
     let err = null;
@@ -68,7 +68,7 @@ S.regress = async (o = {}) => {
     const r = { i, name: T.name, sec: +((Date.now() - t0) / 1000).toFixed(1), summary: sum || (ok + fail ? `${ok}/${ok + fail} OK` : ""), err, cyc: U.CPU.cyc - c0,
       bad: text.split("\n").filter(l => /^(FAIL|PFAIL)/.test(l)).slice(0, 4), tail: sum ? "" : text.split("\n").slice(-3).join(" / ").slice(0, 300) };
     out.push(r);
-    for (const k of ["lastRun", "emuShotsRef", "probeE", "probeJ", "cmLog", "watchLog"]) delete S[k];   // 釋放截圖 (長批次時避免記憶體不足)
+    for (const k of ["lastRun", "emuShotsRef", "probeE", "probeJ", "cmLog", "watchLog"]) delete S[k];   // 释放截屏 (长批量时避免内存不足)
     log0(`#${i} ${T.name}: ${r.summary}${err ? " ERROR " + err : ""} (${r.sec}s)${r.bad.length ? "\n    " + r.bad.join("\n    ") : ""}${r.tail ? "\n    " + r.tail : ""}`);
   }
   return out;

@@ -5,7 +5,7 @@
 import os, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SKIP = {"x86emu.js", "dosenv.js", "harness.js", "harness_menu.js", "boot_title.js", "boot_port.js", "run_local.js", "t.js"}   # 開機腳本 emu_boot.js 已含前 6 個
+SKIP = {"x86emu.js", "dosenv.js", "harness.js", "harness_menu.js", "boot_title.js", "boot_port.js", "run_local.js", "t.js"}   # 开机脚本 emu_boot.js 已含前 6 个
 
 
 def build(out):

@@ -1,7 +1,7 @@
-// screen.js — 原版顯示模型
-// 原版: VGA mode 12h (640x480 16色平面), 遊戲畫面 640x400 置於第 40 行起 (MAIN.EXE seg0:0164 y+0x28)
-// 本模組以「索引幀緩衝」fb[640*400] 保存畫面, present() 時套調色盤輸出到 640x480 畫布 (上下各 40 行黑邊)。
-// 所有繪圖原語的座標規則與原版繪圖庫相同: x 以「位元組欄」(8 像素) 為單位, y 以像素為單位。
+// screen.js — 原版显示模型
+// 原版: VGA mode 12h (640x480 16色平面), 游戏画面 640x400 置于第 40 行起 (MAIN.EXE seg0:0164 y+0x28)
+// 本模块以「索引帧缓冲」fb[640*400] 保存画面, present() 时套调色盘输出到 640x480 画布 (上下各 40 行黑边)。
+// 所有绘图原语的座标规则与原版绘图库相同: x 以「字节栏」(8 像素) 为单位, y 以像素为单位。
 export const SCREEN_W = 640;
 export const SCREEN_H = 400;
 export const CANVAS_H = 480;
@@ -9,7 +9,7 @@ export const Y_OFFSET = 40;
 
 export function dac8(v4) { const v6 = v4 * 4; return (v6 << 2) | (v6 >> 4); }
 
-// 由 4 個平面位元組 (8 像素) 求像素索引
+// 由 4 个平面字节 (8 像素) 求像素索引
 function expand(fb, o, b0, b1, b2, b3) {
   for (let i = 0; i < 8; i++) {
     const s = 7 - i;
@@ -23,8 +23,8 @@ export class Screen {
     this.raw = new Uint8Array(48);
     this.lut = new Uint32Array(16);
     this.dirty = true;
-    this.full = null;                  // 片頭 (OPEN.EXE) 用: 640x480 索引畫面 (整個 VRAM 可見範圍), 設定時取代 fb + 上下黑邊
-    this.border = 0;                   // 片頭: VGA 外框色 (overscan) 索引 — 在畫布 (可見區) 之外, 僅記錄
+    this.full = null;                  // 片头 (OPEN.EXE) 用: 640x480 索引画面 (整个 VRAM 可见范围), 设置时取代 fb + 上下黑边
+    this.border = 0;                   // 片头: VGA 外框色 (overscan) 索引 — 在画布 (可见区) 之外, 仅记录
     if (canvas) {
       this.canvas = canvas; canvas.width = SCREEN_W; canvas.height = CANVAS_H;
       this.ctx = canvas.getContext("2d", { alpha: false });
@@ -32,7 +32,7 @@ export class Screen {
       this.out = new Uint32Array(this.img.data.buffer);
     }
   }
-  // raw: 48 bytes, 每色 (B,R,G) 0..15 — 與 MAIN.EXE seg0:159b set_palette 相同
+  // raw: 48 bytes, 每色 (B,R,G) 0..15 — 与 MAIN.EXE seg0:159b set_palette 相同
   setPaletteRaw(raw, start = 0, count = 16) {
     for (let i = 0; i < count * 3; i++) this.raw[start * 3 + i] = raw[i];
     for (let i = 0; i < 16; i++) {
@@ -41,7 +41,7 @@ export class Screen {
     }
     this.dirty = true;
   }
-  // 以 6 位元 DAC 值直接設定一個顏色 (片頭 OPEN.EXE 以 17f0 逐色寫 DAC; 換算與 setPaletteRaw 相同: 4 位元值 ×4 = 6 位元)
+  // 以 6 比特 DAC 值直接设置一个颜色 (片头 OPEN.EXE 以 17f0 逐色写 DAC; 换算与 setPaletteRaw 相同: 4 比特值 ×4 = 6 比特)
   setDac6(i, r, g, b) {
     const c = v => ((v & 63) << 2) | ((v & 63) >> 4);
     this.lut[i & 15] = 0xff000000 | (c(b) << 16) | (c(g) << 8) | c(r);
@@ -50,7 +50,7 @@ export class Screen {
   clear(c = 0) { this.fb.fill(c); this.dirty = true; }
   inBounds(col, y, w, h) { return col >= 0 && w > 0 && col + w <= 80 && y >= 0 && h > 0 && y + h <= 400; }
 
-  // seg0:02a7 mode 0 — 平面位元組交錯圖塊 (每 8 像素 4 bytes) 直接覆寫; dbl=每行重複一次
+  // seg0:02a7 mode 0 — 平面字节交错图块 (每 8 像素 4 bytes) 直接覆写; dbl=每行重复一次
   putPlanar(col, y, w, h, src, off = 0, dbl = false) {
     if (!this.inBounds(col, y, w, h * (dbl ? 2 : 1))) return -1;
     const fb = this.fb; let s = off;
@@ -63,7 +63,7 @@ export class Screen {
     }
     this.dirty = true; return 0;
   }
-  // seg0:08a6 — 以 8 行圖樣 (每行 4 個平面位元組) 平鋪, 縱向相位 = y & 7
+  // seg0:08a6 — 以 8 行图样 (每行 4 个平面字节) 平铺, 纵向相位 = y & 7
   tile(col, y, w, h, src, off) {
     if (!this.inBounds(col, y, w, h)) return;
     const fb = this.fb;
@@ -73,18 +73,18 @@ export class Screen {
     }
     this.dirty = true;
   }
-  // seg0:0906 — 以單色填滿 (欄為單位)
+  // seg0:0906 — 以单色填满 (栏为单位)
   fillCols(col, y, w, h, color) {
     if (!this.inBounds(col, y, w, h)) return;
     for (let r = 0; r < h; r++) this.fb.fill(color & 15, (y + r) * SCREEN_W + col * 8, (y + r) * SCREEN_W + (col + w) * 8);
     this.dirty = true;
   }
-  // seg0:0ad1 畫一點 (4 個平面依顏色位元 OR/AND, 等於直接寫入顏色)
+  // seg0:0ad1 画一点 (4 个平面依颜色比特 OR/AND, 等于直接写入颜色)
   pset(x, y, color) {
     if (x < 0 || x >= SCREEN_W || y < 0 || y >= SCREEN_H) return;
     this.fb[y * SCREEN_W + x] = color & 15; this.dirty = true;
   }
-  // seg0:09aa 以像素座標填滿矩形 (含兩端點), 單色 (經 7264 呼叫時已排序)
+  // seg0:09aa 以像素座标填满矩形 (含两端点), 单色 (经 7264 调用时已排序)
   fillRectPx(x0, y0, x1, y1, color) {
     if (x1 < x0) [x0, x1] = [x1, x0];
     if (y1 < y0) [y0, y1] = [y1, y0];
@@ -92,8 +92,8 @@ export class Screen {
       this.fb.fill(color & 15, y * SCREEN_W + Math.max(0, x0), y * SCREEN_W + Math.min(SCREEN_W - 1, x1) + 1);
     this.dirty = true;
   }
-  // 1fd9:1b63 Bresenham 直線 (逐點呼叫 seg0:0ad1); 先保證 xa<=xb (1fd9:171e 的交換)
-  //   剪裁矩形 DS:aaac..aab0 = (0,0)-(27F,18F) 即全畫面; 範圍外的點直接略過
+  // 1fd9:1b63 Bresenham 直线 (逐点调用 seg0:0ad1); 先保证 xa<=xb (1fd9:171e 的交换)
+  //   剪裁矩形 DS:aaac..aab0 = (0,0)-(27F,18F) 即全画面; 范围外的点直接略过
   line(xa, ya, xb, yb, color) {
     if (xb < xa) { [xa, xb] = [xb, xa]; [ya, yb] = [yb, ya]; }
     const dy = Math.abs(yb - ya), dx = Math.abs(xb - xa);
@@ -117,12 +117,12 @@ export class Screen {
       }
     }
   }
-  // 1fd9:1f9d 矩形外框 (4 條直線)
+  // 1fd9:1f9d 矩形外框 (4 条直线)
   rectOutline(x0, y0, x1, y1, color) {
     this.line(x0, y0, x0, y1, color); this.line(x0, y1, x1, y1, color);
     this.line(x1, y0, x1, y1, color); this.line(x0, y0, x1, y0, color);
   }
-  // 1fd9:21e90 只寫平面 0..planes-1 的像素矩形 (含兩端點); 1fd9:2261 = 3 平面 (保留第 3 位元), 1fd9:227c = 4 平面
+  // 1fd9:21e90 只写平面 0..planes-1 的像素矩形 (含两端点); 1fd9:2261 = 3 平面 (保留第 3 比特), 1fd9:227c = 4 平面
   fillRectPxPlanes(x0, y0, x1, y1, color, planes) {
     if (x1 < x0) [x0, x1] = [x1, x0];
     if (y1 < y0) [y0, y1] = [y1, y0];
@@ -131,8 +131,8 @@ export class Screen {
       for (let x = Math.max(0, x0), o = y * SCREEN_W + x; x <= Math.min(SCREEN_W - 1, x1); x++, o++) this.fb[o] = (this.fb[o] & keep) | set;
     this.dirty = true;
   }
-  // 1fd9:1fed XOR 矩形外框: 與 1f9d 相同的 4 條線, 逐點 XOR (seg0:0b33) — 四個角各被畫兩次而抵消
-  //   每條線先經 1fd9:171e 以剪裁矩形 DS:aaac (clip = [x0, y0, x1, y1], 預設全畫面) 裁切; 水平 / 垂直線的裁切等於夾限端點 (線在矩形外則不畫)
+  // 1fd9:1fed XOR 矩形外框: 与 1f9d 相同的 4 条线, 逐点 XOR (seg0:0b33) — 四个角各被画两次而抵消
+  //   每条线先经 1fd9:171e 以剪裁矩形 DS:aaac (clip = [x0, y0, x1, y1], 默认全画面) 裁切; 水平 / 垂直线的裁切等于夹限端点 (线在矩形外则不画)
   xorRect(x0, y0, x1, y1, color, clip = null) {
     const p = (x, y) => { if (x >= 0 && x < SCREEN_W && y >= 0 && y < SCREEN_H) this.fb[y * SCREEN_W + x] ^= color & 15; };
     const save = this.pset; this.pset = p;
@@ -147,7 +147,7 @@ export class Screen {
     } finally { this.pset = save; }
     this.dirty = true;
   }
-  // seg0:063e / 0572 — 1bpp 點陣以「模式字」繪製: bit15 每行畫兩次, 高位元組=模式 (0 黑底, 1 XOR, 2 AND, 3 OR, 4 透明), 低位元組=顏色
+  // seg0:063e / 0572 — 1bpp 点阵以「模式字」绘制: bit15 每行画两次, 高字节=模式 (0 黑底, 1 XOR, 2 AND, 3 OR, 4 透明), 低字节=颜色
   glyphMode(col, y, w, h, rows, modeWord) {
     if (!this.inBounds(col, y, w, h)) return -1;
     const dbl = (modeWord & 0x8000) !== 0, m = (modeWord >> 8) & 0x7f, color = modeWord & 15, fb = this.fb;
@@ -164,7 +164,7 @@ export class Screen {
               case 1: if (on) fb[p] ^= color; break;
               case 2: if (!on) fb[p] &= ~color; break;
               case 3: if (on) fb[p] |= color; break;
-              case 4: if (on) fb[p] = color; break;                 // 純色: 以顏色取代 (與模擬器比對確認)
+              case 4: if (on) fb[p] = color; break;                 // 纯色: 以颜色取代 (与模拟器比对确认)
             }
           }
         }
@@ -172,10 +172,10 @@ export class Screen {
     }
     this.dirty = true; return 0;
   }
-  // 文字點陣 (1bpp, 每行 w bytes)
+  // 文字点阵 (1bpp, 每行 w bytes)
   //   bg>0              : seg0:0653 不透明, 1=fg 0=bg
-  //   bg==0, mode==0    : seg0:05d0 整格先清成 0 再畫 fg
-  //   mode 1/2/3/4      : seg0:0186 XOR / AND / OR / 純色透明
+  //   bg==0, mode==0    : seg0:05d0 整格先清成 0 再画 fg
+  //   mode 1/2/3/4      : seg0:0186 XOR / AND / OR / 纯色透明
   glyph(col, y, w, h, rows, fg, mode, bg) {
     if (!this.inBounds(col, y, w, h)) return;
     const fb = this.fb; fg &= 15;
@@ -195,7 +195,7 @@ export class Screen {
     }
     this.dirty = true;
   }
-  // 索引圖 blit (港口圖塊等已轉成索引像素的資源); key>=0 時該索引透明
+  // 索引图 blit (港口图块等已转成索引像素的资源); key>=0 时该索引透明
   blit(src, sx, sy, w, h, dx, dy, key = -1) {
     const fb = this.fb, sw = src.w, sd = src.data;
     for (let y = 0; y < h; y++) {
@@ -223,8 +223,8 @@ export class Screen {
     this.ctx.putImageData(this.img, 0, 0);
     this.dirty = false;
   }
-  // 原版軟體游標 (seg0:31fd): 24 行 x 24 像素; 每個平面 先 AND 遮罩 (gfx+off+0x48) 再 OR 圖像 (gfx+off) 於顏色 [2f14]=15 的平面
-  // 座標為滑鼠驅動座標 (640x480 VRAM 座標, 不含 40 行偏移)
+  // 原版软件光标 (seg0:31fd): 24 行 x 24 像素; 每个平面 先 AND 遮罩 (gfx+off+0x48) 再 OR 图像 (gfx+off) 于颜色 [2f14]=15 的平面
+  // 座标为鼠标驱动座标 (640x480 VRAM 座标, 不含 40 行偏移)
   drawCursor({ x, y, gfx, shape, color = 15 }) {
     const out = this.out, lut = this.lut;
     for (let r = 0; r < 24; r++) {

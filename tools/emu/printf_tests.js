@@ -1,4 +1,4 @@
-// printf_tests.js — 原版 printf (seg0:4bad -> 4194) 與 MESSAGE.DAT 輸出的差分測試
+// printf_tests.js — 原版 printf (seg0:4bad -> 4194) 与 MESSAGE.DAT 输出的差分测试
 (async function () {
 const fs = require("fs"), S = session, U = S.UI, c = S.env.cpu, D = S.DSEG;
 const font = U.Font.fromRaw(S.files["1.PAT"], S.files["2.PAT"], S.rom);
@@ -11,7 +11,7 @@ const setup = () => { S.loadState(S.base); S.setupMenuEnv(); S.emuFillBG(); c.me
   S.call(0x7358, { ax: 2, dx: 20, bx: 76, args: [0, 360] }); };
 const jsSetup = () => { const scr = new U.Screen(); for (let y = 0; y < 400; y++) for (let x = 0; x < 640; x++) scr.fb[y * 640 + x] = S.bgcol(x, y);
   const con = new U.TextConsole(scr, font); const win = new U.WindowSystem(scr, con, S.D1[14], { options: { animate: false } }); win.frame(2, 20, 76, 360, 0); return { scr, con }; };
-// 參數: 數字 -> word; 位元組陣列 -> 寫入 DGROUP 並傳指標; {long:v} -> 兩個 word
+// 参数: 数字 -> word; 字节数组 -> 写入 DGROUP 并传指针; {long:v} -> 两个 word
 function emuArgs(args) { let p = 0xf000; const out = [];
   for (const a of args) {
     if (Array.isArray(a)) { out.push(p); for (const b of a) c.mem[D * 16 + p++] = b; c.mem[D * 16 + p++] = 0; }
@@ -32,9 +32,9 @@ await pf("%ld %lu", E("%ld|%lu|%8ld"), [{ long: 1234567 }, { long: 4000000000 },
 await pf("%s width/prec/left", E("<%s><%10s><%-10s><%.3s>"), [E("港口"), E("AB"), E("里斯本"), E("ABCDEF")]);
 await pf("%c and unknown", E("%c%c %x %% %q"), [0x41, 0x42]);
 await pf("mixed CJK", E("您給%s金幣%d枚，%s"), [E("船長"), 1500, E("謝謝")]);
-// %w (全形數字) 在繁中版資料中沒有使用 (僅二進位資料巧合), 原版會讀到字型檔範圍外的殘留點陣, 不測
+// %w (全角数字) 在繁中版数据中没有使用 (仅二进位数据巧合), 原版会读到字库范围外的残留点阵, 不测
 await pf("%ld edge values", E("%ld %lu %ld %5lu"), [{ long: -2147483648 }, { long: 2147483647 }, { long: 0 }, { long: 9 }]);
-// MESSAGE.DAT 第 n 條 (2e09:56ee = 0x3377e)
+// MESSAGE.DAT 第 n 条 (2e09:56ee = 0x3377e)
 for (const [n, args] of [[1, [E("阿方索"), E("科斯塔")]], [12, [5000]], [19, [E("葡萄酒"), 12]], [33, [E("聖"), E("瑪利亞號")]], [100, []], [500, []]]) {
   setup(); S.call(0x3377e, { args: [n, ...emuArgs(args)] });
   const J = jsSetup(); const off = msg.readUInt16BE(n * 2); U.cprintf(msg.subarray(off, off + 256), jsArgs(args), ch => J.con.putc(ch));

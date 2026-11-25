@@ -1,5 +1,5 @@
-# re_env_open.py — OPEN.EXE (片頭) 的逆向分析環境 (exec 本檔即可; 與 re_env.py 相同用法, 但載入 OPEN.EXE)
-#   code = 映像 (載入位址 0 起), DS = DGROUP 線性位址, fix = 重定位位置集合
+# re_env_open.py — OPEN.EXE (片头) 的逆向分析环境 (exec 本档即可; 与 re_env.py 相同用法, 但加载 OPEN.EXE)
+#   code = 映像 (加载地址 0 起), DS = DGROUP 线性地址, fix = 重定位位置集合
 import os, re, struct, json
 from collections import Counter
 W = WORKSPACE_DIR
@@ -28,7 +28,7 @@ def body(a, limit=4000):
             m = i.mn
             if m in ("ret", "retf", "iret") or (m == "jmp" and "far" in " ".join(i.ops)): break
             if m.startswith("j") and i.target is not None:
-                todo.append(i.target & 0xffff)                 # 映像 < 64K, 全部在 0 段: 近跳躍以 64K 回繞
+                todo.append(i.target & 0xffff)                 # 映像 < 64K, 全部在 0 段: 近跳跃以 64K 回绕
                 if m in ("jmp",): break
             if m == "jmp" and i.target is None: break
             x = i.addr + i.size if hasattr(i, "size") else ins[1].addr if len(ins) > 1 else x + 1

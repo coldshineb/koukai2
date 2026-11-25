@@ -1,8 +1,8 @@
-// shipyard_route.js — 船塢 / 造船廠 差分測試設定 (先執行本檔, 再執行 port_tests.js)
-// 進港時兩邊同時寫入: 現金 3000; 主角艦隊 2 艘 (船位 0 = 船 0 船型 0, 船長 = 主角; 船位 1 = 船 1 船型 4, 船長 = 人物 8, 水手 5, 船首像 3);
-// 里斯本船塢 1 艘 (船位 10 = 船 2 船型 4, 船員配置 +1b = 0x80); 人物 8 在船員欄 (職務 2, 忠誠 100, 以免碼頭要求加薪)。
-//   S.SY_MODE = "dock" (預設): 碼頭 → 船塢 → 保管 (船位 1) → 配備 (船塢第 1 艘) → 交換 (艦隊第 1 艘 ↔ 船塢第 1 艘) → 離開
-//   S.SY_MODE = "yard": 造船廠 → 修理 (船位 0, 耐久 10/20) → 賣船 (船位 1) → 工業投資 (里斯本是首都 → 訊息 2) → 離開
+// shipyard_route.js — 船坞 / 造船厂 差分测试设置 (先运行本档, 再运行 port_tests.js)
+// 进港时两边同时写入: 现金 3000; 主角舰队 2 艘 (船位 0 = 船 0 船型 0, 船长 = 主角; 船位 1 = 船 1 船型 4, 船长 = 人物 8, 水手 5, 船首像 3);
+// 里斯本船坞 1 艘 (船位 10 = 船 2 船型 4, 船员配置 +1b = 0x80); 人物 8 在船员栏 (职务 2, 忠诚 100, 以免码头要求加薪)。
+//   S.SY_MODE = "dock" (默认): 码头 → 船坞 → 保管 (船位 1) → 配备 (船坞第 1 艘) → 交换 (舰队第 1 艘 ↔ 船坞第 1 艘) → 离开
+//   S.SY_MODE = "yard": 造船厂 → 修理 (船位 0, 耐久 10/20) → 卖船 (船位 1) → 工业投资 (里斯本是首都 → 消息 2) → 离开
 "use strict";
 (function () {
 const S = session;
@@ -26,18 +26,18 @@ if (mode === "yard") { b(slot(0) + 2, 10); b(slot(0) + 3, 20); }
 for (const [a, v] of S.SY_POKE || []) b(a, v);
 const E = n => Array(n).fill(K.enter);
 if (mode === "dock") {
-  S.PORT_SETUP = { port: 0, vx: 42, vy: 56, hx: 12, hy: 12, poke };            // 碼頭 (54,67) 正下方
-  S.PORT_KEYS = S.SY_KEYS || [K.up, K.down, K.down, K.enter,                   // 碼頭 → 船塢
-    ...E(4),                                                                     // 保管 → 清單第 1 艘 → 是 → 等待
-    K.down, ...E(4),                                                             // 配備 → 船塢第 1 艘 → 是 → 等待
-    K.down, K.down, ...E(5),                                                     // 交換 → 艦隊第 1 艘 → 船塢第 1 艘 → 是 → 等待
+  S.PORT_SETUP = { port: 0, vx: 42, vy: 56, hx: 12, hy: 12, poke };            // 码头 (54,67) 正下方
+  S.PORT_KEYS = S.SY_KEYS || [K.up, K.down, K.down, K.enter,                   // 码头 → 船坞
+    ...E(4),                                                                     // 保管 → 清单第 1 艘 → 是 → 等待
+    K.down, ...E(4),                                                             // 配备 → 船坞第 1 艘 → 是 → 等待
+    K.down, K.down, ...E(5),                                                     // 交换 → 舰队第 1 艘 → 船坞第 1 艘 → 是 → 等待
     K.esc, K.esc, K.down];
 } else {
-  S.PORT_SETUP = { port: 0, vx: 67, vy: 53, hx: 12, hy: 12, poke };            // 造船廠 (79,64) 正下方
+  S.PORT_SETUP = { port: 0, vx: 67, vy: 53, hx: 12, hy: 12, poke };            // 造船厂 (79,64) 正下方
   S.PORT_KEYS = S.SY_KEYS || [K.up,
-    K.down, K.down, K.enter, K.enter, K.enter, K.esc,                            // 修理 → 船位 0 → 是 → (清單) Esc
-    K.down, K.down, K.down, K.enter, K.down, K.enter, K.enter, K.enter, K.enter, K.enter,   // 賣船 → 第 2 艘 → 是 → 0xd4 是 → 0xd5 是 → 0xd0 等待
-    K.down, K.down, K.down, K.down, K.down, K.enter, K.enter,                    // 工業投資 → 訊息 2 等待
+    K.down, K.down, K.enter, K.enter, K.enter, K.esc,                            // 修理 → 船位 0 → 是 → (清单) Esc
+    K.down, K.down, K.down, K.enter, K.down, K.enter, K.enter, K.enter, K.enter, K.enter,   // 卖船 → 第 2 艘 → 是 → 0xd4 是 → 0xd5 是 → 0xd0 等待
+    K.down, K.down, K.down, K.down, K.down, K.enter, K.enter,                    // 工业投资 → 消息 2 等待
     K.esc, K.down];
 }
 S.NO_EVENTS = 1;

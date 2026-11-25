@@ -1,8 +1,8 @@
-# re_tools.py — 反組譯輔助 (由 re_local.py / tools/re/*.py 載入; 需先 exec re_env.py)
-#   dumpc(a, b)  反組譯並加註已知函式名與 DS 字串
-#   dstr(o)      DS:o 的字串 (原版字碼 → Unicode)
-#   cbytes(o)    DS:o 的 C 字串原始位元組 (不含結尾 0)
-#   cd(a, b)     同 dumpc 但只做位址修正與字串加註
+# re_tools.py — 反汇编辅助 (由 re_local.py / tools/re/*.py 加载; 需先 exec re_env.py)
+#   dumpc(a, b)  反汇编并加注已知函数名与 DS 字符串
+#   dstr(o)      DS:o 的字符串 (原版字码 → Unicode)
+#   cbytes(o)    DS:o 的 C 字符串原始字节 (不含结尾 0)
+#   cd(a, b)     同 dumpc 但只做地址修正与字符串加注
 TOOLS = os.path.join(W, "uw2_remake", "tools")
 NAMES = {
     "2e09:56ee": "message", "2e09:57aa": "loadMenu", "2e09:569a": "message2", "0fea:490b": "wait",

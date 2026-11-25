@@ -1,23 +1,23 @@
-// ending_tests.js — 結局差分測試: 同一組參數驅動原版 END.EXE (模擬器) 與移植版 web/src/game/ending.js, 逐 tick 比對
-//   每個 tick 比對: VGA 4 平面 (0..0x95ff = 640x480) 雜湊、DAC 0..15 (6 位元 RGB)、外框色; 另比對音樂指令的時間點、結束碼與總長度。
-//   結局很長 (數萬 tick), 兩邊都以「連續相同的 tick 合併」(游程) 記錄, 避免記憶體不足。
-// 需先載入: x86emu.js, dosenv.js, boot_open.js, boot_end.js; 移植版另需 tools/work/ui_bundle.js (make_test_bundle.py 產生, 含 game/ending.js)
-// 用法: session.W = WORKSPACE_DIR; 執行本檔; S.endEmuRL(name, opts) / await S.endTests(names)
+// ending_tests.js — 结局差分测试: 同一组参数驱动原版 END.EXE (模拟器) 与移植版 web/src/game/ending.js, 逐 tick 比对
+//   每个 tick 比对: VGA 4 平面 (0..0x95ff = 640x480) 哈希、DAC 0..15 (6 比特 RGB)、外框色; 另比对音乐指令的时间点、结束码与总长度。
+//   结局很长 (数万 tick), 两边都以「连续相同的 tick 合并」(游程) 记录, 避免内存不足。
+// 需先加载: x86emu.js, dosenv.js, boot_open.js, boot_end.js; 移植版另需 tools/work/ui_bundle.js (make_test_bundle.py 产生, 含 game/ending.js)
+// 用法: session.W = WORKSPACE_DIR; 运行本档; S.endEmuRL(name, opts) / await S.endTests(names)
 "use strict";
 (function () {
 const S = session;
-// 游程記錄器: push(key) → [[key, count], ...]
+// 游程记录器: push(key) → [[key, count], ...]
 S.rl = function () {
   const L = [];
   return { L, push(k) { const t = L[L.length - 1]; if (t && t[0] === k) t[1]++; else L.push([k, 1]); }, get n() { let s = 0; for (const t of L) s += t[1]; return s; } };
 };
-// 32 位元雜湊 (4 平面 × 0x9600 bytes, 以 32 位元字計算; 兩邊共用, 比逐位元組快 4 倍)
+// 32 比特哈希 (4 平面 × 0x9600 bytes, 以 32 比特字计算; 两边共用, 比逐字节快 4 倍)
 S.hashPlanes32 = function (P) {
   let h = 0x811c9dc5 | 0;
   for (let p = 0; p < 4; p++) { const a = P[p], w = new Int32Array(a.buffer, a.byteOffset, 0x9600 >> 2); for (let i = 0; i < w.length; i++) h = Math.imul(h ^ w[i], 0x01000193); }
   return h >>> 0;
 };
-// 原版: 與 boot_end.js 的 runEnd 同一時間模型, 以游程記錄; 可分段執行 (S.endEmuStep), 跨多次呼叫保存在 session
+// 原版: 与 boot_end.js 的 runEnd 同一时间模型, 以游程记录; 可分段运行 (S.endEmuStep), 跨多次调用保存在 session
 S.endEmuStart = function (opts = {}) {
   S.loadSea2();
   const env = new S.DOSEnv(S.files, { romFont: S.rom });
@@ -56,8 +56,8 @@ S.endEmuStart = function (opts = {}) {
     if (ah === 2) { cpu.r[3] = 0; cpu.r[1] = STR_SEG; return; }
     if (ah >= 3 && ah <= 8) { if (al) cpu.r[0] = vals[ah] & 0xffff; else vals[ah] = cpu.r[3]; return; }
   };
-  // 等鍵 (INT 16h AH=0 且緩衝區空, 之後也沒有排定的按鍵): 時間不再流逝 → 記錄位置後結束
-  // opts.autoPrompt = n: 「▽ 等待提示」(0f34 → 2945, 呼叫鏈含返回點 110:0fd7) 等待中且沒有排定的按鍵時, 排定 n tick 後按 Enter, 並記入 st.autoKeys
+  // 等键 (INT 16h AH=0 且缓冲区空, 之后也没有排定的按键): 时间不再流逝 → 记录位置后结束
+  // opts.autoPrompt = n: 「▽ 等待提示」(0f34 → 2945, 调用链含返回点 110:0fd7) 等待中且没有排定的按键时, 排定 n tick 后按 Enter, 并记入 st.autoKeys
   st.autoKeys = [];
   const inPrompt = cpu => { let b = cpu.r[5]; for (let k = 0; k < 6 && b; k++) { if (cpu.rw(cpu.lin(2, b + 2)) === 0x0fd7) return true; b = cpu.rw(cpu.lin(2, b)); } return false; };
   const h16 = c.hooks[0x16];
@@ -67,7 +67,7 @@ S.endEmuStart = function (opts = {}) {
       const k = { tick: st.tick + opts.autoPrompt, scan: 0x1c, ascii: 0x0d }; keys.push(k); st.autoKeys.push(k);
     }
     if (ah === 0 && !env.bioskeys.length && !keys.length) { st.waitKey = st.tick; st.done = true; cpu.halted = true; return; }
-    // 0eff 「等任意鍵或滑鼠」(忙等, 不讀計時器; 0ee4 的返回點 110:0f0d 在堆疊上): 沒有排定的輸入 → 結局播完, 記錄後結束
+    // 0eff 「等任意键或鼠标」(忙等, 不读计时器; 0ee4 的返回点 110:0f0d 在堆栈上): 没有排定的输入 → 结局播完, 记录后结束
     if (ah === 1 && !env.bioskeys.length && !keys.length && !env.mouse.b) {
       for (let k = 0; k < 8; k++) if (cpu.rw(cpu.lin(2, cpu.r[4] + 2 * k)) === 0x0f0d) { st.endWait = st.tick; st.done = true; cpu.halted = true; return; }
     }
@@ -87,7 +87,7 @@ S.endEmuStep = function (st, nTicks, maxIns = 2e9) {
 };
 S.rlSummary = r => `ticks ${r.rl.n} runs ${r.rl.L.length} music ${r.music.map(m => m.ah + "." + m.al + "@" + m.tick).join(" ")}` +
   (r.waitKey !== undefined ? ` waitKey@${r.waitKey}` : "") + (r.endWait !== undefined ? ` endWait@${r.endWait}` : "") + (r.done ? " DONE" : " (running)") + ` exit=${r.exitCode} at ${r.at} ins ${r.icount}`;
-// 比對兩個游程
+// 比对两个游程
 S.compareRL = function (a, b) {
   let i = 0, j = 0, ia = 0, jb = 0, t = 0, same = 0, first = -1;
   const A = a.L, B = b.L;
@@ -100,11 +100,11 @@ S.compareRL = function (a, b) {
   }
   return { same, n: Math.max(a.n, b.n), first, na: a.n, nb: b.n };
 };
-// 原版跑完一種結局, 結果存成 <dir>/<name>.json (游程 L、音樂、自動按鍵、結束點)
+// 原版跑完一种结局, 结果存成 <dir>/<name>.json (游程 L、音乐、自动按键、结束点)
 S.END_CASES = {
   s0: [0], s1: [1], s2: [2], s3: [3], s4: [4], s5: [5],
-  r0: [0x0f, 0, 0], r1: [0x0f, 1, 1], r2: [0x0f, 2, 3], r3: [0x0f, 3, 5], r4: [0x0f, 4, 4], r5: [0x0f, 5, 2],   // 爵位 9: 主角 n, 該主角的國籍 (END main 的比對表)
-  bad: [0x0f, 0, 1],                                                                                           // 核對失敗 (主角 0 換了國籍)
+  r0: [0x0f, 0, 0], r1: [0x0f, 1, 1], r2: [0x0f, 2, 3], r3: [0x0f, 3, 5], r4: [0x0f, 4, 4], r5: [0x0f, 5, 2],   // 爵位 9: 主角 n, 该主角的国籍 (END main 的比对表)
+  bad: [0x0f, 0, 1],                                                                                           // 核对失败 (主角 0 换了国籍)
 };
 S.endEmuCase = function (name, dir, opts = {}) {
   const fs = require("fs");
@@ -117,7 +117,7 @@ S.endEmuCase = function (name, dir, opts = {}) {
   return { st, r };
 };
 
-// 畫面比對鍵: 遊戲區 (VRAM 第 40..439 行) 轉成 640x400 索引畫面後的 32 位元雜湊; 上下黑邊有非 0 位元組時加 "B"
+// 画面比对键: 游戏区 (VRAM 第 40..439 行) 转成 640x400 索引画面后的 32 比特哈希; 上下黑边有非 0 字节时加 "B"
 S.FB = new Uint8Array(640 * 400);
 S.hashFb = function (fb) { let h = 0x811c9dc5 | 0; const w = new Int32Array(fb.buffer, fb.byteOffset, fb.length >> 2); for (let i = 0; i < w.length; i++) h = Math.imul(h ^ w[i], 0x01000193); return h >>> 0; };
 S.vgaKey = function (P) {
@@ -130,7 +130,7 @@ S.vgaKey = function (P) {
   for (let p = 0; p < 4 && !border; p++) for (const [s, e] of [[0, 3200], [35200, 38400]]) for (let o = s; o < e; o++) if (P[p][o]) { border = 1; break; }
   return S.hashFb(fb) + (border ? "B" : "");
 };
-// 移植版: 與原版相同的時間模型 (Timer 測試模式: 每讀一次倒數減一; 減一之前記錄一幀), 按鍵照原版結果的 autoKeys 在同一 tick 送出
+// 移植版: 与原版相同的时间模型 (Timer 测试模式: 每读一次倒数减一; 减一之前记录一帧), 按键照原版结果的 autoKeys 在同一 tick 送出
 S.endData = function () {
   if (S._endData) return S._endData;
   const fs = require("fs"), A = S.W + "/uw2_remake/web/assets", F = S.W + "/uw2_remake/tools/work/sea2";
@@ -182,10 +182,10 @@ S.compareEnd = function (emu, js) {
   return { ok, text: `${ok ? "OK  " : "FAIL"} ${js.name.padEnd(4)} ticks emu=${c.na} js=${c.nb} same=${c.same}/${c.n}` + (c.first >= 0 ? ` first@${c.first}` : "") +
     ` end emu=${emu.endWait ?? emu.waitKey} js=${js.endWait ?? js.waitKey} music ${mE === mJ ? "same" : "DIFF emu[" + mE + "] js[" + mJ + "]"} | js ${js.result}`, c };
 };
-// 第 t tick 的游程鍵 (除錯)
+// 第 t tick 的游程键 (调试)
 S.rlAt = function (L, t) { let s = 0; for (const x of L) { if (t < s + x[1]) return x[0]; s += x[1]; } return null; };
 
-// 原版某 tick 的 640x400 索引畫面
+// 原版某 tick 的 640x400 索引画面
 S.emuFrames = function (name, ticks, maxTicks) {
   const [code, hero, nation] = S.END_CASES[name];
   const st = S.endEmuStart({ ...S.endParams(code, hero, nation), autoPrompt: 30, keep: ticks });

@@ -1,12 +1,12 @@
-// cmd_manage_route.js — 港口指令按鈕「經營」(1fd9:0fdc = 20d6c) 差分測試設定 (先執行本檔, 再執行 port_tests.js)
-// 里斯本; 進港時兩邊同時寫入: 主角艦隊 2 艘 (船位 0 = 船 0 船長主角, 水 100、商品 0 ×20; 船位 1 = 船 1 船長人物 8, 與 cmd_order_route 相同),
-//   船員欄 [2e1b] = 人物 8 (職務 2) / 9 (職務 3 助手) / 10 (職務 4 會計)
-// F2 → 船長變更: 第 2 艘 → 人物 10 → Esc (主角仍是船長)
-//    → 人事變更: 會計 → 人物 8 (0xe4) / 助手 → 人物 10 (現為船長: 0xe3) → Esc
-//    → 水手編組: 第 1 艘 4 名 → Esc (剩 6 名: 0xe7 否) → 第 2 艘 最大值 → Esc
-//    → 水手比例: 第 1 艘 駕駛 −1 +1 +1, 瞭望 +1, 甲板 +1 −1 → Esc → Esc
-//    → 艦船銷毀: 第 1 艘 (主角的船: 0xe9) → 第 2 艘 是 → Esc (船位清除)
-//    → 積載分配: 第 1 艘 → Esc → Esc → 0xdb 是 → Esc
+// cmd_manage_route.js — 港口指令按钮「经营」(1fd9:0fdc = 20d6c) 差分测试设置 (先运行本档, 再运行 port_tests.js)
+// 里斯本; 进港时两边同时写入: 主角舰队 2 艘 (船位 0 = 船 0 船长主角, 水 100、商品 0 ×20; 船位 1 = 船 1 船长人物 8, 与 cmd_order_route 相同),
+//   船员栏 [2e1b] = 人物 8 (职务 2) / 9 (职务 3 助手) / 10 (职务 4 会计)
+// F2 → 船长变更: 第 2 艘 → 人物 10 → Esc (主角仍是船长)
+//    → 人事变更: 会计 → 人物 8 (0xe4) / 助手 → 人物 10 (现为船长: 0xe3) → Esc
+//    → 水手编组: 第 1 艘 4 名 → Esc (剩 6 名: 0xe7 否) → 第 2 艘 最大值 → Esc
+//    → 水手比例: 第 1 艘 驾驶 −1 +1 +1, 瞭望 +1, 甲板 +1 −1 → Esc → Esc
+//    → 舰船销毁: 第 1 艘 (主角的船: 0xe9) → 第 2 艘 是 → Esc (船位清除)
+//    → 积载分配: 第 1 艘 → Esc → Esc → 0xdb 是 → Esc
 "use strict";
 (function () {
 const S = session;
@@ -30,12 +30,12 @@ for (const [a, v] of S.CMD_POKE || []) b(a, v);
 S.PORT_SETUP = { port: 0, vx: 30, vy: 48, hx: 11, hy: 12, poke };
 const D = n => Array(n).fill(K.down), E = K.enter, Z = K.z;
 S.PORT_KEYS = S.CMD_KEYS || [K.f2,
-  E, K.down, E, K.down, K.down, K.down, E, K.esc,                              // 船長變更
-  K.down, E, K.down, E, E, E, Z, E, K.down, K.down, E, E, Z, K.esc,           // 人事變更 (Z = 等待後可能被 131e3 清掉的空鍵)
-  ...D(2), E, E, K.d4, E, Z, K.esc, K.right, E, Z, K.down, E, K.max, E, Z, K.esc,   // 水手編組
+  E, K.down, E, K.down, K.down, K.down, E, K.esc,                              // 船长变更
+  K.down, E, K.down, E, E, E, Z, E, K.down, K.down, E, E, Z, K.esc,           // 人事变更 (Z = 等待后可能被 131e3 清掉的空键)
+  ...D(2), E, E, K.d4, E, Z, K.esc, K.right, E, Z, K.down, E, K.max, E, Z, K.esc,   // 水手编组
   ...D(3), E, E, E, K.right, E, E, K.down, E, K.down, E, K.left, E, K.esc, K.esc,   // 水手比例
-  ...D(4), E, E, E, Z, K.down, E, E, Z, K.esc,                                 // 艦船銷毀
-  ...D(5), E, E, K.esc, K.esc, E, Z,                                           // 積載分配
+  ...D(4), E, E, E, Z, K.down, E, E, Z, K.esc,                                 // 舰船销毁
+  ...D(5), E, E, K.esc, K.esc, E, Z,                                           // 积载分配
   K.esc];
 S.NO_EVENTS = 1;
 })();

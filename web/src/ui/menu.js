@@ -1,18 +1,18 @@
-// menu.js — 原版選單系統 (MAIN.EXE 0FEA 段, 線性 0x131b2..0x1488f)
-// 狀態變數與原版 DS 位址對照 (方便逐行比對):
+// menu.js — 原版菜单系统 (MAIN.EXE 0FEA 段, 线性 0x131b2..0x1488f)
+// 状态变量与原版 DS 地址对照 (方便逐行比对):
 //   disabled=a14c  mouseFlag=a14e  hit=a150  cancelable=a152  a154  level=a156
 //   count=a158  prev=a15a  lineH=a15e  cur=a160  bracket=a162  table=a17c
-//   levels[1]=a164.., levels[2]=a170.. {x,y,xmax,ymax}     rects=bdcc (每項 {x0,x1,y0,y1})
+//   levels[1]=a164.., levels[2]=a170.. {x,y,xmax,ymax}     rects=bdcc (每项 {x0,x1,y0,y1})
 //   lastMouse=bd9a/bd9c
-// 遊戲內按鍵碼: 0D 確定, 1B / 30('0') 取消, 1C → 1D ← 1E ↑ 1F ↓, 32/34/36/38 = 數字鍵 2/4/6/8
-const HL_SOLID = 0x0000;      // 外框圖形 [0c86] 偏移 0: 640 bytes 全 FF, 用作高亮反白位圖
-const GREY_PATTERN = 0x0280;  // AA 55 交錯點陣, 用於不可選項目
-const WAIT_ICON = 0x20b0;     // 等待按鍵的閃爍游標 (2 欄 x 16 行)
-const btImodM = (a, b) => a - Math.trunc(a / b) * b;               // 有號餘數 (idiv)
+// 游戏内按键码: 0D 确定, 1B / 30('0') 取消, 1C → 1D ← 1E ↑ 1F ↓, 32/34/36/38 = 数字键 2/4/6/8
+const HL_SOLID = 0x0000;      // 外框图形 [0c86] 偏移 0: 640 bytes 全 FF, 用作高亮反白位图
+const GREY_PATTERN = 0x0280;  // AA 55 交错点阵, 用于不可选项目
+const WAIT_ICON = 0x20b0;     // 等待按键的闪烁光标 (2 栏 x 16 行)
+const btImodM = (a, b) => a - Math.trunc(a / b) * b;               // 有号余数 (idiv)
 export const CURSOR_MENU = 0x2570, CURSOR_CROSS = 0x2840;
 
 function strlen(s) { let n = 0; while (n < s.length && s[n]) n++; return n; }
-const umin = (a, b) => ((a & 0xffff) > (b & 0xffff) ? b : a);       // seg0:4d7c (無號)
+const umin = (a, b) => ((a & 0xffff) > (b & 0xffff) ? b : a);       // seg0:4d7c (无号)
 const tdiv8 = v => (v < 0 ? -((-v) >> 3) : v >> 3);                  // cwd/xor/sar 3: 向零取整
 
 export class MenuSystem {
@@ -21,11 +21,11 @@ export class MenuSystem {
     this.disabled = 0; this.mouseFlag = 0; this.hit = 0; this.cancelable = 0; this.a154 = 0; this.level = 0;
     this.count = 0; this.prev = 0; this.lineH = 0; this.cur = 0; this.bracket = 0; this.table = [];
     this.levels = [null, { x: 0x208, y: 0xd8, xmax: 0x210, ymax: 0x190 }, { x: 0x1e0, y: 0x150, xmax: 0x1f0, ymax: 0x158 }];
-    this.rects = Array.from({ length: 120 }, () => ({ x0: 0, x1: 0, y0: 0, y1: 0 }));   // DS:bdcc (姓名鍵盤用到 117 項)
+    this.rects = Array.from({ length: 120 }, () => ({ x0: 0, x1: 0, y0: 0, y1: 0 }));   // DS:bdcc (姓名键盘用到 117 项)
     this.lastX = -1; this.lastY = -1;
     this.flag8a25 = 0;
   }
-  // ---------------- 輸入 ----------------
+  // ---------------- 输入 ----------------
   source() { const s = this.sys; return s.mouseAny() ? 1 : s.kbhit() ? 2 : 0; }                 // 131b2
   async waitRelease() { while (this.source()) { this.sys.flush(); await this.sys.poll(); } }    // 131e3
   async waitPress() { while (!this.source()) { this.sys.flush(); await this.sys.poll(); } }     // 131cd
@@ -35,14 +35,14 @@ export class MenuSystem {
     if (s === 2) { this.mouseFlag = 0; return this.sys.getKey(); }
     return 0;
   }
-  // 13253: 等待確定或取消 (1=確定)
+  // 13253: 等待确定或取消 (1=确定)
   async waitConfirm() {
     await this.waitRelease();
     for (;;) { const k = this.readEvent(); if (k === 0x1b || k === 0x30) return 0; if (k === 0x0d) return 1; await this.sys.poll(); }
   }
-  // ---------------- 項目 ----------------
+  // ---------------- 项目 ----------------
   maxWidth(table) { let m = 0; for (let i = 0; i < this.count; i++) { const n = strlen(table[i]); if (n > m) m = n; } return m; }  // 13847
-  // 1387a 繪製項目並建立點擊區域
+  // 1387a 绘制项目并创建点击区域
   drawItems(x, y, w, table) {
     this.sys.setCursorShape(CURSOR_MENU);
     const R = this.rects, c = this.con, lh = this.lineH;
@@ -57,11 +57,11 @@ export class MenuSystem {
       R[i] = { x0, x1: x0 + ((w + 2) << 3), y0: lh * i + di, y1: lh * i + di + 0x10 };
     }
   }
-  // 6a67 以 AA55 點陣覆蓋 n 欄 (透明模式)
+  // 6a67 以 AA55 点阵覆盖 n 栏 (透明模式)
   greyOut(col, y, n, color) {
     for (let k = 0; k < n; k++) this.scr.glyph(col + k, y, 1, 16, this.gfx.subarray(GREY_PATTERN), color, 4, 0);
   }
-  // 13278 高亮 (ax=0: 畫; ax≠0: 以視窗堆疊還原)
+  // 13278 高亮 (ax=0: 画; ax≠0: 以窗口堆栈还原)
   highlight(ax) {
     const r = this.rects[this.cur];
     this.sys.mouseHide();
@@ -76,11 +76,11 @@ export class MenuSystem {
     } else this.win.closeNow();
     this.sys.mouseShow();
   }
-  // 1fd9:1f9d 四邊直線 (1fd9:1b63 Bresenham, 逐點 seg0:0ad1)
+  // 1fd9:1f9d 四边直线 (1fd9:1b63 Bresenham, 逐点 seg0:0ad1)
   bracketBox(x0, y0, x1, y1, color) { this.scr.rectOutline(x0, y0, x1, y1, color); }
-  // 133f4 從 prev 移到 cur
+  // 133f4 从 prev 移到 cur
   moveHighlight() { const si = this.cur; this.cur = this.prev; this.highlight(this.bracket); this.cur = si; this.highlight(0); }
-  // 13374 滑鼠命中測試
+  // 13374 鼠标命中测试
   hitTest() {
     const { x, y } = this.sys.mousePos();
     if (x === this.lastX && y === this.lastY) return;
@@ -93,7 +93,7 @@ export class MenuSystem {
     this.hit = 0;
   }
   inRect(r) { return !(r.x0 > this.lastX || r.x1 <= this.lastX || r.y0 > this.lastY || r.y1 <= this.lastY); }
-  // 13cfb 點在項目以外 (only=0: 按下後第一次檢查; 之後拖動中傳 1, 直接回 0)
+  // 13cfb 点在项目以外 (only=0: 按下后第一次检查; 之后拖动中传 1, 直接回 0)
   async outsideClick(only) {
     if (only) return 0;
     let bx = this.count;
@@ -101,8 +101,8 @@ export class MenuSystem {
     if (this.level !== 0 && this.inRect(this.rects[bx])) await this.dragWindow();
     return 0;
   }
-  // 13adc 拖曳第 1 / 2 層視窗 (RE_NOTES 38.1): 關掉視窗 → 按住期間 XOR 外框 (1fd9:1fed, 色 7) 跟隨滑鼠 → 放開後以該層的繪製函式在新位置重開
-  //   層表 DS:a158 + 0x0c×層 = {x, y, x 上限, y 上限, 繪製}; 框寬 = 0x280 − x 上限, 框高 = 0x190 − y 上限
+  // 13adc 拖拽第 1 / 2 层窗口 (RE_NOTES 38.1): 关掉窗口 → 按住期间 XOR 外框 (1fd9:1fed, 色 7) 跟随鼠标 → 放开后以该层的绘制函数在新位置重开
+  //   层表 DS:a158 + 0x0c×层 = {x, y, x 上限, y 上限, 绘制}; 框宽 = 0x280 − x 上限, 框高 = 0x190 − y 上限
   async dragWindow() {
     const L = this.levels[this.level], s = this.sys;
     const si = this.lastX - L.x, di = this.lastY - L.y;
@@ -111,7 +111,7 @@ export class MenuSystem {
     const w = 0x280 - L.xmax, h = 0x190 - L.ymax;
     let px = -1, py = -1;
     const box = () => { s.mouseHide(); this.scr.xorRect(px, py, px + w - 1, py + h - 1, 7); s.mouseShow(); };   // 1fd9:1fed
-    while (s.mouseAny()) {                                                   // 507e (原版迴圈內沒有等待)
+    while (s.mouseAny()) {                                                   // 507e (原版循环内没有等待)
       const m = s.mousePos();                                                // 4efa
       const x = (m.x > si ? umin(m.x - si, L.xmax) : 0) & 0xfff8, y = m.y > di ? umin(m.y - di, L.ymax) : 0;
       if (x !== px || y !== py) {
@@ -121,16 +121,16 @@ export class MenuSystem {
       await s.poll();
     }
     if (px >= 0) box();
-    let { x, y } = s.mousePos();                                             // 放開後重新讀位置: x > si 才減 (否則保持滑鼠座標本身, 原版如此)
+    let { x, y } = s.mousePos();                                             // 放开后重新读位置: x > si 才减 (否则保持鼠标座标本身, 原版如此)
     if (x > si) x -= si;
     if (y > di) y -= di;
-    L.x = umin(x, L.xmax); L.y = umin(y, L.ymax);                            // 不再對齊 8
+    L.x = umin(x, L.xmax); L.y = umin(y, L.ymax);                            // 不再对齐 8
     s.mouseHide();
-    if (this.level === 1) this.drawPopup(); else this.drawYesNo();           // far [a160 + 0x0c×層]: 0fea:3ad4 = 13974 / 0fea:3ba7 = 13a47
+    if (this.level === 1) this.drawPopup(); else this.drawYesNo();           // far [a160 + 0x0c×层]: 0fea:3ad4 = 13974 / 0fea:3ba7 = 13a47
     this.highlight(this.bracket);                                            // 13278([a162])
     s.mouseShow();
   }
-  // 13d80 取得一個按鍵 (滑鼠按下時追蹤到放開)
+  // 13d80 取得一个按键 (鼠标按下时追踪到放开)
   async getKey() {
     this.lastX = this.lastY = -1;
     for (;;) {
@@ -152,7 +152,7 @@ export class MenuSystem {
       await this.sys.poll();
     }
   }
-  // 13412 取得一個按鍵 (自訂導覽用: 呼叫端自行處理方向鍵); 滑鼠按住時追蹤命中項目, 點在項目外的確定被忽略
+  // 13412 取得一个按键 (自订导览用: 调用端自行处理方向键); 鼠标按住时追踪命中项目, 点在项目外的确定被忽略
   async getKeyFree() {
     this.lastX = this.lastY = -1;
     for (;;) {
@@ -171,7 +171,7 @@ export class MenuSystem {
       await this.sys.poll();
     }
   }
-  // 13df0 導覽 (C=每行項目數, step=左右移動量)
+  // 13df0 导览 (C=每行项目数, step=左右移动量)
   async navigate(C, step) {
     const k = await this.getKey();
     this.prev = this.cur;
@@ -193,7 +193,7 @@ export class MenuSystem {
     this.sys.flush();
     return k;
   }
-  // 13e0e C = 13 的六角格導覽 (海戰選格, 跳躍表 0fea:3f86): 斜向鍵 1 / 3 / 7 / 9 依 DS:9bef (海戰視窗左上欄, 呼叫端放在 hexX) 與欄的奇偶決定; 沒有範圍檢查
+  // 13e0e C = 13 的六角格导览 (海战选格, 跳跃表 0fea:3f86): 斜向键 1 / 3 / 7 / 9 依 DS:9bef (海战窗口左上栏, 调用端放在 hexX) 与栏的奇偶决定; 没有范围检查
   navigateGrid(k, C, step) {
     const n = this.count, ev = !((this.hexX ?? 0) & 1), col = c => btImodM(btImodM(c, 0x0d), 2);
     let c = this.cur;
@@ -224,7 +224,7 @@ export class MenuSystem {
     this.sys.flush();
     return k;
   }
-  // 142cd 選擇迴圈: 回傳項目編號, 取消回傳 0xff
+  // 142cd 选择循环: 返回项目编号, 取消返回 0xff
   async select(C) {
     this.sys.mouseShow();
     if (this.count <= this.cur) this.cur = 0;
@@ -242,8 +242,8 @@ export class MenuSystem {
     return (k === 0x1b || k === 0x30) ? 0xff : this.cur;
   }
   async selectLoop(C) { let r; do r = await this.select(C); while (!this.cancelable && r === 0xff); return r; }
-  // ---------------- 各種選單入口 ----------------
-  // 14364 帶陰影視窗的直式選單 (關閉時還原背景)
+  // ---------------- 各种菜单入口 ----------------
+  // 14364 带阴影窗口的直式菜单 (关闭时还原背景)
   async listMenu(x, y, table, cancelable) {
     await this.waitRelease();
     this.count = table.length; this.lineH = 0x10; this.cur = 0; this.level = 0; this.cancelable = cancelable;
@@ -257,7 +257,7 @@ export class MenuSystem {
     this.disabled = 0; this.lineH = 0x10; this.con.bg = 0x0f;
     return r;
   }
-  // 14411 同上但不保存背景、不關閉
+  // 14411 同上但不保存背景、不关闭
   async listMenuKeep(x, y, table, cancelable) {
     await this.waitRelease();
     this.count = table.length; this.lineH = 0x10; this.cur = 0; this.level = 0; this.cancelable = cancelable;
@@ -270,7 +270,7 @@ export class MenuSystem {
     this.disabled = 0; this.lineH = 0x10; this.con.bg = 0x0f;
     return r;
   }
-  // 144b9 在現有視窗內列出項目
+  // 144b9 在现有窗口内列出项目
   async inlineMenu(x, y, table, cancelable, lineH) {
     await this.waitRelease();
     this.count = table.length; this.lineH = lineH & 0xff; this.cur = 0; this.level = 0; this.cancelable = cancelable;
@@ -281,7 +281,7 @@ export class MenuSystem {
     this.disabled = 0; this.con.bg = 0x0f;
     return r;
   }
-  // 14524 自訂版面選單 (呼叫端已設好 rects); flags: bit0 可取消, bit1 保留游標, bit7 框選高亮
+  // 14524 自订版面菜单 (调用端已设好 rects); flags: bit0 可取消, bit1 保留光标, bit7 框选高亮
   async customMenu(count, C, flags) {
     await this.waitRelease();
     this.count = count & 0xff;
@@ -293,7 +293,7 @@ export class MenuSystem {
     this.disabled = 0; this.bracket = 0;
     return r;
   }
-  // 1458c 在滑鼠位置彈出的選單 (第 1 層)
+  // 1458c 在鼠标位置弹出的菜单 (第 1 层)
   async popupMenu(table, cancelable) {
     await this.waitRelease();
     const saveBg = this.con.bg;
@@ -312,7 +312,7 @@ export class MenuSystem {
     this.disabled = 0; this.con.bg = saveBg; this.a154 = 0;
     return r;
   }
-  // 13974 第 1 層繪製
+  // 13974 第 1 层绘制
   drawPopup() {
     const L = this.levels[this.level], x = L.x, y = L.y, w = this.maxWidth(this.table);
     this.lineH = 0x10;
@@ -322,7 +322,7 @@ export class MenuSystem {
     this.drawItems(col, y, w, this.table);
     this.rects[this.count + 1] = { ...this.rects[this.count] };
   }
-  // 1469c 是/否 確認框 (第 2 層), 回傳 1=是 0=否
+  // 1469c 是/否 确认框 (第 2 层), 返回 1=是 0=否
   async yesNo() {
     await this.waitRelease();
     this.disabled = 0;
@@ -343,7 +343,7 @@ export class MenuSystem {
     this.con.bg = saveBg;
     return r < 1 ? 1 : 0;
   }
-  // 13a47 第 2 層繪製: GRAPH.DAT 第 0 張圖 (8 色入口 seg0:5a91)
+  // 13a47 第 2 层绘制: GRAPH.DAT 第 0 张图 (8 色入口 seg0:5a91)
   drawYesNo() {
     const L = this.levels[2], x = L.x, y = L.y;
     this.win.save(tdiv8(x), y, 0x12, 0x38);
@@ -351,7 +351,7 @@ export class MenuSystem {
     this.graph.draw8(0, tdiv8(x) << 3, y);
     this.rects[2] = { x0: x, x1: x + 0x90, y0: y, y1: y + 0x10 };
   }
-  // 147ab 等待按鍵: 在文字游標下一行中央閃爍游標
+  // 147ab 等待按键: 在文字光标下一行中央闪烁光标
   async waitPrompt() {
     await this.waitRelease();
     const c = this.con;
@@ -360,7 +360,7 @@ export class MenuSystem {
     if (col > 0x4e) col = 0x4e; if (y > 0x180) y = 0x180;
     this.sys.mouseHide();
     const saved = this.win.grab(col, y, 2, 16);
-    await this.waitRelease();                 // 原版在保存背景後再呼叫一次 131e3 (0x14805)
+    await this.waitRelease();                 // 原版在保存背景后再调用一次 131e3 (0x14805)
     for (;;) {
       this.scr.glyph(col, y, 2, 16, this.gfx.subarray(WAIT_ICON), 2, 4, 0);
       if (await this.sys.waitOrKeyTenths(4)) { this.win.putBack(saved); break; }

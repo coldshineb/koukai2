@@ -1,9 +1,9 @@
-// bargirl_route.js — 酒館 酒吧女郎 差分測試設定 (先執行本檔, 再執行 port_tests.js)
-// 進港時兩邊同時寫入: 現金 3000; 女郎記錄 0 (DS:2bde) 放在里斯本 (+0e = 0, +12 bit3), 好感 S.GIRL_FAV (預設 85), 性格 S.GIRL_LVL (預設 0);
-//   發現物 2 / 7 設為已知未發現 (+6 bit5); 隨身物前兩格放入第一個種類 0x0a 與 0x0b 的道具
-// S.GIRL_MODE: "all" (預設) 航海見聞 → 送她禮物 → 調查結果 (委託) → 探聽情報 (喜好 / 芳齡)
-//              "report"  已委託且天數 0 → 調查報告 (葡萄牙 商船隊 1..4)
-//              "poor"    現金 5 → 付不出 10
+// bargirl_route.js — 酒馆 酒吧女郎 差分测试设置 (先运行本档, 再运行 port_tests.js)
+// 进港时两边同时写入: 现金 3000; 女郎记录 0 (DS:2bde) 放在里斯本 (+0e = 0, +12 bit3), 好感 S.GIRL_FAV (默认 85), 性格 S.GIRL_LVL (默认 0);
+//   发现物 2 / 7 设为已知未发现 (+6 bit5); 随身物前两格放入第一个种类 0x0a 与 0x0b 的道具
+// S.GIRL_MODE: "all" (默认) 航海见闻 → 送她礼物 → 调查结果 (委托) → 探听情报 (喜好 / 芳龄)
+//              "report"  已委托且天数 0 → 调查报告 (葡萄牙 商船队 1..4)
+//              "poor"    现金 5 → 付不出 10
 "use strict";
 (function () {
 const S = session;
@@ -22,14 +22,14 @@ poke.push([0x2e57, S.girlItems[0]], [0x2e58, S.girlItems[1]]);
 for (const [a, v] of S.GIRL_POKE || []) poke.push([a, v]);
 S.PORT_SETUP = { port: 0, vx: 42, vy: 24, hx: 12, hy: 11, poke };
 const E = n => Array(n).fill(K.enter), D = n => Array(n).fill(K.down);
-const head = [K.up, K.enter, ...D(4), K.enter, K.enter];                 // 進酒館 → 酒吧女郎 → 付 10 的招呼
+const head = [K.up, K.enter, ...D(4), K.enter, K.enter];                 // 进酒馆 → 酒吧女郎 → 付 10 的招呼
 S.PORT_KEYS = S.GIRL_KEYS || (mode === "report" ? [...head, ...D(2), K.enter, ...E(14), K.esc, K.esc, K.esc, K.esc, K.down]
   : mode === "poor" ? [...head, K.enter, K.esc, K.down]
   : [...head,
-     K.enter, K.enter, K.enter, K.enter,                                  // 航海見聞: 清單第 1 筆 → 資料視窗 → 0x139
-     K.down, K.enter, K.enter, K.enter, K.enter, K.enter,                 // 送她禮物: 清單第 1 筆 → 是 → 0x141/0x142 → 0x145
-     ...D(2), K.enter, K.enter, K.enter, K.enter,                         // 調查結果: 好感足夠 → 葡萄牙 → 商船 → 天數
-     ...D(3), K.enter, K.down, K.enter, K.enter, K.down, K.enter, K.enter, K.esc,   // 探聽情報: 兩項 → 離開
+     K.enter, K.enter, K.enter, K.enter,                                  // 航海见闻: 清单第 1 笔 → 数据窗口 → 0x139
+     K.down, K.enter, K.enter, K.enter, K.enter, K.enter,                 // 送她礼物: 清单第 1 笔 → 是 → 0x141/0x142 → 0x145
+     ...D(2), K.enter, K.enter, K.enter, K.enter,                         // 调查结果: 好感足够 → 葡萄牙 → 商船 → 天数
+     ...D(3), K.enter, K.down, K.enter, K.enter, K.down, K.enter, K.enter, K.esc,   // 探听情报: 两项 → 离开
      K.esc, K.esc, K.down]);
 S.NO_EVENTS = 1;
 })();

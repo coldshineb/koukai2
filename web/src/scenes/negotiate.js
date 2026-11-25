@@ -1,10 +1,10 @@
-// scenes/negotiate.js — 海上 命令 交涉 (MAIN.EXE 20a6d → 20127, 工作「找持有地圖的人」2614f)
-// 依 docs/RE_NOTES.md 第 30.1 節。交涉沒有能力 / 好感判定, 結果完全由對方艦隊的任務 (fleet.mission) 決定; 任務 3 / 4 / 11 談完直接開戰 (10f7e)。
+// scenes/negotiate.js — 海上 命令 交涉 (MAIN.EXE 20a6d → 20127, 工作「找持有地图的人」2614f)
+// 依 docs/RE_NOTES.md 第 30.1 节。交涉没有能力 / 好感判定, 结果完全由对方舰队的任务 (fleet.mission) 决定; 任务 3 / 4 / 11 谈完直接开战 (10f7e)。
 import { DiscoveryFlag, GameConst, WorkDS } from "../model/flags.ts";
 
 const negHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 
-// 20a6d: 附近 (距離 ≤ 2) 沒有艦隊 → 0xe1, 回傳 1; 清單 0x8c 取消 → 1; 20127 回傳 ≠ 0 → 再來一次; = 0 → 回傳 0 (命令選單結束)
+// 20a6d: 附近 (距离 ≤ 2) 没有舰队 → 0xe1, 返回 1; 清单 0x8c 取消 → 1; 20127 返回 ≠ 0 → 再来一次; = 0 → 返回 0 (命令菜单结束)
 export async function seaNegotiate(sc) {
   for (;;) {
     const n = sc.nearFleets(2);                                          // 0fea:314a
@@ -15,7 +15,7 @@ export async function seaNegotiate(sc) {
   }
 }
 
-// 20127(p = 對方指揮者)
+// 20127(p = 对方指挥者)
 async function ngTalk(sc, p) {
   const st = sc.st, m = st.model, g = m.globals, { message, menu } = sc.c, b = sc.b, hero = g.hero;
   const nations = (sc.negNations ??= sc.P.data.nations.map(negHex));      // DS:08de
@@ -23,7 +23,7 @@ async function ngTalk(sc, p) {
   const fleet = m.fleet(m.person(p).fleet);
   let task = fleet.mission;
   const target = fleet.target;
-  if (g.commonChap && st.u16(WorkDS.CUR_KIND) === 0x0b && st.u8(WorkDS.TARGET_PERSON) === p) {   // 工作中、種類 0x0b、對象 (只比低位元組)
+  if (g.commonChap && st.u16(WorkDS.CUR_KIND) === 0x0b && st.u8(WorkDS.TARGET_PERSON) === p) {   // 工作中、种类 0x0b、对象 (只比低字节)
     b.talkPerson(p);                                                     // seg0:7f06
     await ngSellMap(sc);                                                 // 2614f
     await b.closeTalk();                                                 // seg0:796d
@@ -58,7 +58,7 @@ async function ngTalk(sc, p) {
   return si;
 }
 
-// 2614f 賣地圖 (工作 0x0b: TARGET_ITEM = 地圖的道具編號)
+// 2614f 卖地图 (工作 0x0b: TARGET_ITEM = 地图的道具编号)
 async function ngSellMap(sc) {
   const st = sc.st, m = st.model, g = m.globals, { message, menu } = sc.c, b = sc.b, it = st.u8(WorkDS.TARGET_ITEM);
   const end = async msg => { message(msg); await menu.waitPrompt(); };

@@ -1,15 +1,15 @@
-// nameinput.js — 姓名輸入鍵盤 (MAIN.EXE 2e09 段, 線性 0x2fdbc..0x30b1c)
-//   2e09:2a38 (30ac8) 主角改名: 先「名字」後「姓氏」, 各 6 字
-//   30a30 提示視窗, 30735 鍵盤主迴圈, 2ff48 鍵盤畫面, 30100/301bb 點擊區域, 304e6 字表一頁, 3030d 姓名欄游標
-// 狀態變數對照: cur=a160 prev=a15a  page=b5da[60]  pageStart=bb5c rangeStart=bb5e rangeEnd=bb5a
-//   gapFrom=bb3c gapTo=bb3e (字碼跳躍)  filled=bb56  len=bb40  max2=bb42  buf=bb44  pos=bb54 oldPos=bb58
+// nameinput.js — 姓名输入键盘 (MAIN.EXE 2e09 段, 线性 0x2fdbc..0x30b1c)
+//   2e09:2a38 (30ac8) 主角改名: 先「名字」后「姓氏」, 各 6 字
+//   30a30 提示窗口, 30735 键盘主循环, 2ff48 键盘画面, 30100/301bb 点击区域, 304e6 字表一页, 3030d 姓名栏光标
+// 状态变量对照: cur=a160 prev=a15a  page=b5da[60]  pageStart=bb5c rangeStart=bb5e rangeEnd=bb5a
+//   gapFrom=bb3c gapTo=bb3e (字码跳跃)  filled=bb56  len=bb40  max2=bb42  buf=bb44  pos=bb54 oldPos=bb58
 //   col0=bb60 y0=bb62
-// 游標編號: 0..29 為 6 直行 x 5 列 (編號 = 行*5+列): 第 0,1 行是功能 (MENU #31), 第 2..5 行是筆畫 (MENU #32);
-//   30..89 為字表 12 欄 x 5 列 (30 + 列*12 + 欄); 90 = «, 91 = »
+// 光标编号: 0..29 为 6 直行 x 5 列 (编号 = 行*5+列): 第 0,1 行是功能 (MENU #31), 第 2..5 行是笔画 (MENU #32);
+//   30..89 为字表 12 栏 x 5 列 (30 + 列*12 + 栏); 90 = «, 91 = »
 const kbHex = s => Uint8Array.from(s.match(/../g).map(h => parseInt(h, 16)));
 const kbCstr = s => { const b = kbHex(s), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 
-// 2fdbc: 字碼 → 字序; 無效碼回傳 0x2228 (這裡只判斷有效與否, 規則與 seg0:4554 略有不同: 0x91 首碼視為有效)
+// 2fdbc: 字码 → 字序; 无效码返回 0x2228 (这里只判断有效与否, 规则与 seg0:4554 略有不同: 0x91 首码视为有效)
 function tvalid(T) { return (T >= 0x30 && T <= 0x39) || (T >= 0x41 && T <= 0x5a) || (T >= 0x61 && T <= 0x7a) || (T >= 0x80 && T <= 0xfd); }
 export function kbValid(code) {
   const L = (code >> 8) & 0xff, T = code & 0xff;
@@ -29,7 +29,7 @@ export class NameInput {
     this.K = data.keyboard;
     this.page = new Uint16Array(60);
   }
-  // 30a30 提示視窗: kind 0..3 = 名字？/姓氏？/船名？/暱稱？, n 字
+  // 30a30 提示窗口: kind 0..3 = 名字？/姓氏？/船名？/暱称？, n 字
   prompt(kind, n) {
     const { win, con } = this.c;
     this.y0 = 0x130;
@@ -39,7 +39,7 @@ export class NameInput {
     if (kind <= 3) con.puts(this.labels[kind]);
     for (let i = 0; i < n; i++) { con.setCursor(i * 2 + this.col0, this.y0 + 2); con.puts(this.S.slot); }
   }
-  // 30100 + 301bb 點擊區域
+  // 30100 + 301bb 点击区域
   setRects() {
     const R = this.c.menu.rects;
     for (let c = 0; c <= 1; c++) for (let r = 0; r <= 4; r++)
@@ -51,7 +51,7 @@ export class NameInput {
     R[90] = { x0: 0x10, x1: 0x20, y0: 0x90, y1: 0xa0 };
     R[91] = { x0: 0xe0, x1: 0xf0, y0: 0xd0, y1: 0xe0 };
   }
-  // 2ff48 鍵盤畫面
+  // 2ff48 键盘画面
   drawKeyboard() {
     const { con, scr } = this.c;
     con.puts(this.S.kbColor2);
@@ -71,21 +71,21 @@ export class NameInput {
     con.setCursor(2, 0x90); con.puts(this.S.kbPrev);
     con.setCursor(0x1c, 0xd0); con.puts(this.S.kbNext);
   }
-  // 3027e / 3028a 下一個 / 上一個字碼 (遇到 gapFrom/gapTo 跳躍)
+  // 3027e / 3028a 下一个 / 上一个字码 (遇到 gapFrom/gapTo 跳跃)
   next(v) { return this.gapFrom === v ? this.gapTo : (v + 1) & 0xffff; }
   prevCode(v) { return this.gapTo === v ? this.gapFrom : (v - 1) & 0xffff; }
-  // 30296 / 302c6 前進 / 後退 60 個有效字
+  // 30296 / 302c6 前进 / 后退 60 个有效字
   skip(v, back) {
     for (let n = 0; n < 0x3c; n++) { do v = back ? this.prevCode(v) : this.next(v); while (!kbValid(v)); }
     return v;
   }
-  // 筆畫格 / 英數 的範圍 (3023c..30273)
+  // 笔画格 / 英数 的范围 (3023c..30273)
   setStroke(cur) {
     const K = this.K, i = cur - 10;
     this.rangeStart = K.start[i]; this.gapTo = K.gapTo[i]; this.pageStart = this.rangeStart;
     this.rangeEnd = K.end[i]; this.gapFrom = K.gapFrom[i];
   }
-  // 304e6 畫一頁字表 (從 start 起最多 60 個有效字)
+  // 304e6 画一页字表 (从 start 起最多 60 个有效字)
   drawPage(start) {
     const { scr, con, sys, menu } = this.c;
     if (this.page[0] === this.rangeStart && menu.cur < 0x1e) return;
@@ -109,7 +109,7 @@ export class NameInput {
     this.filled = 0x3b;
     sys.mouseShow();
   }
-  // 3030d 姓名欄游標: 舊位置畫黑底線、新位置畫紫底線 (各自先存背景再立即還原, 只留下保存範圍外的最下 2 行)
+  // 3030d 姓名栏光标: 旧位置画黑底线、新位置画紫底线 (各自先存背景再立即还原, 只留下保存范围外的最下 2 行)
   async drawCursor() {
     const { con, win } = this.c;
     con.puts(this.S.nameBg7);
@@ -118,13 +118,13 @@ export class NameInput {
     if (this.oldPos === this.pos) return 0;
     win.save(this.oldPos * 2 + this.col0, this.y0, 2, 0x10);
     con.setCursor(this.oldPos * 2 + this.col0, this.y0 + 2); con.puts(this.S.markOld);
-    await win.close();             // seg0:796d (高度 16, 不播動畫)
+    await win.close();             // seg0:796d (高度 16, 不播动画)
     win.save(this.pos * 2 + this.col0, this.y0, 2, 0x10);
     con.setCursor(this.pos * 2 + this.col0, this.y0 + 2); con.puts(this.S.markNew);
     await win.close();
     return 1;
   }
-  // 303ae 在游標處放一個字並前進
+  // 303ae 在光标处放一个字并前进
   async insert(code) {
     this.c.con.drawCharAt(this.pos * 2 + this.col0, this.y0, 0x0700, code);
     this.buf[this.pos * 2] = code >> 8; this.buf[this.pos * 2 + 1] = code & 0xff;
@@ -144,16 +144,16 @@ export class NameInput {
     const v = this.skip(this.pageStart, false);
     if (this.rangeEnd > v) { this.pageStart = v; this.drawPage(v); await this.c.menu.waitRelease(); }
   }
-  // 3060f 確定鍵: 回傳 1 = 決定, 2 = 結束, 0 = 繼續
+  // 3060f 确定键: 返回 1 = 决定, 2 = 结束, 0 = 继续
   async enter() {
     const menu = this.c.menu, cur = menu.cur;
     if (cur < 10) {
       switch (cur) {
-        case 0: return 2;                                                // 結束
-        case 1:                                                          // 英數 (gapFrom/gapTo 保持原值)
+        case 0: return 2;                                                // 结束
+        case 1:                                                          // 英数 (gapFrom/gapTo 保持原值)
           this.rangeStart = this.pageStart = this.K.eisu[0]; this.rangeEnd = this.K.eisu[1];
           this.drawPage(this.rangeStart); break;
-        case 2: return 1;                                                // 決定
+        case 2: return 1;                                                // 决定
         case 5: if (this.pos > 0) { this.oldPos = this.pos; this.pos--; await this.drawCursor(); } break;   // 左移
         case 6: {                                                        // 右移
           const max = Math.trunc((this.max2 - 1) / 2);
@@ -170,7 +170,7 @@ export class NameInput {
     else await this.nextPage();
     return 0;
   }
-  // 方向鍵 (307de..309dc)
+  // 方向键 (307de..309dc)
   move(k) {
     const m = this.c.menu; let c = m.cur;
     switch (k) {
@@ -199,7 +199,7 @@ export class NameInput {
     }
     m.cur = c; return true;
   }
-  // 30735 鍵盤主迴圈: 輸入結果寫回 dest (GameState 位址); 回傳 1 = 已輸入, 2 = 結束 (取消), 3 = 未輸入任何字
+  // 30735 键盘主循环: 输入结果写回 dest (GameState 地址); 返回 1 = 已输入, 2 = 结束 (取消), 3 = 未输入任何字
   async run(dest, max) {
     const { win, menu, sys, state } = this.c;
     menu.count = 0x75;
@@ -222,8 +222,8 @@ export class NameInput {
       menu.prev = menu.cur;
       if (k === 0x0d) {
         const r = await this.enter();
-        if (r === 1) {                                                   // 309f0 決定
-          while (this.byteAt(this.len * 2 - 2) === 0x81 && this.byteAt(this.len * 2 - 1) === 0x30) this.len--;   // 30709 去掉結尾全形空白
+        if (r === 1) {                                                   // 309f0 决定
+          while (this.byteAt(this.len * 2 - 2) === 0x81 && this.byteAt(this.len * 2 - 1) === 0x30) this.len--;   // 30709 去掉结尾全角空白
           this.buf[this.len * 2] = 0;
           if (this.len) {
             this.buf[this.len * 2] = 0;
@@ -240,9 +240,9 @@ export class NameInput {
       if (menu.cur !== menu.prev) menu.moveHighlight();
     }
   }
-  // 30709 的位元組讀取 (索引 -2/-1 時讀到 DS:bb42 的 max2 低/高位元組)
+  // 30709 的字节读取 (索引 -2/-1 时读到 DS:bb42 的 max2 低/高字节)
   byteAt(i) { return i >= 0 ? this.buf[i] : i === -2 ? this.max2 & 0xff : (this.max2 >> 8) & 0xff; }
-  // 2e09:2a38 (30ac8) 主角改名: 回傳 0 = 中途結束, 1 = 完成
+  // 2e09:2a38 (30ac8) 主角改名: 返回 0 = 中途结束, 1 = 完成
   async renameHero(personDS, n = 6) {
     const { win } = this.c;
     this.prompt(0, n);

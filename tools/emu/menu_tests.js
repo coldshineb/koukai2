@@ -1,5 +1,5 @@
-// menu_tests.js — 選單/提示/確認框 差分測試 (先載入 ui_bundle.js; session 已 boot 並載入 harness_menu.js)
-// 每個測試: 同一組按鍵腳本分別餵給原版 (模擬器) 和 JS 版, 比對每次送鍵時的畫面、最終畫面、回傳值與狀態。
+// menu_tests.js — 菜单/提示/确认框 差分测试 (先加载 ui_bundle.js; session 已 boot 并加载 harness_menu.js)
+// 每个测试: 同一组按键脚本分别喂给原版 (模拟器) 和 JS 版, 比对每次送键时的画面、最终画面、返回值与状态。
 (async function () {
 const fs = require("fs"), S = session, U = S.UI, c = S.env.cpu, D = S.DSEG;
 const f = S.files; const font = U.Font.fromRaw(f["1.PAT"], f["2.PAT"], S.rom);
@@ -41,14 +41,14 @@ const report = (name, E, r, jf, J) => {
   const ok = E.ret === r && fd === 0 && fin.n === 0;
   rep.push(`${ok ? "OK  " : "FAIL"} ${name.padEnd(28)} ret ${E.ret}/${r} frames=${E.frames.length} frameDiff=${fd} final=${fin.n}${fin.first ? " @" + fin.first : ""} bg ${E.vars.bg}/${J.con.bg}`);
 };
-// ---- 直式選單 14364 ----
+// ---- 直式菜单 14364 ----
 async function list(name, its, x, y, cancel, keys, disabled = 0) {
   prepEmu(); const tbl = S.emuTable(its); c.ww(D * 16 + 0xa14c, disabled);
   const E = runEmu(0x14364, { ax: x, dx: y, bx: its.length, args: [cancel, tbl] }, keys);
   const jf = []; const J = jsEnv(S.makeScript(keys), jf); J.menu.disabled = disabled;
   report(name, E, await J.menu.listMenu(x, y, its, cancel), jf, J);
 }
-// ---- 彈出選單 1458c ----
+// ---- 弹出菜单 1458c ----
 async function popup(name, its, mx, my, cancel, keys) {
   prepEmu(); const tbl = S.emuTable(its); Object.assign(S.env.mouse, { x: mx, y: my });
   const E = runEmu(0x1458c, { ax: its.length, bx: tbl, dx: cancel }, keys);
@@ -62,7 +62,7 @@ async function yesno(name, mx, my, keys) {
   const jf = []; const J = jsEnv(S.makeScript(keys), jf); J.sys.mouse.x = mx; J.sys.mouse.y = my;
   report(name, E, await J.menu.yesNo(), jf, J);
 }
-// ---- 等待提示 147ab (先開一個視窗並寫字) ----
+// ---- 等待提示 147ab (先开一个窗口并写字) ----
 async function prompt(name, keys) {
   prepEmu(); c.mem[D * 16 + 0x0ca4] = 0;
   S.call(0x7779, { ax: 10, dx: 100, bx: 40, args: [0, 96] }); S.emuStr(Array.from(font.encode("測試"))); S.call(0x4b9c, { bx: 0xe000 });

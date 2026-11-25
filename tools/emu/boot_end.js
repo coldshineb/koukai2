@@ -1,8 +1,8 @@
-// boot_end.js — 開發用: 以模擬器執行原版 END.EXE (結局), 逐 tick 記錄畫面 (VGA 4 平面 0..0x95ff = 640x480) 與 DAC
-// 需先載入 x86emu.js, dosenv.js, boot_open.js (session.loadSea2 / hashPlanes)。不屬於移植版遊戲本體。
-// 時間模型與 boot_open.js 相同: INT 66h F1 00 每讀一次倒數減一, 減一之前記錄一幀 (第 k 幀 = 第 k 個 tick 期間的畫面)。
-// INT 65h = KOUKAI2.COM 的常駐服務 (RE_NOTES 第 34 節): MAIN.EXE 結束前存入的 主角名字串 (AH=2 → CX:BX) 與 AH=3..8 的值 (AL≠0 讀回)。
-// 用法: session.runEnd({ v3, v4, v5, name: Uint8Array (名 + 0x20 + 姓, 0 結尾), keys: [{ tick, scan, ascii } | { tick, mouse }], keep: [tick...] })
+// boot_end.js — 开发用: 以模拟器运行原版 END.EXE (结局), 逐 tick 记录画面 (VGA 4 平面 0..0x95ff = 640x480) 与 DAC
+// 需先加载 x86emu.js, dosenv.js, boot_open.js (session.loadSea2 / hashPlanes)。不属于移植版游戏本体。
+// 时间模型与 boot_open.js 相同: INT 66h F1 00 每读一次倒数减一, 减一之前记录一帧 (第 k 帧 = 第 k 个 tick 期间的画面)。
+// INT 65h = KOUKAI2.COM 的常驻服务 (RE_NOTES 第 34 节): MAIN.EXE 结束前存入的 主角名字符串 (AH=2 → CX:BX) 与 AH=3..8 的值 (AL≠0 读回)。
+// 用法: session.runEnd({ v3, v4, v5, name: Uint8Array (名 + 0x20 + 姓, 0 结尾), keys: [{ tick, scan, ascii } | { tick, mouse }], keep: [tick...] })
 "use strict";
 (function () {
 const S = session;
@@ -34,7 +34,7 @@ S.runEnd = function (opts = {}) {
     out.music.push({ tick: out.tick, ah: hi, al: lo, ds: cpu.s[3], dx: cpu.r[2] });
     cpu.r[0] = 0;
   };
-  // KOUKAI2.COM INT 65h: 字串放在 9000:0000 (21 bytes, 與 KOUKAI2.COM 複製的長度相同)
+  // KOUKAI2.COM INT 65h: 字符串放在 9000:0000 (21 bytes, 与 KOUKAI2.COM 拷贝的长度相同)
   const STR_SEG = 0x9000, name = opts.name || new Uint8Array([0x41, 0x20, 0x42, 0]);
   for (let i = 0; i < 0x15; i++) c.mem[STR_SEG * 16 + i] = i < name.length ? name[i] : 0;
   const vals = { 3: opts.v3 | 0, 4: opts.v4 | 0, 5: opts.v5 | 0, 6: 0, 7: 0, 8: 0 };
@@ -53,7 +53,7 @@ S.runEnd = function (opts = {}) {
   S.endRun = out;
   return out;
 };
-// MAIN.EXE 1764f 的核對值 (RE_NOTES 34): code 0..5 = 劇本結局 (國籍 0), 0x0f = 爵位 9 (code = 0x100 | 主角編號, 國籍 = 主角 +31 & 0x0f)
+// MAIN.EXE 1764f 的核对值 (RE_NOTES 34): code 0..5 = 剧本结局 (国籍 0), 0x0f = 爵位 9 (code = 0x100 | 主角编号, 国籍 = 主角 +31 & 0x0f)
 S.endParams = function (code, hero = 0, nation = 0) {
   let v = 0;
   if (code === 0x0f) { code = 0x100 | hero; v = nation; }

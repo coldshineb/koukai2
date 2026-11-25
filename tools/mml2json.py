@@ -212,7 +212,7 @@ def key_freq(k):
 class Chan:
     def __init__(s, d, p, kind, inst_tr):
         s.d, s.p, s.kind, s.it = d, p, kind, inst_tr
-        s.start = p; s.seg = p                      # [2] 循環點
+        s.start = p; s.seg = p                      # [2] 循环点
         s.flags = 1; s.len = 0x30; s.gate = 0x2D; s.cnt = 1; s.gcnt = 0
         s.lcnt = 0; s.lstart = 0; s.lexit = 0
         s.tr = 0; s.vol = 0; s.inst = None; s.last = None; s.tie = False
@@ -250,7 +250,7 @@ def simulate(d, offs, base_tbl, passes=2, max_ticks=2_000_000, repeat=True):
                     o, sm, f = key_freq(k)
                     kk = k if 0 <= k <= 255 and k // 12 <= 7 else (o * 12 + sm)
                     if ch.tie and ch.last == kk and ch.cur is not None:
-                        pass                                      # 0c1d: 同音連結, 不重新觸鍵
+                        pass                                      # 0c1d: 同音链接, 不重新触键
                     elif ch.tie and ch.cur is not None:
                         close(ch, t); ch.cur = [t, 0, kk, round(f, 3), ch.inst, ch.vol, ch.bend, "legato"]
                     else:
@@ -321,7 +321,7 @@ def simulate(d, offs, base_tbl, passes=2, max_ticks=2_000_000, repeat=True):
         if not alive:
             break
         tick += 1
-    # 時間換算
+    # 时间换算
     def t2s(t):
         s, pt, pv = 0.0, 0, 120
         for (tt, v) in tempo_map:
@@ -344,16 +344,16 @@ def song_check(sim):
     loop = [(x[1] - x[0]) if len(x) > 1 else None for x in L]
     seg = [c["segno_tick"] for c in sim["channels"] if c]
     mx = max([x for x in loop if x] or [0])
-    # 循環段長度可以不同, 只要都整除最長者 (例: D2 #1 第 3 聲部的 FE 在 D0 迴圈內, 重播時迴圈不再成立,
-    # 只重複 192 tick 的迴圈本體; 第一遍是同一本體 ×8 = 1536, 音樂上仍同步)
+    # 循环段长度可以不同, 只要都整除最长者 (例: D2 #1 第 3 声部的 FE 在 D0 循环内, 重播时循环不再成立,
+    # 只重复 192 tick 的循环本体; 第一遍是同一本体 ×8 = 1536, 音乐上仍同步)
     return {"pass1_ticks": first, "loop_ticks": loop, "segno_ticks": seg,
             "ok": len(set(first)) == 1 and all(x and mx % x == 0 for x in loop),
             "exact": len(set(first)) == 1 and len(set(loop)) == 1}
 
 
-# OPEN.EXE / END.EXE 不讀 D2.MML, 樂曲資料內嵌於自己的 DGROUP (以 AH=00 登記, 位址 = 映像內線性位址; 映像從 EXE 標頭之後開始):
-#   OPEN.EXE 08590: 1756(091a:0002) 登記 → 1 曲;  053eb: 4980(0) → AH=01 AL=1 (4980 送出 AL+1)
-#   END.EXE  00ecb: 5ae2(0771:0002) 登記 → 2 曲;  01613: 359f(0) → 曲 1;  009b6: 359f(1) → 曲 2
+# OPEN.EXE / END.EXE 不读 D2.MML, 乐曲数据内嵌于自己的 DGROUP (以 AH=00 登记, 地址 = 映像内线性地址; 映像从 EXE 头部之后开始):
+#   OPEN.EXE 08590: 1756(091a:0002) 登记 → 1 曲;  053eb: 4980(0) → AH=01 AL=1 (4980 送出 AL+1)
+#   END.EXE  00ecb: 5ae2(0771:0002) 登记 → 2 曲;  01613: 359f(0) → 曲 1;  009b6: 359f(1) → 曲 2
 EMBED = {"OPEN.EXE": (0x091a * 16 + 2, 1), "END.EXE": (0x0771 * 16 + 2, 2)}
 
 

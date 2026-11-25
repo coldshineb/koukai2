@@ -1,7 +1,7 @@
-// opening_tests.js — 片頭差分測試: 同一串按鍵/時間驅動原版 OPEN.EXE (模擬器) 與移植版 web/src/game/opening.js, 逐 tick 比對
-//   每個 tick 比對: VGA 4 平面 (0..0x95ff = 640x480 全部可見範圍) 雜湊、DAC 0..15 (6 位元 RGB)、外框色; 另比對音樂指令的時間點與總長度。
-// 需先載入: x86emu.js, dosenv.js, boot_open.js, tools/work/ui_bundle.js (make_test_bundle.py 產生, 含 game/opening.js)
-// 用法: session.W = WORKSPACE_DIR; 執行本檔; await session.openTests(routes)  (routes 省略 = 全部)
+// opening_tests.js — 片头差分测试: 同一串按键/时间驱动原版 OPEN.EXE (模拟器) 与移植版 web/src/game/opening.js, 逐 tick 比对
+//   每个 tick 比对: VGA 4 平面 (0..0x95ff = 640x480 全部可见范围) 哈希、DAC 0..15 (6 比特 RGB)、外框色; 另比对音乐指令的时间点与总长度。
+// 需先加载: x86emu.js, dosenv.js, boot_open.js, tools/work/ui_bundle.js (make_test_bundle.py 产生, 含 game/opening.js)
+// 用法: session.W = WORKSPACE_DIR; 运行本档; await session.openTests(routes)  (routes 省略 = 全部)
 "use strict";
 (function () {
 const S = session, fs = require("fs");
@@ -14,7 +14,7 @@ S.openData = function () {
     json: JSON.parse(fs.readFileSync(`${W}/web/assets/data/opening.json`, "utf8")),
   };
 };
-// 移植版: 與 boot_open.js 的 runOpen 相同的時間模型 (Timer 測試模式: 每讀一次倒數減一; 減一之前記錄一幀)
+// 移植版: 与 boot_open.js 的 runOpen 相同的时间模型 (Timer 测试模式: 每读一次倒数减一; 减一之前记录一帧)
 S.runOpenJS = async function (opts = {}) {
   const U = S.UI; S.loadSea2();
   const font = U.Font.fromRaw(S.files["1.PAT"], S.files["2.PAT"], S.rom);
@@ -57,7 +57,7 @@ S.compareOpen = function (name, e, j) {
   return `${ok ? "OK  " : "FAIL"} ${name.padEnd(22)} ticks emu=${e.ticks.length} js=${j.ticks.length} same=${same}/${n}` +
     (first >= 0 ? ` first@${first} (vram ${vramDiff}, dac ${dacDiff}, border ${bdDiff})` : "") + ` | music emu[${mE}] js[${mJ}] | js ${j.result}`;
 };
-// 以索引圖存檔 (640x480, 1 byte/像素) 供檢視
+// 以索引图存盘 (640x480, 1 byte/像素) 供查看
 S.saveIdx = function (planes, path) {
   const out = new Uint8Array(640 * 480);
   for (let o = 0; o < 0x9600; o++) for (let i = 0; i < 8; i++) { const s = 7 - i; out[o * 8 + i] = ((planes[0][o] >> s) & 1) | (((planes[1][o] >> s) & 1) << 1) | (((planes[2][o] >> s) & 1) << 2) | (((planes[3][o] >> s) & 1) << 3); }
@@ -65,10 +65,10 @@ S.saveIdx = function (planes, path) {
 };
 S.OPEN_ROUTES = {
   full: [],
-  "esc@300": [{ tick: 300, scan: 0x01, ascii: 0x1b }],                 // 場景 0 的 4fd5 等待 (Esc 才有效)
-  "enter@300": [{ tick: 300, scan: 0x1c, ascii: 0x0d }],               // 同上: Enter 被讀掉但不跳過
-  "enter@2600": [{ tick: 2600, scan: 0x1c, ascii: 0x0d }],             // 4f0d 系等待: Enter 跳過
-  "esc@2600": [{ tick: 2600, scan: 0x01, ascii: 0x1b }],               // 同上: Esc 被讀掉但不跳過
+  "esc@300": [{ tick: 300, scan: 0x01, ascii: 0x1b }],                 // 场景 0 的 4fd5 等待 (Esc 才有效)
+  "enter@300": [{ tick: 300, scan: 0x1c, ascii: 0x0d }],               // 同上: Enter 被读掉但不跳过
+  "enter@2600": [{ tick: 2600, scan: 0x1c, ascii: 0x0d }],             // 4f0d 系等待: Enter 跳过
+  "esc@2600": [{ tick: 2600, scan: 0x01, ascii: 0x1b }],               // 同上: Esc 被读掉但不跳过
   "space@6000": [{ tick: 6000, scan: 0x39, ascii: 0x20 }],
   "click@4200": [{ tick: 4200, mouse: 1 }, { tick: 4201, mouse: 0 }],
 };

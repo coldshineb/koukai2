@@ -1,10 +1,10 @@
-// harness.js — 差分測試輔助 (在 Quick 沙盒以 session 共享狀態; 需先載入 x86emu.js, dosenv.js)
-// 開機到原版的第一個等待輸入畫面, 之後可以直接呼叫 MAIN.EXE 內任一函式並比對畫面。
-// 用法 (沙盒): 依序執行 x86emu.js, dosenv.js, harness.js, 再執行 session.boot(W)
+// harness.js — 差分测试辅助 (在 Quick 沙盒以 session 共享状态; 需先加载 x86emu.js, dosenv.js)
+// 开机到原版的第一个等待输入画面, 之后可以直接调用 MAIN.EXE 内任一函数并比对画面。
+// 用法 (沙盒): 依序运行 x86emu.js, dosenv.js, harness.js, 再运行 session.boot(W)
 "use strict";
 (function () {
 const S = session;
-const SEGS = [0x2e09, 0x1fd9, 0x0fea, 0];        // MAIN.EXE 四個程式碼段 (未重定位值)
+const SEGS = [0x2e09, 0x1fd9, 0x0fea, 0];        // MAIN.EXE 四个代码段 (未重定位值)
 const LOAD = 0x110, DGROUP = 0x3815;
 
 S.lsUnpack = function (b) {
@@ -29,7 +29,7 @@ S.boot = function (W) {
   S.files = files; S.W = W;
   S.rom = new Uint8Array(fs.readFileSync(W + "/uw2_remake/tools/work/rom8x8.bin"));
   const env = new S.DOSEnv(files, { romFont: S.rom });
-  env.loadEXE(files["MAIN.EXE"]); env.cpu.run(3e7);          // 執行到第一個鍵盤等待
+  env.loadEXE(files["MAIN.EXE"]); env.cpu.run(3e7);          // 运行到第一个键盘等待
   S.env = env; S.DSEG = LOAD + DGROUP; S.D1 = S.lsUnpack(files["DATA1.LZW"]);
   const c = env.cpu;
   S.saveState = () => ({ mem: c.mem.slice(), r: c.r.slice(), s: c.s.slice(), ip: c.ip, flags: c.flags,
@@ -40,7 +40,7 @@ S.boot = function (W) {
   S.base = S.saveState();
   return env;
 };
-// 以「映像線性位址」呼叫 MAIN.EXE 函式 (自動換算段:偏移)
+// 以「映像线性地址」调用 MAIN.EXE 函数 (自动换算段:偏移)
 S.call = (lin, o = {}) => {
   const env = S.env, c = env.cpu, sv = { r: c.r.slice(), s: c.s.slice(), ip: c.ip, flags: c.flags };
   const sg = SEGS.find(s => s * 16 <= lin); c.s[3] = S.DSEG; c.s[0] = S.DSEG; c.flags &= ~0x400;
@@ -48,7 +48,7 @@ S.call = (lin, o = {}) => {
   finally { S.last = { ax: c.r[0], dx: c.r[2] }; c.r.set(sv.r); c.s.set(sv.s); c.ip = sv.ip; c.flags = sv.flags; c.halted = false; }
   return S.last;
 };
-// 準備視窗所需緩衝: [0c86]=DATA1#14 外框圖形, [0c88]=視窗堆疊 (直接寫入原版記憶體管理表 DS:bc36)
+// 准备窗口所需缓冲: [0c86]=DATA1#14 外框图形, [0c88]=窗口堆栈 (直接写入原版内存管理表 DS:bc36)
 S.setupFrameGfx = () => {
   const c = S.env.cpu, D = S.DSEG;
   c.mem.set(S.D1[14], 0x8000 * 16);
@@ -70,7 +70,7 @@ S.emuVars = () => { const c = S.env.cpu, r = o => c.rw(S.DSEG * 16 + o), b = o =
   return { x: r(0x8a1a), y: r(0x8a1c), lineH: r(0x8a1e), left: r(0x8a20), right: r(0x8a22), mode: b(0x8a26), fg: b(0x8a27), bg: b(0x8a28), f29: b(0x8a29), lead: b(0x8a2a), esc: r(0x8a2c) }; };
 S.jsVars = con => ({ x: con.x, y: con.y, lineH: con.lineH, left: con.left, right: con.right, mode: con.mode, fg: con.fg, bg: con.bg, f29: con.f29, lead: con.lead, esc: con.esc });
 S.cmp = (a, b) => { let n = 0, first = -1; for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) { if (first < 0) first = i; n++; } return { n, first: first < 0 ? null : [first % 640, (first / 640) | 0] }; };
-// 在原版延遲函式 seg0:5998 處截取畫面並跳過延遲
+// 在原版延迟函数 seg0:5998 处截取画面并跳过延迟
 S.withDelayHook = (fn) => {
   const c = S.env.cpu, frames = [], old = c.onTick;
   c.onTick = cpu => { old(cpu); if (cpu.s[1] === LOAD && cpu.ip === 0x5998) { frames.push(S.emuFB().slice()); cpu.ip = cpu.pop(); cpu.s[1] = cpu.pop(); } };

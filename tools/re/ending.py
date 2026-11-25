@@ -5,7 +5,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 WORKSPACE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(HERE))).replace("\\", "/")
 exec(open(os.path.join(HERE, "..", "re_env_end.py"), encoding="utf-8").read())
 
-# 跳躍表 jmp word [cs:bx+T]: 依表內相鄰的位址 (距跳躍指令 0x800 以內) 取出各分支並加入展開 (例: main 0273 依核對值選結局、0a38 各結局)
+# 跳跃表 jmp word [cs:bx+T]: 依表内相邻的地址 (距跳跃指令 0x800 以内) 取出各分支并加入展开 (例: main 0273 依核对值选结局、0a38 各结局)
 import re as _re
 _body0 = body
 def body(a, limit=4000):

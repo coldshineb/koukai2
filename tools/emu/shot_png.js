@@ -1,6 +1,6 @@
-// shot_png.js — 測試輔助: 把 port_tests 的畫面 (session.lastRun.E/J.shots[i]) 存成 PNG, 以便核對分支 / 拼圖
-//   S.png(shot, 檔名, emu = true)          單張 (emu: dac 為 6 位元 RGB; 移植版: dac 為 4 位元 B,R,G)
-//   S.sheet(shots, 索引陣列, 檔名, emu, 欄數) 縮小一半的拼圖
+// shot_png.js — 测试辅助: 把 port_tests 的画面 (session.lastRun.E/J.shots[i]) 存成 PNG, 以便核对分支 / 拼图
+//   S.png(shot, 文件名, emu = true)          单张 (emu: dac 为 6 比特 RGB; 移植版: dac 为 4 比特 B,R,G)
+//   S.sheet(shots, 索参数组, 文件名, emu, 栏数) 缩小一半的拼图
 (function () {
 const S = session, { createCanvas } = require("canvas"), fs = require("fs");
 const rgb = (shot, k, emu) => {

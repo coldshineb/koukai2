@@ -1,6 +1,6 @@
-// font.js — 原版字型
-//   全形: 1.pat / 2.pat 14x14 點陣, 每字 28 bytes (字碼->字序規則移植自 MAIN.EXE seg0:4554)
-//   半形: BIOS ROM 8x8 (F000:FA6E), 每行重複兩次成 8x16 (seg0:0b8c, seg0:47ef)
+// font.js — 原版字体
+//   全角: 1.pat / 2.pat 14x14 点阵, 每字 28 bytes (字码->字序规则移植自 MAIN.EXE seg0:4554)
+//   半角: BIOS ROM 8x8 (F000:FA6E), 每行重复两次成 8x16 (seg0:0b8c, seg0:47ef)
 import { loadBitmap, loadJSON } from "./assets.js";
 
 function tidx(T) {
@@ -10,7 +10,7 @@ function tidx(T) {
   if (T >= 0x80 && T <= 0xfd) return T - 0x80 + 62;
   return -1;
 }
-// 返回 [font, n] 或 null (原版對無效碼取字序 0x2228, 超出字型檔, 讀到空白)
+// 返回 [font, n] 或 null (原版对无效码取字序 0x2228, 超出字库, 读到空白)
 export function codeToGlyph(code) {
   const L = code >> 8, T = code & 0xff;
   if (code >= 0x8130 && code <= 0xaf68) {
@@ -30,7 +30,7 @@ export function codeToGlyph(code) {
 const EMPTY28 = new Uint8Array(28);
 
 export class Font {
-  // 從原版檔案位元組建立 (測試/工具用)
+  // 从原版文件字节创建 (测试/工具用)
   static fromRaw(pat1, pat2, rom8x8) {
     const f = new Font();
     const unpack = (pat) => {
@@ -41,7 +41,7 @@ export class Font {
     f.g1 = unpack(pat1); f.g2 = unpack(pat2); f.rom = rom8x8.slice(0, 1024);
     return f;
   }
-  // 瀏覽器: 從提取後的 PNG 圖集還原
+  // 浏览器: 从提取后的 PNG 图集还原
   async load(base) {
     const [a1, a2, r, cm] = await Promise.all([
       loadBitmap(base + "/font/font1.png"), loadBitmap(base + "/font/font2.png"),
@@ -67,19 +67,19 @@ export class Font {
     for (const [code, , , u] of cm.table) this.u2c.set(u, code);
     return this;
   }
-  // 全形字點陣 (14 行 x 2 bytes)
+  // 全角字点阵 (14 行 x 2 bytes)
   kanjiRows(code) {
     const g = codeToGlyph(code); if (!g) return EMPTY28;
     const src = g[0] === 1 ? this.g1 : this.g2, o = (g[1] - 1) * 28;
     return o + 28 <= src.length ? src.subarray(o, o + 28) : EMPTY28;
   }
-  // 半形字點陣 (16 行 x 1 byte); ROM 只有 0..127, 128..255 取自 INT 1Fh 表 (遊戲未設定, 為 0)
+  // 半角字点阵 (16 行 x 1 byte); ROM 只有 0..127, 128..255 取自 INT 1Fh 表 (游戏未设置, 为 0)
   asciiRows(ch) {
     const out = new Uint8Array(16);
     if (ch < 128) for (let i = 0; i < 8; i++) out[i * 2] = out[i * 2 + 1] = this.rom[ch * 8 + i];
     return out;
   }
-  // JSON 字串 -> 原版位元組 (與 tools/extract.py TextCodec.encode 相同規則)
+  // JSON 字符串 -> 原版字节 (与 tools/extract.py TextCodec.encode 相同规则)
   encode(s) {
     const out = [];
     for (let i = 0; i < s.length; ) {

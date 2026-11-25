@@ -20,17 +20,17 @@ DATA = os.path.join(WORK, "cycle_dataset.npz")
 OUT_JSON = os.path.join(WORK, "cycle_fit.json")
 OUT_JS = os.path.join(ROOT, "web", "src", "core", "cpucost_table.js")
 CAP = 15000
-# 每次呼叫可以很貴的方法: 進港、出海、換圖檔、標題、新遊戲各畫面、頭像、資料表畫面、戰後、結束處理、固定大小的畫面動畫
+# 每次调用可以很贵的方法: 进港、出海、换图档、标题、新游戏各画面、头像、数据表画面、战后、结束处理、固定大小的画面动画
 WHITELIST = {
     "PortScene.enter", "SeaScene.enterSea", "SeaScene.decodeRegion", "SeaScene.seaPanel", "SeaScene.sprite", "Graph.useFile",
     "Title.titleMenu", "NewGame.drawPortraits", "NewGame.info", "NewGame.confirm", "Kao.blit3", "Kao.drawNamed", "Kao.drawComposed",
     "Buildings.table", "Buildings.shipData", "Commands.press", "Commands.release", "NavalBattle.after", "NavalBattle.allyCells",
     "NavalBattle.markTargets", "GameClock.ending",
-    "SeaScene.item=",          # 849a 換 WORLDMAP 項 (海上跨過分區時載入並解壓下一項; 32.9)
-    "Buildings.wipe",          # seg0:2260 出航前的逐點擦除 (欄 12..59 × 384 行 × 16 步, 開著動畫選項時), 約 246 萬週期 (32.8)
+    "SeaScene.item=",          # 849a 换 WORLDMAP 项 (海上跨过分区时加载并解压下一项; 32.9)
+    "Buildings.wipe",          # seg0:2260 出航前的逐点擦除 (栏 12..59 × 384 行 × 16 步, 开着动画选项时), 约 246 万周期 (32.8)
 }
 
-# 單獨量測的係數 (資料集裡沒有、或只有一兩段無法擬合的項目), 擬合後直接寫入: 名稱 → (週期, 來源)
+# 单独量测的系数 (数据集里没有、或只有一两段无法拟合的项目), 拟合后直接写入: 名称 → (周期, 来源)
 FIXED = {
     "SeaScene.item=": (5312760.0, "32.9: 里斯本出港向西 (tools/emu/cycle_realtime.js 同一路線的測試模式, 每 400 次輸入查詢一個空動作),"
                                   " 跨過 x = 0 換到 WORLDMAP 第 2 項那一段原版 5779612 週期, 減去記帳表對同一段的預測 466852"),
@@ -117,7 +117,7 @@ def report(X, y, RT, names, w, label=""):
     tag, pos = phases(X, y, RT, names)
     for t in ["newgame", "port→depart", "sea", "battle", "other"]:
         line(tag == t, "[" + t + "]")
-    # 海上每個時刻 (SeaScene.seaTick 之間)
+    # 海上每个时刻 (SeaScene.seaTick 之间)
     st = X[:, names.index("SeaScene.seaTick")]
     for r in ["sea0", "sea5idle"]:
         ii = np.where((RT == r) & (tag == "sea"))[0]; gs = []; cur = []
@@ -164,7 +164,7 @@ def main(argv):
         w = np.array(json.load(open(OUT_JSON, encoding="utf-8"))["w"]); report(X, y, RT, names, w, "cycle_fit.json"); return
     ub = np.array([np.inf if (not is_fixed(n) or n in WHITELIST) else CAP for n in names])
     w = bvls(X, y, ub)
-    for n, (c, _) in FIXED.items():                      # 單獨量測的係數
+    for n, (c, _) in FIXED.items():                      # 单独量测的系数
         if n not in names:
             names.append(n); X = np.hstack([X, np.zeros((len(y), 1))]); w = np.append(w, 0.0); ub = np.append(ub, np.inf)
         w[names.index(n)] = c

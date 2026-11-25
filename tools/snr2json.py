@@ -15,7 +15,7 @@ JSON:
 """
 import json, os, struct, sys
 
-# 命令 C0..FF: (名稱, 參數格式) — b = byte, w = 大端 word, v = 變數編號 (byte)
+# 命令 C0..FF: (名称, 参数格式) — b = byte, w = 大端 word, v = 变量编号 (byte)
 CMDS = {
     0xc0: ("win_open", "b"), 0xc3: ("win_close", ""), 0xc4: ("win_close_all", ""), 0xc5: ("win_select", "b"),
     0xc7: ("wait_key", ""), 0xc8: ("msg", "w"), 0xc9: ("menu", "vw"), 0xca: ("music", "b"), 0xcb: ("picture", "wwb"),
@@ -140,7 +140,7 @@ def decode_section(b, at, end):
             if k in ("stop", "bad"):
                 break
             q += n
-    # 本節範圍內未被解碼的位元組
+    # 本节范围内未被解码的字节
     covered = bytearray(end - at)
     for i in range(min(idx_len, len(covered))):
         covered[i] = 1
@@ -179,7 +179,7 @@ def rebuild_section(sec):
 def convert(path):
     b = open(path, "rb").read()
     assert b[:4] == b"SNDT", path
-    # 章表: 偏移 (章+4)*4, 直到第一個章起點
+    # 章表: 偏移 (章+4)*4, 直到第一个章起点
     starts, k = [], 0
     first = None
     while True:
@@ -197,7 +197,7 @@ def convert(path):
         if cs is None:
             chapters.append(None); continue
         cend = next(e for e in ends_all if e > cs)
-        # 節表: u16 直到第一個節的相對偏移
+        # 节表: u16 直到第一个节的相对偏移
         secs, j, sfirst = [], 0, None
         while True:
             if sfirst is not None and j * 2 >= sfirst:
@@ -225,7 +225,7 @@ def rebuild(doc, orig):
     """由 JSON 重建整個檔案 (檔頭/章表/節表直接由 JSON 的位置資訊產生)"""
     out = bytearray(doc["len"])
     out[:4] = b"SNDT"
-    out[4:16] = orig[4:16]                       # 檔頭其餘 12 bytes (固定 00 80 00 00 ...)
+    out[4:16] = orig[4:16]                       # 档头其余 12 bytes (固定 00 80 00 00 ...)
     for c, ch in enumerate(doc["chapters"]):
         o = (c + 4) * 4
         out[o:o + 4] = struct.pack(">I", 0xffffffff if ch is None else ch["at"])

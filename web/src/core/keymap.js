@@ -1,5 +1,5 @@
-// keymap.js — 瀏覽器 KeyboardEvent.code -> PC BIOS (掃描碼, ASCII)
-// 原版每次檢查鍵盤時把 NumLock 強制打開 (seg0:2aaf: BDA[17h] |= 20h), 所以數字鍵盤一律送出數字字元。
+// keymap.js — 浏览器 KeyboardEvent.code -> PC BIOS (扫描码, ASCII)
+// 原版每次检查键盘时把 NumLock 强制打开 (seg0:2aaf: BDA[17h] |= 20h), 所以数字键盘一律送出数字字符。
 const T = {
   Escape: [0x01, 0x1b], Digit1: [0x02, 0x31], Digit2: [0x03, 0x32], Digit3: [0x04, 0x33], Digit4: [0x05, 0x34],
   Digit5: [0x06, 0x35], Digit6: [0x07, 0x36], Digit7: [0x08, 0x37], Digit8: [0x09, 0x38], Digit9: [0x0a, 0x39], Digit0: [0x0b, 0x30],

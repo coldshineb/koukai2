@@ -1,7 +1,7 @@
-// gamble.js — 酒館 賭博 (MAIN.EXE 1fd9:7701 = 27491; 子功能 DS:af80 = 二十一點 2e8ed / 骰子 2fc60), 見 RE_NOTES 17.9
-// 圖形: DATA1.LZW 第 9 項 (assets/gfx/gamble.bin, 0x15c0 bytes) 每次進入賭博時重新載入到 [c2ec]:
-//   撲克牌 花色 k (牌 / 13) 於 0x300×k (k = 4 為背面), 4 欄 × 48 行平面交錯; 骰子 v (0..5) 於 0xf00 + 0x120×v, 3 欄 × 24 行
-// 文字與格式字串: port.json gamble (tools/extract_port.py)
+// gamble.js — 酒馆 赌博 (MAIN.EXE 1fd9:7701 = 27491; 子功能 DS:af80 = 二十一点 2e8ed / 骰子 2fc60), 见 RE_NOTES 17.9
+// 图形: DATA1.LZW 第 9 项 (assets/gfx/gamble.bin, 0x15c0 bytes) 每次进入赌博时重新加载到 [c2ec]:
+//   扑克牌 花色 k (牌 / 13) 于 0x300×k (k = 4 为背面), 4 栏 × 48 行平面交错; 骰子 v (0..5) 于 0xf00 + 0x120×v, 3 栏 × 24 行
+// 文字与格式字符串: port.json gamble (tools/extract_port.py)
 const gHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 
 export class Gamble {
@@ -17,16 +17,16 @@ export class Gamble {
   get rng() { return this.c.sys.rng; }
   fill(col, y, w, h, color) { this.c.scr.fillCols(col, y, w, h, color); }           // seg0:0906
   at(col, y) { this.c.con.setCursor(col, y); }                                     // seg0:443c
-  // 金幣 = 現金 % 10000 (seg0:37ee), 金塊 = 現金 / 10000 (seg0:3722)
+  // 金币 = 现金 % 10000 (seg0:37ee), 金块 = 现金 / 10000 (seg0:3722)
   get gold() { return this.money % 10000; } get bars() { return Math.trunc(this.money / 10000); }
-  // 2e09e 賭注上限 = min(現金, 500)
+  // 2e09e 赌注上限 = min(现金, 500)
   maxBet() { return this.money > 500 ? 500 : this.money; }
 
   // ================= 1fd9:7701 入口 =================
   async run() {
     const { message, menu, palette, graph } = this.c;
     if (this.money === 0) { this.b.randomTalk(); message(0x3f2); await this.b.wait(); await this.b.closeTalk(); return; }
-    this.gfx = new Uint8Array(this.b.p.P.gamble);                                  // 2e09:7399 讀入 DATA1 #9 (0x15c0)
+    this.gfx = new Uint8Array(this.b.p.P.gamble);                                  // 2e09:7399 读入 DATA1 #9 (0x15c0)
     let sel;
     do {
       await palette.fadeBlack();                                                    // seg0:99f2
@@ -41,7 +41,7 @@ export class Gamble {
     await palette.fadeToTarget();
   }
 
-  // ================= 二十一點 2e8ed =================
+  // ================= 二十一点 2e8ed =================
   bjText() { this.fill(0x20, 0x10, 0x1a, 0x58, 7); }                                // 2e11e
   bjClear() {                                                                       // 2e13b
     this.bjText(); this.fill(0x16, 0x68, 0x24, 0x40, 4); this.fill(0x20, 0xe8, 0x1a, 0x58, 7); this.fill(0x16, 0x140, 0x24, 0x40, 4);
@@ -71,19 +71,19 @@ export class Gamble {
     if (start + 500 < this.money) { message(0x3d6); await this.b.wait(); }
     if (this.money + 500 < start) { message(0x3d7); await this.b.wait(); }
   }
-  // 2e0b6 洗牌: 0..51 以 random(52) 交換 0xd0 次 (位置 = 次數 % 52), 取前 24 張
+  // 2e0b6 洗牌: 0..51 以 random(52) 交换 0xd0 次 (位置 = 次数 % 52), 取前 24 张
   shuffle() {
     const d = Array.from({ length: 0x34 }, (_, i) => i);
     for (let n = 0, si = 0; n < 0xd0; si = ++n % 0x34) { const di = this.rng.random(0x34); if (di !== si) [d[si], d[di]] = [d[di], d[si]]; }
     return d.slice(0, 0x18);
   }
   static cardVal(c) { return Math.min(c % 13 + 1, 10); }                           // 2e414
-  static handSum(h, n) {                                                            // 2e23c: 有 A 且 ≤ 11 時 +10
+  static handSum(h, n) {                                                            // 2e23c: 有 A 且 ≤ 11 时 +10
     let s = 0, ace = 0;
     for (let i = 0; i < n; i++) { if (h[i] === 1) ace = 1; s += h[i]; }
     return ace && s <= 11 ? s + 10 : s;
   }
-  // 2e194 畫一張牌 (c = 0x34 為背面)
+  // 2e194 画一张牌 (c = 0x34 为背面)
   card(col, y, c) {
     const k = Math.trunc(c / 13);
     this.c.scr.putPlanar(col, y, 4, 0x30, this.gfx, k * 0x300);                     // seg0:03ca
@@ -120,7 +120,7 @@ export class Gamble {
       const s = Gamble.handSum(dh, dc);
       if (s >= 17) {
         dt = s;
-        this.card(0x17, 0x70, D[1]);                                                 // 翻開莊家的第一張
+        this.card(0x17, 0x70, D[1]);                                                 // 翻开庄家的第一张
         this.at(0x32, 0x50); message(0x3d2, dt);
         if (dt > 21) dt = 0;
         break;
@@ -131,7 +131,7 @@ export class Gamble {
     await this.bjSettle(pt, pcount, dt, bet, D, last);
     this.printMoney(0x2c);
   }
-  // 2e278 下注 (c0 = 玩家第一張)
+  // 2e278 下注 (c0 = 玩家第一张)
   async bjBet(c0) {
     const { message, printf } = this.c;
     this.card(0x17, 0x70, 0x34);
@@ -149,11 +149,11 @@ export class Gamble {
     this.printMoney(0x2c);
     return bet;
   }
-  // 三張牌排序 D[1..3] (2e4e3 / 2e60e)
+  // 三张牌排序 D[1..3] (2e4e3 / 2e60e)
   static sort3(D) { for (let i = 1; i < 3; i++) for (let j = i + 1; j <= 3; j++) if (D[j] < D[i]) [D[i], D[j]] = [D[j], D[i]]; }
   static same3(D) { return D[1] % 13 === D[2] % 13 && D[1] % 13 === D[3] % 13; }
-  static run3(D) { D[1]++; if (D[2] !== D[1]) return false; D[2]++; return D[3] === D[2]; }   // 同花色連號 (牌碼連續)
-  // 2e427 結算: win / lose = 倍數; 現金 += (win − lose) × 賭注 (賭注已先扣)
+  static run3(D) { D[1]++; if (D[2] !== D[1]) return false; D[2]++; return D[3] === D[2]; }   // 同花色连号 (牌码连续)
+  // 2e427 结算: win / lose = 倍数; 现金 += (win − lose) × 赌注 (赌注已先扣)
   async bjSettle(pt, pc, dt, bet, D, last) {
     const { con, message } = this.c, r = c => c % 13;
     let win = 0, lose = 0;
@@ -172,7 +172,7 @@ export class Gamble {
       win = di;
       if (!di) { if (pc >= 5) { win = 4; message(0x3cb); } else { win = 2; message(0x3c8); } }
     } else {
-      const dx = last - pc;                                                         // 莊家牌數 − 1
+      const dx = last - pc;                                                         // 庄家牌数 − 1
       if (dt === 21 && dx === 1) {
         if ((D[1] === 0 && D[last] === 10) || (D[1] === 10 && D[last] === 0)) { lose = 4; message(0x3cc); }
         else if (r(D[1]) <= 9 && r(D[last]) <= 9) message(0x3ce);
@@ -193,7 +193,7 @@ export class Gamble {
   areaA() { const c = this.c.con; c.right = 0x25; c.left = 0x0e; this.at(0x0e, 0x10); }            // 2eb39
   areaB() { const c = this.c.con; c.right = 0x42; c.left = 0x2b; this.at(0x2b, 0x90); }            // 2eb4e
   wide() { const c = this.c.con; c.left = 0x0e; c.right = 0x39; }                                   // 2eb63
-  // 2eb70 對手 k (0 / 1) 的發言區: 清除並把文字區設在那裡
+  // 2eb70 对手 k (0 / 1) 的发言区: 清除并把文字区设在那里
   area(k) {
     const [col, y] = [[0x0e, 0x10], [0x2b, 0x90]][k & 0xff], c = this.c.con;
     c.left = col; c.right = col + 0x17;
@@ -201,7 +201,7 @@ export class Gamble {
   }
   diceTop() { this.fill(0x0c, 8, 0x1b, 0x70, 7); }                                  // 2ea57
   diceMid() { this.fill(0x29, 0x88, 0x1b, 0x70, 7); }                               // 2ea74
-  // 2eaae 清除三家的骰子區並寫上 1..5
+  // 2eaae 清除三家的骰子区并写上 1..5
   diceClear() {
     this.diceTop(); this.fill(0x0d, 0x3c, 0x19, 0x24, 0);
     this.diceMid(); this.fill(0x2a, 0xbc, 0x19, 0x24, 0);
@@ -211,7 +211,7 @@ export class Gamble {
   async dice() {
     const { win, kao, scr, con, message, menu } = this.c, st = this.st;
     if (this.money < 10) return;
-    const start = this.money, ord = { v: 0 };                                       // [bp-6] 先後順序
+    const start = this.money, ord = { v: 0 };                                       // [bp-6] 先后顺序
     win.frame(2, 0, 0x26, 0x80, 2);                                                 // 2ebf4
     kao.drawRandomType(scr, this.rng, this.rng.random(0x3fff) | 0xc000, 4, 0x10);
     win.frame(0x28, 0x80, 0x26, 0x80, 2);
@@ -238,7 +238,7 @@ export class Gamble {
     if (start + 500 < this.money) { this.areaA(); message(0x3ee); this.areaB(); message(0x3ef); await this.b.wait(); }
     if (this.money + 500 < start) { this.areaA(); message(0x3f0); this.areaB(); message(0x3f1); await this.b.wait(); }
   }
-  // 2f873 一局: 下注 → 抬價 → 依順序三家擲骰 → 判定
+  // 2f873 一局: 下注 → 抬价 → 依顺序三家掷骰 → 判定
   async diceRound(ord) {
     const { con, message, printf } = this.c, G = this.G;
     this.wide();
@@ -246,7 +246,7 @@ export class Gamble {
     this.at(0x2f, 0x164); message(0x3c0, this.bars);
     const max = this.maxBet();
     this.at(0x28, 0x130); message(0x3e3, max);
-    const coin = this.rng.random(2);                                              // [bp-22]: 由哪一家開口 (AX 直接當 2eb70 的參數)
+    const coin = this.rng.random(2);                                              // [bp-22]: 由哪一家开口 (AX 直接当 2eb70 的参数)
     this.area(coin); message(0x3c2);
     let bet = await this.b.numpad.input(10, max);
     bet = await this.raise(max, bet, coin);
@@ -280,7 +280,7 @@ export class Gamble {
     this.at(0x34, 0x150); printf(G.n4, this.gold);
     this.at(0x34, 0x164); printf(G.n4, this.bars);
   }
-  // 2f688 對手抬價 (coin = 由哪一家開口)
+  // 2f688 对手抬价 (coin = 由哪一家开口)
   async raise(max, bet, coin) {
     const { con, message, menu, sys } = this.c, other = coin < 1 ? 1 : 0;
     let nb = bet, m;
@@ -306,14 +306,14 @@ export class Gamble {
   keepRow(f, col, y, s1, s0) {
     for (let i = 0; i < 5; i++) { this.at(col + i * 5, y + 0x20); this.c.printf(f[i] ? s1 : s0); }
   }
-  // 2f471 擲骰 (最多換兩次): who 0/1 = 對手 (成對的保留, 2ed19), 2 = 主角 (選要換的骰子)
+  // 2f471 掷骰 (最多换两次): who 0/1 = 对手 (成对的保留, 2ed19), 2 = 主角 (选要换的骰子)
   async roll(who, col, y) {
     const { con, message, menu, sys, printf } = this.c, G = this.G, d = [0, 0, 0, 0, 0], f = [0, 0, 0, 0, 0];
     let tries = 0;
     for (let it = 0; it < 3; it++) {
       if (it > 0) { for (let i = 0; i < 5; i++) if (!f[i]) this.fill(col + i * 5, y, 3, 0x18, 0); await sys.waitTicks(0x14); }
       for (let i = 0; i < 5; i++) if (!f[i]) { const v = this.rng.random(6); d[i] = v; this.die(col + i * 5, y, v); await sys.waitTicks(0x14); }
-      for (let i = 1; i < 5; i++) {                                                // 2f3e9 插入排序 (旗標跟著移動)
+      for (let i = 1; i < 5; i++) {                                                // 2f3e9 插入排序 (标志跟着移动)
         const v = d[i], fv = f[i]; let j = i;
         while (j > 0 && d[j - 1] > v) { d[j] = d[j - 1]; f[j] = f[j - 1]; j--; }
         d[j] = v; f[j] = fv;
@@ -343,8 +343,8 @@ export class Gamble {
     }
     return d;
   }
-  // 2eca8 切換第 s 顆「不換」。原版取消時 (s = 0xff) 也照樣以 [旗標 + 0x1fe] 讀寫:
-  //   該位址落在 27491 堆疊上的賭博圖形緩衝區 (offset 0x1a4, 黑桃牌圖內), 那個字為 1 → 0、為 0 → 1, 移植版照做
+  // 2eca8 切换第 s 颗「不换」。原版取消时 (s = 0xff) 也照样以 [标志 + 0x1fe] 读写:
+  //   该地址落在 27491 堆栈上的赌博图形缓冲区 (offset 0x1a4, 黑桃牌图内), 那个字为 1 → 0、为 0 → 1, 移植版照做
   toggleKeep(s, f) {
     if (s === 0xff) {
       const g = this.gfx, w = g[0x1a4] | (g[0x1a5] << 8);
@@ -354,16 +354,16 @@ export class Gamble {
     }
     if (f[s] === 1) f[s] = 0; else if (f[s] === 0) f[s] = 1;
   }
-  // 2f837 牌型名 (成對數 0,1,2,3,4,6,10 → DS:b5b8 第 0..6 項)
+  // 2f837 牌型名 (成对数 0,1,2,3,4,6,10 → DS:b5b8 第 0..6 项)
   handName(n, col, y) {
     const i = n === 6 ? 5 : n === 10 ? 6 : n;
     this.at(col, y); this.c.printf(this.G.hand, this.G.hands[i]);
   }
-  // ---- 判定 (骰子已排序後把 0 換成 6, 所以 6 排在最前面) ----
+  // ---- 判定 (骰子已排序后把 0 换成 6, 所以 6 排在最前面) ----
   static pairs(h) { let n = 0; for (let i = 0; i < 4; i++) for (let j = i + 1; j < 5; j++) if (h[j] === h[i]) n++; return n; }   // 2ed97: 0,1,2,3,4,6,10
-  static low(h) { for (let i = 0; i < 4; i++) for (let j = i + 1; j < 5; j++) if (h[j] === h[i]) return h[i]; return h[3]; }    // 2edc3: 第一個成對的點數
+  static low(h) { for (let i = 0; i < 4; i++) for (let j = i + 1; j < 5; j++) if (h[j] === h[i]) return h[i]; return h[3]; }    // 2edc3: 第一个成对的点数
   static other(h, v) { for (let i = 0; i < 4; i++) for (let j = i + 1; j < 5; j++) if (h[j] === h[i] && h[i] !== v) return h[i]; return h[3]; }  // 2edf0
-  // 2ee23 同牌型的兩家比較: 0 = X 勝, 1 = Y 勝, 3 = 平手
+  // 2ee23 同牌型的两家比较: 0 = X 胜, 1 = Y 胜, 3 = 平手
   static cmp2(X, Y, n) {
     let dx = 3;
     if (n === 10) { if (Y[0] < X[0]) dx = 0; if (Y[0] > X[0]) dx = 1; }
@@ -382,15 +382,15 @@ export class Gamble {
     if (n === 1) { const p = Gamble.low(X), q = Gamble.low(Y); if (q < p) return 0; return p < q ? 1 : r; }
     return r;
   }
-  // 三家比較同一個值 (p = 主角, a / b = 對手 0 / 1): 2efe2 / 2f06c / 2f17d / 2f25e / 2f29f 共用的形式
+  // 三家比较同一个值 (p = 主角, a / b = 对手 0 / 1): 2efe2 / 2f06c / 2f17d / 2f25e / 2f29f 共用的形式
   static three(p, a, b) {
     if (a < p && b < p) return 0;
     if (a > p || b > p) { let r = Gamble.U; if (b > a) r = 2; if (b < a) r = 1; return a === b ? 3 : r; }
     if (a === p && b === p) return 4;
     return a === p ? 5 : 6;
   }
-  // 2ef5b 判定: 0 = 主角勝, 1 / 2 = 對手 0 / 1 勝, 3 = 兩對手平手, 4 = 三家平手, 5 / 6 = 主角與對手 0 / 1 平手
-  //   原版有幾條路徑不設定結果, 回傳未初始化的 [bp-8] (= 先前 2f837 呼叫留下的 CS 0x2e09, > 5); 呼叫端處理與 6 相同, 以 Gamble.U = 6 表示
+  // 2ef5b 判定: 0 = 主角胜, 1 / 2 = 对手 0 / 1 胜, 3 = 两对手平手, 4 = 三家平手, 5 / 6 = 主角与对手 0 / 1 平手
+  //   原版有几条路径不设置结果, 返回未初始化的 [bp-8] (= 先前 2f837 调用留下的 CS 0x2e09, > 5); 调用端处理与 6 相同, 以 Gamble.U = 6 表示
   static judge(P, A, B) {
     const U = Gamble.U, cP = Gamble.pairs(P), cA = Gamble.pairs(A), cB = Gamble.pairs(B);
     if (cA < cP && cB < cP) return 0;
@@ -423,14 +423,14 @@ export class Gamble {
         if (hA > hP || hB > hP) { let r = U; if (hB > hA) r = 2; if (hB < hA) r = 1; return hA === hB ? 3 : r; }
         if (hA === hP && hB === hP) return Gamble.three(lP, lA, lB);
         if (hA === hP) { let r = U; if (lA < lP) r = 0; if (lA > lP) r = 1; return lA === lP ? 5 : r; }
-        if (hB === hP) { let r = U; if (lB < lP) r = 0; if (lB > lP) r = 1; return lB === lP ? 6 : r; }   // 原版此處對手 1 勝也是 1
+        if (hB === hP) { let r = U; if (lB < lP) r = 0; if (lB > lP) r = 1; return lB === lP ? 6 : r; }   // 原版此处对手 1 胜也是 1
         return U;
       }
       if (n === 1) {
         const hP = Gamble.low(P), hA = Gamble.low(A), hB = Gamble.low(B);
         if (hA < hP && hB < hP) return 0;
         if (hA > hP || hB > hP) { let r = U; if (hB > hA) r = 2; if (hB < hA) r = 1; return hA === hB ? 3 : r; }
-        if (hA === hP && hB === hP) return 2;                                      // 原版如此 (三家同點的一對 → 對手 1 勝)
+        if (hA === hP && hB === hP) return 2;                                      // 原版如此 (三家同点的一对 → 对手 1 胜)
         return hA === hP ? 5 : 6;
       }
       return U;

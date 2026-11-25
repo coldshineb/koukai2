@@ -1,4 +1,4 @@
-// graph.js — GRAPH 格式圖像 (原版 seg0:5b5d 16 色 / seg0:5a91 8 色); 目前檔案 = 原版的 [03d8]
+// graph.js — GRAPH 格式图像 (原版 seg0:5b5d 16 色 / seg0:5a91 8 色); 目前文件 = 原版的 [03d8]
 import { loadBinary } from "../core/assets.js";
 import { GraphDat } from "../gfx/graphdec.js";
 
@@ -9,7 +9,7 @@ export class Graph {
     this.g = this.files[names[0]]; return this;
   }
   useFile(name) { this.g = this.files[name]; }
-  // 第一次用到才載入 (劇情插圖 EVENT*.DAT: path = "event/EVENT1.DAT"); 已有 (測試時直接提供) 就不再載入
+  // 第一次用到才加载 (剧情插图 EVENT*.DAT: path = "event/EVENT1.DAT"); 已有 (测试时直接提供) 就不再加载
   async ensure(base, name, path = name) { this.files[name] ??= new GraphDat(await loadBinary(`${base}/gfx/${path}`)); return this.files[name]; }
   draw(n, x, y) { const r = this.g.draw(this.scr.fb, n, x, y); this.scr.dirty = true; return r; }
   draw8(n, x, y) { const r = this.g.draw8(this.scr.fb, n, x, y); this.scr.dirty = true; return r; }

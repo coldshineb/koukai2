@@ -1,6 +1,6 @@
-// cpucost_table.js — 由 tools/emu/cycle_fit.py 依量測資料擬合產生 (RE_NOTES 第 32 節); 請勿手改
-// 每項 [類別, 方法, {n: 每次呼叫的週期, a: 每單位工作量 (面積) 的週期, p: 每單位長度的週期, t: 軟體游標畫/擦一次的週期}]
-// 工作量的定義見 core/cpucost.js COST_FEATURES。量測: DOSBox 0.72 core=normal 的週期 (tools/emu/cycles.js), 11 條路線、47461 段。
+// cpucost_table.js — 由 tools/emu/cycle_fit.py 依量测数据拟合产生 (RE_NOTES 第 32 节); 请勿手改
+// 每项 [类别, 方法, {n: 每次调用的周期, a: 每单位工作量 (面积) 的周期, p: 每单位长度的周期, t: 软件光标画/擦一次的周期}]
+// 工作量的定义见 core/cpucost.js COST_FEATURES。量测: DOSBox 0.72 core=normal 的周期 (tools/emu/cycles.js), 11 条路线、47461 段。
 export const COST_TABLE = [
   ["Buildings", "assignCrew", {"n":9871.53}],
   ["Buildings", "createShip", {"n":140.65}],

@@ -16,7 +16,7 @@ def main(sea2=None, assets=None):
     assets = assets or os.path.join(ROOT, "web", "assets")
     ex = open(os.path.join(sea2, "END.EXE"), "rb").read()
     code = ex[struct.unpack("<H", ex[8:10])[0] * 16:]
-    ds = code[DS:]                                     # 初值區到映像結尾 (之後是未初始化區, 程式啟動時為 0)
+    ds = code[DS:]                                     # 初值区到映像结尾 (之后是未初始化区, 程序启动时为 0)
     cm = json.load(open(os.path.join(assets, "font", "charmap.json"), encoding="utf-8"))
     c2u = {r[0]: r[3] for r in cm["table"]}
 
@@ -30,7 +30,7 @@ def main(sea2=None, assets=None):
             elif 0x20 <= c < 0x7f: out.append(chr(c)); i += 1
             else: out.append("{%02X}" % c); i += 1
         return "".join(out)
-    # 可讀文字: 1a9e 起的序幕文字指標表 (6 主角 × 5 段 × 9 行)
+    # 可读文字: 1a9e 起的序幕文字指针表 (6 主角 × 5 段 × 9 行)
     w16 = lambda o: struct.unpack("<H", ds[o:o + 2])[0]
     readable = {"prologue (DS:1a9e)": [[[dec(w16(0x1a9e + 2 * ((h * 5 + k) * 9 + i))) for i in range(9)] for k in range(5)] for h in range(6)]}
     out = {"note": "END.EXE DGROUP 初值區原樣位元組 (ds = DS:0000..%04x, hex); readable 只供閱讀" % len(ds),

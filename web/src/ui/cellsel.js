@@ -1,12 +1,12 @@
-// cellsel.js — 地圖格游標選擇 (MAIN.EXE 0fea:5f74 = 線性 15e14 及其子函式 15b71 / 15cb1 / 15d5d / 15d76)
-// 呼叫: select(x0, y0, cols, w, h, rows, init) — 原版 15e14(AX = x0, DX = y0, BX = 欄數, 堆疊: 列數, 格寬, 格高, 起始格)
-//   格寬 < 0 ([bb02] = 1): 游標 1 格 (換行時退 1); 否則 2 × 2 格 (換行時退 2)。回傳格編號 (列 × 欄數 + 欄), Esc / '0' / 點在範圍外 = -1
-//   格寬 < 8 像素: 游標 = 2 × 2 格大小的 XOR 外框 (1fd9:1fed, 色 7), 另在左方 0x21c 像素 (= 90 格 × 6, 世界地圖一圈) 再畫一個 (橫向環繞);
-//     兩者都受剪裁矩形 DS:aaac (1fd9:18de, = 選擇範圍) 限制
-//   格寬 >= 8: 游標 = [0c86]+0x3820 的 32 × 32 點陣 (模式 4 色 7), 畫前以 50c4 保存底下畫面, 擦除時 7a8e 還原 ([a239] 交替)
-// 與選單引擎共用的狀態: cur = a160, prev = a15a, hit = a150, mouseFlag = a14e, lastX/lastY = bd9a / bd9c (此處存滑鼠所在格)
-// 原版怪行為 (照搬): 上下換行固定以「列數 − 2」計算 (與游標大小無關), 所以最後一列永遠走不到; 滑鼠所在格先減 1 格 (游標左上角),
-//   2 × 2 模式時最右欄換成「欄數」(= 不命中), 1 格模式時 −1 換成最右欄; 列的命中範圍是 0..列數 − 2
+// cellsel.js — 地图格光标选择 (MAIN.EXE 0fea:5f74 = 线性 15e14 及其子函数 15b71 / 15cb1 / 15d5d / 15d76)
+// 调用: select(x0, y0, cols, w, h, rows, init) — 原版 15e14(AX = x0, DX = y0, BX = 栏数, 堆栈: 列数, 格宽, 格高, 起始格)
+//   格宽 < 0 ([bb02] = 1): 光标 1 格 (换行时退 1); 否则 2 × 2 格 (换行时退 2)。返回格编号 (列 × 栏数 + 栏), Esc / '0' / 点在范围外 = -1
+//   格宽 < 8 像素: 光标 = 2 × 2 格大小的 XOR 外框 (1fd9:1fed, 色 7), 另在左方 0x21c 像素 (= 90 格 × 6, 世界地图一圈) 再画一个 (横向环绕);
+//     两者都受剪裁矩形 DS:aaac (1fd9:18de, = 选择范围) 限制
+//   格宽 >= 8: 光标 = [0c86]+0x3820 的 32 × 32 点阵 (模式 4 色 7), 画前以 50c4 保存底下画面, 擦除时 7a8e 还原 ([a239] 交替)
+// 与菜单引擎共用的状态: cur = a160, prev = a15a, hit = a150, mouseFlag = a14e, lastX/lastY = bd9a / bd9c (此处存鼠标所在格)
+// 原版怪行为 (照搬): 上下换行固定以「列数 − 2」计算 (与光标大小无关), 所以最后一列永远走不到; 鼠标所在格先减 1 格 (光标左上角),
+//   2 × 2 模式时最右栏换成「栏数」(= 不命中), 1 格模式时 −1 换成最右栏; 列的命中范围是 0..列数 − 2
 const csTdiv8 = v => (v < 0 ? -((-v) >> 3) : v >> 3);                // cwd / xor / sar 3: 向零取整
 
 export class CellSelect {
@@ -46,7 +46,7 @@ export class CellSelect {
     this.c.clip = [0, 0, 0x27f, 0x18f];                                // 1fd9:18de(0, 0, 0x27f, 0x18f)
     return k === 0x1b || k === 0x30 ? -1 : m.cur;
   }
-  // 15b71 畫 / 擦游標 (第 cur 格)
+  // 15b71 画 / 擦光标 (第 cur 格)
   draw() {
     const { sys, scr, win, gfx } = this.c, m = this.m;
     sys.mouseHide();
@@ -62,9 +62,9 @@ export class CellSelect {
     } else win.closeNow();                                             // seg0:7a8e
     sys.mouseShow();
   }
-  // 15d5d 在舊位置 (prev) 擦掉、新位置畫上
+  // 15d5d 在旧位置 (prev) 擦掉、新位置画上
   move() { const m = this.m, si = m.cur; m.cur = m.prev; this.draw(); m.cur = si; this.draw(); }
-  // 15cb1 滑鼠命中: 所在格 − 1 (游標左上角)
+  // 15cb1 鼠标命中: 所在格 − 1 (光标左上角)
   hitTest() {
     const m = this.m, { x, y } = this.c.sys.mousePos();
     let col = Math.trunc((x - this.x0 - this.w) / this.w), row = Math.trunc((y - this.y0 - this.h) / this.h);
@@ -74,7 +74,7 @@ export class CellSelect {
     m.lastY = row; m.lastX = col;
     if (col >= 0 && this.cols > col && row >= 0 && this.rows - 1 > row) { m.cur = this.cols * row + col; m.hit = 1; } else m.hit = 0;
   }
-  // 15d76 取得按鍵: 滑鼠按住時游標跟著移動; 點在範圍外 = Esc
+  // 15d76 取得按键: 鼠标按住时光标跟着移动; 点在范围外 = Esc
   async getKey() {
     const { sys } = this.c, m = this.m;
     m.lastX = m.lastY = -1;

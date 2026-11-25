@@ -12,7 +12,7 @@ try:
     EXTRA
 except NameError:
     EXTRA = []
-# 已在 re_open.txt 列出的函式
+# 已在 re_open.txt 列出的函数
 done = set(int(m.group(1), 16) for m in R2.finditer(r"========== (\w+) ", open(os.path.join(HERE, "..", "work", "re_open.txt"), encoding="utf-8").read()))
 buf = io.StringIO()
 with contextlib.redirect_stdout(buf):

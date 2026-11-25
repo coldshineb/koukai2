@@ -1,8 +1,8 @@
-// itemshop.js — 道具店 (MAIN.EXE 1fd9:a06e = 線性 29dfe, 處理函式表 DS:a612[9]); 見 RE_NOTES 25
-// MENU #5 (買進/賣出), 子功能 DS:b21e = 29afb / 29c4a
-// 商品: 港口經濟記錄 shopItems (0fea:3257 = 130f7: 一般 3 項, 時刻 [0535] 為 6..8 (夜間 2:00–3:00) 時 4 項, 跳過 FF)
-// 隨身物: DS:2e57 (20 格, FF = 空), 道具記錄 items (+0 名稱, +10 價格/100, +12 數值, +13 低 4 位 種類 / bit4 已裝備)
-// 原版怪行為 (照搬): 問候判斷夜市用的是 12 ≤ [0535] < 18 (而營業時間是 2:00–3:00 = 6..8 與 8:00–20:00), 所以「夜市」問候 0x2fc 實際上不會出現
+// itemshop.js — 道具店 (MAIN.EXE 1fd9:a06e = 线性 29dfe, 处理函数表 DS:a612[9]); 见 RE_NOTES 25
+// MENU #5 (买进/卖出), 子功能 DS:b21e = 29afb / 29c4a
+// 商品: 港口经济记录 shopItems (0fea:3257 = 130f7: 一般 3 项, 时刻 [0535] 为 6..8 (夜间 2:00–3:00) 时 4 项, 跳过 FF)
+// 随身物: DS:2e57 (20 格, FF = 空), 道具记录 items (+0 名称, +10 价格/100, +12 数值, +13 低 4 位 种类 / bit4 已装备)
+// 原版怪行为 (照搬): 问候判断夜市用的是 12 ≤ [0535] < 18 (而营业时间是 2:00–3:00 = 6..8 与 8:00–20:00), 所以「夜市」问候 0x2fc 实际上不会出现
 import { GameConst, ItemFlag, ItemKind, MenuId } from "../model/flags.ts";
 
 const isHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
@@ -33,20 +33,20 @@ export class ItemShop {
     for (let i = 0; i < n; i++) { const v = eco.getShopItems(i); if (v !== GameConst.EMPTY_SLOT) L.push(v); }
     this.b.setPersons(L); return L.length;
   }
-  // 0fea:32a6 = 13146 隨身物 → [0538]
+  // 0fea:32a6 = 13146 随身物 → [0538]
   invList() {
     const m = this.m, L = [];
     for (let i = 0; i < GameConst.INV_SLOTS; i++) { const v = m.inventory(i); if (v !== GameConst.EMPTY_SLOT) L.push(v); }
     this.b.setPersons(L); return L.length;
   }
-  // 29acd 能否再買: 沒錢 0xec / 已有 20 件 0xed
+  // 29acd 能否再买: 没钱 0xec / 已有 20 件 0xed
   async canBuy() {
     const b = this.b;
     if (this.money === 0) { b.greet(0xec); await b.wait(); return 0; }
     if (this.invList() === GameConst.INV_SLOTS) { b.greet(0xed); await b.wait(); return 0; }
     return 1;
   }
-  // 29afb 買進
+  // 29afb 买进
   async buy() {
     const b = this.b, m = this.m, { menu, printf, message } = this.c;
     let first = 1;
@@ -73,7 +73,7 @@ export class ItemShop {
       this.b.p.panels();                                                        // 8894
     }
   }
-  // 29c4a 賣出: 價格 = (價格/100 ÷ 2 向零取整) × 100; 拒絕時 random(100) ≤ 主角 +23 則加價 價格 × 主角 +22 / 200 再問一次
+  // 29c4a 卖出: 价格 = (价格/100 ÷ 2 向零取整) × 100; 拒绝时 random(100) ≤ 主角 +23 则加价 价格 × 主角 +22 / 200 再问一次
   async sell() {
     const b = this.b, m = this.m, { menu, printf, message, sys } = this.c;
     let first = 1;

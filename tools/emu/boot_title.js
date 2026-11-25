@@ -1,5 +1,5 @@
-// boot_title.js — 開發用: 以模擬器執行原版到標題選單 (跳過說明書密碼), 並保存狀態供後續測試重複使用
-// 需先載入 x86emu.js, dosenv.js, harness.js (session.boot 用過的檔案), harness_menu.js
+// boot_title.js — 开发用: 以模拟器运行原版到标题菜单 (跳过说明书密码), 并保存状态供后续测试重复使用
+// 需先加载 x86emu.js, dosenv.js, harness.js (session.boot 用过的文件), harness_menu.js
 "use strict";
 (function () {
 const S = session, fs = require("fs");
@@ -11,14 +11,14 @@ S.bootTitle = function () {
   const env = new S.DOSEnv(S.files, { romFont: S.rom });
   env.loadEXE(S.files["MAIN.EXE"]);
   const c = env.cpu, L = 0x110 * 16;
-  [0x31, 0xc0, 0x90, 0x90, 0x90].forEach((b, i) => c.mem[L + 0x161f8 + i] = b);   // 跳過 call far 2e09:7cec (密碼)
+  [0x31, 0xc0, 0x90, 0x90, 0x90].forEach((b, i) => c.mem[L + 0x161f8 + i] = b);   // 跳过 call far 2e09:7cec (密码)
   env.t66 = [0, 0];
   c.hooks[0x66] = cpu => { env.ret(cpu); const ax = cpu.r[0], hi = ax >> 8;
     if (hi === 0xf1 || hi === 0xf0) { const t = hi === 0xf1 ? 0 : 1; if ((ax & 0xff) === 1) env.t66[t] = cpu.r[3]; else { if (env.t66[t]) env.t66[t]--; cpu.r[3] = env.t66[t]; } }
     else cpu.r[0] = 0; };
   c.run(2.5e8);
   S.titleEnv = env;
-  S.titleHooks = { ...c.hooks };              // 原始中斷處理 (restoreTitle 時恢復, 避免測試掛上的追踪殘留)
+  S.titleHooks = { ...c.hooks };              // 原始中断处理 (restoreTitle 时恢复, 避免测试挂上的追踪残留)
   S.titleState = { mem: c.mem.slice(), r: c.r.slice(), s: c.s.slice(), ip: c.ip, flags: c.flags, planes: c.vga.planes.map(p => p.slice()),
     gc: c.vga.gc.slice(), seq: c.vga.seq.slice(), dac: c.vga.dac.slice(), attr: c.vga.attr.slice(), t66: env.t66.slice(),
     handles: JSON.parse(JSON.stringify(env.handles)), next: env.nextHandle };

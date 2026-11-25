@@ -1,4 +1,4 @@
-// save/store.ts — 現代 JSON 存檔儲存管理 (localStorage uw2.saves.v2 + 自動存檔 + 檔案匯入/匯出)
+// save/store.ts — 现代 JSON 存盘保存管理 (localStorage uw2.saves.v2 + 自动存盘 + 文件导入/导出)
 import { createEmptyBundleV2, createSaveSlotV2, isSaveBundleV2, parseSaveJsonV2, slotV2ToLegacyHeader, v2ToStateBytes, SAVE_SLOTS_COUNT } from "./format.ts";
 import type { SaveBundleV2, SaveSlotV2 } from "./format.ts";
 import { importLegacySave, isLegacyKoukaiDat } from "./legacy_import.ts";
@@ -32,11 +32,11 @@ export class SaveStore {
   }
 
   /**
-   * 啟動開啟存檔庫:
-   * 1. 優先讀取現代 JSON (localStorage["uw2.saves.v2"])
-   * 2. 若無，自動只讀遷移舊版 localStorage["uw2.KOUKAI2.DAT"] → 存為 uw2.saves.v2
-   * 3. 若無，嘗試只讀載入 assets/save/KOUKAI2.DAT → 存為 uw2.saves.v2
-   * 4. 皆無則建立空白 uw2-save-v2 存檔庫
+   * 启动打开存盘库:
+   * 1. 优先读取现代 JSON (localStorage["uw2.saves.v2"])
+   * 2. 若无，自动只读迁移旧版 localStorage["uw2.KOUKAI2.DAT"] → 存为 uw2.saves.v2
+   * 3. 若无，尝试只读加载 assets/save/KOUKAI2.DAT → 存为 uw2.saves.v2
+   * 4. 皆无则创建空白 uw2-save-v2 存盘库
    */
   static async open(ASSETS: string, initState: Uint8Array, schema: any, codec: any): Promise<SaveStore> {
     const ls = getBrowserStorage();
@@ -81,7 +81,7 @@ export class SaveStore {
           }
         }
       } catch (e) {
-        /* 無預設檔 */
+        /* 无默认档 */
       }
     }
 
@@ -131,7 +131,7 @@ export class SaveStore {
     return v2ToStateBytes(this.bundle.autoSave.state, this.schema, this.codec, this.baseState);
   }
 
-  /** 產生原版 150-byte 標頭表 (供階段 3 原版讀檔/存檔畫面顯示) */
+  /** 产生原版 150-byte 头部表 (供阶段 3 原版读档/存盘画面显示) */
   buildLegacyHeaders(): Uint8Array {
     const out = new Uint8Array(SAVE_SLOTS_COUNT * 15);
     for (let i = 0; i < SAVE_SLOTS_COUNT; i++) {
@@ -140,7 +140,7 @@ export class SaveStore {
     return out;
   }
 
-  /** 匯出純 JSON 字串 (可選擇省略 _compat 以取得最精簡人類可讀存檔) */
+  /** 导出纯 JSON 字符串 (可选择省略 _compat 以取得最精简人类可读存盘) */
   exportJson(opts: { pretty?: boolean; stripCompat?: boolean; slotIndex?: number } = {}): string {
     const strip = (slot: SaveSlotV2 | null): SaveSlotV2 | null => {
       if (!slot) return null;
@@ -161,7 +161,7 @@ export class SaveStore {
     return JSON.stringify(bundle, null, opts.pretty ? 2 : 0);
   }
 
-  /** 匯入外部檔案 (自動辨識現代 JSON 或原版二進位 KOUKAI2.DAT) */
+  /** 导入外部文件 (自动辨识现代 JSON 或原版二进位 KOUKAI2.DAT) */
   importBuffer(data: Uint8Array | ArrayBuffer, targetSlot?: number): { kind: "json-bundle" | "json-slot" | "legacy-dat"; importedSlots: number } {
     const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
     if (isLegacyKoukaiDat(bytes)) {

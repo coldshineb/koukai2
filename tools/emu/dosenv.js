@@ -1,18 +1,18 @@
-// dosenv.js — 開發用最小 DOS/BIOS 環境 (配合 x86emu.js)
-// 提供: EXE 載入與重定位, INT 21h 檔案/記憶體/向量, INT 10h/16h/1Ah/33h, 計時器 IRQ0, 鍵盤 IRQ1
+// dosenv.js — 开发用最小 DOS/BIOS 环境 (配合 x86emu.js)
+// 提供: EXE 加载与重定位, INT 21h 文件/内存/矢量, INT 10h/16h/1Ah/33h, 计时器 IRQ0, 键盘 IRQ1
 "use strict";
 (function (G) {
 const X86 = (typeof session !== "undefined" && session.X86) || G.X86;
 
 class DOSEnv {
-  // files: { "KAO.LZW": Uint8Array, ... } 名稱不分大小寫
+  // files: { "KAO.LZW": Uint8Array, ... } 名称不分大小写
   constructor(files, opts = {}) {
     this.cpu = new X86.CPU();
     this.files = {}; for (const k in files) this.files[k.toUpperCase()] = files[k];
     this.handles = {}; this.nextHandle = 5;
     this.log = opts.log || (() => {});
     this.unhandled = new Map();
-    this.ticksPerIRQ0 = opts.ticksPerIRQ0 || 20000;   // 指令數 / 每次 IRQ0 (預設 18.2Hz 對應約 0.36 MIPS*... 可調)
+    this.ticksPerIRQ0 = opts.ticksPerIRQ0 || 20000;   // 指令数 / 每次 IRQ0 (默认 18.2Hz 对应约 0.36 MIPS*... 可调)
     this.keyq = []; this.bioskeys = [];
     this.mouse = { x: 320, y: 200, b: 0, minX: 0, maxX: 639, minY: 0, maxY: 199, visible: 0 };
     this.mcbTop = 0x9fff; this.blocks = [];
@@ -21,23 +21,23 @@ class DOSEnv {
   }
   setupBIOS(romFont) {
     const c = this.cpu, m = c.mem;
-    // 中斷向量預設指向 F000:n*8 的 [F1 n | CA 02 00] (回呼後 retf 2, 保留回呼設定的旗標)
+    // 中断矢量默认指向 F000:n*8 的 [F1 n | CA 02 00] (回呼后 retf 2, 保留回呼设置的标志)
     for (let n = 0; n < 256; n++) {
       const a = 0xf0000 + n * 8;
       m[a] = 0xf1; m[a + 1] = n; m[a + 2] = 0xca; m[a + 3] = 0x02; m[a + 4] = 0x00;
       m[n * 4] = (n * 8) & 255; m[n * 4 + 1] = (n * 8) >> 8; m[n * 4 + 2] = 0x00; m[n * 4 + 3] = 0xf0;
     }
-    // INT 08h BIOS 計時器: 真正的程式碼, 會呼叫 INT 1Ch
+    // INT 08h BIOS 计时器: 真正的代码, 会调用 INT 1Ch
     const t8 = [0x50, 0x1e, 0x31, 0xc0, 0x8e, 0xd8, 0xff, 0x06, 0x6c, 0x04, 0x75, 0x04, 0xff, 0x06, 0x6e, 0x04, 0xcd, 0x1c, 0xb0, 0x20, 0xe6, 0x20, 0x1f, 0x58, 0xcf];
     t8.forEach((b, i) => m[0xf0800 + 0x100 + i] = b); m[0x20] = 0x00; m[0x21] = 0x09; m[0x22] = 0x00; m[0x23] = 0xf0;
-    // 1Ch 及其他未處理中斷預設 iret
+    // 1Ch 及其他未处理中断默认 iret
     m[0xf0000 + 0x1c * 8] = 0xcf;
-    // INT 09h: 從 port 60 讀掃描碼放入 BIOS 緩衝區
+    // INT 09h: 从 port 60 读扫描码放入 BIOS 缓冲区
     // BDA
     m[0x449] = 0x03; m[0x44a] = 80; m[0x484] = 24; m[0x413] = 640 & 255; m[0x414] = 640 >> 8;
-    // BIOS 8x8 字型 F000:FA6E
+    // BIOS 8x8 字体 F000:FA6E
     if (romFont) for (let i = 0; i < romFont.length; i++) m[0xffa6e + i] = romFont[i];
-    // 回呼返回點 (callFar 用): F000:F000 = F1 FF
+    // 回呼返回点 (callFar 用): F000:F000 = F1 FF
     m[0xff000] = 0xf1; m[0xff001] = 0xff;
     const H = c.hooks, self = this;
     H[0xff] = cpu => { cpu.halted = true; cpu.returned = true; };
@@ -50,7 +50,7 @@ class DOSEnv {
     H[0x09] = cpu => { const sc = cpu.in8(0x60); if (!(sc & 0x80)) self.bioskeys.push(sc << 8 | (self.asciiOf[sc] || 0)); cpu.out8(0x20, 0x20); self.iret(cpu); };
     for (let n = 0; n < 256; n++) if (!H[n]) H[n] = cpu => { self.unhandled.set(n, (self.unhandled.get(n) || 0) + 1); self.iret(cpu); };
     H[0x1c] = cpu => self.iret(cpu);
-    // 埠
+    // 端口
     c.ports[0x60] = { in: () => (this.port60 ?? 0), out: () => {} };
     c.ports[0x61] = { in: () => 0, out: () => {} };
     c.ports[0x64] = { in: () => 0x14, out: () => {} };
@@ -62,18 +62,18 @@ class DOSEnv {
     };
   }
   pitWrite(v) { this.pitBytes = (this.pitBytes || 0) + 1; }
-  // 回呼結束方式: 以 retf 2 返回 (stub), 但要恢復呼叫端 IF
+  // 回呼结束方式: 以 retf 2 返回 (stub), 但要恢复调用端 IF
   ret(cpu) { const fl = cpu.rw(cpu.lin(2, cpu.r[4] + 4)); cpu.flags = (cpu.flags & ~0x200) | (fl & 0x200); }
   iret(cpu) { this.ret(cpu); }
   cf(cpu, v) { if (v) cpu.flags |= 1; else cpu.flags &= ~1; }
-  // ---------------- EXE 載入 ----------------
+  // ---------------- EXE 加载 ----------------
   loadEXE(bin, name = "C:\\MAIN.EXE", cmdTail = "") {
     const c = this.cpu, m = c.mem;
     const env = 0x0080, psp = 0x0100, load = psp + 0x10;
     const envs = "PATH=C:\\\0COMSPEC=C:\\COMMAND.COM\0\0\x01\0" + name + "\0";
     for (let i = 0; i < envs.length; i++) m[env * 16 + i] = envs.charCodeAt(i);
     const P = psp * 16;
-    m[P] = 0xcd; m[P + 1] = 0x20; m[P + 2] = 0x00; m[P + 3] = 0xa0;   // 記憶體上限 A000
+    m[P] = 0xcd; m[P + 1] = 0x20; m[P + 2] = 0x00; m[P + 3] = 0xa0;   // 内存上限 A000
     m[P + 0x2c] = env & 255; m[P + 0x2d] = env >> 8;
     m[P + 0x80] = cmdTail.length; for (let i = 0; i < cmdTail.length; i++) m[P + 0x81 + i] = cmdTail.charCodeAt(i); m[P + 0x81 + cmdTail.length] = 13;
     for (let i = 0; i < 20; i++) m[P + 0x18 + i] = i < 5 ? i : 0xff;
@@ -89,11 +89,11 @@ class DOSEnv {
     c.s[2] = load + u16(0x0e); c.r[4] = u16(0x10); c.s[1] = load + u16(0x16); c.ip = u16(0x14);
     c.s[3] = psp; c.s[0] = psp; this.psp = psp; this.loadSeg = load;
     const minPara = Math.ceil((size + 0x100) / 16) + u16(0x0a);
-    this.blocks = [{ seg: psp, size: 0xa000 - psp }];   // DOS 會把全部記憶體給程式
+    this.blocks = [{ seg: psp, size: 0xa000 - psp }];   // DOS 会把全部内存给程序
     this.dta = P + 0x80;
     return { load, size };
   }
-  // ---------------- 記憶體區塊 ----------------
+  // ---------------- 内存区块 ----------------
   alloc(paras) {
     const bl = this.blocks.slice().sort((a, b) => a.seg - b.seg);
     let cur = 0x0100;
@@ -103,7 +103,7 @@ class DOSEnv {
     return -Math.max(0, best);
   }
   addBlock(seg, size) { this.blocks.push({ seg, size }); return seg; }
-  // ---------------- 中斷 ----------------
+  // ---------------- 中断 ----------------
   str(seg, off) { let s = "", a = seg * 16 + off; for (;;) { const ch = this.cpu.mem[a++]; if (!ch) break; s += String.fromCharCode(ch); } return s; }
   fname(p) { p = p.replace(/^[A-Za-z]:/, "").replace(/^.*[\\/]/, ""); return p.toUpperCase(); }
   int21(c) {
@@ -193,15 +193,15 @@ class DOSEnv {
       case 4: M.x = r[1]; M.y = r[2]; return;
       case 5: case 6: r[0] = M.b; r[3] = 0; r[1] = M.x; r[2] = M.y; return;
       case 7: M.minX = r[1]; M.maxX = r[2]; return; case 8: M.minY = r[1]; M.maxY = r[2]; return;
-      case 0x0b: r[1] = (M.mdx | 0) & 0xffff; r[2] = (M.mdy | 0) & 0xffff; M.mdx = 0; M.mdy = 0; return;   // 移動量 (測試工具 S.MICKEY 時才會累加, 否則恆 0)
+      case 0x0b: r[1] = (M.mdx | 0) & 0xffff; r[2] = (M.mdy | 0) & 0xffff; M.mdx = 0; M.mdy = 0; return;   // 移动量 (测试工具 S.MICKEY 时才会累加, 否则恒 0)
       case 0x0f: M.rx = r[1]; M.ry = r[2]; return;                                                       // mickey / 8 像素比例 (seg0:5022)
       default: return;
     }
   }
-  // ---- 外部輸入 ----
+  // ---- 外部输入 ----
   pressKey(scan, ascii = 0) { this.asciiOf[scan] = ascii; this.port60 = scan; this.cpu.pendingIRQ.push(9); }
   releaseKey(scan) { this.port60 = scan | 0x80; this.cpu.pendingIRQ.push(9); }
-  // ---- 呼叫遊戲內遠程函式 (Microsoft C far cdecl/register 混合) ----
+  // ---- 调用游戏内远程函数 (Microsoft C far cdecl/register 混合) ----
   callFar(seg, off, { ax = 0, bx = 0, cx = 0, dx = 0, si = 0, di = 0, args = [], maxIns = 5e7 } = {}) {
     const c = this.cpu;
     for (let i = args.length - 1; i >= 0; i--) c.push(args[i] & 0xffff);

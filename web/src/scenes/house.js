@@ -1,7 +1,7 @@
-// house.js — 住宅 (MAIN.EXE 1fd9:e2a4 = 線性 2e034, 處理函式表 DS:a612[7]); 見 RE_NOTES 25
-// 住宅記錄 nobles (前 20 筆; name, kind, portrait, flags, port)
-//   找本港的第一筆 → DS:b4e4[種類]: 0 = 2d803 (發現物收購), 1 = 2dcae (地圖製作), 2 = 2ddb6 (測量技術), 3 = 2def5 (砲術); 沒有 → 船員說 0x3a5 (這房子鎖著)
-// 記錄 10..15 是各國國王, 種類 FF 且港 = 0; 里斯本有種類 0 的第 0 筆在前面, 所以不會用到
+// house.js — 住宅 (MAIN.EXE 1fd9:e2a4 = 线性 2e034, 处理函数表 DS:a612[7]); 见 RE_NOTES 25
+// 住宅记录 nobles (前 20 笔; name, kind, portrait, flags, port)
+//   找本港的第一笔 → DS:b4e4[种类]: 0 = 2d803 (发现物收购), 1 = 2dcae (地图制作), 2 = 2ddb6 (测量技术), 3 = 2def5 (砲术); 没有 → 船员说 0x3a5 (这房子锁着)
+// 记录 10..15 是各国国王, 种类 FF 且港 = 0; 里斯本有种类 0 的第 0 笔在前面, 所以不会用到
 import { ListSelect } from "../ui/listsel.js";
 import { DiscoveryFlag, GameConst, NobleFlag, SkillFlag, WorkDS } from "../model/flags.ts";
 
@@ -16,7 +16,7 @@ export class House {
   get money() { return this.b.money; } set money(v) { this.b.money = v; }
   say(n, ...a) { this.b.talkMessage2(n, ...a); }                                 // seg0:7ffc
   async sayWait(n, ...a) { this.say(n, ...a); await this.b.wait(); }
-  face() { this.b.talkGirl(this.noble.portrait, this.noble.addr); }              // seg0:7eac(+12, 記錄)
+  face() { this.b.talkGirl(this.noble.portrait, this.noble.addr); }              // seg0:7eac(+12, 记录)
 
   // ================= 入口 2e034 =================
   async run() {
@@ -32,7 +32,7 @@ export class House {
     b.crewSpeaks(); this.c.message(0x3a5); await b.wait(); await b.closeTalk();
   }
 
-  // ---------------- 種類 0 2d803 發現物收購 ----------------
+  // ---------------- 种类 0 2d803 发现物收购 ----------------
   async collector() {
     const b = this.b, m = this.m, noble = this.noble;
     if (b.noEvent()) { if (noble.flags & NobleFlag.CONTRACTED) b.greet(0x1de, m.heroPerson().familyNameBytes); else b.greet(0x1dd); }
@@ -49,7 +49,7 @@ export class House {
       b.after();
     } while (sel !== 0xff);
   }
-  // 2d4b8 合約: 同種類的其他住宅取消合約
+  // 2d4b8 合约: 同种类的其他住宅取消合约
   async contract0() {
     const m = this.m;
     await this.sayWait(0x1e0, m.heroPerson().familyNameBytes);
@@ -59,7 +59,7 @@ export class House {
     this.noble.flags |= NobleFlag.CONTRACTED;
     await this.sayWait(0x1e3);
   }
-  // 2d526 發現物報告: 已發現 (+6 bit5)、未報告 (非 bit4)、非 bit7 → 清單 0x12 → 酬金 = (5 − 等級) × (價值 = 100 ? 4 : 1) × 價值 × 50
+  // 2d526 发现物报告: 已发现 (+6 bit5)、未报告 (非 bit4)、非 bit7 → 清单 0x12 → 酬金 = (5 − 等级) × (价值 = 100 ? 4 : 1) × 价值 × 50
   async discReport() {
     const m = this.m, b = this.b, L = [];
     for (let i = 0; i < 100; i++) { const f = m.discovery(i).flags; if (!(f & DiscoveryFlag.FOUND) && (f & DiscoveryFlag.KNOWN) && !(f & 0x10)) L.push(i); }
@@ -79,8 +79,8 @@ export class House {
     hd.adventureFame = (hd.adventureFame + hsUmin((GameConst.MAX_FAME - hd.adventureFame) & 0xffff, add)) & 0xffff;
     d.flags |= 0x10;
   }
-  // 2d6b0 冒險傳聞: 第一個未發現 (+6 非 bit7、非 bit6) 的發現物 (前 50 筆); random(80) ≤ 運氣 時說真正位置 (以 5 度為單位), 否則亂說
-  //   原版怪行為: 亂說時緯度方向用 random(27) ≥ 50 判斷, 永遠是「南緯」
+  // 2d6b0 冒险传闻: 第一个未发现 (+6 非 bit7、非 bit6) 的发现物 (前 50 笔); random(80) ≤ 运气 时说真正位置 (以 5 度为单位), 否则乱说
+  //   原版怪行为: 乱说时纬度方向用 random(27) ≥ 50 判断, 永远是「南纬」
   async rumor() {
     const m = this.m, { sys } = this.c, dir = this.c.menuItems(0x30);
     let d = null;
@@ -106,7 +106,7 @@ export class House {
     await this.sayWait(0x1ec, dir[ew], lon, dir[ns], lat);
   }
 
-  // ---------------- 種類 1 2dcae 地圖製作 ----------------
+  // ---------------- 种类 1 2dcae 地图制作 ----------------
   async mapper() {
     const b = this.b, m = this.m, noble = this.noble;
     let hasMap = 0;
@@ -130,7 +130,7 @@ export class House {
       b.after();
     } while (sel !== 0xff);
   }
-  // 2d8b7 地圖合約 (需要已學會地圖製作)
+  // 2d8b7 地图合约 (需要已学会地图制作)
   async contract1() {
     const st = this.st, m = this.m;
     await this.sayWait(0x1ef);
@@ -142,9 +142,9 @@ export class House {
     await this.sayWait(0x1f4);
     st.set16(WorkDS.EXPLORE_UNREP, 0);
   }
-  // 學費 = min((5000 / (主角 +22 / 5 + 1) + 200) × 100 (16 位元), 60000)
+  // 学费 = min((5000 / (主角 +22 / 5 + 1) + 200) × 100 (16 比特), 60000)
   fee() { return hsUmin(Math.imul(Math.trunc(5000 / (Math.trunc(this.m.heroPerson().getStats(6) / 5) + 1)) + 200, 100), 60000); }
-  // 2d93a 技能學習 (地圖製作): 主角 +1c+{1,2,3} (MENU #0x2b 航海術/知識/直覺) 都要 ≥ 75
+  // 2d93a 技能学习 (地图制作): 主角 +1c+{1,2,3} (MENU #0x2b 航海术/知识/直觉) 都要 ≥ 75
   async mapSkill() {
     const m = this.m, b = this.b, hero = m.heroPerson(), names = this.c.menuItems(0x2b);
     await this.sayWait(0x1f5);
@@ -158,7 +158,7 @@ export class House {
     hero.skills |= SkillFlag.CARTOGRAPHY;
     b.p.panels();
   }
-  // 2da2a 地理報告: 酬金 = (5 − 等級) × [1010] × 20; [100e] ≥ 3300 時世界地圖完成 (GRAPH.DAT #0x3f, 清除 DS:0de8 的 45×12 地圖記錄)
+  // 2da2a 地理报告: 酬金 = (5 − 等级) × [1010] × 20; [100e] ≥ 3300 时世界地图完成 (GRAPH.DAT #0x3f, 清除 DS:0de8 的 45×12 地图记录)
   async geoReport() {
     const st = this.st, m = this.m, { win, graph } = this.c;
     const unrep = st.u16(WorkDS.EXPLORE_UNREP);
@@ -180,7 +180,7 @@ export class House {
     this.money = (this.money + (room > pay ? pay : room)) | 0;
     st.set16(WorkDS.EXPLORE_UNREP, 0);
   }
-  // 2db6d 地圖確認 (藏寶圖 0x50..0x59 鑑定, 2 萬金幣): 位置以 5 度為單位, 各加 random(2) 格誤差; 付錢後不重畫面板 (原版如此)
+  // 2db6d 地图确认 (藏宝图 0x50..0x59 鉴定, 2 万金币): 位置以 5 度为单位, 各加 random(2) 格误差; 付钱后不重画面板 (原版如此)
   async appraise() {
     const m = this.m, { sys, message } = this.c;
     let i = 0;
@@ -201,7 +201,7 @@ export class House {
     await this.b.wait();
   }
 
-  // ---------------- 種類 2 2ddb6 測量技術 / 種類 3 2def5 砲術 ----------------
+  // ---------------- 种类 2 2ddb6 测量技术 / 种类 3 2def5 砲术 ----------------
   async school(k) {
     const m = this.m, b = this.b, hero = m.heroPerson();
     const M = k
@@ -209,7 +209,7 @@ export class House {
       : { ask: 0x2ee, done: 0x2ef, lack: 0x2f0, poor: 0x1f8, ok: 0x1f9, bye: 0x2f1, bit: SkillFlag.SURVEY, req: [70, 80, 70], idx: this.D.measureSkills };
     this.face();
     this.say(M.ask);
-    const bye = async () => { await this.sayWait(M.bye); await b.closeTalk(); };   // 失敗時都先說原因, 再說 M.bye (原版跳回同一段)
+    const bye = async () => { await this.sayWait(M.bye); await b.closeTalk(); };   // 失败时都先说原因, 再说 M.bye (原版跳回同一段)
     if (!(await this.c.menu.yesNo())) return bye();
     if (hero.skills & M.bit) { await this.sayWait(M.done); return bye(); }
     for (let i = 0; i < 3; i++) if (hero.getStats(M.idx[i]) < M.req[i]) { await this.sayWait(M.lack, this.stats[M.idx[i]], M.req[i]); return bye(); }

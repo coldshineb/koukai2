@@ -1,8 +1,8 @@
-// scenario.js — 劇本事件 VM (MAIN.EXE 2e09 段 31c04..33725 的移植, 見 docs/RE_NOTES.md 第 18 節)
-// 資料: assets/scenario/snrN.json (tools/snr2json.py 由 SNR*.DAT 解碼, 逐位元組往返驗證), 訊息: assets/text/snrN.json,
-//       VM 常數: assets/scenario/vm.json (發言視窗表 DS:b814、文字顏色 DS:b894、亂數種子初值 DS:b890)
-// 兩個執行環境: 共用劇本 SNR0 (章 [0d5e], 旗標 0d60, 變數 0d68) 與主角專屬 SNR{主角+1} (章 [0cd4], 旗標 0cd6, 變數 0cde)。
-// 記憶體: 劇本以 DS 位址讀寫遊戲資料 (D0/DC 取得記錄位址後間接存取); 0x0ca4..0x8d18 對應 GameState, 其他位址見 rd8/wr8。
+// scenario.js — 剧本事件 VM (MAIN.EXE 2e09 段 31c04..33725 的移植, 见 docs/RE_NOTES.md 第 18 节)
+// 数据: assets/scenario/snrN.json (tools/snr2json.py 由 SNR*.DAT 解码, 逐字节往返验证), 消息: assets/text/snrN.json,
+//       VM 常数: assets/scenario/vm.json (发言窗口表 DS:b814、文字颜色 DS:b894、随机数种子初值 DS:b890)
+// 两个运行环境: 共用剧本 SNR0 (章 [0d5e], 标志 0d60, 变量 0d68) 与主角专属 SNR{主角+1} (章 [0cd4], 标志 0cd6, 变量 0cde)。
+// 内存: 剧本以 DS 地址读写游戏数据 (D0/DC 取得记录地址后间接访问); 0x0ca4..0x8d18 对应 GameState, 其他地址见 rd8/wr8。
 import { loadJSON } from "../core/assets.js";
 import { faFleet } from "./fleetai.js";
 import { duelFromScenario } from "../scenes/duel.js";
@@ -31,14 +31,14 @@ export class Scenario {
     });
     this.files = {};
     this.cur = -1; this.stack = [0xff, 0xff]; this.count = 0;   // [b874] / [b878..b879] / [b877]
-    this.section = null;                           // 共用的 0x4000 bytes 劇本緩衝 ([0c8c]) 目前內容
+    this.section = null;                           // 共用的 0x4000 bytes 剧本缓冲 ([0c8c]) 目前内容
   }
   get st() { return this.c.state; }
   get extra() { return this.mem.extra; }
   get str() { return this.mem.str; }
   async init() {
     if (this.vm) return this;
-    const D = this.c.scenarioData;                 // 測試時直接提供 { vm, snr: {n: doc}, mes: {n: [...]} }
+    const D = this.c.scenarioData;                 // 测试时直接提供 { vm, snr: {n: doc}, mes: {n: [...]} }
     this.vm = D?.vm ?? await loadJSON(this.c.ASSETS + "/scenario/vm.json");
     this.seed = this.vm.seed0 >>> 0;               // [b890]
     this.textColor = scHex(this.vm.textColor);
@@ -52,7 +52,7 @@ export class Scenario {
     for (const ch of doc.chapters) if (ch) for (const sec of ch.sections) if (sec) sec.map = new Map(sec.code.map(i => [i.at, i]));
     return (this.files[n] = { doc, mes });
   }
-  // ---------------- 記憶體 (委派給 ScenarioMemoryAdapter) ----------------
+  // ---------------- 内存 (委派给 ScenarioMemoryAdapter) ----------------
   rd8(a) { return this.mem.rd8(a); }
   wr8(a, v) { this.mem.wr8(a, v); }
   rd16(a) { return this.mem.rd16(a); }
@@ -62,18 +62,18 @@ export class Scenario {
   setVar(i, v) { this.wr16(this.varAddr(i), v); }
   getFlag(i) { return (this.rd8(this.env.flags + (i >> 3)) >> (i & 7)) & 1; }
   setFlag(i, on) { const a = this.env.flags + (i >> 3), m = 1 << (i & 7); this.wr8(a, on ? this.rd8(a) | m : this.rd8(a) & ~m); }
-  // 32b88 來源運算元: 回傳 { w: 字值, b: 低位元組 }
+  // 32b88 来源操作数: 返回 { w: 字值, b: 低字节 }
   src(o) {
     if ("var" in o) { const a = this.varAddr(o.var); return { w: this.rd16(a), b: this.rd8(a) }; }
     if ("ptr" in o) { const a = this.getVar(o.ptr); return { w: this.rd16(a), b: this.rd8(a) }; }
     if ("flag" in o) { const v = this.getFlag(o.flag) ? 0xffff : 0; return { w: v, b: v & 0xff }; }
     return { w: o.imm & 0xffff, b: o.imm & 0xff };
   }
-  // 32bf3 目的位址 (var / ptr)
+  // 32bf3 目的地址 (var / ptr)
   dstAddr(o) { return "var" in o ? this.varAddr(o.var) : this.getVar(o.ptr); }
 
-  // ---------------- 事件檢查 / 執行 ----------------
-  // 2e09:5481 (共用) / 55c2 (主角): 回傳 1 = 有事件 (PC 已設好)
+  // ---------------- 事件检查 / 运行 ----------------
+  // 2e09:5481 (共用) / 55c2 (主角): 返回 1 = 有事件 (PC 已设好)
   async check(env, port, building) {
     await this.init();
     const st = this.st;
@@ -94,7 +94,7 @@ export class Scenario {
     }
     return 0;
   }
-  // 32a90 載入目前章節 (章 = FF 或沒有這章時保留緩衝原內容)
+  // 32a90 加载目前章节 (章 = FF 或没有这章时保留缓冲原内容)
   loadSection() {
     if (this.chap === 0xff) return;
     const ch = this.F.doc.chapters[this.chap];
@@ -114,7 +114,7 @@ export class Scenario {
     if (env === ENV_COMMON && this.chap !== old) { st.set8(env.ch, 0); st.set8(env.ch + 1, 0); }
     return ret;
   }
-  // 333db 主迴圈
+  // 333db 主循环
   async exec() {
     this.nextSec = 0; this.nextChap = 0; this.ret = 1;
     for (;;) {
@@ -131,7 +131,7 @@ export class Scenario {
     }
     return this.ret;
   }
-  // 執行一條指令; 回傳 false = 停止
+  // 运行一条指令; 返回 false = 停止
   async step(ins) {
     const next = this.pc + ins.n;
     this.pc = next;
@@ -152,7 +152,7 @@ export class Scenario {
     const r = await fn.call(this, ins);
     return r !== false;
   }
-  // 32c39 類別 0
+  // 32c39 类别 0
   mov(ins) {
     if (ins.a === "sys") {
       const n = ins.src.sys, r = this.c.rt, st = this.st;
@@ -173,7 +173,7 @@ export class Scenario {
     else if ("var" in ins.dst) this.wr16(a, s.b);
     else this.wr8(a, s.b);
   }
-  // 32e23 類別 1
+  // 32e23 类别 1
   alu(ins) {
     const byteDst = "ptr" in ins.dst, a = this.dstAddr(ins.dst), sv = this.src(ins.src);
     let di = byteDst ? this.rd8(a) : this.rd16(a);
@@ -190,7 +190,7 @@ export class Scenario {
     }
     if (byteDst) this.wr8(a, di); else this.wr16(a, di);
   }
-  // 32f5d 類別 2: 條件成立回傳 true
+  // 32f5d 类别 2: 条件成立返回 true
   cond(ins) {
     if ("flag" in ins.dst) {
       const a = this.getFlag(ins.dst.flag), b = "flag" in ins.src ? this.getFlag(ins.src.flag) : ins.src.imm;
@@ -199,9 +199,9 @@ export class Scenario {
     const s = this.src(ins.src).w, d = this.rd16(this.dstAddr(ins.dst));
     switch (ins.cmp) { case "eq": return s === d; case "ne": return s !== d; case "ge": return s <= d; default: return s >= d; }
   }
-  // ---------------- 訊息 ----------------
-  raw(n) { return this.c.font.encode(this.F.mes[n] ?? "{00}"); }      // 3280b 讀第 n 條訊息
-  // 328a8 展開 $dNN / $n / $s / $rNN 到 DS:041e
+  // ---------------- 消息 ----------------
+  raw(n) { return this.c.font.encode(this.F.mes[n] ?? "{00}"); }      // 3280b 读第 n 条消息
+  // 328a8 展开 $dNN / $n / $s / $rNN 到 DS:041e
   expand(n) {
     const b = this.raw(n), st = this.st, H = st.personRecord(st.hero), out = [];
     const cstr = a => { for (let i = a; ; i++) { const v = this.rd8(i); if (!v) break; out.push(v); } };
@@ -217,7 +217,7 @@ export class Scenario {
     }
     this.str.fill(0); this.str.set(out.slice(0, SC_STRLEN - 1));
   }
-  // ---------------- 發言視窗 (31c04..31ed1, 委派給 IScenarioHost) ----------------
+  // ---------------- 发言窗口 (31c04..31ed1, 委派给 IScenarioHost) ----------------
   W(i) { return this.vm.windows[i]; }
   clearText() { this.host.clearWindowText(this.W(this.cur)); }                                                      // 31c6d
   select() { this.host.selectWindow(this.W(this.cur), this.textColor); }                                            // 31c8a
@@ -256,7 +256,7 @@ export class Scenario {
   async op_msg({ msg }) { this.expand(msg); this.host.showText(this.str); }                                       // 31e2e
   async op_msg_expand({ msg }) { this.expand(msg); }
   async op_wait_key() { await this.host.waitKey(); }                                                              // 0fea:490b
-  // 329c6 + 31e38: 訊息 (不展開) 以換行分成項目 → 0fea:44c4 (0x3c, 0x50), 不可取消
+  // 329c6 + 31e38: 消息 (不展开) 以换行分成项目 → 0fea:44c4 (0x3c, 0x50), 不可取消
   async op_menu({ var: v, msg }) {
     const b = this.raw(msg), items = [];
     let cur = [];
@@ -269,10 +269,10 @@ export class Scenario {
     const r = await this.host.selectMenu(items);
     this.setVar(v, r & 0xff);
   }
-  async op_music({ song }) { this.host.playMusic(song); }    // 31e67: 9670(b); b=0x15 時 96eb(0) 關閉重播 = 只播一次 (bgm.json "once" 處理)
+  async op_music({ song }) { this.host.playMusic(song); }    // 31e67: 9670(b); b=0x15 时 96eb(0) 关闭重播 = 只播一次 (bgm.json "once" 处理)
   async op_yes_no({ flag }) { this.setFlag(flag, await this.host.confirmYesNo()); }                               // 323df
-  // ---------------- 資料 ----------------
-  // 31f0b 記錄位址
+  // ---------------- 数据 ----------------
+  // 31f0b 记录地址
   recordAddr(kind, i, field) { return this.mem.recordAddr(kind, i, field); }
   colonyRead(i) { this.mem.colonyRead(i); }
   async op_addr({ var: v, kind, index, field }) { this.setVar(v, this.recordAddr(kind, index, field)); }
@@ -294,12 +294,12 @@ export class Scenario {
   }
   async op_seed_set({ var: v }) { this.seed = (scS16(this.getVar(v)) << 8) >>> 0; }                                 // 324a4
   async op_seed_get({ var: v }) { this.setVar(v, (this.seed >>> 8) & 0xffff); }                                   // 324c2
-  // 艦隊
+  // 舰队
   slot(i) { return DS.TBL_FLEET + this.st.u8(this.st.personRecord(this.st.hero) + 0x2c) * 0x85 + 0x2b + 9 * i; }        // seg0:5c58
   crew(i) { return DS.TBL_CREW_SLOT + 0x1e * i; }                                                                            // seg0:5c38
   ship(n) { return DS.TBL_SHIP + 0x16 * n; }                                                                            // seg0:5c7a
   active(i) { return (this.st.u8(this.slot(i) + 8) & 0x30) === 0x10; }
-  used(i) {                                                                                                         // seg0:5d36 船上已用的載貨量
+  used(i) {                                                                                                         // seg0:5d36 船上已用的载货量
     const st = this.st, M = this.crew(i);
     const goods = [st.u8(M + 0x16), st.u8(M + 0x17), st.u8(M + 0x18), st.u8(M + 0x19), st.u8(M + 0x1a)];
     const amts = [st.u16(M + 0x0c), st.u16(M + 0x0e), st.u16(M + 0x10), st.u16(M + 0x12), st.u16(M + 0x14)];
@@ -345,7 +345,7 @@ export class Scenario {
       }
     }
   }
-  // 3254c 獲得新船 (船型 type; 第二個參數未使用)
+  // 3254c 获得新船 (船型 type; 第二个参数未使用)
   async op_ship_new({ type }) {
     const st = this.st, T = DS.TBL_SHIP_TYPE + type * 0x0c, tmpl = this.ship(type + 0x28);
     let si = 0, M = 0, slot = 0;
@@ -366,7 +366,7 @@ export class Scenario {
     st.set16(S + 0x14, st.u16(T + 6) - st.u8(S + 0x11) - st.u16(S + 0x12));
     st.set8(DS.TBL_PORT_ECONOMY + st.u8(DS.PORT) * 0x25 + 0x23, 0);
   }
-  // 32694 新船命名 (名字 = 訊息 msg 展開); 船長 = 0fea:2f43 名單第一人
+  // 32694 新船命名 (名字 = 消息 msg 展开); 船长 = 0fea:2f43 名单第一人
   async op_ship_name({ msg }) {
     const st = this.st;
     this.expand(msg);
@@ -383,7 +383,7 @@ export class Scenario {
     const F = DS.TBL_FLEET + st.u8(st.personRecord(st.hero) + 0x2c) * 0x85;                                       // [c2d4]
     if (!this.host.recalcFleetStrength(F)) scTodo("劇本新船命名後的 0fea:83f9 (艦隊重算)");                       // 0fea:83f9 = 18299
   }
-  // 0fea:2f43 = 12de3: 主角沒有擔任任何船的船長時列入主角, 再列入職務 > 2 的船員 → [0538]; 名單為空時 [0538] 不變
+  // 0fea:2f43 = 12de3: 主角没有担任任何船的船长时列入主角, 再列入职务 > 2 的船员 → [0538]; 名单为空时 [0538] 不变
   captainCandidate() {
     const st = this.st, L = [];
     let k = 0; for (; k < 10; k++) if (st.u8(this.crew(k) + 0x1b) === st.hero) break;
@@ -400,18 +400,18 @@ export class Scenario {
     st.set8(P + 0x2e, 6); st.set8(P + 0x2c, st.u8(H + 0x2c)); st.set8(P + 0x2d, st.u8(H + 0x2d));
   }
   async op_barmaid_love({ girl, amount }) { const g = DS.TBL_BARMAID + 0x13 * girl; this.st.set8(g + 0x0f, scUmin(this.st.u8(g + 0x0f) + amount, 100)); }   // 32790
-  // 320ba D1 v: 變數的低位元組 = 艦隊編號 → 33aaf 依任務恢復目的地 (game/fleetai.js resume)
+  // 320ba D1 v: 变量的低字节 = 舰队编号 → 33aaf 依任务恢复目的地 (game/fleetai.js resume)
   async op_d1({ var: v }) { const k = this.getVar(v) & 0xff; if (!this.host.resumeFleet(faFleet(k))) scTodo("劇本命令 D1 (艦隊移動 33aaf)"); }
-  // 32377 E8 一騎打: 31dbb → 0fea:2ca9(1, 主角, 對手) → 外框 / 8894 / 8ebc([b876]) / 99e8 (scenes/duel.js)
+  // 32377 E8 一骑打: 31dbb → 0fea:2ca9(1, 主角, 对手) → 外框 / 8894 / 8ebc([b876]) / 99e8 (scenes/duel.js)
   async op_duel({ person }) { await this.host.runDuel(this, person); }
-  // 系統變數 6 (32d4a) = [9c2a] 一騎打的體力條 (海戰的 DS 鏡像; 還沒有時是 MAIN.EXE 的初值)
+  // 系统变量 6 (32d4a) = [9c2a] 一骑打的体力条 (海战的 DS 镜像; 还没有时是 MAIN.EXE 的初值)
   duelHp() {
     if (this.c.battleDS) return this.c.battleDS[0x9c2a];
     const h = (this.scene?.P ?? {}).battle?.ds?.["9bfe"]; return h ? parseInt(h.substr((0x9c2a - 0x9bfe) * 2, 2), 16) : 0;
   }
-  // 331e4 CB w1 w2 b → 31e81: 關閉 [03d8], 開 DS:0a82「EVENT*.DAT」(* = [0a89], 1681a 設為 '1' + 主角), seg0:5b5d 畫第 b 張於 (w1, w2), 關閉, [03d8] = GRAPH.DAT
-  //   (第 31 節; 不動調色盤, 畫在前一條 C0 3 開的大框裡)
+  // 331e4 CB w1 w2 b → 31e81: 关闭 [03d8], 开 DS:0a82「EVENT*.DAT」(* = [0a89], 1681a 设为 '1' + 主角), seg0:5b5d 画第 b 张于 (w1, w2), 关闭, [03d8] = GRAPH.DAT
+  //   (第 31 节; 不动调色盘, 画在前一条 C0 3 开的大框里)
   async op_picture({ x, y, pic }) { await this.host.showPicture(x, y, pic); }
-  // 330c1 F4 b → 0fea:77af(b) 劇本結局 (b = 主角 0..5; game/endgame.js, 之後由 main.js 執行 END.EXE 的移植)
+  // 330c1 F4 b → 0fea:77af(b) 剧本结局 (b = 主角 0..5; game/endgame.js, 之后由 main.js 运行 END.EXE 的移植)
   async op_ending({ code }) { await this.host.triggerEnding(code & 0xff); return false; }
 }

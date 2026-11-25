@@ -1,9 +1,9 @@
-// wharf_route.js — 碼頭差分測試設定 (先執行本檔, 再執行 port_tests.js)
-// 進港時兩邊同時寫入現金 3000、一艘船 (船 0: 水手 10, 船型 0, 載貨量 100, 船長 = 主角)、水/食物 0; 關閉劇本事件 (碼頭老闆開場對白)。
-// 從碼頭入口 (54,67) 正下方走進去:
-//   補給: 水 裝上 5 → 食物 裝上 3 → ↓ 切換成卸下 → 水 卸下 2 → Esc
-//   出航: 艦隊表 → 天數訊息 (3 天, 0x3c) → 是/否 按 Esc (否) → 回到碼頭選單 → Esc 離開 → 走一步
-// S.WHARF_KEYS 可覆寫碼頭內的按鍵; S.WHARF_POKE 額外寫入
+// wharf_route.js — 码头差分测试设置 (先运行本档, 再运行 port_tests.js)
+// 进港时两边同时写入现金 3000、一艘船 (船 0: 水手 10, 船型 0, 载货量 100, 船长 = 主角)、水/食物 0; 关闭剧本事件 (码头老板开场对白)。
+// 从码头入口 (54,67) 正下方走进去:
+//   补给: 水 装上 5 → 食物 装上 3 → ↓ 切换成卸下 → 水 卸下 2 → Esc
+//   出航: 舰队表 → 天数消息 (3 天, 0x3c) → 是/否 按 Esc (否) → 回到码头菜单 → Esc 离开 → 走一步
+// S.WHARF_KEYS 可覆写码头内的按键; S.WHARF_POKE 额外写入
 "use strict";
 (function () {
 const S = session;
@@ -16,12 +16,12 @@ const M = 0x52d4; poke.push([M + 0x1b, 0], [M + 8, 30], [M + 9, 20], [M + 0x1c, 
 for (const [a, v] of S.WHARF_POKE || []) poke.push([a, v]);
 S.PORT_SETUP = { port: 0, vx: 42, vy: 56, hx: 12, hy: 12, poke };
 S.PORT_KEYS = [K.up, ...(S.WHARF_KEYS || [
-  K.down, K.enter,                              // 補給
-  K.enter, K.d5, K.enter,                       // 水 裝上 5
-  K.right, K.enter, K.d3, K.enter,              // 食物 裝上 3
-  K.down, K.enter,                              // 切換成卸下
+  K.down, K.enter,                              // 补给
+  K.enter, K.d5, K.enter,                       // 水 装上 5
+  K.right, K.enter, K.d3, K.enter,              // 食物 装上 3
+  K.down, K.enter,                              // 切换成卸下
   K.enter, K.d2, K.enter,                       // 水 卸下 2
-  K.esc,                                        // 離開補給 → 碼頭選單
+  K.esc,                                        // 离开补给 → 码头菜单
   K.enter, K.esc,                               // 出航 → 是/否: 否
   K.esc]), K.down];
 S.NO_EVENTS = 1;

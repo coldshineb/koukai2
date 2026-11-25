@@ -33,14 +33,14 @@ buf = io.StringIO()
 with contextlib.redirect_stdout(buf):
     print("========== 碼頭入口", hex(ENTRY))
     body = until_ret(ENTRY, 0x400)
-    # 找 loadMenu (2e09:57aa) 前的 mov ax, n 與 子功能表 [bx+XXXX]
+    # 找 loadMenu (2e09:57aa) 前的 mov ax, n 与 子功能表 [bx+XXXX]
     for i in body:
         t = _fmt(i)
         if "[bx+" in t and i.mn == "mov" and "ax" in i.ops[0]:
             print("   子功能表候選:", t)
     callees = sorted(far_targets(body))
     print("\n== 呼叫", [hex(c) for c in callees])
-    # 碼頭區段 1fd9:8993 附近的其他函式 (碼頭自己的子功能通常緊鄰)
+    # 码头区段 1fd9:8993 附近的其他函数 (码头自己的子功能通常紧邻)
     print("\n========== 1fd9:8400..8993 (緊鄰的子功能)")
     cd(SEG + 0x8400, ENTRY)
     for k in range(0, 61):

@@ -1,10 +1,10 @@
-// printf.js — 原版格式化輸出 (MAIN.EXE seg0:4194), 逐字元送給 putc 回呼
-// 支援: %[-][0][寬度][.精度][l](c|d|s|u|w), 轉換字元不分大小寫; 其他字元原樣輸出。
-//   %w = 以全形數字輸出 (每位 0x82, 0x4F+d) —— 日文版遺留, 繁中字型中為空白
-//   精度只對 %s 有效 (截斷); 負數的 '-' 在補齊字元之後 (例: %05d of -3 -> "000-3")
-// args: 數值或位元組陣列 (字串)。%ld 取一個數值 (原版占 2 個 word)。
+// printf.js — 原版格式化输出 (MAIN.EXE seg0:4194), 逐字符送给 putc 回呼
+// 支持: %[-][0][宽度][.精度][l](c|d|s|u|w), 转换字符不分大小写; 其他字符原样输出。
+//   %w = 以全角数字输出 (每位 0x82, 0x4F+d) —— 日文版遗留, 繁中字体中为空白
+//   精度只对 %s 有效 (截断); 负数的 '-' 在补齐字符之后 (例: %05d of -3 -> "000-3")
+// args: 数值或字节数组 (字符串)。%ld 取一个数值 (原版占 2 个 word)。
 function udigits(v) { return String(v >>> 0).split("").map(c => c.charCodeAt(0)); }
-// seg0:40a1 長整數輸出: 以「有號」比較判斷是否 >= 10, 所以最高位元為 1 的值 (>= 2^31) 只輸出一個字元 '0'+低位元組
+// seg0:40a1 长整数输出: 以「有号」比较判断是否 >= 10, 所以最高比特为 1 的值 (>= 2^31) 只输出一个字符 '0'+低字节
 function ldigits(v) {
   v |= 0;
   const out = [];
@@ -44,7 +44,7 @@ export function cprintf(fmt, args, putc) {
       case 0x55: { const v = next(); buf = isLong ? ldigits(v) : String(v & 0xffff).split("").map(c => c.charCodeAt(0)); si -= buf.length; break; }  // U
       case 0x53: { const s = next(); let n = 0; while (n < s.length && s[n]) n++; buf = Array.from(s.subarray ? s.subarray(0, n) : s.slice(0, n)); si = width - n; isStr = true; break; }  // S
       case 0x57: buf = wdigits(next()); si -= buf.length; break;                  // W
-      default: putc(fmt[i - 1]); continue;                                         // 原版輸出原字元
+      default: putc(fmt[i - 1]); continue;                                         // 原版输出原字符
     }
     if (!isStr) precFlag = 0;
     if (!left) while (si-- > 0) putc(pad);

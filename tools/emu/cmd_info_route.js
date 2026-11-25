@@ -1,9 +1,9 @@
-// cmd_info_route.js — 港口指令按鈕「情報」(1fd9:0e33 = 20bc3) 差分測試設定 (先執行本檔, 再執行 port_tests.js)
-// 里斯本; 進港時兩邊同時寫入: 主角艦隊 2 艘 (同 cmd_manage_route; 船位 0 載 商品 0 ×20、商品 5 ×10, 船位 1 船首像 3),
-//   船員 8 (船長) / 9 (助手) / 10 (會計, +30 bit1), 主角 +30 bit1 清除; 發現物 0..2 設為已知且已發現 (+6 = 0x60)
-// F1 → 自艦隊情報 (全畫面, 之後重新進港) → 艦船情報 (第 1 艘、第 2 艘) → 人物情報 (主角、人物 8) → 主公情報 →
-//      積載情報 (第 1 艘、第 2 艘 = 沒有商品) → 積載一覽表 (商品 0 → 會計發言) → 發現物情報 (第 1 項) → Esc
-//   S.CMD_MODE = "log" / "map": 航海日誌 / 海港地圖 (另見檔尾)
+// cmd_info_route.js — 港口指令按钮「情报」(1fd9:0e33 = 20bc3) 差分测试设置 (先运行本档, 再运行 port_tests.js)
+// 里斯本; 进港时两边同时写入: 主角舰队 2 艘 (同 cmd_manage_route; 船位 0 载 商品 0 ×20、商品 5 ×10, 船位 1 船首像 3),
+//   船员 8 (船长) / 9 (助手) / 10 (会计, +30 bit1), 主角 +30 bit1 清除; 发现物 0..2 设为已知且已发现 (+6 = 0x60)
+// F1 → 自舰队情报 (全画面, 之后重新进港) → 舰船情报 (第 1 艘、第 2 艘) → 人物情报 (主角、人物 8) → 主公情报 →
+//      积载情报 (第 1 艘、第 2 艘 = 没有商品) → 积载一览表 (商品 0 → 会计发言) → 发现物情报 (第 1 项) → Esc
+//   S.CMD_MODE = "log" / "map": 航海日志 / 海港地图 (另见档尾)
 "use strict";
 (function () {
 const S = session;
@@ -21,7 +21,7 @@ const mkCrew = (i, cap, fh) => { for (let k = 0; k < 0x16; k++) b(crew(i) + k, 0
 mkShip(0, 0); mkSlot(0, 0, 0, 10); mkCrew(0, 0, 0);
 mkShip(1, 4); mkSlot(1, 1, 4, 5); mkCrew(1, 8, 3);
 w16(crew(0), 100); w16(crew(0) + 2, 50); b(crew(0) + 0x16, 0); w16(crew(0) + 0x0c, 20); b(crew(0) + 0x17, 5); w16(crew(0) + 0x0e, 10);
-b(slot(1) + 6, 4); b(slot(1) + 8, 0x12);                                   // 船位 1: 砲 4 門, 砲種 2
+b(slot(1) + 6, 4); b(slot(1) + 8, 0x12);                                   // 船位 1: 砲 4 门, 砲种 2
 const mate = (n, role, loyal, pay, k) => { const P = 0x12b6 + n * 0x32; b(P + 0x2c, 0); b(P + 0x2d, 0xff); b(P + 0x2e, role); b(P + 0x2b, loyal); b(0x2e1b + k, n); b(0x2e39 + k, pay); };
 mate(8, 2, 100, 1, 0); mate(9, 3, 90, 5, 1); mate(10, 4, 90, 3, 2);
 b(0x12b6 + 10 * 0x32 + 0x30, at(0x12b6 + 10 * 0x32 + 0x30) | 2);
@@ -29,7 +29,7 @@ b(0x12b6 + 0x30, at(0x12b6 + 0x30) & 0xfd);
 for (let i = 0; i < 3; i++) b(0x7f8c + i * 7 + 6, 0x60);
 for (const [a, v] of S.CMD_POKE || []) b(a, v);
 S.PORT_SETUP = { port: 0, vx: 30, vy: 48, hx: 11, hy: 12, poke };
-// 航海日誌: [0c8e] 緩衝 (原版: 記憶體區塊 DS:bc36 + 7×handle 的 +1 = 段; 移植版: 狀態 0x8a18) 寫入 S.CMD_LOG 筆 (各種類輪流) + FFFF 結束
+// 航海日志: [0c8e] 缓冲 (原版: 内存区块 DS:bc36 + 7×handle 的 +1 = 段; 移植版: 状态 0x8a18) 写入 S.CMD_LOG 笔 (各种类轮流) + FFFF 结束
 if (S.CMD_MODE === "log") {
   const L = [], n = S.CMD_LOG ?? 14, kinds = [0, 1, 2, 9, 0x0c, 2, 5];
   for (let i = 0; i < n; i++) {
@@ -44,19 +44,19 @@ if (S.CMD_MODE === "log") {
 }
 const D = n => Array(n).fill(K.down), E = K.enter, Z = K.z;
 const INFO = [K.f1,
-  E, E, Z,                                                                    // 自艦隊情報
-  K.down, E, E, K.down, E, K.esc, Z,                                          // 艦船情報
-  ...D(2), E, E, K.down, E, K.esc, Z,                                         // 人物情報
-  ...D(3), E, E, Z,                                                           // 主公情報
-  ...D(4), E, E, E, Z, K.down, E, K.esc, Z,                                   // 積載情報
-  ...D(5), E, E, E, Z,                                                        // 積載一覽表
-  ...D(6), E, E, E, Z, K.esc, Z,                                              // 發現物情報
+  E, E, Z,                                                                    // 自舰队情报
+  K.down, E, E, K.down, E, K.esc, Z,                                          // 舰船情报
+  ...D(2), E, E, K.down, E, K.esc, Z,                                         // 人物情报
+  ...D(3), E, E, Z,                                                           // 主公情报
+  ...D(4), E, E, E, Z, K.down, E, K.esc, Z,                                   // 积载情报
+  ...D(5), E, E, E, Z,                                                        // 积载一览表
+  ...D(6), E, E, E, Z, K.esc, Z,                                              // 发现物情报
   K.esc];
-const LOG = [K.f1, ...D(8), E, Z, K.right, E, Z, K.left, E, Z, K.esc, Z, K.esc];   // 航海日誌: 前頁 / 後頁
-const MAP = [K.f1, ...D(9), E, Z, E, Z];                                               // 海港地圖 → 任意鍵 (選單隨即結束)
-// S.CMD_MODE = "chart": 航海圖 (1dace, 在港分支: 84de / 88e9 / 港口外框): [100e] = 1、里斯本附近的海域格 (第 13..15 列, 第 4..7 欄) 設為已探索
-//   → 世界全圖 → Enter (主角所在格) → 任意鍵 → 全圖 → Esc → Esc
-// S.CMD_MODE = "mapitem": 航海術 → 隨身物 0x50 (地圖, +12 = 發現物 0) 使用 (1dd76, 在港分支) → 任意鍵 → Esc → Esc
+const LOG = [K.f1, ...D(8), E, Z, K.right, E, Z, K.left, E, Z, K.esc, Z, K.esc];   // 航海日志: 前页 / 后页
+const MAP = [K.f1, ...D(9), E, Z, E, Z];                                               // 海港地图 → 任意键 (菜单随即结束)
+// S.CMD_MODE = "chart": 航海图 (1dace, 在港分支: 84de / 88e9 / 港口外框): [100e] = 1、里斯本附近的海域格 (第 13..15 列, 第 4..7 栏) 设为已探索
+//   → 世界全图 → Enter (主角所在格) → 任意键 → 全图 → Esc → Esc
+// S.CMD_MODE = "mapitem": 航海术 → 随身物 0x50 (地图, +12 = 发现物 0) 使用 (1dd76, 在港分支) → 任意键 → Esc → Esc
 if (S.CMD_MODE === "chart") { w16(0x100e, 1); for (let r = 13; r <= 15; r++) b(0x0de8 + 12 * r, 0x0f); }
 if (S.CMD_MODE === "mapitem") { for (let i = 0; i < 20; i++) b(0x2e57 + i, i ? 0xff : 0x50); b(0x8248 + 0x50 * 0x14 + 0x12, 0); }
 const CHART = [K.f1, ...D(7), E, Z, E, Z, Z, K.esc, Z, K.esc, Z];

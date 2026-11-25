@@ -1,7 +1,7 @@
-// worldmap_tests.js — 海上地圖區域解碼差分測試: 原版 1fd9:2fd2 (= 線性 22d62, 含 22b19 格解碼、22028 海岸接邊、港口/發現物) vs web/src/gfx/worldmap.js
-// 前提: 先跑過一條出海路線 (例: sea_depart_route.js + port_tests.js), 使 session.titleEnv 的原版停在海上 ([03f6] 等緩衝已配置), 並已載入 ui_bundle.js
-// 做法: 隨機把 130 個港口 +15 bit4 / 100 個發現物 +6 bit6 設為一半已發現; 對 3 項 × 7 列 × 5 欄 + 60 個隨機區域, 原版換項 (849a) 後呼叫 22d62,
-//       移植版以同一份 DS 記憶體 (狀態) 解碼, 96 × 96 緩衝逐 byte 比對; 測完還原原版記憶體
+// worldmap_tests.js — 海上地图区域解码差分测试: 原版 1fd9:2fd2 (= 线性 22d62, 含 22b19 格解码、22028 海岸接边、港口/发现物) vs web/src/gfx/worldmap.js
+// 前提: 先跑过一条出海路线 (例: sea_depart_route.js + port_tests.js), 使 session.titleEnv 的原版停在海上 ([03f6] 等缓冲已配置), 并已加载 ui_bundle.js
+// 做法: 随机把 130 个港口 +15 bit4 / 100 个发现物 +6 bit6 设为一半已发现; 对 3 项 × 7 列 × 5 栏 + 60 个随机区域, 原版换项 (849a) 后调用 22d62,
+//       移植版以同一份 DS 内存 (状态) 解码, 96 × 96 缓冲逐 byte 比对; 测完还原原版内存
 (function () {
 const fs = require("fs"), S = session, A = S.W + "/uw2_remake/web/assets/";
 const sea = JSON.parse(fs.readFileSync(A + "data/sea.json", "utf8")), codes = new Uint8Array(fs.readFileSync(A + "gfx/worldmap.bin"));
@@ -18,7 +18,7 @@ const list = []; for (let k = 0; k < 3; k++) for (const r of [0, 1, 13, 20, 30, 
 for (let i = 0; i < 60; i++) list.push([rnd(3), rnd(43) * 30 + rnd(28)]);
 let bad = 0, tested = 0; const t0 = Date.now();
 for (const [item, idx] of list) {
-  if (c.mem[d + 0x6ca] !== item) { c.mem[d + 0x6ca] = item; S.call(0x849a); }          // 849a: 讀 WORLDMAP 第 [06ca] 項
+  if (c.mem[d + 0x6ca] !== item) { c.mem[d + 0x6ca] = item; S.call(0x849a); }          // 849a: 读 WORLDMAP 第 [06ca] 项
   const pre = c.mem.slice(bufSeg * 16, bufSeg * 16 + 0x2400);
   S.call(0x22d62, { ax: idx });
   const emu = c.mem.slice(bufSeg * 16, bufSeg * 16 + 0x2400), buf = pre.slice();

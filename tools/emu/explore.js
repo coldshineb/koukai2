@@ -1,15 +1,15 @@
-// explore.js — 開發輔助: 一步一步驅動原版 (模擬器), 用來探索長路線的按鍵序列 (例: opening_route.js 的約翰開場)
-// 與 port_tests.js 的 runEmu 用同一套規則 (makeScript gap 40、第一次 4d92 亂數時 sc.calls = 0), 所以探索出的按鍵在 port_tests 重播時結果相同。
-//   S.X.start(keys, { fleetAI })  從標題畫面開始, 送出 keys 後停在「等下一個鍵」的時刻
-//   S.X.step(keys)                接著送 keys, 一樣停在等下一個鍵的時刻 (中途不插入任何額外動作, 與一次送完等價)
-//   S.X.png(file)                 目前畫面 → PNG (原版 DAC)
-//   S.X.st()                      目前的主要狀態 (港、位置、時刻、現金、SNR1 旗標…)
-//   S.X.log                       至今送出的所有按鍵 (= 重播用的完整序列)
+// explore.js — 开发辅助: 一步一步驱动原版 (模拟器), 用来探索长路线的按键串行 (例: opening_route.js 的约翰开场)
+// 与 port_tests.js 的 runEmu 用同一套规则 (makeScript gap 40、第一次 4d92 随机数时 sc.calls = 0), 所以探索出的按键在 port_tests 重播时结果相同。
+//   S.X.start(keys, { fleetAI })  从标题画面开始, 送出 keys 后停在「等下一个键」的时刻
+//   S.X.step(keys)                接着送 keys, 一样停在等下一个键的时刻 (中途不插入任何额外动作, 与一次送完等价)
+//   S.X.png(file)                 目前画面 → PNG (原版 DAC)
+//   S.X.st()                      目前的主要状态 (港、位置、时刻、现金、SNR1 标志…)
+//   S.X.log                       至今送出的所有按键 (= 重播用的完整串行)
 "use strict";
 (function () {
 const S = session, L = 0x110 * 16;
 const X = S.X = {};
-// 等輸入的位置 (最後一次進入的函式 = 目前在等什麼): 走路 210f1、直式選單 14364、按鍵等待 147ab、是/否 1469c、清單 15a70、計算機 / 姓名鍵盤等其他 = "?"
+// 等输入的位置 (最后一次进入的函数 = 目前在等什么): 走路 210f1、直式菜单 14364、按键等待 147ab、是/否 1469c、清单 15a70、计算机 / 姓名键盘等其他 = "?"
 const WATCH = { [L + 0x210f1]: "walk", [L + 0x14364]: "menu", [L + 0x147ab]: "wait", [L + 0x1469c]: "yesno", [L + 0x15a70]: "list", [L + 0x21151]: "sea" };
 X.inside = () => X.ctx !== "walk";
 X.start = (keys, o = {}) => {
@@ -21,7 +21,7 @@ X.start = (keys, o = {}) => {
   const saveEnv = S.env, sH16 = S._H16, sH33 = S._H33; S.env = env; S._H16 = S._H33 = undefined;
   S.installEmuServices(sc, () => { X.shots++; });
   S.env = saveEnv; S._H16 = sH16; S._H33 = sH33;
-  // 等下一個鍵的時刻: 腳本空且查詢次數已到 gap − 1 → 停下 (下一次查詢就是一次送完時送出下一鍵的那一次, 所以分段送與一次送完等價)
+  // 等下一个键的时刻: 脚本空且查找次数已到 gap − 1 → 停下 (下一次查找就是一次送完时送出下一键的那一次, 所以分段送与一次送完等价)
   for (const v of [0x16, 0x33]) { const h = c.hooks[v]; c.hooks[v] = cpu => { const k0 = sc.keys.length; h(cpu);
     if (!k0 && !sc.keys.length && sc.calls >= sc.gap - 1 && (v !== 0x16 || (cpu.r[0] >> 8) === 1) && (v !== 0x33 || cpu.r[0] === 3)) { X.idle = true; cpu.halted = true; } }; }
   if (!o.fleetAI) c.mem[L + 0x1ac19] = 0xcb;

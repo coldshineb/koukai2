@@ -1,21 +1,21 @@
-# extract_battle.py — 海戰 (MAIN.EXE 10f7e 以下, docs/RE_NOTES.md 第 30 節) 用到的原始資料 → web/assets
-#   gfx/hdat.bin       HDAT.PUT 原樣 (0x7b88 bytes; 0be20 讀到 [03ee]:0): 戰場圖塊 13 張 × 0x200 (32×32, 4 平面交錯) 起於 0,
-#                      船的圖 0x1a00 + (種類 × 6 + 方向) × 0x280 (前 0x80 = 1bpp 遮罩 4 欄 × 32 行, 後 0x200 = 4 平面圖像)
-#   data/battle.json   DS 常數:
-#     ds       DS:9bfe..9d2f 的初始內容 (小地圖點陣 9bfe、調色盤循環 9c2e..9c75、戰場調色盤 9c76、面板字串 9ca6..9d2e);
-#              海戰的 DS 工作區 (8e14..9e5f) 以 MAIN.EXE 的初始值開始, 這一段是其中唯一非 0 的部分
-#     t07ec    DS:07ec 每種 船 +8 & 7 的值 (word 表, 取低位元組): 0f259 → 船 +15
+# extract_battle.py — 海战 (MAIN.EXE 10f7e 以下, docs/RE_NOTES.md 第 30 节) 用到的原始数据 → web/assets
+#   gfx/hdat.bin       HDAT.PUT 原样 (0x7b88 bytes; 0be20 读到 [03ee]:0): 战场图块 13 张 × 0x200 (32×32, 4 平面交错) 起于 0,
+#                      船的图 0x1a00 + (种类 × 6 + 方向) × 0x280 (前 0x80 = 1bpp 遮罩 4 栏 × 32 行, 后 0x200 = 4 平面图像)
+#   data/battle.json   DS 常数:
+#     ds       DS:9bfe..9d2f 的初始内容 (小地图点阵 9bfe、调色盘循环 9c2e..9c75、战场调色盘 9c76、面板字符串 9ca6..9d2e);
+#              海战的 DS 工作区 (8e14..9e5f) 以 MAIN.EXE 的初始值开始, 这一段是其中唯一非 0 的部分
+#     t07ec    DS:07ec 每种 船 +8 & 7 的值 (word 表, 取低字节): 0f259 → 船 +15
 #     t07fc    DS:07fc 同上 (word 表): 0f259 的倍率
-#     coast    0ebce 依 8 鄰格的陸地位元 (bit7 左上 .. bit0 右下) 選海岸圖塊的分歧鏈 (ec77..ed4d, 以 dec / sub / jcc 逐一比較),
-#              由 MAIN.EXE 的機器碼直接求值: {位元組合: 圖塊值}, 其他組合不改
-#     ds["8cd6"]  DS:8cd6..8e13 (情報 / 信號 / 作戰的字串 8cd6..8de7、遠程函式表; 8cd6..8d17 雖在存檔區的位址範圍內,
-#                 移植版的狀態在 8a18 起放交易記錄, 所以字串放在 DS 鏡像)
-#     shipNames   DS:091c 船鏈序號的名稱 (旗艦、１號艦 … ９號艦), 10 個 C 字串
-#     str         DS:a779 / a780 (1c652 對方船隻資料的色碼與「\n%s\n」)
-# 用法: python extract_battle.py <sea2 目錄> <web/assets 目錄>
+#     coast    0ebce 依 8 邻格的陆地比特 (bit7 左上 .. bit0 右下) 选海岸图块的分歧链 (ec77..ed4d, 以 dec / sub / jcc 逐一比较),
+#              由 MAIN.EXE 的机器码直接求值: {字节合: 图块值}, 其他组合不改
+#     ds["8cd6"]  DS:8cd6..8e13 (情报 / 信号 / 作战的字符串 8cd6..8de7、远程函数表; 8cd6..8d17 虽在存盘区的地址范围内,
+#                 移植版的状态在 8a18 起放交易记录, 所以字符串放在 DS 镜像)
+#     shipNames   DS:091c 船链序号的名称 (旗舰、１号舰 … ９号舰), 10 个 C 字符串
+#     str         DS:a779 / a780 (1c652 对方船只数据的色码与「\n%s\n」)
+# 用法: python extract_battle.py <sea2 目录> <web/assets 目录>
 import json, os, shutil, struct, sys
 
-DS = 0x38150          # DGROUP 在 MAIN.EXE 載入映像中的線性位址 (與 re_env.py 相同)
+DS = 0x38150          # DGROUP 在 MAIN.EXE 加载映像中的线性地址 (与 re_env.py 相同)
 
 
 def coast_table(img):
@@ -55,7 +55,7 @@ def main(sea2, assets):
     b = lambda o, n: img[DS + o:DS + o + n]
     os.makedirs(os.path.join(assets, "gfx"), exist_ok=True)
     shutil.copyfile(os.path.join(sea2, "HDAT.PUT"), os.path.join(assets, "gfx", "hdat.bin"))
-    cs = lambda o: img[DS + o:img.index(b"\0", DS + o)].hex()          # DS 上的 C 字串
+    cs = lambda o: img[DS + o:img.index(b"\0", DS + o)].hex()          # DS 上的 C 字符串
     w = lambda o: struct.unpack("<H", b(o, 2))[0]
     J = {
         "ds": {"9bfe": b(0x9bfe, 0x9d30 - 0x9bfe).hex(), "8cd6": b(0x8cd6, 0x8e14 - 0x8cd6).hex()},

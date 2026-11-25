@@ -1,4 +1,4 @@
-// wharf.js — 碼頭 (補給 / 出航前檢查 / 船塢 / 補給港命名 / 出航清除畫面)
+// wharf.js — 码头 (补给 / 出航前检查 / 船坞 / 补给港命名 / 出航清除画面)
 import { ListSelect } from "../ui/listsel.js";
 import { marketTradeLog } from "./market.js";
 import { CPU } from "../core/cpucost.js";
@@ -30,7 +30,7 @@ class WharfMixin {
       if (sel !== 0xff) si = await [() => this.departWrap(), () => this.supply(), () => this.dock()][sel]();
     } while (sel !== 0xff && !si);
   }
-  // 28741: 夜間 (時刻 ≤ 0x12 或 ≥ 0x36) random(3)=0 且港口所屬國與主角艦隊國家敵對時, 站立行人 4..7 改成衛兵站在入口旁
+  // 28741: 夜间 (时刻 ≤ 0x12 或 ≥ 0x36) random(3)=0 且港口所属国与主角舰队国家敌对时, 站立行人 4..7 改成卫兵站在入口旁
   guards() {
     const st = this.st, t = this.c.rt.time, nation = st.u8(DS.TBL_PORT + this.port * 0x16 + 0x15) & 7;
     if (!(t <= 0x12 || t >= 0x36)) return;
@@ -45,7 +45,7 @@ class WharfMixin {
       if (i === 2) { st.set8(a, 0xff); st.set8(a + 1, 0xff); }
     }
   }
-  // 28809: 忠誠 (+2b) < 30 的船員 random(4 − (+2f & 3)) = 0 時要求加薪
+  // 28809: 忠诚 (+2b) < 30 的船员 random(4 − (+2f & 3)) = 0 时要求加薪
   async crewDemands() {
     const st = this.st, { message, menu, sys } = this.c;
     const n = this.crewList();
@@ -67,13 +67,13 @@ class WharfMixin {
       }
     }
   }
-  // 2858b 船員離開艦隊, 留在本港
+  // 2858b 船员离开舰队, 留在本港
   dismissMate(n) {
     const st = this.st;
     for (let i = 0; i < 0x1e; i++) if (st.u8(DS.PARTY_CREW + i) === n) { st.set8(DS.PARTY_CREW + i, 0xff); st.set8(0x2e39 + i, 0); break; }
     const P = st.personRecord(n); st.set8(P + 0x2e, 0); st.set8(P + 0x2c, 0xff); st.set8(P + 0x2d, this.port);
   }
-  // 286ac 港 100..129 (補給港): MENU #57 出航 / 補給 / 命名
+  // 286ac 港 100..129 (补给港): MENU #57 出航 / 补给 / 命名
   async supplyPort() {
     const items = this.c.menuItems(57);
     if (this.noEvent()) this.greet(0x38);
@@ -83,8 +83,8 @@ class WharfMixin {
       if (sel !== 0xff) si = await [() => this.departWrap(), () => this.supply(), () => this.namePort()][sel]();
     } while (sel !== 0xff && !si);
   }
-  // ---------- 船隻資料 (造船廠與船塢共用) ----------
-  // ================= 碼頭 船塢 284ab =================
+  // ---------- 船只数据 (造船厂与船坞共用) ----------
+  // ================= 码头 船坞 284ab =================
   async dock() {
     const { palette, win, con, menu, message } = this.c;
     palette.setTarget(palette.table("ships")); await palette.fadeToTarget();
@@ -107,7 +107,7 @@ class WharfMixin {
     this.greet(0x38);
     return 0;
   }
-  // 27fd5 本港船塢的船 → b06a[0..b066), 再補空船塢位到 b068 (最多 5)
+  // 27fd5 本港船坞的船 → b06a[0..b066), 再补空船坞位到 b068 (最多 5)
   dockScan() {
     const st = this.st;
     this.b062 = this.fleetShips();
@@ -121,7 +121,7 @@ class WharfMixin {
     this.c.scr.fillCols(0x3e, 0xc8, 0x10, 0x50, 7);
     this.dockList();
   }
-  // 27f34 船塢列表與點擊區
+  // 27f34 船坞列表与点击区
   dockList() {
     const st = this.st, { con, printf, menu } = this.c, R = menu.rects;
     con.left = 0x3e; con.right = 0x4d; con.puts(this.SY.dockColor);
@@ -135,7 +135,7 @@ class WharfMixin {
     }
     R[i] = { x0: 0x1e0, x1: 0x280, y0: 0xa0, y1: 0x128 };
   }
-  // 280ce 保管: 艦隊船 → 第一個空船塢位
+  // 280ce 保管: 舰队船 → 第一个空船坞位
   async dockKeep() {
     const st = this.st, { message, menu } = this.c, list = this.listSel();
     if (!this.b062) return;
@@ -159,7 +159,7 @@ class WharfMixin {
       return;
     }
   }
-  // 2820d 配備: 船塢船 → 第一個空艦隊位
+  // 2820d 配备: 船坞船 → 第一个空舰队位
   async dockTake() {
     const st = this.st, { message, menu } = this.c;
     this.dockList();
@@ -184,7 +184,7 @@ class WharfMixin {
       return;
     }
   }
-  // 2834f 交換: 艦隊船 ↔ 船塢船
+  // 2834f 交换: 舰队船 ↔ 船坞船
   async dockSwap() {
     const st = this.st, { menu } = this.c, list = this.listSel();
     if (!this.b062) return;
@@ -214,7 +214,7 @@ class WharfMixin {
       return;
     }
   }
-  // 1fd9:85d9 (285d9) 補給港命名: 回傳值決定補給港選單是否結束 (取消 → 港名位址 ≠ 0; 完成 → 0fea:490b 的 AX)
+  // 1fd9:85d9 (285d9) 补给港命名: 返回值决定补给港菜单是否结束 (取消 → 港名地址 ≠ 0; 完成 → 0fea:490b 的 AX)
   async namePort() {
     const st = this.st, { win, sys } = this.c, R = a => DS.TBL_PORT + a * 0x16 + 4, me = R(this.port);
     const old = st.cstr(me).slice();
@@ -234,7 +234,7 @@ class WharfMixin {
     if (dup) { restore(); this.greet(0x39f); }
     else this.greet(0x3a0, this.dstr(me));
     await this.wait();
-    // 0fea:490b 最後是 seg0:4ecf: 有滑鼠時 AX = 顯示計數舊值 (≠0) 或 3 (INT 33h fn 3); 沒有滑鼠時 AX = 131e3 的 0
+    // 0fea:490b 最后是 seg0:4ecf: 有鼠标时 AX = 显示计数旧值 (≠0) 或 3 (INT 33h fn 3); 没有鼠标时 AX = 131e3 的 0
     return sys.mouse.present ? 1 : 0;
   }
   // 27a63
@@ -244,9 +244,9 @@ class WharfMixin {
     if (!r) await this.p.interior(3);
     return r;
   }
-  // seg0:2260 清除畫面 (欄 12..59, y 8..391): 16 步, 偶數行由每 16 像素組的第 7 像素往左、奇數行由第 8 像素往右逐點清成 0
-  //   網頁版: 原版這 16 步之間沒有計時等待, 靠慢 CPU 逐步呈現 (約 0.3 秒, 記帳表 Buildings.wipe); 整段耗時已在呼叫時記帳,
-  //   這裡把每步畫完的畫面依比例排在虛擬時間上 (CPU.hold) 讓瀏覽器逐步顯示。不改畫面內容, 測試模式 (capture = null) 不受影響
+  // seg0:2260 清除画面 (栏 12..59, y 8..391): 16 步, 偶数行由每 16 像素组的第 7 像素往左、奇数行由第 8 像素往右逐点清成 0
+  //   网页版: 原版这 16 步之间没有计时等待, 靠慢 CPU 逐步呈现 (约 0.3 秒, 记帐表 Buildings.wipe); 整段耗时已在调用时记帐,
+  //   这里把每步画完的画面依比例排在虚拟时间上 (CPU.hold) 让浏览器逐步显示。不改画面内容, 测试模式 (capture = null) 不受影响
   wipe() {
     const fb = this.c.scr.fb;
     const total = CPU.active && CPU.khz ? WIPE_CYC / (CPU.khz * (1 - CPU.irqLoad)) : 0, t0 = CPU.v - total;
@@ -265,8 +265,8 @@ class WharfMixin {
     }
     this.c.scr.dirty = true;
   }
-  // 27802 出航: 艦隊資料表 → 補給天數 → 是/否
-  //   積載率 = 5d36 × 100 (imul cx → DX:AX 32 位元) / 船 +14 (cwd) 經 seg0:38ba 無號長整數除法 (2793a..2793e); 不是 16 位元截斷
+  // 27802 出航: 舰队数据表 → 补给天数 → 是/否
+  //   积载率 = 5d36 × 100 (imul cx → DX:AX 32 比特) / 船 +14 (cwd) 经 seg0:38ba 无号长整数除法 (2793a..2793e); 不是 16 比特截断
   async depart() {
     const st = this.st, { con, printf, message, menu, palette, scr } = this.c, anim = st.u8(DS.OPTIONS) & 1;
     const n = this.fleetShips(), L = this.c.persons.slice(0, n);
@@ -294,8 +294,8 @@ class WharfMixin {
     const ok = await menu.yesNo();
     await this.closeTalk();
     if (!ok) return 0;
-    // 27a0c 出港: 0fea:e3e5 記錄 (種類 1, +4 天數, +6 港口) → [2e18] = 0 (出港天數), 方位 = 8 (停船) → 4fe3 清滑鼠移動量 → [1005] &= DF
-    //   → 0fea:9348 / 9401 (扣一天的糧食與水) → 851f 進入海上 → [0caf] = FF, 回傳 1 (碼頭選單結束)
+    // 27a0c 出港: 0fea:e3e5 记录 (种类 1, +4 天数, +6 港口) → [2e18] = 0 (出港天数), 方位 = 8 (停船) → 4fe3 清鼠标移动量 → [1005] &= DF
+    //   → 0fea:9348 / 9401 (扣一天的粮食与水) → 851f 进入海上 → [0caf] = FF, 返回 1 (码头菜单结束)
     marketTradeLog(st, this.c.rt, 1, days, 0, 0, this.port);
     st.set8(DS.DAYS_AT_SEA, 0);
     const sea = this.p;
@@ -307,7 +307,7 @@ class WharfMixin {
     st.set8(DS.LAST_PORT, 0xff);
     return 1;
   }
-  // 27e31 補給
+  // 27e31 补给
   async supply() {
     const st = this.st, { con, menu } = this.c, labels = [this.WF.load, this.WF.unload];
     const n = this.fleetShips();
@@ -331,7 +331,7 @@ class WharfMixin {
     this.greet(0x38);
     return 0;
   }
-  // 27d00 補給表與點擊區 (每船 4 格 + 裝上/卸下切換鈕 4 個相同區域 + 取消區)
+  // 27d00 补给表与点击区 (每船 4 格 + 装上/卸下切换钮 4 个相同区域 + 取消区)
   supplyTable() {
     const st = this.st, { con, printf, menu } = this.c, R = menu.rects;
     const n = this.fleetShips();
@@ -346,7 +346,7 @@ class WharfMixin {
     for (let k = 0; k < 4; k++) R[menu.count++] = { x0: 0x80, x1: 0xc0, y0: 0x30, y1: 0x40 };
     R[menu.count] = { x0: 0x68, x1: 0x1d8, y0: 0x20, y1: n * 0x18 + 0x20 };
   }
-  // 27a83 裝上 (0 水 1 食物 2 資材 3 砲彈)
+  // 27a83 装上 (0 水 1 食物 2 资材 3 砲弹)
   async load(slot, item) {
     const st = this.st, { message, win } = this.c, M = this.crewData(slot), E = this.eco;
     let space = domS16(st.u16(this.shipOf(slot) + 0x14) - this.cargoUsed(slot)), price = 0;

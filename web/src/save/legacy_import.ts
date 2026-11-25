@@ -1,6 +1,6 @@
-// save/legacy_import.ts — 原版 KOUKAI2.DAT 只讀解析與匯入器
-// 只讀：將舊版二進位 KOUKAI2.DAT (328,991 bytes, 10 格) 轉換為現代 uw2-save-v2 JSON 存檔包；
-// 之後所有的寫入與匯出全部採用現代 JSON 格式，不再寫回二進位 KOUKAI2.DAT。
+// save/legacy_import.ts — 原版 KOUKAI2.DAT 只读解析与导入器
+// 只读：将旧版二进位 KOUKAI2.DAT (328,991 bytes, 10 格) 转换为现代 uw2-save-v2 JSON 存盘包；
+// 之后所有的写入与导出全部采用现代 JSON 格式，不再写回二进位 KOUKAI2.DAT。
 import { createEmptyBundleV2, createSaveSlotV2, SAVE_SLOTS_COUNT } from "./format.ts";
 import type { SaveBundleV2 } from "./format.ts";
 
@@ -18,13 +18,13 @@ export interface LegacySlotHeaderInfo {
   flag: number;
 }
 
-/** 檢查緩衝區是否為合法的原版 KOUKAI2.DAT 大小 */
+/** 检查缓冲区是否为合法的原版 KOUKAI2.DAT 大小 */
 export function isLegacyKoukaiDat(data: Uint8Array | ArrayBuffer): boolean {
   const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
   return bytes.length === LEGACY_FILE_SIZE;
 }
 
-/** 僅解析原版 10 格標頭摘要 (不解碼整份狀態，適合快速預覽) */
+/** 仅解析原版 10 格头部摘要 (不解码整份状态，适合快速预览) */
 export function parseLegacyHeaders(data: Uint8Array | ArrayBuffer): LegacySlotHeaderInfo[] {
   const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
   if (bytes.length < LEGACY_SLOT_OFF) throw new Error(`KOUKAI2.DAT 檔案過短 (${bytes.length} bytes)`);
@@ -45,9 +45,9 @@ export function parseLegacyHeaders(data: Uint8Array | ArrayBuffer): LegacySlotHe
 }
 
 /**
- * 只讀匯入原版 KOUKAI2.DAT → 現代 SaveBundleV2
- * - 每個已佔用槽位都會轉成具名 uw2-save-v2 存檔並附帶摘要
- * - 空白槽位維持 null
+ * 只读导入原版 KOUKAI2.DAT → 现代 SaveBundleV2
+ * - 每个已占用槽位都会转成具名 uw2-save-v2 存盘并附带摘要
+ * - 空白槽位维持 null
  */
 export function importLegacySave(
   data: Uint8Array | ArrayBuffer,

@@ -1,7 +1,7 @@
-// savefile.js — 存檔介面 (階段 3: 瀏覽器端改以現代 uw2-save-v2 JSON 儲存，只讀匯入原版 KOUKAI2.DAT)
-//   - 瀏覽器執行 (提供 schema + codec): 由 SaveStore (localStorage "uw2.saves.v2") 驅動，
-//     首次啟動若偵測到舊版 localStorage 或 assets/save/KOUKAI2.DAT 則自動只讀遷移為 JSON。
-//   - 差分回歸測試 (直接 new SaveFile(bytes) 或不傳 schema/codec): 維持原版記憶體緩衝，確保 100% 相容。
+// savefile.js — 存盘界面 (阶段 3: 浏览器端改以现代 uw2-save-v2 JSON 保存，只读导入原版 KOUKAI2.DAT)
+//   - 浏览器运行 (提供 schema + codec): 由 SaveStore (localStorage "uw2.saves.v2") 驱动，
+//     首次启动若侦测到旧版 localStorage 或 assets/save/KOUKAI2.DAT 则自动只读迁移为 JSON。
+//   - 差分回归测试 (直接 new SaveFile(bytes) 或不传 schema/codec): 维持原版内存缓冲，确保 100% 兼容。
 import { STATE_SIZE } from "./state.js";
 import { SaveStore } from "../save/store.ts";
 
@@ -31,7 +31,7 @@ export class SaveFile {
     try {
       const r = await fetch(ASSETS + "/save/KOUKAI2.DAT");
       if (r.ok) { const f = new SaveFile(new Uint8Array(await r.arrayBuffer())); f.flush(); return f; }
-    } catch (e) { /* 無檔 */ }
+    } catch (e) { /* 无档 */ }
     return SaveFile.create(initState);
   }
 
@@ -44,7 +44,7 @@ export class SaveFile {
 
   flush() {
     if (this.store) { this.store.persist(); return; }
-    try { localStorage.setItem(KEY, toB64(this.b)); } catch (e) { /* 配額不足等: 僅保留於記憶體 */ }
+    try { localStorage.setItem(KEY, toB64(this.b)); } catch (e) { /* 配额不足等: 仅保留于内存 */ }
   }
 
   headers() {

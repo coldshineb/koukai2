@@ -1,12 +1,12 @@
-// listsel.js — 清單選擇元件 (MAIN.EXE 0fea:5bd0 = 線性 15a70 及其子函式 14d36 / 14de7 / 14e9b / 153aa / 153f3 / 155f4 / 158c4 / 15946)
-// 呼叫: select(al, count) — al 低 6 位 = 種類 k, bit7 = 結束後關閉清單視窗本身 (796d), bit6 = 回傳 persons[i] 而非索引 i
-//       項目值放在 ctx.persons ([0538] 字陣列)。Esc / 點在清單外 = -1。
-//       (筆記裡的「種類 0x85 / 0x8c / 0x89」= 種類 5 / 12 / 9 加 bit7)
-// 參數表 DS:10a8 + 10×k = {col, y, 寬, 可見列數, 捲動起點} 位於遊戲狀態內 (隨存檔保存); 拖曳標題列會改寫 col / y。
-// 列格式化函式 DS:a1d8[k] (far 指標, AX = 項目值, 回傳已輸出字數)。
-// 沿用選單引擎的狀態: cur=a160 prev=a15a count=a158 mouseFlag=a14e hit=a150 bracket=a162 rects=bdcc
+// listsel.js — 清单选择组件 (MAIN.EXE 0fea:5bd0 = 线性 15a70 及其子函数 14d36 / 14de7 / 14e9b / 153aa / 153f3 / 155f4 / 158c4 / 15946)
+// 调用: select(al, count) — al 低 6 位 = 种类 k, bit7 = 结束后关闭清单窗口本身 (796d), bit6 = 返回 persons[i] 而非索引 i
+//       项目值放在 ctx.persons ([0538] 字数组)。Esc / 点在清单外 = -1。
+//       (笔记里的「种类 0x85 / 0x8c / 0x89」= 种类 5 / 12 / 9 加 bit7)
+// 参数表 DS:10a8 + 10×k = {col, y, 宽, 可见列数, 滚动起点} 位于游戏状态内 (随存盘保存); 拖拽标题列会改写 col / y。
+// 列格式化函数 DS:a1d8[k] (far 指针, AX = 项目值, 返回已输出字数)。
+// 沿用菜单引擎的状态: cur=a160 prev=a15a count=a158 mouseFlag=a14e hit=a150 bracket=a162 rects=bdcc
 
-const lsUmin = (a, b) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);   // seg0:4d7c (無號)
+const lsUmin = (a, b) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);   // seg0:4d7c (无号)
 const lsDiv = (a, b) => Math.trunc(a / b);                                          // idiv
 const lsS16 = v => (v << 16) >> 16;
 const lsHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
@@ -16,17 +16,17 @@ const B_ESCB7 = lsHex("1b4237");                  // DS:a235
 const SPACE = lsHex("20");                        // DS:a1bb
 const FMT_SHIPROW = lsHex("2534642f253464");      // DS:a1bd "%4d/%4d"
 const FMT_PERSONROW = lsHex("257381352573");    // DS:a1a6 "%s　%s"
-const FMT_SHIPROW0 = lsHex("2573a3bf");          // DS:a17e "%s號"
+const FMT_SHIPROW0 = lsHex("2573a3bf");          // DS:a17e "%s号"
 const CREW_CAPTAIN = lsHex("1b4336");             // DS:a1ad
 const CREW_NORMAL = lsHex("1b4330");              // DS:a1b1 / a1b7
-const MARK_EQUIP = lsHex("2a");                   // DS:a1cf "*" 已裝備
+const MARK_EQUIP = lsHex("2a");                   // DS:a1cf "*" 已装备
 const MARK_NONE = lsHex("20");                    // DS:a1d1 " "
 
 export class ListSelect {
   constructor(ctx) { this.c = ctx; this.k = 0; this.total = 0; this.titles = null; }
   get st() { return this.c.state; }
   get m() { return this.c.menu; }
-  // ---- 參數表 DS:10a8 ----
+  // ---- 参数表 DS:10a8 ----
   pa(i) { return 0x10a8 + this.k * 10 + i * 2; }
   get col() { return lsS16(this.st.u16(this.pa(0))); } set col(v) { this.st.set16(this.pa(0), v); }
   get y() { return lsS16(this.st.u16(this.pa(1))); } set y(v) { this.st.set16(this.pa(1), v); }
@@ -39,7 +39,7 @@ export class ListSelect {
     const { sys, win } = this.c, m = this.m;
     this.total = count; m.cur = 0;                                     // [bcd2], [a160]
     this.k = al & 0x3f;
-    // 種類 0x12 原版先開啟 COLONY.DAT (2e09:66d1), 結束後關閉; 移植版改讀 assets/text/colony.json
+    // 种类 0x12 原版先打开 COLONY.DAT (2e09:66d1), 结束后关闭; 移植版改读 assets/text/colony.json
     sys.mouseHide(); this.drawFrame(); sys.mouseShow();
     const x0 = (this.col + 1) << 3;
     let y = this.y + 0x20;
@@ -51,13 +51,13 @@ export class ListSelect {
     if ((al & 0x40) && r !== -1) r = this.c.persons[r];
     return r;
   }
-  // 14e9b 外框、捲軸槽、標題
+  // 14e9b 外框、滚动条槽、标题
   drawFrame() {
     const { win, scr, con, gfx } = this.c;
     const X = this.col, Y = this.y, H = (this.vis << 4) + 0x28;
     let W2 = this.w + 4;
     win.save(X, Y, W2, H);
-    con.left = X + 1; con.right = W2 + X;                              // [8a20] = col+1, [8a22] = 寬+4+col
+    con.left = X + 1; con.right = W2 + X;                              // [8a20] = col+1, [8a22] = 宽+4+col
     W2 -= 2;
     this.track = H - 0x3a;                                             // [bda4]
     this.thumb = this.vis >= this.total ? this.track : (lsDiv(this.vis * this.track, this.total) || 1);   // [bd86]
@@ -84,11 +84,11 @@ export class ListSelect {
     for (let t = 0; t < H - 0x38; t += 8) { put(W2 + X, Y + t + 0x28, 0x3b60); put(W2 + X + 1, Y + t + 0x28, 0x3b80); }
     scr.putPlanar(W2 + X, Y + 0x18, 2, 16, gfx, 0x3ba0);
     scr.putPlanar(W2 + X, H + Y - 0x10, 2, 16, gfx, 0x3c20);
-    const title = (this.titles ??= this.c.menuItems(0x2f))[this.k];    // MENU.DAT 第 0x2f 條 (2e09:5700)
+    const title = (this.titles ??= this.c.menuItems(0x2f))[this.k];    // MENU.DAT 第 0x2f 条 (2e09:5700)
     con.setCursor((((W2 - lsStrlen(title) + 2) & 0xffff) >>> 1) + X, Y + 4);
     this.c.printf(FMT_TITLE, title);
   }
-  // 14d36 捲軸滑塊 (1fd9:2261 = 只寫平面 0..2 的像素矩形)
+  // 14d36 滚动条滑块 (1fd9:2261 = 只写平面 0..2 的像素矩形)
   scrollbar() {
     const { sys, scr } = this.c, x0 = this.sbx + 5, x1 = this.sbx + 0x0a, T = this.sby;
     sys.mouseHide();
@@ -120,26 +120,26 @@ export class ListSelect {
       case 0: return this.fmtShipName(v);
       case 1: return this.fmtGoodsTotal(v);
       case 6: return this.fmtPerson(v);
-      case 3: case 12: return this.fmtPerson(v);         // 1497e (DS:a190 與 a1a6 同為「%s•%s」; 戰鬥對象 / 交涉對象 = 艦隊指揮者)
+      case 3: case 12: return this.fmtPerson(v);         // 1497e (DS:a190 与 a1a6 同为「%s•%s」; 战斗对象 / 交涉对象 = 舰队指挥者)
       case 2: { const s = this.st.cstr(ListSelect.shipRec(this.st.u8(ListSelect.fleetSlot(this.st, v) + 7))); this.c.con.puts(s); return lsStrlen(s); }   // 14954 船名
       case 5: { const s = this.st.cstr(0x5f54 + (((v & 0xff) * 0x16) & 0xffff) + 4); this.c.con.puts(s); return lsStrlen(s); }   // 14a3a 港口名 (seg0:5c9a(al) + 4; 委任目的地)
       case 4: return this.fmtCapacity(v);
       case 7: return this.fmtShip(v);
       case 9: return this.fmtCrew(v);
-      case 8: { const s = (this.cats ??= this.c.portAssets.data.market.cats.map(lsHex))[v & 0xffff]; this.c.con.puts(s); return lsStrlen(s); }   // 14c4b DS:078e 分類
+      case 8: { const s = (this.cats ??= this.c.portAssets.data.market.cats.map(lsHex))[v & 0xffff]; this.c.con.puts(s); return lsStrlen(s); }   // 14c4b DS:078e 分类
       case 10: return this.fmtRepair(v);
       case 11: return this.fmtWater(v);
       case 13: return this.fmtItem(v);
-      case 14: { const s = this.st.cstr(ListSelect.shipRec(v)); this.c.con.puts(s); return lsStrlen(s); }   // 14930 船記錄名 (造船清單: 樣板船 0x28+船型)
-      case 15: return this.fmtTable("materials", v);    // 14c96 DS:0930[v] 材質
+      case 14: { const s = this.st.cstr(ListSelect.shipRec(v)); this.c.con.puts(s); return lsStrlen(s); }   // 14930 船记录名 (造船清单: 样板船 0x28+船型)
+      case 15: return this.fmtTable("materials", v);    // 14c96 DS:0930[v] 材质
       case 16: return this.fmtTable("figureheads", v);  // 14cb3 DS:093c[v] 船首像
       case 17: return this.fmtTable("cannons", v);      // 14cd0 DS:07cc[v] 砲
       case 18: return this.fmtDisc(v);
-      case 20: this.c.message(0x1d1 + (v & 0xffff)); return 10;   // 14d28 地區名 (MESSAGE 0x1d1 + v; 回傳固定 10, 王宮 勢力狀況)
+      case 20: this.c.message(0x1d1 + (v & 0xffff)); return 10;   // 14d28 地区名 (MESSAGE 0x1d1 + v; 返回固定 10, 王宫 势力状况)
       default: console.warn("尚未移植: 清單列格式 " + this.k); return 0;
     }
   }
-  // 種類 15..17: 指標表字串 (port.json build.*, tools/extract_port.py)
+  // 种类 15..17: 指针表字符串 (port.json build.*, tools/extract_port.py)
   fmtTable(name, v) {
     const T = (this.tables ??= {})[name] ??= this.c.portAssets.data.build[name].map(lsHex);
     const s = T[v & 0xffff];
@@ -147,7 +147,7 @@ export class ListSelect {
     this.c.con.puts(s);
     return lsStrlen(s);
   }
-  // 14a87 種類 9: 船員「名 (補空白到 15) 船名或職務」; 擔任艦隊船長的以顏色 6 顯示 (DS:a1ad / a1b1 / a1b5 / a1b7)
+  // 14a87 种类 9: 船员「名 (补空白到 15) 船名或职务」; 担任舰队船长的以颜色 6 显示 (DS:a1ad / a1b1 / a1b5 / a1b7)
   fmtCrew(n) {
     const st = this.st, con = this.c.con, P = st.personRecord(n & 0xff);
     let slot = 0xff;
@@ -162,13 +162,13 @@ export class ListSelect {
     con.puts(CREW_NORMAL);
     return si;
   }
-  // 149f4 種類 4: 「船名 尚可裝載量」 (DS:a19d "%15s %5d"; 已用載貨 seg0:5d36)
+  // 149f4 种类 4: 「船名 尚可装载量」 (DS:a19d "%15s %5d"; 已用载货 seg0:5d36)
   fmtCapacity(slot) {
     const st = this.st, S = ListSelect.fleetSlot(st, slot), ship = ListSelect.shipRec(st.u8(S + 7));
     this.c.printf(this.capFmt ??= lsHex(this.c.portAssets.data.market.fmt.listCap), st.cstr(ship), lsS16(st.u16(ship + 0x14) - this.c.cargoUsed(slot)));
     return 0x15;
   }
-  // 148c1 種類 0x0a: 船名 (上陸 修理 3453b; 耐久 < 最大、轉向 < 船型 +2 或推進 < 船型 +3 時以 DS:a183 顏色 2), DS:a187「%s？」, DS:a18c 顏色 0; 回傳 名稱長 + 2
+  // 148c1 种类 0x0a: 船名 (上陆 修理 3453b; 耐久 < 最大、转向 < 船型 +2 或推进 < 船型 +3 时以 DS:a183 颜色 2), DS:a187「%s？」, DS:a18c 颜色 0; 返回 名称长 + 2
   fmtRepair(slot) {
     const st = this.st, S = ListSelect.fleetSlot(st, slot), ship = ListSelect.shipRec(st.u8(S + 7)), T = 0x5e28 + st.u8(ship + 0x0f) * 0x0c;
     const s = (this.seaStr ??= Object.fromEntries(Object.entries(this.c.portAssets.sea.str).map(([k, h]) => [k, lsHex(h)])));
@@ -177,7 +177,7 @@ export class ListSelect {
     this.c.con.puts(s.lsColor0);
     return lsStrlen(st.cstr(ship)) + 2;
   }
-  // 14bc1 種類 0x0b: 船名 (艦隊船位 [c2d4] + 2b + 9×n, 不經 5c58) 以 DS:a1c5 補到 0x11 字, DS:a1c7「%4d/%4d」= 水 / 10、水 / 10 + 尚可裝載量; 回傳 0x1a (上陸 補水 345b2)
+  // 14bc1 种类 0x0b: 船名 (舰队船位 [c2d4] + 2b + 9×n, 不经 5c58) 以 DS:a1c5 补到 0x11 字, DS:a1c7「%4d/%4d」= 水 / 10、水 / 10 + 尚可装载量; 返回 0x1a (上陆 补水 345b2)
   fmtWater(slot) {
     const st = this.st, con = this.c.con, M = 0x52d4 + (slot & 0xff) * 0x1e;
     const S = (0x2e76 + st.u8(st.personRecord(st.hero) + 0x2c) * 0x85 + 0x2b + Math.imul(9, lsS16(slot))) & 0xffff, ship = ListSelect.shipRec(st.u8(S + 7));
@@ -188,17 +188,17 @@ export class ListSelect {
     this.c.printf(s.lsWater, w, lsS16(w + free));
     return 0x1a;
   }
-  // 14c68 種類 0x0d: 隨身物 (DS:8248 + 0x14×n), 已裝備 (+13 bit4) 前面加「*」
+  // 14c68 种类 0x0d: 随身物 (DS:8248 + 0x14×n), 已装备 (+13 bit4) 前面加「*」
   fmtItem(n) {
     const st = this.st, R = 0x8248 + (n & 0xff) * 0x14, name = st.cstr(R);
     this.c.con.puts(st.u8(R + 0x13) & 0x10 ? MARK_EQUIP : MARK_NONE); this.c.con.puts(name);
     return lsStrlen(name) + 1;
   }
-  // 14ced 種類 0x12: 發現物名 (COLONY.DAT 第 n 筆, 2e09:66f3)
+  // 14ced 种类 0x12: 发现物名 (COLONY.DAT 第 n 笔, 2e09:66f3)
   fmtDisc(n) { const r = ListSelect.colonyRec(this.c, n & 0xffff); this.c.con.puts(r); return lsStrlen(r); }
-  // COLONY.DAT 第 n 筆 (0xb1 bytes: +00 名稱, +0f 圖號, +10 說明), 由 colony.json 編碼回原版位元組
+  // COLONY.DAT 第 n 笔 (0xb1 bytes: +00 名称, +0f 图号, +10 说明), 由 colony.json 编码回原版字节
   static colonyRec(c, n) { return ((c._colony ??= [])[n] ??= c.font.encode(c.portAssets.colony[n])); }
-  // 149b0 種類 1: 商品名 (DS:0728, 以 DS:a197 空白補到 11 字) + 「%6d」(DS:a199) 總數 [0538 + 0x32×2 + 商品×2] (積載一覽表 1cf02)
+  // 149b0 种类 1: 商品名 (DS:0728, 以 DS:a197 空白补到 11 字) + 「%6d」(DS:a199) 总数 [0538 + 0x32×2 + 商品×2] (积载一览表 1cf02)
   fmtGoodsTotal(g) {
     const name = (this.goods ??= this.c.portAssets.data.goods.map(lsHex))[g & 0xffff], con = this.c.con;
     con.puts(name);
@@ -206,19 +206,19 @@ export class ListSelect {
     this.c.printf(lsHex("253664"), this.c.persons[0x32 + (g & 0xffff)]);
     return 0x11;
   }
-  // 14890 種類 0: 「船名號」
+  // 14890 种类 0: 「船名号」
   fmtShipName(slot) {
     const st = this.st, ship = ListSelect.shipRec(st.u8(ListSelect.fleetSlot(st, slot) + 7));
     this.c.printf(FMT_SHIPROW0, st.cstr(ship));
     return lsStrlen(st.cstr(ship)) + 2;
   }
-  // 14a55 種類 6: 人物 「名　姓」
+  // 14a55 种类 6: 人物 「名　姓」
   fmtPerson(n) {
     const st = this.st, P = st.personRecord(n & 0xff);
     this.c.printf(FMT_PERSONROW, st.cstr(P), st.cstr(P + 0x0d));
     return lsStrlen(st.cstr(P + 0x0d)) + lsStrlen(st.cstr(P)) + 2;
   }
-  // 14b5c 種類 7: 艦隊船隻 「船名 (補空白到 17) 水手/最多水手」
+  // 14b5c 种类 7: 舰队船只 「船名 (补空白到 17) 水手/最多水手」
   fmtShip(slot) {
     const st = this.st, { con, printf } = this.c;
     const S = ListSelect.fleetSlot(st, slot), ship = 0x5892 + st.u8(S + 7) * 0x16;
@@ -228,17 +228,17 @@ export class ListSelect {
     printf(FMT_SHIPROW, lsS16(st.u16(S)), lsS16(st.u16(ship + 0x12)));
     return 0x1a;
   }
-  // seg0:5c58: 0..9 = 主角艦隊 ([c2d4] = 0x2e76 + 艦隊編號×0x85) 第 slot 艘船, 10..39 = 各港船塢 (DS:572a + 9×slot) (+0 水手數, +7 船編號, +8 bit4-5 = 1 有船)
-  static fleetSlot(st, slot) { return slot < 10 ? 0x2e76 + st.u8(st.personRecord(st.hero) + 0x2c) * 0x85 + 0x2b + slot * 9 : 0x572a + slot * 9; }   // 10..39 = 船塢
+  // seg0:5c58: 0..9 = 主角舰队 ([c2d4] = 0x2e76 + 舰队编号×0x85) 第 slot 艘船, 10..39 = 各港船坞 (DS:572a + 9×slot) (+0 水手数, +7 船编号, +8 bit4-5 = 1 有船)
+  static fleetSlot(st, slot) { return slot < 10 ? 0x2e76 + st.u8(st.personRecord(st.hero) + 0x2c) * 0x85 + 0x2b + slot * 9 : 0x572a + slot * 9; }   // 10..39 = 船坞
   static shipRec(n) { return 0x5892 + n * 0x16; }                                    // seg0:5c7a
-  // 153aa XOR 外框 (拖曳時)
+  // 153aa XOR 外框 (拖拽时)
   xorBox(col, y) {
     const { sys, scr } = this.c;
     sys.mouseHide();
     scr.xorRect(col << 3, y, ((col + this.w) << 3) + 0x1f, (this.vis << 4) + y + 0x27, 0x0f);
     sys.mouseShow();
   }
-  // 153f3 拖曳標題列移動整個清單
+  // 153f3 拖拽标题列移动整个清单
   async titleDrag(k) {
     const { sys, win } = this.c, m = this.m;
     if (!m.mouseFlag || k !== 0x0d) return k;
@@ -268,7 +268,7 @@ export class ListSelect {
     this.rows();
     return 0;
   }
-  // 155f4 捲軸 / 捲動鍵
+  // 155f4 滚动条 / 滚动键
   async scroll(k) {
     const { sys } = this.c, m = this.m;
     if (m.mouseFlag && k === 0x0d) {
@@ -315,7 +315,7 @@ export class ListSelect {
     if (k !== 0x0d && k !== 0x1b) k = 0;
     return k;
   }
-  // 158c4 取得按鍵
+  // 158c4 取得按键
   async getKey() {
     const { sys } = this.c, m = this.m;
     m.lastX = m.lastY = -1;
@@ -336,7 +336,7 @@ export class ListSelect {
       await sys.poll();
     }
   }
-  // 15946 選擇迴圈
+  // 15946 选择循环
   async loop() {
     const { sys, con } = this.c, m = this.m;
     this.scrollbar();
