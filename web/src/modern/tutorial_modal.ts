@@ -78,7 +78,11 @@ export async function openTutorialModal(): Promise<void> {
 
   modal.body.append(tabBar, content);
 
-  const render = () => {
+  const render = (preserveScroll = false) => {
+    const prevListScroll = preserveScroll
+      ? (content.querySelector<HTMLElement>(".uw2-tut-list")?.scrollTop ?? 0)
+      : 0;
+
     tabBar.innerHTML = "";
     data.categories.forEach((cat, idx) => {
       const btn = document.createElement("button");
@@ -86,7 +90,7 @@ export async function openTutorialModal(): Promise<void> {
       btn.textContent = `${TAB_SHORT[cat.id] ?? cat.name} (${cat.entries.length})`;
       btn.addEventListener("click", () => {
         activeTab = idx;
-        render();
+        render(false);
       });
       tabBar.appendChild(btn);
     });
@@ -95,7 +99,7 @@ export async function openTutorialModal(): Promise<void> {
     tipsBtn.textContent = `航海小贴士 (${data.tips.length})`;
     tipsBtn.addEventListener("click", () => {
       activeTab = data.categories.length;
-      render();
+      render(false);
     });
     tabBar.appendChild(tipsBtn);
 
@@ -118,7 +122,7 @@ export async function openTutorialModal(): Promise<void> {
         itemBtn.textContent = `${idx + 1}. ${it.title}`;
         itemBtn.addEventListener("click", () => {
           selectedEntry[activeTab] = idx;
-          render();
+          render(true);
         });
         left.appendChild(itemBtn);
       });
@@ -157,7 +161,7 @@ export async function openTutorialModal(): Promise<void> {
       prevBtn.addEventListener("click", () => {
         if (curIdx > 0) {
           selectedEntry[activeTab] = curIdx - 1;
-          render();
+          render(true);
         }
       });
 
@@ -172,7 +176,7 @@ export async function openTutorialModal(): Promise<void> {
       nextBtn.addEventListener("click", () => {
         if (curIdx < cat.entries.length - 1) {
           selectedEntry[activeTab] = curIdx + 1;
-          render();
+          render(true);
         }
       });
 
@@ -180,6 +184,7 @@ export async function openTutorialModal(): Promise<void> {
       right.append(greet, heading, body, nav);
       split.append(left, right);
       content.appendChild(split);
+      if (preserveScroll) left.scrollTop = prevListScroll;
     } else {
       // 航海小贴士（60 条 + 搜索过滤）
       const searchRow = document.createElement("div");

@@ -14,15 +14,22 @@ import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
 import { drawWideFleetView } from "../canvas_ui/wide_fleet.ts";
 import { drawWideShipInfo, drawWidePersonInfo } from "../canvas_ui/wide_info.ts";
-import { runWideFleetTableSelect, runWidePersonnelSelect, runWideControlsModal, showWideNotice } from "../canvas_ui/wide_manage.ts";
-import { runWideLordInfo, runWideInfoLinesModal, runWideLogBook, runWideWorldChart } from "../canvas_ui/wide_panels.ts";
 import { runDomFleetHub } from "../modern/dom_workbenches.ts";
 import { captureConsoleText, decodeCleanCstr, UI_FONT } from "../canvas_ui/text_util.ts";
-import { hasDom } from "../modern/dom_ui.ts";
+import {
+  hasDom,
+  showWideNotice,
+  runDomFleetTableSelect,
+  runDomPersonnelSelect,
+  runDomControls,
+  runDomLordInfo,
+  runDomInfoLines,
+  runDomLogBook,
+} from "../modern/dom_ui.ts";
 import { runDomSettingsModal } from "../modern/dom_hud.ts";
 import { UI_STR } from "../modern/ui_strings.ts";
 import { runDomPersonInfo, runDomShipInfo } from "../modern/dom_workbenches.ts";
-import { runDomInfoHub, runDomBelongings, runDomFormation, runDomPortMapModal } from "../modern/dom_info_hub.ts";
+import { runDomInfoHub, runDomBelongings, runDomFormation, runDomPortMapModal, runDomWorldChartModal } from "../modern/dom_info_hub.ts";
 
 const cmHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const cmStrlen = s => { let n = 0; while (n < s.length && s[n]) n++; return n; };
@@ -179,7 +186,7 @@ export class Commands {
         case 5: await this.cargoList(); break;
         case 6: await this.discInfos(); break;
         case 7:
-          if (scr.wideRenderer) await runWideWorldChart(this.c, p, this.dec(items[7]));
+          if (scr.wideRenderer) await runDomWorldChartModal(this.c, this.dec(items[7]), p);
           else await p.chart();
           break;
         case 8: await this.logBook(this.dec(items[8])); break;
@@ -552,7 +559,7 @@ export class Commands {
     if (scr.wideRenderer && this.c.codec) {
       const heroP = st.personRecord(st.hero);
       const faceId = st.u8(heroP + 0x1a);
-      await runWideLordInfo(this.c, {
+      await runDomLordInfo({
         title: title || this.cap(() => message(0x38e)),
         portraitUrl: art?.portraitUrl?.(faceId) ?? null,
         moneyLines: [
@@ -608,7 +615,7 @@ export class Commands {
         const g = st.u8(M + OFF.CREW_SLOT.CARGO_GOODS + k); if (g === 0xff) continue;
         lines.push(this.cap(() => message(0x395, this.p.goods[g], st.u16(M + OFF.CREW_SLOT.CARGO_AMTS + 2 * k))));
       }
-      await runWideInfoLinesModal(this.c, title, lines);
+      await runDomInfoLines(title, lines);
       return;
     }
     await win.open(0x0f, 0x20, 0x14, 0x90, 0);
@@ -691,7 +698,7 @@ export class Commands {
         });
         entries.push({ date, text });
       }
-      await runWideLogBook(this.c, title, entries, this.dec(S.logPrev), this.dec(S.logNext));
+      await runDomLogBook(title, entries);
       return;
     }
     win.shadowedSaved(0x0f, 0x20, 0x2a, 0x140, 0);
@@ -925,7 +932,7 @@ export class Commands {
     const st = this.st, b = this.b;
     for (;;) {
       const rows = this.buildFleetRows();
-      const srcIdx = await runWideFleetTableSelect(this.c, { title, rows });
+      const srcIdx = await runDomFleetTableSelect({ title, rows });
       if (srcIdx < 0) return;
       const srcSlot = rows[srcIdx].slot, srcM = b.crewData(srcSlot);
       const entries = [];
@@ -946,7 +953,7 @@ export class Commands {
       const pickItem = await this.c.menu.listMenu(0x20, 0x60, entries.map(e => this.c.font.encode(`${e.label} ${e.have}{00}`)), 1);
       if (pickItem === 0xff || !entries[pickItem]) continue;
       const item = entries[pickItem];
-      const dstIdx = await runWideFleetTableSelect(this.c, { title: `${title} → ${item.label}`, rows });
+      const dstIdx = await runDomFleetTableSelect({ title: `${title} → ${item.label}`, rows });
       if (dstIdx < 0 || dstIdx === srcIdx) continue;
       const dstSlot = rows[dstIdx].slot, dstM = b.crewData(dstSlot);
       const dstCap = st.u16(b.shipOf(dstSlot) + 0x14);
@@ -989,7 +996,7 @@ export class Commands {
     if (scr.wideRenderer && this.c.codec) {
       for (;;) {
         const rows = this.buildFleetRows();
-        const r = await runWideFleetTableSelect(this.c, { title, rows });
+        const r = await runDomFleetTableSelect({ title, rows });
         if (r < 0) { if (await this.heroCaptain()) return; continue; }
         const slot = rows[r].slot;
         const s = await b.listSel().select(0x89, b.captainPool());
@@ -1060,7 +1067,7 @@ export class Commands {
             portraitUrl: face < 0x80 ? art?.portraitUrl?.(face) ?? null : null,
           };
         });
-        const r = await runWidePersonnelSelect(this.c, title, cards);
+        const r = await runDomPersonnelSelect(title, cards);
         if (r < 0) break;
         await this.setPost(r);
       }
@@ -1118,7 +1125,7 @@ export class Commands {
       const restLbl = this.dec(S.slRest);
       for (;;) {
         const rows = this.buildFleetRows();
-        const r = await runWideFleetTableSelect(this.c, { title, badgeText: `${restLbl}: ${this.pool}`, rows });
+        const r = await runDomFleetTableSelect({ title, badgeText: `${restLbl}: ${this.pool}`, rows });
         if (r < 0) {
           if (!this.pool) break;
           scr.wideDialog = { text: this.cap(() => message(0xe7)), portraitId: null, waiting: false };
@@ -1182,7 +1189,7 @@ export class Commands {
     if (scr.wideRenderer && this.c.codec) {
       for (;;) {
         const rows = this.buildFleetRows();
-        const r = await runWideFleetTableSelect(this.c, { title, rows });
+        const r = await runDomFleetTableSelect({ title, rows });
         if (r < 0) return;
         await this.ratio(rows[r].slot, rows[r].name);
       }
@@ -1206,7 +1213,7 @@ export class Commands {
         else if (r <= 3) { const t = [a, rest, b9]; this.ratioStep(r, t); st.set8(M + OFF.CREW_SLOT.NAV_RATIO, t[0]); st.set8(M + OFF.CREW_SLOT.LOOK_RATIO, t[2]); }
         else { const t = [rest, b9, a]; this.ratioStep(r, t); st.set8(M + OFF.CREW_SLOT.NAV_RATIO, t[2]); st.set8(M + OFF.CREW_SLOT.LOOK_RATIO, t[1]); }
       };
-      await runWideControlsModal(this.c, shipName, [
+      await runDomControls(shipName, [
         {
           label: this.dec(S.rDrive), kind: "slider",
           getRatio: () => st.u8(M + OFF.CREW_SLOT.LOOK_RATIO) / 100,
@@ -1279,7 +1286,7 @@ export class Commands {
       for (;;) {
         const rows = this.buildFleetRows({ skipScrapped: true });
         if (!rows.length) break;
-        const r = await runWideFleetTableSelect(this.c, { title, rows });
+        const r = await runDomFleetTableSelect({ title, rows });
         if (r < 0) break;
         await this.scrapShip(rows[r].slot);
       }
@@ -1467,7 +1474,7 @@ export class Commands {
     const st = this.st, { con, menu, win, scr } = this.c;
     if (!this.b.fleetShips()) return;
     if (scr.wideRenderer && this.c.codec) {
-      await runWideControlsModal(this.c, title, [
+      await runDomControls(title, [
         {
           label: this.dec(this.S.water), kind: "slider",
           getRatio: () => st.u8(0x2e19) / 100,
@@ -1611,7 +1618,7 @@ export class Commands {
         const text = this.cap(() => this.b.itemInfo(it, 1));
         const lines = text.split("\n").filter(Boolean);
         const title = this.dec(this.st.cstr(DS.TBL_ITEM + it * 0x14));
-        r = await runWideInfoLinesModal(this.c, title, lines, items.map(x => this.dec(x)));
+        r = await runDomInfoLines(title, lines, items.map(x => this.dec(x)));
       } else {
         await win.open(0x0c, 0x80, 0x30, 0xb0, 1);
         this.b.itemInfo(it, 1);
@@ -1775,7 +1782,7 @@ export class Commands {
     if (scr.wideRenderer && this.c.codec) {
       const onTxt = this.dec(S.on), offTxt = this.dec(S.off);
       const title = this.dec(this.c.menuItems(0x14)[0]);
-      await runWideControlsModal(this.c, title, [
+      await runDomControls(title, [
         {
           label: this.dec(S.optAnim), kind: "toggle",
           getValueText: () => (st.options & 1) ? onTxt : offTxt,

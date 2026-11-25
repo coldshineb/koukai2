@@ -5,7 +5,7 @@ import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
 import { domS16, domUmin16 } from "../domain/economy.ts";
 import { captureConsoleText, decodeCleanCstr } from "../canvas_ui/text_util.ts";
-import { runWideInfoLinesModal } from "../canvas_ui/wide_panels.ts";
+import { runDomInfoLines } from "../modern/dom_ui.ts";
 import { hasDom } from "../modern/dom_ui.ts";
 import { runDomTavernWorkbench } from "../modern/dom_buildings.ts";
 
@@ -414,7 +414,7 @@ class TavernMixin {
       const descLines = [];
       for (let i = 0; i < desc.length; i += 24) descLines.push(desc.slice(i, i + 24));
       const imgUrl = this.c.art?.discoveryUrl?.(rec[0x0f]) ?? null;
-      await runWideInfoLinesModal(this.c, title, [catLine, impLine, "", ...descLines], undefined, imgUrl);
+      await runDomInfoLines(title, [catLine, impLine, "", ...descLines], undefined, imgUrl);
       return;
     }
     await win.open(0x0f, 0x20, 0x1c, 0xd0, 0);                              // seg0:74f7
@@ -448,7 +448,7 @@ class TavernMixin {
         const lines = captureConsoleText(this.c, () => this.itemInfo(it, 0)).split("\n").filter(Boolean);
         const title = decodeCleanCstr(this.c.codec, st.cstr(R));
         const imgUrl = this.c.art?.discoveryUrl?.(st.u8(R + 0x0f) + 0x55) ?? null;
-        if ((await runWideInfoLinesModal(this.c, title, lines, ["是", "否"], imgUrl)) === 0) break;
+        if ((await runDomInfoLines(title, lines, ["是", "否"], imgUrl)) === 0) break;
       } else {
         this.table();                                                        // 0fea:b6bc
         this.itemInfo(it, 0);

@@ -5,8 +5,6 @@
 //   levels[1]=a164.., levels[2]=a170.. {x,y,xmax,ymax}     rects=bdcc (每项 {x0,x1,y0,y1})
 //   lastMouse=bd9a/bd9c
 // 游戏内按键码: 0D 确定, 1B / 30('0') 取消, 1C → 1D ← 1E ↑ 1F ↓, 32/34/36/38 = 数字键 2/4/6/8
-import { createWideMenuState, drawWideMenu, hitWideMenuItem, hitWideMenuBox } from "../canvas_ui/wide_menu.ts";
-import { createWideYesNoState, drawWideYesNo, hitWideYesNo } from "../canvas_ui/wide_yesno.ts";
 import { decodeCleanCstr } from "../canvas_ui/text_util.ts";
 import { hasDom, runDomMenu, runDomYesNo } from "../modern/dom_ui.ts";
 import { runDomBattleMenu, runDomBattleYesNo } from "../modern/dom_battle.ts";
@@ -324,54 +322,8 @@ export class MenuSystem {
       await this.waitRelease();
       return r;
     }
-    const state = createWideMenuState(labels, this.disabled, this.wideAnchorCmd);
-    const drawFn = ctx => drawWideMenu(ctx, state);
-    this.scr.wideOverlays.push(drawFn);
-    this.scr.dirty = true;
-    const findNext = (from, step) => {
-      for (let k = 1; k <= labels.length; k++) {
-        const i = (from + step * k + labels.length) % labels.length;
-        if (!(state.disabledMask & (1 << i))) return i;
-      }
-      return from;
-    };
-    let result = 0xff;
-    try {
-      for (;;) {
-        const vx = this.sys.mouse?.vx ?? -1;
-        const vy = this.sys.mouse?.vy ?? -1;
-        const hov = hitWideMenuItem(state, vx, vy);
-        if (hov >= 0 && !(state.disabledMask & (1 << hov)) && hov !== state.selected) {
-          state.selected = hov;
-          this.scr.dirty = true;
-        }
-        const ev = this.readEvent();
-        if (ev === 0x1e || ev === 0x38) { state.selected = findNext(state.selected, -1); this.scr.dirty = true; }
-        else if (ev === 0x1f || ev === 0x32) { state.selected = findNext(state.selected, 1); this.scr.dirty = true; }
-        else if (ev === 0x1b || ev === 0x30) { if (cancelable) { result = 0xff; break; } }
-        else if (ev === 0x0d) {
-          if (this.mouseFlag) {
-            if (hov >= 0) {
-              if (!(state.disabledMask & (1 << hov))) { result = hov; break; }
-            } else if (!hitWideMenuBox(state, vx, vy) && cancelable) {
-              result = 0xff; break;
-            }
-          } else if (!(state.disabledMask & (1 << state.selected))) {
-            result = state.selected; break;
-          }
-        }
-        await this.sys.poll();
-      }
-    } finally {
-      const idx = this.scr.wideOverlays.indexOf(drawFn);
-      if (idx >= 0) this.scr.wideOverlays.splice(idx, 1);
-      this.scr.dirty = true;
-      await this.waitRelease();
-      this.disabled = 0;
-      this.lineH = 0x10;
-      this.con.bg = 0x0f;
-    }
-    return result;
+    this.disabled = 0; this.lineH = 0x10; this.con.bg = 0x0f;
+    return 0xff;
   }
   // 14411 同上但不保存背景、不关闭
   async listMenuKeep(x, y, table, cancelable) {
@@ -481,42 +433,7 @@ export class MenuSystem {
       await this.waitRelease();
       return r;
     }
-    const state = createWideYesNoState();
-    const drawFn = ctx => drawWideYesNo(ctx, state);
-    this.scr.wideOverlays.push(drawFn);
-    this.scr.dirty = true;
-    let res = 0;
-    try {
-      for (;;) {
-        const vx = this.sys.mouse?.vx ?? -1;
-        const vy = this.sys.mouse?.vy ?? -1;
-        const hov = hitWideYesNo(state, vx, vy);
-        if (hov >= 0 && hov !== state.selected) {
-          state.selected = hov;
-          this.scr.dirty = true;
-        }
-        const ev = this.readEvent();
-        if (ev === 0x1c || ev === 0x1d || ev === 0x34 || ev === 0x36) {
-          state.selected = state.selected === 0 ? 1 : 0;
-          this.scr.dirty = true;
-        } else if (ev === 0x1b || ev === 0x30) {
-          res = 0; break;
-        } else if (ev === 0x0d) {
-          if (this.mouseFlag) {
-            if (hov >= 0) { res = hov === 0 ? 1 : 0; break; }
-          } else {
-            res = state.selected === 0 ? 1 : 0; break;
-          }
-        }
-        await this.sys.poll();
-      }
-    } finally {
-      const idx = this.scr.wideOverlays.indexOf(drawFn);
-      if (idx >= 0) this.scr.wideOverlays.splice(idx, 1);
-      this.scr.dirty = true;
-      await this.waitRelease();
-    }
-    return res;
+    return 0;
   }
   // 13a47 第 2 层绘制: GRAPH.DAT 第 0 张图 (8 色入口 seg0:5a91)
   drawYesNo() {

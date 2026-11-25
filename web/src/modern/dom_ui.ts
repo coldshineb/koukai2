@@ -801,3 +801,36 @@ export function syncDomDialog(
     dialogEl.appendChild(next);
   }
 }
+
+/** 通用底部对话提示（显示文本并等待玩家按键/点击） */
+export async function showWideNotice(ctx: any, text: string, portraitId: number | null = null) {
+  const { scr, menu } = ctx;
+  const prev = scr.wideDialog;
+  scr.wideDialog = { text, portraitId, waiting: false };
+  scr.dirty = true;
+  try {
+    await menu.waitPrompt();
+  } finally {
+    scr.wideDialog = prev;
+    scr.dirty = true;
+  }
+}
+
+/** 舰队经营清单选择 */
+export async function runDomFleetTableSelect(opts: {
+  title: string;
+  badgeText?: string;
+  rows: { name: string; captain: string; crewText: string; loadText: string; speedText: string }[];
+}): Promise<number> {
+  const title = opts.badgeText ? `${opts.title} · ${opts.badgeText}` : opts.title;
+  const rows = opts.rows.map(r => `${r.name}  (${r.captain})  水手 ${r.crewText}  装载 ${r.loadText}  速度 ${r.speedText}kt`);
+  return runDomList(title, rows);
+}
+
+/** 人事变更职位选择 */
+export async function runDomPersonnelSelect(
+  title: string,
+  cards: { roleLabel: string; personName: string }[],
+): Promise<number> {
+  return runDomList(title, cards.map(c => `${c.roleLabel}：${c.personName || "----"}`));
+}

@@ -6,7 +6,6 @@
 import { NameInput } from "../ui/nameinput.js";
 import { DS } from "../model/schema_views.ts";
 import { DiscoveryFlag, FleetFlag, WorkDS } from "../model/flags.ts";
-import { renderWideNewGame, hitWideHeroCard } from "../canvas_ui/wide_newgame.ts";
 import { renderWideTitle } from "../canvas_ui/wide_title.ts";
 import { captureConsoleText, decodeCleanCstr } from "../canvas_ui/text_util.ts";
 import { hasDom } from "../modern/dom_ui.ts";
@@ -48,7 +47,7 @@ export class NewGame {
   // 16564 主角选择; 返回主角编号, 取消返回 -1
   async select(di) {
     const { palette, graph, menu, win, scr, art, codec, sys } = this.c;
-    if (scr.hdCtx && art && codec) {
+    if (scr.hdCtx && art && codec && hasDom()) {
       const dec = b => decodeCleanCstr(codec, b);
       const buildHero = i => {
         this.m.globals.hero = i;
@@ -69,81 +68,23 @@ export class NewGame {
       await Promise.all(heroes.map(h => h.portraitUrl ? art.loadImage(h.portraitUrl).catch(() => {}) : null));
       const statLabels = [...UI_STR.heroStats];
 
-      if (hasDom()) {
-        hideDomWorldHud();
-        scr.wideRenderer = c2d => renderWideTitle(c2d, art);
-        scr.dirty = true;
-        const res = await runDomNewGameSelect(heroes, statLabels, di < 1);
-        if (!res) return -1;
-        this.m.globals.hero = res.id;
-        const writeIfChanged = (dest, origStr, newStr, maxBytes) => {
-          if (!newStr || newStr === origStr) return;
-          try {
-            const bts = this.c.font.encode(newStr).subarray(0, maxBytes);
-            for (let i = 0; i < bts.length; i++) this.st.set8(dest + i, bts[i]);
-            this.st.set8(dest + bts.length, 0);
-          } catch { /* 若输入含字库未收录字符则保留原名 */ }
-        };
-        writeIfChanged(this.personDS, heroes[res.id].given, res.given, 12);
-        writeIfChanged(this.personDS + 13, heroes[res.id].family, res.family, 12);
-        return res.id;
-      }
-
-      let selected = 0;
-      const drawGallery = c2d => renderWideNewGame(c2d, art, heroes, selected, statLabels);
-      scr.wideRenderer = drawGallery;
+      hideDomWorldHud();
+      scr.wideRenderer = c2d => renderWideTitle(c2d, art);
       scr.dirty = true;
-      await menu.waitRelease();
-
-      for (;;) {
-        const vx = sys.mouse?.vx ?? -1, vy = sys.mouse?.vy ?? -1;
-        const hov = hitWideHeroCard(vx, vy, heroes.length);
-        if (hov >= 0 && hov !== selected) { selected = hov; scr.dirty = true; }
-
-        const ev = menu.readEvent();
-        if (ev === 0x1c || ev === 0x36) { selected = (selected + 1) % 6; scr.dirty = true; }
-        else if (ev === 0x1d || ev === 0x34) { selected = (selected + 5) % 6; scr.dirty = true; }
-        else if (ev === 0x1e || ev === 0x38) { selected = (selected + 3) % 6; scr.dirty = true; }
-        else if (ev === 0x1f || ev === 0x32) { selected = (selected + 3) % 6; scr.dirty = true; }
-        else if ((ev === 0x1b || ev === 0x30) && di < 1) {
-          scr.wideRenderer = null;
-          scr.wideDialog = null;
-          return -1;
-        } else if (ev === 0x0d) {
-          if (menu.mouseFlag && hov < 0) { await sys.poll(); continue; }
-          if (menu.mouseFlag && hov >= 0) selected = hov;
-          this.m.globals.hero = selected;
-          scr.wideDialog = { text: this.captureMessage(0x3b3), portraitId: null, waiting: false };
-          scr.dirty = true;
-          let ok = await menu.yesNo();
-          scr.wideDialog = null;
-          scr.dirty = true;
-          if (ok) {
-            const saved = this.st.bytes(this.personDS, 26).slice();
-            scr.wideRenderer = null;
-            scr.clear(0);
-            await this.rename();
-            heroes[selected] = buildHero(selected);
-            scr.wideRenderer = drawGallery;
-            scr.wideDialog = { text: dec(this.S.all) + this.captureMessage(0x3b3), portraitId: null, waiting: false };
-            scr.dirty = true;
-            ok = await menu.yesNo();
-            scr.wideDialog = null;
-            scr.dirty = true;
-            if (!ok) {
-              this.st.b.set(saved, this.personDS - DS.STATE_BASE);
-              heroes[selected] = buildHero(selected);
-            }
-          }
-          if (ok) {
-            scr.wideRenderer = null;
-            scr.wideDialog = null;
-            return selected;
-          }
-          await menu.waitRelease();
-        }
-        await sys.poll();
-      }
+      const res = await runDomNewGameSelect(heroes, statLabels, di < 1);
+      if (!res) return -1;
+      this.m.globals.hero = res.id;
+      const writeIfChanged = (dest, origStr, newStr, maxBytes) => {
+        if (!newStr || newStr === origStr) return;
+        try {
+          const bts = this.c.font.encode(newStr).subarray(0, maxBytes);
+          for (let i = 0; i < bts.length; i++) this.st.set8(dest + i, bts[i]);
+          this.st.set8(dest + bts.length, 0);
+        } catch { /* 若输入含字库未收录字符则保留原名 */ }
+      };
+      writeIfChanged(this.personDS, heroes[res.id].given, res.given, 12);
+      writeIfChanged(this.personDS + 13, heroes[res.id].family, res.family, 12);
+      return res.id;
     }
     await palette.fadeBlack();                                           // 99f2
     graph.draw(1, 0, 0);                                                 // 5b5d: GRAPH.DAT #1

@@ -1,7 +1,6 @@
 // screen.js — 现代 HD 2D Canvas 混合显示模型 (兼容原版 640x400 逻辑座标 + 2x HD RGBA PNG 图层)
 // 逻辑分辨率: 640x400 (置于 640x480 画面第 40 行起)，内部以 HD_SCALE=2 (1280x960) 输出，
 // 让任何高清重绘 PNG 皆可直接以原生真彩与高分辨率绘制于 hdCanvas，并与原版文字/窗口图层无缝合成。
-import { drawWideDialog } from "../canvas_ui/wide_dialog.ts";
 import { hasDom, syncDomDialog } from "../modern/dom_ui.ts";
 import { hideDomWorldHud } from "../modern/dom_hud.ts";
 import { hideDomBattleHud } from "../modern/dom_battle.ts";
@@ -518,7 +517,6 @@ export class Screen {
       this.wideRenderer(this.ctx, this);
       // 16:9 现代底部对话栏（浏览器使用与读取进度同款的羊皮纸 DOM 对话卡）
       if (hasDom()) syncDomDialog(this.wideArt, this.wideDialog);
-      else if (this.wideDialog) drawWideDialog(this.ctx, this.wideArt, this.wideDialog);
       // 16:9 原生现代 Canvas 浮层 (小地图 / 世界航海图等)
       for (const fn of this.wideOverlays) fn(this.ctx, this);
       if (maxPal < 15) {

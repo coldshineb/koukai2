@@ -3,7 +3,6 @@
 //   seg0:5597 计算机本体: 0-9 + - * / = (含先乘除), ',' 正负号, '>' 清除, '?' 最大值, 'B' 滑杆, Enter 确定
 //   seg0:54d2 显示 (滑杆 + "%9ld")   seg0:527a 鼠标点击   seg0:542e 取得按键 ('.' 视为 '=')
 // 32 比特算术: 乘法取低 32 比特 (_lmul), 除法向零取整 (_ldiv), 与原版相同
-import { runWideNumPad } from "../canvas_ui/wide_numpad.ts";
 import { hasDom, runDomNumPad } from "../modern/dom_ui.ts";
 
 const NP_KEYS = "789*?456/>123-,0=+\r";                      // DS:8aa0
@@ -157,15 +156,14 @@ export class NumPad {
     } while (k !== 0x0d);
     return acc2 !== 0 ? acc2 : cur;
   }
-  // 592a 输入 min..max 之间的数 (负数返回 0); 16:9 模式下使用纯 Canvas 现代滑杆步进器 (零 DOM)
+  // 592a 输入 min..max 之间的数 (负数返回 0); 16:9 模式下使用现代 DOM 滑杆步进器
   async input(min, max) {
-    if (this.c.scr?.wideRenderer) {
-      if (hasDom()) return runDomNumPad(min, max, this.c.scr.wideDialog?.text || "", {
+    if (this.c.scr?.wideRenderer && hasDom()) {
+      return runDomNumPad(min, max, this.c.scr.wideDialog?.text || "", {
         art: this.c.scr.wideArt,
         portraitId: this.c.scr.wideDialog?.portraitId ?? null,
         portraitComposed: this.c.scr.wideDialog?.portraitComposed ?? null,
       });
-      return runWideNumPad(this.c, min, max);
     }
     const { con, sys, win } = this.c;
     this.saveCon();

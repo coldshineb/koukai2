@@ -1,9 +1,6 @@
-// canvas_ui/wide_world.ts — Stage 1: 16:9 (1280×720) 全屏纯 Canvas 2D 港口/海面视口 + 悬浮现代 HUD
-// 严格遵守: 零 DOM 游戏界面、100% 原版文本 (所有标签/名称/日期均直接取自原版数据表)。
+// canvas_ui/wide_world.ts — 16:9 (1280×720) 全屏 Canvas 2D 港口/海面视口渲染器
 import { DS, OFF } from "../model/schema_views.ts";
 import { VIEW_W, VIEW_H } from "../core/screen.js";
-import { decodeCleanCstr, toSimp } from "./text_util.ts";
-import { hasDom } from "../modern/dom_ui.ts";
 import { syncDomWorldHud } from "../modern/dom_hud.ts";
 
 const TILE = 32; // 40×23 格 = 1280×736，无黑边铺满整个 16:9 画面
@@ -35,34 +32,6 @@ export function hitWideCommandButton(vx: number, vy: number): number {
     if (vx >= r.x && vx <= r.x + r.w && vy >= r.y && vy <= r.y + r.h) return r.index;
   }
   return -1;
-}
-
-function decodeCstr(codec: any, bytes: Uint8Array): string {
-  return decodeCleanCstr(codec, bytes);
-}
-
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
-
-function drawGlassPanel(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, radius = 10) {
-  ctx.save();
-  roundRect(ctx, x, y, w, h, radius);
-  const grad = ctx.createLinearGradient(x, y, x, y + h);
-  grad.addColorStop(0, "rgba(13, 27, 46, 0.88)");
-  grad.addColorStop(1, "rgba(8, 17, 31, 0.92)");
-  ctx.fillStyle = grad;
-  ctx.fill();
-  ctx.strokeStyle = "rgba(208, 169, 94, 0.72)";
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
-  ctx.restore();
 }
 
 // 与 core/screen.js 与 tools/extract_art.py 完全一致的 4-bit -> 6-bit VGA DAC -> 8-bit RGB 转换
@@ -225,215 +194,8 @@ function drawSheetTileDirect(
   );
 }
 
-function drawFloatingHud(ctx: CanvasRenderingContext2D, scene: any, atSea: boolean) {
-  if (hasDom()) {
-    syncDomWorldHud(scene, atSea);
-    return;
-  }
-  const c = scene.c;
-  const st = c.state;
-  const m = st.model;
-  const rt = c.rt;
-  const art = c.art;
-  const codec = c.codec;
-
-  ctx.save();
-  ctx.textBaseline = "middle";
-
-  // ---------------- 1. 左上悬浮状态栏 (主角头像 + 日期/时刻 + 声望/金币/金块) ----------------
-  drawGlassPanel(ctx, 16, 14, 344, 92, 10);
-
-  const heroFaceId = st.u8(st.personRecord(m.globals.hero) + 0x1a);
-  const portUrl = art?.portraitUrl?.(heroFaceId) ?? null;
-  const portImg = art?.getImage?.(portUrl);
-  if (portUrl && !portImg) void art?.loadImage?.(portUrl);
-  ctx.fillStyle = "#102138";
-  ctx.fillRect(26, 22, 58, 74);
-  if (portImg) {
-    ctx.imageSmoothingEnabled = (portImg.naturalWidth || 64) > 64;
-    ctx.drawImage(portImg, 26, 22, 58, 74);
-  }
-  ctx.strokeStyle = "#c8a258";
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(26, 22, 58, 74);
-
-  const months = scene.months ?? [];
-  const monthStr = months[rt.month] ? decodeCstr(codec, months[rt.month]) : `${rt.month + 1}`;
-  const t = rt.time;
-  const hh = ((Math.floor(t / 3) + 11) % 12) + 1;
-  const mm = String((t % 3) * 20).padStart(2, "0");
-  const ap = t >= 0x24 ? "PM" : "AM";
-  const dateText = `A.D.${rt.year + 1501} ${monthStr} ${rt.day + 1}  ${hh}:${mm}${ap}`;
-
-  ctx.font = '600 14px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
-  ctx.fillStyle = "#f2d89b";
-  ctx.textAlign = "left";
-  ctx.fillText(dateText, 96, 36);
-
-  const hd = m.heroInfo();
-  const fame = Math.max(hd.tradeFame, hd.pirateFame, hd.adventureFame);
-  const money = m.globals.money;
-  const bars = Math.trunc(money / 10000);
-  const gold = money % 10000;
-
-  ctx.font = '500 13px "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", "Segoe UI", sans-serif';
-  ctx.fillStyle = "#d9cdb4";
-  ctx.fillText(`声望`, 96, 60);
-  ctx.fillStyle = "#ffffff";
-  ctx.fillText(String(fame), 132, 60);
-
-  ctx.fillStyle = "#d9cdb4";
-  ctx.fillText(`金块`, 206, 60);
-  ctx.fillStyle = "#f2d89b";
-  ctx.fillText(String(bars), 242, 60);
-
-  ctx.fillStyle = "#d9cdb4";
-  ctx.fillText(`金币`, 96, 84);
-  ctx.fillStyle = "#f2d89b";
-  ctx.fillText(String(gold), 132, 84);
-
-  // ---------------- 2. 右上悬浮地域/港情 或 航海气象栏 ----------------
-  if (!atSea) {
-    const P = scene.port;
-    const portName = decodeCstr(codec, m.port(P).nameBytes);
-    const E = P < 100 ? m.portEconomy(P) : null;
-    const regionName = E ? toSimp(c.messageText(0x181 + E.priceRegion).trim()) : "";
-
-    drawGlassPanel(ctx, VIEW_W - 318, 14, 302, 92, 10);
-    ctx.font = '700 17px "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", "Segoe UI", sans-serif';
-    ctx.fillStyle = "#f2d89b";
-    ctx.textAlign = "left";
-    ctx.fillText(portName, VIEW_W - 302, 36);
-
-    if (regionName) {
-      ctx.font = '500 12px "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", "Segoe UI", sans-serif';
-      ctx.fillStyle = "#b8c7dc";
-      ctx.textAlign = "right";
-      ctx.fillText(regionName, VIEW_W - 30, 36);
-    }
-
-    if (E) {
-      let sum = 0;
-      for (let i = 0; i < 10; i++) sum += E.getPrices(i);
-      const avgPrice = Math.trunc(sum / 10) + 50;
-      ctx.textAlign = "left";
-      ctx.font = '500 13px "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", "Segoe UI", sans-serif';
-      ctx.fillStyle = "#d9cdb4";
-      ctx.fillText(`商业价值`, VIEW_W - 302, 62);
-      ctx.fillStyle = "#ffffff";
-      ctx.fillText(String((E.commerce << 16) >> 16), VIEW_W - 238, 62);
-
-      ctx.fillStyle = "#d9cdb4";
-      ctx.fillText(`工业价值`, VIEW_W - 164, 62);
-      ctx.fillStyle = "#ffffff";
-      ctx.fillText(String((E.industry << 16) >> 16), VIEW_W - 100, 62);
-
-      ctx.fillStyle = "#d9cdb4";
-      ctx.fillText(`平均物价`, VIEW_W - 302, 86);
-      ctx.fillStyle = "#f2d89b";
-      ctx.fillText(`${avgPrice}%`, VIEW_W - 238, 86);
-    }
-  } else {
-    drawGlassPanel(ctx, VIEW_W - 318, 14, 302, 92, 10);
-    const a = st.u8(DS.PORT_FLAGS);
-    const b = st.u8(DS.WIND_CUR);
-    const windDir = (a & 0x38) >> 3, windStr = a & 7;
-    const curDir = (b & 0x38) >> 3, curStr = b & 7;
-    const headDir = st.u8(scene.fleet + 0x1a);
-    const spd = (scene.speed + 1) >> 1;
-    const days = st.u8(DS.DAYS_AT_SEA);
-
-    ctx.imageSmoothingEnabled = false;
-    drawSheetTileDirect(ctx, art, "dials", windStr ? windDir : 8, VIEW_W - 304, 24, 42, 42);
-    drawSheetTileDirect(ctx, art, "dials", curStr ? curDir : 8, VIEW_W - 210, 24, 42, 42);
-    drawSheetTileDirect(ctx, art, "dials", headDir < 8 ? headDir : 8, VIEW_W - 116, 24, 42, 42);
-
-    ctx.font = '600 13px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
-    ctx.fillStyle = "#f2d89b";
-    ctx.textAlign = "center";
-    ctx.fillText(String(windStr), VIEW_W - 283, 84);
-    ctx.fillText(String(curStr), VIEW_W - 189, 84);
-    ctx.fillText(`${spd}kt · ${days}`, VIEW_W - 95, 84);
-  }
-
-  // ---------------- 3. 左下悬浮现代矢量罗盘 ----------------
-  const cx = 56, cy = VIEW_H - 56, cr = 36;
-  drawGlassPanel(ctx, cx - cr, cy - cr, cr * 2, cr * 2, cr);
-  ctx.save();
-  ctx.strokeStyle = "rgba(214, 174, 96, 0.35)";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.arc(cx, cy, cr - 6, 0, Math.PI * 2);
-  ctx.stroke();
-
-  ctx.font = '700 10px "Microsoft YaHei UI", "Segoe UI", sans-serif';
-  ctx.fillStyle = "rgba(232, 206, 148, 0.85)";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("N", cx, cy - cr + 11);
-  ctx.fillText("S", cx, cy + cr - 10);
-  ctx.fillText("W", cx - cr + 11, cy);
-  ctx.fillText("E", cx + cr - 11, cy);
-
-  // 依原版方向角旋转罗盘指针 (港内 0..3 = N/E/S/W; 海上 0..7 = N/NE/E/SE/S/SW/W/NW)
-  const rawNeedle = scene.needle === 0xff ? 0 : scene.needle;
-  const angle = atSea
-    ? ((rawNeedle & 7) * Math.PI) / 4
-    : ((rawNeedle & 3) * Math.PI) / 2;
-  ctx.translate(cx, cy);
-  ctx.rotate(angle);
-  // 北向金红箭头
-  ctx.beginPath();
-  ctx.moveTo(0, -18);
-  ctx.lineTo(5, 2);
-  ctx.lineTo(0, -1);
-  ctx.lineTo(-5, 2);
-  ctx.closePath();
-  ctx.fillStyle = "#e85c4a";
-  ctx.fill();
-  // 南向银白尾针
-  ctx.beginPath();
-  ctx.moveTo(0, 16);
-  ctx.lineTo(4, 1);
-  ctx.lineTo(-4, 1);
-  ctx.closePath();
-  ctx.fillStyle = "#d8e4f2";
-  ctx.fill();
-  // 中心铆钉
-  ctx.beginPath();
-  ctx.arc(0, 0, 3, 0, Math.PI * 2);
-  ctx.fillStyle = "#f4d78e";
-  ctx.fill();
-  ctx.restore();
-
-  // ---------------- 4. 右下悬浮 4 枚主指令按钮 (情报 / 经营 / 命令 / 航海术) ----------------
-  const mx = c.sys?.mouse?.vx ?? -1;
-  const my = c.sys?.mouse?.vy ?? -1;
-  const rects = getCommandButtonRects();
-  for (const r of rects) {
-    const hovered = mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h;
-    roundRect(ctx, r.x, r.y, r.w, r.h, 8);
-    const g = ctx.createLinearGradient(r.x, r.y, r.x, r.y + r.h);
-    if (hovered) {
-      g.addColorStop(0, "rgba(218, 178, 102, 0.96)");
-      g.addColorStop(1, "rgba(170, 128, 52, 0.96)");
-    } else {
-      g.addColorStop(0, "rgba(18, 36, 62, 0.9)");
-      g.addColorStop(1, "rgba(10, 22, 40, 0.94)");
-    }
-    ctx.fillStyle = g;
-    ctx.fill();
-    ctx.strokeStyle = hovered ? "#ffe2a0" : "rgba(208, 169, 94, 0.78)";
-    ctx.lineWidth = hovered ? 2 : 1.5;
-    ctx.stroke();
-
-    ctx.font = '700 15px "Microsoft YaHei UI", "PingFang SC", "Noto Sans TC", "Segoe UI", sans-serif';
-    ctx.fillStyle = hovered ? "#1a1106" : "#f4ead2";
-    ctx.textAlign = "center";
-    ctx.fillText(r.label, r.x + r.w / 2, r.y + r.h / 2 + 1);
-  }
-
-  ctx.restore();
+function drawFloatingHud(scene: any, atSea: boolean) {
+  syncDomWorldHud(scene, atSea);
 }
 
 /** 16:9 全屏港口渲染器 */
@@ -488,7 +250,7 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
   drawSheetTileDirect(ctx, art, "chars", heroSpriteIdx, hxPx, hyPx, TILE * 2, TILE * 2, scr, false);
 
   // 悬浮现代 HUD（所有日夜时段色调直接由原版 16 色调色盘呈现，无人工打灯覆层）
-  drawFloatingHud(ctx, portScene, false);
+  drawFloatingHud(portScene, false);
 }
 
 // 全球 24×24 海域图块无缝缓存（90×45 格 = 2160×1080 全球经度环绕，彻底消除跨 72×72 / 720 格边界的相机卡顿与跳变）
@@ -639,5 +401,5 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
     drawOneFleet(F, 0, true);
   }
 
-  drawFloatingHud(ctx, seaScene, true);
+  drawFloatingHud(seaScene, true);
 }

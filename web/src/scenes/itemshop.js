@@ -6,7 +6,7 @@
 import { GameConst, ItemFlag, ItemKind, MenuId } from "../model/flags.ts";
 import { DS } from "../model/schema_views.ts";
 import { captureConsoleText, decodeCleanCstr, toSimp } from "../canvas_ui/text_util.ts";
-import { runWideInfoLinesModal } from "../canvas_ui/wide_panels.ts";
+import { runDomInfoLines } from "../modern/dom_ui.ts";
 import { createDomModal, getBuildingArtUrl, hasDom, mountBuildingBanner, preserveScroll } from "../modern/dom_ui.ts";
 import { UI_STR } from "../modern/ui_strings.ts";
 
@@ -340,7 +340,7 @@ export class ItemShop {
         const infoLines = captureConsoleText(this.c, () => b.itemInfo(it, 0)).split("\n").filter(Boolean);
         const ask = captureConsoleText(this.c, () => { message(0xf0, item.nameBytes); printf(this.F.ld, price); message(0xf1); });
         const imgUrl = this.c.art?.discoveryUrl?.(this.st.u8(R + 0x0f) + 0x55) ?? null;
-        const ok = await runWideInfoLinesModal(this.c, decodeCleanCstr(this.c.codec, item.nameBytes), [...infoLines, "", ask], ["是", "否"], imgUrl);
+        const ok = await runDomInfoLines(decodeCleanCstr(this.c.codec, item.nameBytes), [...infoLines, "", ask], ["是", "否"], imgUrl);
         if (ok !== 0) continue;
       } else {
         b.itemInfo(it, 0);                                                        // 29340
@@ -373,12 +373,12 @@ export class ItemShop {
         const infoLines = captureConsoleText(this.c, () => b.itemInfo(it, 0)).split("\n").filter(Boolean);
         const imgUrl = this.c.art?.discoveryUrl?.(this.st.u8(R + 0x0f) + 0x55) ?? null;
         const ask1 = captureConsoleText(this.c, () => { message(0xf5, item.nameBytes); printf(this.F.ld2, price); message(0xf7); });
-        if ((await runWideInfoLinesModal(this.c, decodeCleanCstr(this.c.codec, item.nameBytes), [...infoLines, "", ask1], ["是", "否"], imgUrl)) !== 0) {
+        if ((await runDomInfoLines(decodeCleanCstr(this.c.codec, item.nameBytes), [...infoLines, "", ask1], ["是", "否"], imgUrl)) !== 0) {
           const hero = m.heroPerson();
           if (sys.rng.random(100) > hero.getStats(7)) continue;
           price = (price + Math.trunc(Math.imul(price, hero.getStats(6)) / 200)) | 0;
           const ask2 = captureConsoleText(this.c, () => { message(0xf6); printf(this.F.ld3, price); message(0xf7); });
-          if ((await runWideInfoLinesModal(this.c, decodeCleanCstr(this.c.codec, item.nameBytes), [...infoLines, "", ask2], ["是", "否"], imgUrl)) !== 0) continue;
+          if ((await runDomInfoLines(decodeCleanCstr(this.c.codec, item.nameBytes), [...infoLines, "", ask2], ["是", "否"], imgUrl)) !== 0) continue;
         }
       } else {
         b.itemInfo(it, 0);

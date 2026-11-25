@@ -4,7 +4,7 @@ import { Scenario, ENV_COMMON, ENV_HERO } from "../game/scenario.js";
 import { mainEnding } from "../game/endgame.js";
 import { GameConst, MenuId, OptionFlag, ShipSlotFlag, WorkDS } from "../model/flags.ts";
 import { captureConsoleText, decodeCleanCstr } from "../canvas_ui/text_util.ts";
-import { runWideInfoLinesModal } from "../canvas_ui/wide_panels.ts";
+import { runDomInfoLines } from "../modern/dom_ui.ts";
 import { hasDom } from "../modern/dom_ui.ts";
 import { runDomPalaceWorkbench } from "../modern/dom_buildings.ts";
 
@@ -185,7 +185,7 @@ export class Palace {
         return 0;
       }
       const hdr = captureConsoleText(this.c, () => message(0x1db));
-      await runWideInfoLinesModal(this.c, hdr, lines);
+      await runDomInfoLines(hdr, lines);
       return 1;
     }
     con.left = 0x0e; con.right = 0x37;

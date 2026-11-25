@@ -6,7 +6,6 @@
 // 列格式化函数 DS:a1d8[k] (far 指针, AX = 项目值, 返回已输出字数)。
 // 沿用菜单引擎的状态: cur=a160 prev=a15a count=a158 mouseFlag=a14e hit=a150 bracket=a162 rects=bdcc
 
-import { createWideListState, drawWideList, hitWideListRow, hitWideListBox } from "../canvas_ui/wide_list.ts";
 import { captureConsoleText, decodeCleanCstr, toSimp } from "../canvas_ui/text_util.ts";
 import { hasDom, runDomList } from "../modern/dom_ui.ts";
 import { UI_STR } from "../modern/ui_strings.ts";
@@ -76,58 +75,7 @@ export class ListSelect {
       await m.waitRelease();
       return (al & 0x40) && sel !== -1 ? this.c.persons[sel] : sel;
     }
-
-    await m.waitRelease();
-    const state = createWideListState(title, rows);
-    const drawFn = ctx => drawWideList(ctx, state);
-    scr.wideOverlays.push(drawFn);
-    scr.dirty = true;
-
-    const maxScroll = Math.max(0, rows.length - state.visibleRows);
-    const clampSel = idx => {
-      if (!rows.length) return;
-      state.selected = Math.max(0, Math.min(rows.length - 1, idx));
-      if (state.selected < state.scroll) state.scroll = state.selected;
-      else if (state.selected >= state.scroll + state.visibleRows) state.scroll = state.selected - state.visibleRows + 1;
-      scr.dirty = true;
-    };
-    const onWheel = e => {
-      if (maxScroll <= 0) return;
-      e.preventDefault();
-      state.scroll = Math.max(0, Math.min(maxScroll, state.scroll + (e.deltaY > 0 ? 1 : -1)));
-      scr.dirty = true;
-    };
-    scr.canvas?.addEventListener("wheel", onWheel, { passive: false });
-
-    let r = -1;
-    try {
-      for (;;) {
-        const vx = sys.mouse?.vx ?? -1, vy = sys.mouse?.vy ?? -1;
-        const hov = hitWideListRow(state, vx, vy);
-        if (hov >= 0 && hov !== state.selected) { state.selected = hov; scr.dirty = true; }
-        const ev = m.readEvent();
-        if (ev === 0x1e || ev === 0x38) clampSel(state.selected - 1);
-        else if (ev === 0x1f || ev === 0x32) clampSel(state.selected + 1);
-        else if (ev === 0x1b || ev === 0x30) { r = -1; break; }
-        else if (ev === 0x0d) {
-          if (m.mouseFlag) {
-            if (hov >= 0) { r = hov; break; }
-            if (!hitWideListBox(state, vx, vy)) { r = -1; break; }
-          } else if (rows.length > 0) {
-            r = state.selected; break;
-          }
-        }
-        await sys.poll();
-      }
-    } finally {
-      scr.canvas?.removeEventListener("wheel", onWheel);
-      const idx = scr.wideOverlays.indexOf(drawFn);
-      if (idx >= 0) scr.wideOverlays.splice(idx, 1);
-      scr.dirty = true;
-      await m.waitRelease();
-    }
-    if ((al & 0x40) && r !== -1) r = this.c.persons[r];
-    return r;
+    return -1;
   }
   // 14e9b 外框、滚动条槽、标题
   drawFrame() {
