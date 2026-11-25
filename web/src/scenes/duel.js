@@ -52,7 +52,8 @@ export class Duel {
 
   // ================= 12998 本體 =================
   async body() {
-    const { con, sys } = this.c;
+    const { con, sys, scr } = this.c;
+    if (scr) { scr.wideRenderer = null; scr.wideDialog = null; scr.wideOverlays.length = 0; }
     this.alloc();                                                       // 111ce
     const l = con.left, r = con.right;
     con.left = 0; con.right = 0x4f;

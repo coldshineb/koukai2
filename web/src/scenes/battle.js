@@ -106,7 +106,10 @@ export class NavalBattle {
 
   // ================= fcf9 開戰 =================
   async open(al, dl, bl, arg) {
-    const { palette, bgm, sys } = this.c, st = this.st;
+    const { palette, bgm, sys, scr } = this.c, st = this.st;
+    scr.wideRenderer = null;
+    scr.wideDialog = null;
+    scr.wideOverlays.length = 0;
     await palette.fadeBlack();                                          // 99f2
     bgm.playSong(0x10);                                                 // 9670(0x10)
     this.sea.cursor = 0x2570; sys.setCursorShape(0x2570);               // [06d6] = 0x2570, 5050

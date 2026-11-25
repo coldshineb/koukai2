@@ -230,7 +230,7 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
             <b>${windStr ? `${DIR_LABELS[windDir]} ${windStr}` : "无风"}</b>
           </div>
           <div>
-            <div style="color:var(--uw2-ink-muted);margin-bottom:2px;">海流</div>
+            <div style="color:var(--uw2-ink-muted);margin-bottom:2px;">洋流</div>
             ${arrowSvg(curDir, curStr > 0, "#2a6bb8")}
             <b>${curStr ? `${DIR_LABELS[curDir]} ${curStr}` : "平静"}</b>
           </div>

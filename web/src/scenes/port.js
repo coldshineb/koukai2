@@ -18,6 +18,7 @@ import { PortMove } from "./portmove.js";
 import { GameConst, OptionFlag, TreatyFlag } from "../model/flags.ts";
 import { renderWidePort, hitWideCommandButton } from "../canvas_ui/wide_world.ts";
 import { renderWideBuilding } from "../canvas_ui/wide_building.ts";
+import { hasDom } from "../modern/dom_ui.ts";
 import { captureConsoleText } from "../canvas_ui/text_util.ts";
 
 const pHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
@@ -271,9 +272,14 @@ export class PortScene {
       s.glyphMode(k * 16 + 20, r * 64 + 8, 8, 0x20, g.subarray(0x3da0), mode);
     }
   }
-  // 8ebc 進入建築: 直接在港內彈出 16:9 現代浮動建築視窗（零黑屏過場）
+  // 8ebc 進入建築: 現代 DOM 模式下保持乾淨的 16:9 港口底圖，不再在後方 Canvas 彈出老黑藍建築框
   async interior(k) {
     const { scr, art } = this.c;
+    if (hasDom()) {
+      scr.wideRenderer = (ctx, s) => renderWidePort(ctx, s, this);
+      scr.dirty = true;
+      return;
+    }
     const picId = k === 10 && this.colonyChurch() ? 0x14 : k + 6;
     const entry = art?.graphEntry?.("GRAPH.DAT", picId);
     if (entry) await art.loadImage(`${art.baseUrl}/${entry.path}`);

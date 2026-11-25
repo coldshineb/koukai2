@@ -111,11 +111,14 @@ export class Buildings {
   async menu(items) {                                                    // 1b46e
     this.p.panels();
     const prev = this.c.menu.wideAnchorCmd;
+    const prevTitle = this.c.menu.wideMenuTitle;
     this.c.menu.wideAnchorCmd = -3;
+    if (this._curBuildingName) this.c.menu.wideMenuTitle = this._curBuildingName;
     try {
       return await this.c.menu.listMenu(0x3c, 0x68, items, 1);
     } finally {
       this.c.menu.wideAnchorCmd = prev;
+      this.c.menu.wideMenuTitle = prevTitle;
     }
   }
   after() {                                                              // 1b580 → 1b496
@@ -198,6 +201,8 @@ export class Buildings {
   }
   // ---------------- 建築分派 ----------------
   async enter(k) {
+    const bldNames = ["交易所", "酒馆", "造船厂", "码头", "旅馆", "王宫", "事务所", "住宅", "银行", "道具店", "教会", "占卜师"];
+    this._curBuildingName = bldNames[k] ?? "";
     try {
       switch (k) {
         case 0: return await (this.marketM ??= new Market(this)).run();
@@ -215,6 +220,7 @@ export class Buildings {
         default: bTodo(["交易所", "酒館", "造船廠", "碼頭", "旅館", "王宮", "事務所", "住宅", "銀行?", "道具店", "教會", "占卜師"][k] + " (1fd9 段建築 " + k + ")");
       }
     } finally {
+      this._curBuildingName = "";
       this.endWideTalk();
       this.c.scr.wideDialog = null;
       this.c.scr.dirty = true;
