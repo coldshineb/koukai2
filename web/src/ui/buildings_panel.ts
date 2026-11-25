@@ -1359,9 +1359,11 @@ export async function runDomTavernWorkbench(b: any, drinkNameBytes: Uint8Array, 
   if (b.fleetShips() && !(m.globals.dailyFlags & 1)) tab = 0;
   let rounds = 1;
   let notice = initGreet;
+  const hireAdds = new Map<number, number>();
+  const dismissSubs = new Map<number, number>();
 
   for (;;) {
-    let pending: null | { kind: "hire" | "dismiss" | "drink" | "chat" | "girl" | "gamble"; arg?: number } = null;
+    let pending: null | { kind: "drink" | "chat" | "girl" | "gamble"; arg?: number } = null;
 
     await new Promise<void>(resolve => {
       let settled = false;
@@ -1374,6 +1376,255 @@ export async function runDomTavernWorkbench(b: any, drinkNameBytes: Uint8Array, 
       };
 
       const shell = createWorkbenchShell(`${portName} · 酒馆`, b.money, done, getBuildingArtUrl(c, 1, b.p));
+
+      const renderCrewAllocator = (isHire: boolean, hiredToday: boolean) => {
+        const nShips = b.fleetShips();
+        const ships = Array.from({ length: nShips }, (_, i) => {
+          const slot = c.persons[i] & 0xff;
+          const slotView = heroOrDockSlot(m, slot);
+          const cs = m.crewSlot(slot);
+          const ship = m.ship(slotView.ship);
+          const stype = m.shipType(ship.type);
+          const cap = decodeCleanCstr(codec, m.person(cs.captain).givenNameBytes);
+          return { slot, slotView, cs, ship, stype, cap, cur: slotView.crew, room: Math.max(0, ship.maxCrew - slotView.crew) };
+        });
+
+        const eco0 = m.portEconomy(b.port).commerce;
+        const A = b.tvA;
+        const apps = Math.trunc(((A * eco0) >>> 0) / 500) & 0xffff;
+        const rank = m.heroInfo().rank;
+        const si = plUmin(((rank + 1) * A) & 0xffff, apps);
+        const wage = Math.trunc(eco0 / 20) + 5;
+        const totalRoom = ships.reduce((acc, s) => acc + s.room, 0);
+        const byMoney = Math.trunc(b.money / wage) & 0xffff;
+        const lim = isHire && !hiredToday && b.money >= 10 ? plUmin(plUmin(byMoney, si), totalRoom) : 0;
+
+        const draftMap = isHire ? hireAdds : dismissSubs;
+        let running = 0;
+        for (const s of ships) {
+          const rawMax = isHire ? Math.max(0, Math.min(s.room, lim - running)) : s.cur;
+          const clamped = Math.max(0, Math.min(rawMax, Math.trunc(draftMap.get(s.slot) || 0)));
+          if (clamped > 0) draftMap.set(s.slot, clamped);
+          else draftMap.delete(s.slot);
+          running += clamped;
+        }
+
+        const wrap = document.createElement("div");
+        wrap.className = "uw2-pane";
+
+        const headBox = document.createElement("div");
+        headBox.className = "uw2-action-box";
+
+        const msgEl = document.createElement("div");
+        msgEl.className = "uw2-speech-box";
+        if (isHire) {
+          if (hiredToday) msgEl.textContent = "今天已经招募过水手了，请明天再来。";
+          else if (totalRoom === 0) msgEl.textContent = capMsg(c, 0x1d);
+          else if (b.money < 10) msgEl.textContent = capMsg(c, 0x1e);
+          else {
+            const countLine = capMsg(c, si >= 0x14 ? 0x79 : si > 0 ? 0x7a : 0x7b, si);
+            const warn = A < 0x1e ? `${capMsg(c, 0x1f)} ` : "";
+            msgEl.textContent = `${warn}${countLine}（每人 ${wage} 金币 · 本次最多可雇 ${lim} 人）`;
+          }
+        } else {
+          msgEl.textContent = "调整各船要解雇的水手人数（降至 0 人时该船士气归零），确认后生效。";
+        }
+        headBox.appendChild(msgEl);
+
+        const summaryBar = document.createElement("div");
+        summaryBar.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:space-between;";
+        const totalBadge = document.createElement("span");
+        totalBadge.style.cssText = "font-size:14px;font-weight:700;color:var(--uw2-ink);";
+        const btnBar = document.createElement("div");
+        btnBar.style.cssText = "display:flex;align-items:center;gap:8px;margin-left:auto;";
+
+        const fillAllBtn = document.createElement("button");
+        if (isHire) {
+          fillAllBtn.className = "uw2-step-btn";
+          fillAllBtn.disabled = lim <= 0;
+          fillAllBtn.textContent = "一键补满";
+          btnBar.appendChild(fillAllBtn);
+        }
+
+        const clearBtn = document.createElement("button");
+        clearBtn.className = "uw2-step-btn";
+        clearBtn.textContent = "清零";
+
+        const commitBtn = document.createElement("button");
+        commitBtn.className = "uw2-btn uw2-btn-primary";
+        commitBtn.textContent = isHire ? "确认招募" : "确认解雇";
+
+        btnBar.append(clearBtn, commitBtn);
+        summaryBar.append(totalBadge, btnBar);
+        headBox.appendChild(summaryBar);
+        wrap.appendChild(headBox);
+
+        const list = document.createElement("div");
+        list.className = "uw2-list-col";
+        list.style.maxHeight = "330px";
+
+        const rowSyncs: (() => void)[] = [];
+        const getTotalSelected = () => ships.reduce((acc, s) => acc + (draftMap.get(s.slot) || 0), 0);
+        const syncAll = () => {
+          const total = getTotalSelected();
+          totalBadge.textContent = isHire
+            ? `合计招募 +${total} 人 · 费用 ${(total * wage).toLocaleString()} 金币`
+            : `合计解雇 -${total} 人`;
+          clearBtn.disabled = total <= 0;
+          commitBtn.disabled = total <= 0 || (isHire && lim <= 0);
+          rowSyncs.forEach(fn => fn());
+        };
+
+        for (const s of ships) {
+          const rowMax = isHire ? Math.min(s.room, lim) : s.cur;
+          const card = document.createElement("div");
+          card.className = "uw2-slot-card";
+          card.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;";
+
+          const leftInfo = document.createElement("div");
+          leftInfo.style.cssText = "display:flex;align-items:center;gap:10px;min-width:240px;flex:1;";
+          const shipImgUrl = art?.shipUrl?.(s.ship.type);
+          if (shipImgUrl) {
+            const img = document.createElement("img");
+            img.src = shipImgUrl;
+            img.style.cssText = "width:56px;height:42px;object-fit:contain;border-radius:6px;border:1px solid rgba(154,119,56,0.35);background:#1b2a40;flex-shrink:0;";
+            leftInfo.appendChild(img);
+          }
+          const txt = document.createElement("div");
+          txt.style.cssText = "display:flex;flex-direction:column;gap:2px;";
+          const titleLine = document.createElement("div");
+          titleLine.style.cssText = "font-weight:700;font-size:14px;color:var(--uw2-ink);";
+          titleLine.textContent = `${decodeCleanCstr(codec, s.ship.nameBytes)}（船长 ${s.cap}）`;
+          const metaLine = document.createElement("div");
+          metaLine.style.cssText = "font-size:12px;color:var(--uw2-ink-muted);";
+          txt.append(titleLine, metaLine);
+          leftInfo.appendChild(txt);
+
+          const ctrl = document.createElement("div");
+          ctrl.className = "uw2-step-row";
+          ctrl.style.flexWrap = "nowrap";
+
+          const slider = document.createElement("input");
+          slider.type = "range";
+          slider.min = "0";
+          slider.max = String(rowMax);
+          slider.value = String(draftMap.get(s.slot) || 0);
+          slider.style.width = "120px";
+          slider.disabled = rowMax <= 0;
+
+          const deltaBadge = document.createElement("span");
+          deltaBadge.style.cssText = "min-width:46px;text-align:right;font-weight:700;font-size:13px;font-variant-numeric:tabular-nums;";
+
+          const setSlotDelta = (desired: number) => {
+            const curTotal = getTotalSelected();
+            const prevVal = draftMap.get(s.slot) || 0;
+            const avail = isHire ? Math.min(s.room, Math.max(0, lim - (curTotal - prevVal))) : s.cur;
+            const nextVal = Math.max(0, Math.min(avail, Math.trunc(desired) || 0));
+            if (nextVal > 0) draftMap.set(s.slot, nextVal);
+            else draftMap.delete(s.slot);
+            syncAll();
+          };
+
+          slider.addEventListener("input", () => setSlotDelta(Number(slider.value)));
+
+          const stepBtns: HTMLButtonElement[] = [];
+          for (const [lb, delta] of [["-5", -5], ["-1", -1], ["+1", 1], ["+5", 5]] as const) {
+            const sb = document.createElement("button");
+            sb.className = "uw2-step-btn";
+            sb.textContent = lb;
+            sb.addEventListener("click", () => setSlotDelta((draftMap.get(s.slot) || 0) + delta));
+            stepBtns.push(sb);
+          }
+          const maxBtn = document.createElement("button");
+          maxBtn.className = "uw2-step-btn";
+          maxBtn.textContent = isHire ? "满" : "全";
+          maxBtn.addEventListener("click", () => setSlotDelta(rowMax));
+
+          rowSyncs.push(() => {
+            const v = draftMap.get(s.slot) || 0;
+            const nextCrew = isHire ? s.cur + v : s.cur - v;
+            const nextMorale = isHire
+              ? (v > 0 && nextCrew > 0 ? Math.trunc((v * 0x3c + s.cs.morale * s.cur) / nextCrew) : s.cs.morale)
+              : (nextCrew === 0 ? 0 : s.cs.morale);
+            metaLine.textContent = v > 0
+              ? `水手 ${s.cur} → ${nextCrew}/${s.ship.maxCrew} (必要 ${s.stype.minCrew}) · 士气 ${s.cs.morale} → ${nextMorale}`
+              : `水手 ${s.cur}/${s.ship.maxCrew} (必要 ${s.stype.minCrew}) · 士气 ${s.cs.morale}`;
+            slider.value = String(v);
+            deltaBadge.textContent = v > 0 ? (isHire ? `+${v}` : `-${v}`) : "0";
+            deltaBadge.style.color = v > 0 ? (isHire ? "#247544" : "#a13626") : "var(--uw2-ink-muted)";
+            const avail = isHire ? Math.min(s.room, Math.max(0, lim - (getTotalSelected() - v))) : s.cur;
+            stepBtns[0].disabled = v <= 0;
+            stepBtns[1].disabled = v <= 0;
+            stepBtns[2].disabled = v >= avail;
+            stepBtns[3].disabled = v >= avail;
+            maxBtn.disabled = avail <= 0 || v >= avail;
+          });
+
+          ctrl.append(slider, ...stepBtns, maxBtn, deltaBadge);
+          card.append(leftInfo, ctrl);
+          list.appendChild(card);
+        }
+
+        fillAllBtn.addEventListener("click", () => {
+          hireAdds.clear();
+          let leftLim = lim;
+          // 优先补足未达到最低必要人数的船只，再按顺序补满其余空位
+          for (const pass of [0, 1]) {
+            for (const s of ships) {
+              if (leftLim <= 0) break;
+              const prev = hireAdds.get(s.slot) || 0;
+              const need = pass === 0 ? Math.max(0, s.stype.minCrew - (s.cur + prev)) : Math.max(0, s.room - prev);
+              const take = Math.min(leftLim, need);
+              if (take > 0) {
+                hireAdds.set(s.slot, prev + take);
+                leftLim -= take;
+              }
+            }
+          }
+          syncAll();
+        });
+
+        clearBtn.addEventListener("click", () => {
+          draftMap.clear();
+          syncAll();
+        });
+
+        commitBtn.addEventListener("click", () => {
+          const total = getTotalSelected();
+          if (total <= 0) return;
+          if (isHire) {
+            if (hiredToday || total > lim) return;
+            b.payMoney(((wage * total) << 16) >> 16);
+            for (const s of ships) {
+              const add = hireAdds.get(s.slot) || 0;
+              if (add <= 0) continue;
+              const old = (s.cur << 16) >> 16;
+              s.slotView.crew = old + add;
+              const now = (s.slotView.crew << 16) >> 16;
+              if (old < now) s.cs.morale = Math.trunc(((now - old) * 0x3c + s.cs.morale * old) / now);
+            }
+            m.globals.dailyFlags |= 1;
+            hireAdds.clear();
+            b.p.panels();
+            notice = `已招募 ${total} 名水手，花费 ${(total * wage).toLocaleString()} 金币。`;
+          } else {
+            for (const s of ships) {
+              const sub = dismissSubs.get(s.slot) || 0;
+              if (sub <= 0) continue;
+              s.slotView.crew = Math.max(0, s.cur - sub);
+              if (!s.slotView.crew) s.cs.morale = 0;
+            }
+            dismissSubs.clear();
+            b.p.panels();
+            notice = `已解雇 ${total} 名水手。`;
+          }
+          render();
+        });
+
+        syncAll();
+        wrap.appendChild(list);
+        return wrap;
+      };
 
       const render = () => preserveScroll(shell.h.body, () => {
         shell.moneyPill.textContent = fmtMoneyPill(b.money);
@@ -1399,54 +1650,7 @@ export async function runDomTavernWorkbench(b: any, drinkNameBytes: Uint8Array, 
         shell.h.body.innerHTML = "";
 
         if (tab === 0 || tab === 1) {
-          const split = document.createElement("div");
-          split.className = "uw2-split";
-
-          const left = document.createElement("div");
-          left.className = "uw2-pane";
-          const lt = document.createElement("div");
-          lt.className = "uw2-pane-title";
-          lt.textContent = "舰队水手概况";
-          left.appendChild(lt);
-
-          const list = document.createElement("div");
-          list.className = "uw2-list-col";
-          const nShips = b.fleetShips();
-          for (let i = 0; i < nShips; i++) {
-            const slot = c.persons[i] & 0xff;
-            const slotView = heroOrDockSlot(m, slot);
-            const curCrew = slotView.crew;
-            const ship = m.ship(slotView.ship);
-            const cs = m.crewSlot(slot);
-            const row = document.createElement("div");
-            row.className = "uw2-slot-card";
-            row.innerHTML =
-              `<span style="font-weight:700;min-width:110px;">${decodeCleanCstr(codec, ship.nameBytes)}</span>` +
-              `<span style="font-size:13px;color:var(--uw2-ink-muted);">水手 ${curCrew} / ${ship.maxCrew} · 士气 ${cs.morale}</span>`;
-            list.appendChild(row);
-          }
-          left.appendChild(list);
-
-          const right = document.createElement("div");
-          right.className = "uw2-pane";
-          const rt = document.createElement("div");
-          rt.className = "uw2-pane-title";
-          rt.textContent = tab === 0 ? "招募水手" : "解雇水手";
-          right.appendChild(rt);
-
-          const box = document.createElement("div");
-          box.className = "uw2-action-box";
-          const btn = document.createElement("button");
-          btn.className = "uw2-btn uw2-btn-primary";
-          btn.style.alignSelf = "flex-start";
-          btn.disabled = (tab === 0 && (hiredToday || !hasFleet)) || (tab === 1 && !hasFleet);
-          btn.textContent = tabLabels[tab] || (tab === 0 ? "水手雇用" : "水手解雇");
-          btn.addEventListener("click", () => { pending = { kind: tab === 0 ? "hire" : "dismiss" }; done(); });
-          box.append(btn);
-          right.appendChild(box);
-
-          split.append(left, right);
-          shell.h.body.appendChild(split);
+          shell.h.body.appendChild(renderCrewAllocator(tab === 0, hiredToday));
         } else if (tab === 2) {
           const box = document.createElement("div");
           box.className = "uw2-action-box";
@@ -1576,9 +1780,7 @@ export async function runDomTavernWorkbench(b: any, drinkNameBytes: Uint8Array, 
 
     if (!pending) break;
     const act: { kind: string; arg?: number } = pending;
-    if (act.kind === "hire") await b.hire();
-    else if (act.kind === "dismiss") await b.dismiss();
-    else if (act.kind === "drink") {
+    if (act.kind === "drink") {
       const v = act.arg ?? 1;
       const heat = Math.trunc(((v * 200) & 0xffff) / m.portEconomy(b.port).commerce);
       const d = Math.trunc(domS16(heat * m.heroPerson().getStats(6)) / 10) + b.tvA;

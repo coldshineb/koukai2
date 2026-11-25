@@ -103,6 +103,76 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
       return Math.max(0, Math.min(ship.free, Math.floor((market.money >>> 0) / good.price)));
     };
 
+    const mountMarketQtyDock = (opts: {
+      parent: HTMLElement;
+      label: string;
+      maxQty: number;
+      initialQty: number;
+      actionLabel: string;
+      readoutColor?: string;
+      disabled?: boolean;
+      formatReadout: (n: number) => string;
+      onCommit: (n: number) => void;
+    }) => {
+      let cur = Math.max(0, Math.min(opts.maxQty, Math.trunc(opts.initialQty) || 0));
+      qty = cur;
+
+      const dock = document.createElement("div");
+      dock.className = "uw2-action-box";
+      const dockHead = document.createElement("div");
+      dockHead.style.cssText = "display:flex;justify-content:space-between;font-weight:700;font-size:14px;";
+      const dockPair = document.createElement("span");
+      dockPair.textContent = opts.label;
+      const qtyReadout = document.createElement("span");
+      if (opts.readoutColor) qtyReadout.style.color = opts.readoutColor;
+      dockHead.append(dockPair, qtyReadout);
+      dock.appendChild(dockHead);
+
+      const slider = document.createElement("input");
+      slider.type = "range";
+      slider.min = "0";
+      slider.max = String(opts.maxQty);
+      slider.value = String(cur);
+      slider.disabled = opts.maxQty === 0;
+
+      const actionBtn = document.createElement("button");
+      actionBtn.className = "uw2-btn uw2-btn-primary";
+      actionBtn.style.marginLeft = "auto";
+      actionBtn.style.padding = "7px 22px";
+      actionBtn.textContent = opts.actionLabel;
+
+      const syncQty = (next: number) => {
+        cur = Math.max(0, Math.min(opts.maxQty, Math.trunc(next) || 0));
+        qty = cur;
+        slider.value = String(cur);
+        qtyReadout.textContent = opts.formatReadout(cur);
+        actionBtn.disabled = cur <= 0 || !!opts.disabled;
+      };
+      syncQty(cur);
+      slider.addEventListener("input", () => syncQty(Number(slider.value)));
+
+      const stepRow = document.createElement("div");
+      stepRow.className = "uw2-step-row";
+      for (const [lb, fn] of [
+        ["-10", () => syncQty(cur - 10)],
+        ["-1", () => syncQty(cur - 1)],
+        ["+1", () => syncQty(cur + 1)],
+        ["+10", () => syncQty(cur + 10)],
+        ["MAX", () => syncQty(opts.maxQty)],
+      ] as const) {
+        const btn = document.createElement("button");
+        btn.className = "uw2-step-btn";
+        btn.disabled = opts.maxQty === 0;
+        btn.textContent = lb;
+        btn.addEventListener("click", fn);
+        stepRow.appendChild(btn);
+      }
+      actionBtn.addEventListener("click", () => { if (cur > 0 && !opts.disabled) opts.onCommit(cur); });
+      stepRow.appendChild(actionBtn);
+      dock.append(slider, stepRow);
+      opts.parent.appendChild(dock);
+    };
+
     const render = (keepScroll = true) => {
       const money = market.money;
       moneyPill.textContent = `金块 ${Math.trunc(money / 10000)}  ·  金币 ${money % 10000}`;
@@ -166,78 +236,36 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
         if (qty > maxQty) qty = maxQty;
         if (qty === 0 && maxQty > 0) qty = Math.min(10, maxQty);
 
-        const dock = document.createElement("div");
-        dock.className = "uw2-action-box";
-        const dockHead = document.createElement("div");
-        dockHead.style.cssText = "display:flex;justify-content:space-between;font-weight:700;font-size:14px;";
-        const dockPair = document.createElement("span");
-        dockPair.textContent = selGood && selShip ? `${selGood.name} → ${selShip.name}` : "";
-        const qtyReadout = document.createElement("span");
-        dockHead.append(dockPair, qtyReadout);
-        dock.appendChild(dockHead);
-
-        const slider = document.createElement("input");
-        slider.type = "range";
-        slider.min = "0";
-        slider.max = String(maxQty);
-        slider.value = String(qty);
-        slider.disabled = maxQty === 0;
-
-        const buyBtn = document.createElement("button");
-        buyBtn.className = "uw2-btn uw2-btn-primary";
-        buyBtn.style.marginLeft = "auto";
-        buyBtn.style.padding = "7px 22px";
-        buyBtn.textContent = tabLabels[0];
-
-        const syncQty = (next: number) => {
-          qty = Math.max(0, Math.min(maxQty, Math.trunc(next) || 0));
-          slider.value = String(qty);
-          qtyReadout.textContent = `${qty} / ${maxQty} (${selGood ? qty * selGood.price : 0})`;
-          buyBtn.disabled = qty <= 0 || !selGood || !selShip;
-        };
-        syncQty(qty);
-        slider.addEventListener("input", () => syncQty(Number(slider.value)));
-
-        const stepRow = document.createElement("div");
-        stepRow.className = "uw2-step-row";
-        for (const [lb, fn] of [
-          ["-10", () => syncQty(qty - 10)],
-          ["-1", () => syncQty(qty - 1)],
-          ["+1", () => syncQty(qty + 1)],
-          ["+10", () => syncQty(qty + 10)],
-          ["MAX", () => syncQty(maxQty)],
-        ] as const) {
-          const btn = document.createElement("button");
-          btn.className = "uw2-step-btn";
-          btn.disabled = maxQty === 0;
-          btn.textContent = lb;
-          btn.addEventListener("click", fn);
-          stepRow.appendChild(btn);
-        }
-        buyBtn.addEventListener("click", () => {
-          if (qty <= 0 || !selGood || !selShip) return;
-          const E = market.eco, cs = market.m.crewSlot(selShip.slot);
-          let j = 0;
-          while (j < GameConst.CARGO_SLOTS && cs.getCargoGoods(j) !== GameConst.EMPTY_SLOT && cs.getCargoGoods(j) !== selGood.code) j++;
-          if (j >= GameConst.CARGO_SLOTS) return;
-          market.tradeLog(0x0c, selGood.code, selGood.price, qty);
-          market.money = market.money - qty * selGood.price;
-          cs.setCargoGoods(j, selGood.code);
-          cs.setCargoAmts(j, cs.getCargoAmts(j) + qty);
-          const cat = market.cat(selGood.code);
-          const { catDelta: d, allDelta: t } = calcBuyPriceShift(qty * selGood.price, E.commerce);
-          E.setPrices(cat, clampPriceIndexUp(E.getPrices(cat), d));
-          for (let i = 0; i < 10; i++) E.setPrices(i, clampPriceIndexUp(E.getPrices(i), t));
-          b.loadTotal(selShip.slot);
-          b.p.panels();
-          toastMsg = `${selGood.name} ×${qty} → ${selShip.name}`;
-          qty = 0;
-          render();
+        right.append(slist);
+        mountMarketQtyDock({
+          parent: right,
+          label: selGood && selShip ? `${selGood.name} → ${selShip.name}` : "",
+          maxQty,
+          initialQty: qty,
+          actionLabel: tabLabels[0],
+          disabled: !selGood || !selShip,
+          formatReadout: n => `${n} / ${maxQty} (${selGood ? n * selGood.price : 0})`,
+          onCommit: committedQty => {
+            if (!selGood || !selShip) return;
+            const E = market.eco, cs = market.m.crewSlot(selShip.slot);
+            let j = 0;
+            while (j < GameConst.CARGO_SLOTS && cs.getCargoGoods(j) !== GameConst.EMPTY_SLOT && cs.getCargoGoods(j) !== selGood.code) j++;
+            if (j >= GameConst.CARGO_SLOTS) return;
+            market.tradeLog(0x0c, selGood.code, selGood.price, committedQty);
+            market.money = market.money - committedQty * selGood.price;
+            cs.setCargoGoods(j, selGood.code);
+            cs.setCargoAmts(j, cs.getCargoAmts(j) + committedQty);
+            const cat = market.cat(selGood.code);
+            const { catDelta: d, allDelta: t } = calcBuyPriceShift(committedQty * selGood.price, E.commerce);
+            E.setPrices(cat, clampPriceIndexUp(E.getPrices(cat), d));
+            for (let i = 0; i < 10; i++) E.setPrices(i, clampPriceIndexUp(E.getPrices(i), t));
+            b.loadTotal(selShip.slot);
+            b.p.panels();
+            toastMsg = `${selGood.name} ×${committedQty} → ${selShip.name}`;
+            qty = 0;
+            render();
+          },
         });
-        stepRow.appendChild(buyBtn);
-        dock.append(slider, stepRow);
-
-        right.append(slist, dock);
         split.append(left, right);
         h.body.appendChild(split);
       } else if (activeTab === 1) {
@@ -275,50 +303,33 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
         if (qty > maxSell) qty = maxSell;
         if (qty === 0 && maxSell > 0) qty = maxSell;
 
-        const dock = document.createElement("div");
-        dock.className = "uw2-action-box";
-        dock.innerHTML = `<div style="display:flex;justify-content:space-between;font-weight:700;font-size:14px;"><span>${selCargo ? selCargo.name : ""}</span><span style="color:#247544;">${qty} / ${maxSell} (+${selCargo ? qty * selCargo.sellPrice : 0})</span></div>`;
-        const stepRow = document.createElement("div");
-        stepRow.className = "uw2-step-row";
-        for (const [lb, fn] of [
-          ["-10", () => { qty = Math.max(0, qty - 10); render(); }],
-          ["-1", () => { qty = Math.max(0, qty - 1); render(); }],
-          ["+1", () => { qty = Math.min(maxSell, qty + 1); render(); }],
-          ["+10", () => { qty = Math.min(maxSell, qty + 10); render(); }],
-          ["MAX", () => { qty = maxSell; render(); }],
-        ] as const) {
-          const btn = document.createElement("button");
-          btn.className = "uw2-step-btn";
-          btn.disabled = maxSell === 0;
-          btn.textContent = lb;
-          btn.addEventListener("click", fn);
-          stepRow.appendChild(btn);
-        }
-        const sellBtn = document.createElement("button");
-        sellBtn.className = "uw2-btn uw2-btn-primary";
-        sellBtn.style.marginLeft = "auto";
-        sellBtn.style.padding = "7px 22px";
-        sellBtn.disabled = qty <= 0 || !selCargo || !selShip;
-        sellBtn.textContent = tabLabels[1];
-        sellBtn.addEventListener("click", () => {
-          if (qty <= 0 || !selCargo || !selShip) return;
-          const E = market.eco, cs = market.m.crewSlot(selShip.slot);
-          market.money = market.money + qty * selCargo.sellPrice;
-          cs.setCargoAmts(selCargo.j, cs.getCargoAmts(selCargo.j) - qty);
-          const cat = market.cat(selCargo.g);
-          const { catDelta: d, allDelta: t } = calcSellPriceShift(qty * selCargo.sellPrice, E.commerce);
-          E.setPrices(cat, clampPriceIndexDown(E.getPrices(cat), d));
-          for (let i = 0; i < 10; i++) E.setPrices(i, clampPriceIndexDown(E.getPrices(i), t));
-          if (cs.getCargoAmts(selCargo.j) === 0) cs.setCargoGoods(selCargo.j, GameConst.EMPTY_SLOT);
-          b.loadTotal(selShip.slot);
-          b.p.panels();
-          toastMsg = `${selCargo.name} ×${qty}  +${qty * selCargo.sellPrice}`;
-          qty = 0;
-          render();
+        right.append(clist);
+        mountMarketQtyDock({
+          parent: right,
+          label: selCargo ? selCargo.name : "",
+          maxQty: maxSell,
+          initialQty: qty,
+          actionLabel: tabLabels[1],
+          readoutColor: "#247544",
+          disabled: !selCargo || !selShip,
+          formatReadout: n => `${n} / ${maxSell} (+${selCargo ? n * selCargo.sellPrice : 0})`,
+          onCommit: committedQty => {
+            if (!selCargo || !selShip) return;
+            const E = market.eco, cs = market.m.crewSlot(selShip.slot);
+            market.money = market.money + committedQty * selCargo.sellPrice;
+            cs.setCargoAmts(selCargo.j, cs.getCargoAmts(selCargo.j) - committedQty);
+            const cat = market.cat(selCargo.g);
+            const { catDelta: d, allDelta: t } = calcSellPriceShift(committedQty * selCargo.sellPrice, E.commerce);
+            E.setPrices(cat, clampPriceIndexDown(E.getPrices(cat), d));
+            for (let i = 0; i < 10; i++) E.setPrices(i, clampPriceIndexDown(E.getPrices(i), t));
+            if (cs.getCargoAmts(selCargo.j) === 0) cs.setCargoGoods(selCargo.j, GameConst.EMPTY_SLOT);
+            b.loadTotal(selShip.slot);
+            b.p.panels();
+            toastMsg = `${selCargo.name} ×${committedQty}  +${committedQty * selCargo.sellPrice}`;
+            qty = 0;
+            render();
+          },
         });
-        stepRow.appendChild(sellBtn);
-        dock.appendChild(stepRow);
-        right.append(clist, dock);
         split.append(left, right);
         h.body.appendChild(split);
       } else if (activeTab === 2) {
@@ -594,7 +605,7 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
         resolve({ type: "depart", days: curDays });
       });
 
-      const render = (keepScroll = true) => {
+    const render = (keepScroll = true) => {
         const n = b.fleetShips();
         curShips = n;
         let noDriver = false, crewT = 0, waterT = 0, foodT = 0;

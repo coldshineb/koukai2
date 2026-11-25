@@ -32,6 +32,7 @@ import {
 import { domS16, domUmin16 } from "../domain/economy.ts";
 import { calcCargoUsed, calcShipLoadTotal, calcShipSpeed } from "../domain/fleet.ts";
 import { captureConsoleText, createEscStripper, decodeCleanCstr, toSimp } from "../ui/text_util.ts";
+import { hasDom } from "../ui/modals.ts";
 
 const bHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const B_SPEECH = Uint8Array.of(0x1b, 0x43, 0x30, 0x01, 0x1b, 0x42, 0x37, 0);   // DS:8c12
@@ -347,8 +348,10 @@ export class Buildings {
   async shipInfo(slot) {
     const m = this.m, { palette, con, printf, graph } = this.c;
     const M = m.crewSlot(slot), S = heroOrDockSlot(m, slot), ship = m.ship(S.ship), type = ship.type, T = m.shipType(type);
-    palette.setTarget(palette.table("ships"));
-    await palette.fadeToTarget();
+    if (!hasDom()) {
+      palette.setTarget(palette.table("ships"));
+      await palette.fadeToTarget();
+    }
     this.table();
     con.left = 0x22; con.right = 0x35;
     graph.draw(type + 0x1c, 0x10 << 3, 0xa0);                                // seg0:8050
