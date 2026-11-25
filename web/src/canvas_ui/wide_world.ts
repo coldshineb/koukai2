@@ -65,6 +65,121 @@ function drawGlassPanel(ctx: CanvasRenderingContext2D, x: number, y: number, w: 
   ctx.restore();
 }
 
+// 原版日間 16 色調色盤 (PALETTE_ADDR.day = 0xA50C) 供首次建立圖集色號索引表
+const DAY_PAL_RGB: [number, number, number][] = [
+  [0, 0, 0], [0, 68, 221], [221, 68, 0], [221, 102, 170],
+  [0, 170, 102], [0, 170, 255], [255, 170, 102], [255, 238, 221],
+  [119, 119, 153], [0, 68, 204], [170, 102, 0], [238, 187, 85],
+  [0, 136, 255], [0, 119, 102], [0, 187, 102], [255, 238, 221],
+];
+
+// 地圖圖塊優先對映至原版世界時段色號 8..15 (與 0 黑)，確保清晨/白天/黃昏/夜晚/陰天完全還原原版材質
+const MAP_SEARCH_ORDER = [0, 8, 9, 10, 11, 12, 13, 14, 15, 1, 2, 3, 4, 5, 6, 7];
+const SPRITE_SEARCH_ORDER = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+
+interface PalSheetCache {
+  srcImg: HTMLImageElement;
+  w: number;
+  h: number;
+  indices: Uint8Array; // 0..15 或 255(透明)
+  canvas: HTMLCanvasElement;
+  ctx: CanvasRenderingContext2D;
+  imgData: ImageData;
+  lastPalKey: string;
+}
+
+const palSheetCache = new Map<string, PalSheetCache>();
+
+function getPaletteKey(scr: any): string {
+  const raw: Uint8Array | undefined = scr?.raw;
+  if (!raw || raw.length < 48) return "";
+  let k = "";
+  for (let i = 0; i < 48; i++) k += String.fromCharCode(raw[i] + 48);
+  return k;
+}
+
+function getPaletteRemappedSheet(
+  art: any,
+  scr: any,
+  sheetName: string,
+  preferMapSlots: boolean,
+): HTMLCanvasElement | HTMLImageElement | null {
+  const img = art?.getImage?.(art.sheetUrl(sheetName));
+  if (!img) return null;
+  const raw: Uint8Array | undefined = scr?.raw;
+  if (!raw || raw.length < 48 || typeof document === "undefined") return img;
+
+  let entry = palSheetCache.get(sheetName);
+  if (!entry || entry.srcImg !== img) {
+    const w = img.naturalWidth || img.width;
+    const h = img.naturalHeight || img.height;
+    if (!w || !h) return img;
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return img;
+    ctx.drawImage(img, 0, 0);
+    const srcData = ctx.getImageData(0, 0, w, h).data;
+    const indices = new Uint8Array(w * h);
+    const order = preferMapSlots ? MAP_SEARCH_ORDER : SPRITE_SEARCH_ORDER;
+    for (let p = 0, q = 0; p < indices.length; p++, q += 4) {
+      if (srcData[q + 3] < 128) {
+        indices[p] = 255;
+        continue;
+      }
+      const r = srcData[q], g = srcData[q + 1], b = srcData[q + 2];
+      let best = 0, bestD = 1e9;
+      for (let oi = 0; oi < 16; oi++) {
+        const idx = order[oi];
+        const [pr, pg, pb] = DAY_PAL_RGB[idx];
+        const dr = r - pr, dg = g - pg, db = b - pb;
+        const d = dr * dr + dg * dg + db * db;
+        if (d === 0) { best = idx; break; }
+        if (d < bestD) { bestD = d; best = idx; }
+      }
+      indices[p] = best;
+    }
+    entry = {
+      srcImg: img,
+      w,
+      h,
+      indices,
+      canvas,
+      ctx,
+      imgData: ctx.createImageData(w, h),
+      lastPalKey: "",
+    };
+    palSheetCache.set(sheetName, entry);
+  }
+
+  const palKey = getPaletteKey(scr);
+  if (entry.lastPalKey !== palKey) {
+    const dst = entry.imgData.data;
+    const idxArr = entry.indices;
+    const rTab = new Uint8Array(16), gTab = new Uint8Array(16), bTab = new Uint8Array(16);
+    for (let i = 0; i < 16; i++) {
+      bTab[i] = raw[i * 3] * 17;
+      rTab[i] = raw[i * 3 + 1] * 17;
+      gTab[i] = raw[i * 3 + 2] * 17;
+    }
+    for (let p = 0, q = 0; p < idxArr.length; p++, q += 4) {
+      const ci = idxArr[p];
+      if (ci === 255) {
+        dst[q + 3] = 0;
+      } else {
+        dst[q] = rTab[ci];
+        dst[q + 1] = gTab[ci];
+        dst[q + 2] = bTab[ci];
+        dst[q + 3] = 255;
+      }
+    }
+    entry.ctx.putImageData(entry.imgData, 0, 0);
+    entry.lastPalKey = palKey;
+  }
+  return entry.canvas;
+}
+
 function drawSheetTileDirect(
   ctx: CanvasRenderingContext2D,
   art: any,
@@ -74,15 +189,21 @@ function drawSheetTileDirect(
   dy: number,
   dw: number,
   dh: number,
+  scr?: any,
+  preferMapSlots = true,
 ) {
   const meta = art?.sheet?.(sheetName);
   if (!meta || tileIdx < 0 || tileIdx >= meta.count) return;
-  const img = art.getImage(art.sheetUrl(sheetName));
+  const img = scr
+    ? getPaletteRemappedSheet(art, scr, sheetName, preferMapSlots)
+    : art.getImage(art.sheetUrl(sheetName));
   if (!img) return;
   const col = tileIdx % meta.cols;
   const row = Math.floor(tileIdx / meta.cols);
-  const scaleX = (img.naturalWidth || meta.w) / meta.w;
-  const scaleY = (img.naturalHeight || meta.h) / meta.h;
+  const nw = (img as HTMLImageElement).naturalWidth || img.width || meta.w;
+  const nh = (img as HTMLImageElement).naturalHeight || img.height || meta.h;
+  const scaleX = nw / meta.w;
+  const scaleY = nh / meta.h;
   ctx.drawImage(
     img,
     col * meta.tileW * scaleX,
@@ -96,73 +217,23 @@ function drawSheetTileDirect(
   );
 }
 
-function drawWideAtmosphere(ctx: CanvasRenderingContext2D, scr: any, focusX: number, focusY: number, rtTime?: number) {
+/** 僅保留暴風雨雨絲特效；所有日夜時段色調完全交由原版 16 色調色盤 (scr.raw) 呈現 */
+function drawStormRainOnly(ctx: CanvasRenderingContext2D, scr: any) {
   const a = scr.atmosphere;
-  const t = typeof performance !== "undefined" ? performance.now() * 0.001 : 0;
   const isStorm = !!(a?.active && a.atSea && (a.weather & 15) === 1);
-  const isFog = !!(a?.active && a.atSea && (a.weather & 15) === 3);
-  let mode = a?.mode || "day";
-  if (typeof rtTime === "number") {
-    if (rtTime < 12 || rtTime >= 60) mode = "night";
-    else if (rtTime < 18) mode = "dawn";
-    else if (rtTime >= 51) mode = "dusk";
-    else mode = "day";
-  }
-
+  if (!isStorm) return;
+  const t = typeof performance !== "undefined" ? performance.now() * 0.001 : 0;
   ctx.save();
-  if (isStorm) {
-    ctx.fillStyle = "rgba(8, 18, 40, 0.52)";
-    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-    ctx.strokeStyle = "rgba(195, 220, 255, 0.42)";
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    for (let i = 0; i < 96; i++) {
-      const px = (i * 113 + t * 280) % VIEW_W;
-      const py = (i * 67 + t * 760) % VIEW_H;
-      ctx.moveTo(px, py);
-      ctx.lineTo(px - 12, py + 28);
-    }
-    ctx.stroke();
-    const flash = Math.sin(t * 2.3) * Math.sin(t * 7.1);
-    if (flash > 0.96) {
-      ctx.fillStyle = `rgba(220, 238, 255, ${((flash - 0.96) * 8).toFixed(3)})`;
-      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-    }
-  } else if (isFog || mode === "overcast") {
-    ctx.fillStyle = "rgba(165, 182, 202, 0.28)";
-    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-  } else if (mode === "night") {
-    // 深藍夜幕（僅對主角保留微弱輪廓光，避免把關門的建築照亮造成誤判）
-    ctx.fillStyle = "rgba(6, 14, 42, 0.66)";
-    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-    const g = ctx.createRadialGradient(focusX, focusY, 8, focusX, focusY, 72);
-    g.addColorStop(0, "rgba(210, 224, 255, 0.16)");
-    g.addColorStop(1, "rgba(210, 224, 255, 0)");
-    ctx.fillStyle = g;
-    ctx.fillRect(focusX - 80, focusY - 80, 160, 160);
-  } else if (mode === "dusk") {
-    // 黃昏暖橙暮色
-    const g = ctx.createLinearGradient(0, 0, 0, VIEW_H);
-    g.addColorStop(0, "rgba(232, 108, 40, 0.34)");
-    g.addColorStop(0.6, "rgba(182, 76, 36, 0.26)");
-    g.addColorStop(1, "rgba(72, 32, 48, 0.32)");
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-  } else if (mode === "dawn") {
-    // 黎明晨曦柔光
-    const g = ctx.createLinearGradient(0, 0, 0, VIEW_H);
-    g.addColorStop(0, "rgba(255, 176, 118, 0.24)");
-    g.addColorStop(1, "rgba(102, 136, 204, 0.18)");
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+  ctx.strokeStyle = "rgba(195, 220, 255, 0.36)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  for (let i = 0; i < 84; i++) {
+    const px = (i * 113 + t * 280) % VIEW_W;
+    const py = (i * 67 + t * 760) % VIEW_H;
+    ctx.moveTo(px, py);
+    ctx.lineTo(px - 12, py + 28);
   }
-
-  // 柔和邊緣暗角
-  const vig = ctx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, VIEW_H * 0.42, VIEW_W / 2, VIEW_H / 2, VIEW_W * 0.65);
-  vig.addColorStop(0, "rgba(0,0,0,0)");
-  vig.addColorStop(1, "rgba(5, 10, 18, 0.3)");
-  ctx.fillStyle = vig;
-  ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+  ctx.stroke();
   ctx.restore();
 }
 
@@ -402,7 +473,7 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
       const mx = camX + c;
       if (mx < 0 || mx >= P_MAP_W) continue;
       const t = M[rowOff + mx];
-      drawSheetTileDirect(ctx, art, sheetName, t, c * TILE, r * TILE, TILE, TILE);
+      drawSheetTileDirect(ctx, art, sheetName, t, c * TILE, r * TILE, TILE, TILE, scr, true);
     }
   }
 
@@ -416,7 +487,7 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
       if (sx < -64 || sx > VIEW_W || sy < -64 || sy > VIEW_H) continue;
       const localIdx = i >= 4 ? (n.d + 12) * 2 : ((i & 1) * 4 + n.d + 4) * 2 + (((n.x + n.y) & 1) === 0 ? 1 : 0);
       const globalIdx = 48 + Math.max(0, Math.min(23, localIdx - 8));
-      drawSheetTileDirect(ctx, art, "chars", globalIdx, sx, sy, TILE * 2, TILE * 2);
+      drawSheetTileDirect(ctx, art, "chars", globalIdx, sx, sy, TILE * 2, TILE * 2, scr, false);
     }
   }
 
@@ -426,57 +497,9 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
   const heroSpriteIdx = portScene.st.hero * 8 + hDir * 2 + hPhase;
   const hxPx = (heroWX - camX) * TILE;
   const hyPx = (heroWY - camY) * TILE;
-  drawSheetTileDirect(ctx, art, "chars", heroSpriteIdx, hxPx, hyPx, TILE * 2, TILE * 2);
+  drawSheetTileDirect(ctx, art, "chars", heroSpriteIdx, hxPx, hyPx, TILE * 2, TILE * 2, scr, false);
 
-  // 全屏 16:9 晝夜光影
-  const rtTime = portScene.c.rt?.time;
-  drawWideAtmosphere(ctx, scr, hxPx + TILE, hyPx + TILE, rtTime);
-
-  // 夜間 / 黃昏時點亮所有「正在營業」建築的門口暖光與門燈，一眼辨識哪間店開門（關門建築保持黑暗）
-  const isNightOrDusk = typeof rtTime === "number" && (rtTime < 12 || rtTime >= 51);
-  if (isNightOrDusk && portScene.door && typeof portScene.isOpen === "function") {
-    const t = typeof performance !== "undefined" ? performance.now() * 0.004 : 0;
-    const isNight = rtTime < 12 || rtTime >= 60;
-    ctx.save();
-    for (let k = 0; k < 12; k++) {
-      const dx = portScene.door[k * 2];
-      const dy = portScene.door[k * 2 + 1];
-      if (!dx && !dy) continue;
-      if (dx >= P_MAP_W || dy >= P_MAP_W) continue;
-      if (!portScene.isOpen(k)) continue;
-      const sx = (dx - camX) * TILE + TILE;
-      const sy = (dy - camY) * TILE + TILE;
-      if (sx < -160 || sx > VIEW_W + 160 || sy < -160 || sy > VIEW_H + 160) continue;
-
-      const flicker = 1 + Math.sin(t + k * 1.7) * 0.06;
-      const r = (isNight ? 132 : 84) * flicker;
-
-      // 門口灑向街道的暖黃燈光（穿透夜幕）
-      ctx.globalCompositeOperation = "lighter";
-      const pool = ctx.createRadialGradient(sx, sy - 10, 8, sx, sy + 8, r);
-      pool.addColorStop(0, isNight ? "rgba(255, 206, 108, 0.62)" : "rgba(255, 198, 96, 0.32)");
-      pool.addColorStop(0.45, isNight ? "rgba(255, 158, 56, 0.28)" : "rgba(255, 150, 50, 0.14)");
-      pool.addColorStop(1, "rgba(255, 140, 40, 0)");
-      ctx.fillStyle = pool;
-      ctx.fillRect(sx - r, sy - r, r * 2, r * 2);
-
-      // 門框透出的溫暖室內光 + 門簷燈籠亮點
-      const doorGlow = ctx.createLinearGradient(sx, sy - 42, sx, sy + 4);
-      doorGlow.addColorStop(0, isNight ? "rgba(255, 224, 130, 0.68)" : "rgba(255, 214, 120, 0.35)");
-      doorGlow.addColorStop(1, "rgba(255, 178, 70, 0.08)");
-      ctx.fillStyle = doorGlow;
-      ctx.fillRect(sx - 20, sy - 42, 40, 46);
-
-      ctx.globalCompositeOperation = "source-over";
-      ctx.fillStyle = "#ffe89e";
-      ctx.beginPath();
-      ctx.arc(sx, sy - 46, isNight ? 4.5 : 3.2, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.restore();
-  }
-
-  // 懸浮現代 Canvas HUD
+  // 懸浮現代 HUD（所有日夜時段色調直接由原版 16 色調色盤呈現，無人工打燈覆層）
   drawFloatingHud(ctx, portScene, false);
 }
 
@@ -529,7 +552,7 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
       const mx = camX + c;
       if (mx < 0 || mx >= SEA_VALID) continue;
       const t = M[rowOff + mx];
-      drawSheetTileDirect(ctx, art, "seachip", t, c * TILE, r * TILE, TILE, TILE);
+      drawSheetTileDirect(ctx, art, "seachip", t, c * TILE, r * TILE, TILE, TILE, scr, true);
     }
   }
 
@@ -557,7 +580,7 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
       ? (si + (((d * 2 + (seaScene.time & 1)) << 9) & 0xffff)) & 0xffff
       : (si + ((d << 10) & 0xffff) + (((k + seaScene.time) & 1) << 9)) & 0xffff;
     const idx = (si - 0x4000) >> 9;
-    drawSheetTileDirect(ctx, art, "sea_ships", idx, sx, sy, TILE * 2, TILE * 2);
+    drawSheetTileDirect(ctx, art, "sea_ships", idx, sx, sy, TILE * 2, TILE * 2, scr, false);
   };
 
   if (w === 0 || w === 2) {
@@ -571,8 +594,6 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
     drawOneFleet(F, 0, true);
   }
 
-  const shipPxX = (shipLX - camX) * TILE + TILE;
-  const shipPxY = (shipLY - camY) * TILE + TILE;
-  drawWideAtmosphere(ctx, scr, shipPxX, shipPxY, seaScene.c.rt?.time);
+  drawStormRainOnly(ctx, scr);
   drawFloatingHud(ctx, seaScene, true);
 }

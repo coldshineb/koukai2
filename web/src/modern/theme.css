@@ -232,6 +232,9 @@ html, body {
   display: flex;
   gap: 14px;
   align-items: flex-start;
+  margin-bottom: 56px;
+  position: relative;
+  z-index: 45;
 }
 
 .uw2-portrait-canvas {

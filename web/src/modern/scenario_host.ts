@@ -4,6 +4,7 @@ import type { IScenarioHost, ScenarioWindowDef } from "../ui/protocol.ts";
 import { DS } from "../model/schema_views.ts";
 import { GameConst } from "../model/flags.ts";
 import { stripEscBytes, toSimp } from "../canvas_ui/text_util.ts";
+import { runDomMenu, runDomYesNo } from "./dom_ui.ts";
 
 export interface ModernScenarioDeps {
   runDuel: (scenario: any, person: number) => Promise<void>;
@@ -21,6 +22,8 @@ export class ModernScenarioHost implements IScenarioHost {
   private portraitImg: HTMLImageElement | null = null;
   private buffer = "";
   private activePictureWin = false;
+  private readonly windowFaces = new Map<ScenarioWindowDef, number | null>();
+  private curFaceId: number | null = null;
 
   constructor(ctx: any, root: HTMLElement, getScene: () => any, deps: ModernScenarioDeps) {
     this.c = ctx;
@@ -66,6 +69,24 @@ export class ModernScenarioHost implements IScenarioHost {
     this.textEl = null;
     this.portraitImg = null;
     this.buffer = "";
+    this.curFaceId = null;
+    this.windowFaces.clear();
+  }
+
+  private syncPortrait(faceId: number | null): void {
+    this.curFaceId = faceId;
+    const img = this.portraitImg;
+    if (!img) return;
+    if (faceId !== null && faceId >= 0 && faceId < 128) {
+      const url = this.c?.art?.portraitUrl?.(faceId);
+      if (url) {
+        img.src = url;
+        img.style.display = "block";
+        return;
+      }
+    }
+    img.removeAttribute("src");
+    img.style.display = "none";
   }
 
   openWindow(id: number, w: ScenarioWindowDef): void {
@@ -77,14 +98,17 @@ export class ModernScenarioHost implements IScenarioHost {
       return;
     }
     this.ensureCard();
+    this.windowFaces.set(w, null);
+    this.syncPortrait(null);
   }
 
-  async closeWindow(id: number, _w: ScenarioWindowDef): Promise<void> {
+  async closeWindow(id: number, w: ScenarioWindowDef): Promise<void> {
     if (id === 3 && this.activePictureWin) {
       this.activePictureWin = false;
       await this.c.win.close();
       return;
     }
+    this.windowFaces.delete(w);
     this.destroyCard();
   }
 
@@ -93,22 +117,17 @@ export class ModernScenarioHost implements IScenarioHost {
     if (this.textEl) this.textEl.textContent = "";
   }
 
-  selectWindow(_w: ScenarioWindowDef, _textColor: Uint8Array): void {
+  selectWindow(w: ScenarioWindowDef, _textColor: Uint8Array): void {
     this.ensureCard();
-    this.clearWindowText(_w);
+    this.clearWindowText(w);
+    this.syncPortrait(this.windowFaces.get(w) ?? null);
   }
 
-  drawFace(faceId: number, _w: ScenarioWindowDef): void {
+  drawFace(faceId: number, w: ScenarioWindowDef): void {
     this.ensureCard();
-    const img = this.portraitImg;
-    if (!img) return;
-    const url = this.c?.art?.portraitUrl?.(faceId & 0xff);
-    if (url) {
-      img.src = url;
-      img.style.display = "block";
-    } else {
-      img.style.display = "none";
-    }
+    const fid = faceId & 0xff;
+    this.windowFaces.set(w, fid);
+    this.syncPortrait(fid);
   }
 
   showText(bytes: Uint8Array): void {
@@ -147,13 +166,31 @@ export class ModernScenarioHost implements IScenarioHost {
     });
   }
 
-  selectMenu(items: Uint8Array[]): Promise<number> {
-    const labels = items.map(it => this.decodeBytes(it));
-    return this.c.modernUI.selectMenuLabels(labels, false);
+  async selectMenu(items: Uint8Array[]): Promise<number> {
+    const labels = items.map(it => this.decodeBytes(it).replace(/[\s\u3000]+/g, ""));
+    const card = this.cardEl;
+    if (card) card.style.display = "none";
+    try {
+      return await runDomMenu(labels, 0, false, "请选择", this.buffer, {
+        art: this.c.art,
+        portraitId: this.curFaceId,
+      });
+    } finally {
+      if (card) card.style.display = "";
+    }
   }
 
-  confirmYesNo(): Promise<boolean> {
-    return this.c.modernUI.confirmYesNo("");
+  async confirmYesNo(): Promise<boolean> {
+    const card = this.cardEl;
+    if (card) card.style.display = "none";
+    try {
+      return !!(await runDomYesNo(this.buffer, "是", "否", {
+        art: this.c.art,
+        portraitId: this.curFaceId,
+      }));
+    } finally {
+      if (card) card.style.display = "";
+    }
   }
 
   playMusic(song: number): void {

@@ -5,8 +5,9 @@
 // 原版怪行為 (照搬): 問候判斷夜市用的是 12 ≤ [0535] < 18 (而營業時間是 2:00–3:00 = 6..8 與 8:00–20:00), 所以「夜市」問候 0x2fc 實際上不會出現
 import { GameConst, ItemFlag, ItemKind, MenuId } from "../model/flags.ts";
 import { DS } from "../model/schema_views.ts";
-import { captureConsoleText, decodeCleanCstr } from "../canvas_ui/text_util.ts";
+import { captureConsoleText, decodeCleanCstr, toSimp } from "../canvas_ui/text_util.ts";
 import { runWideInfoLinesModal } from "../canvas_ui/wide_panels.ts";
+import { createDomModal, hasDom, preserveScroll } from "../modern/dom_ui.ts";
 
 const isHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const isS16 = v => (v << 16) >> 16;
@@ -20,6 +21,10 @@ export class ItemShop {
 
   // ================= 入口 29dfe =================
   async run() {
+    if (hasDom() && this.c.codec) {
+      await this.runDomWorkbench();
+      return;
+    }
     const b = this.b, t = this.c.rt.time;
     if (b.noEvent()) b.greet(t >= 12 && t < 18 ? 0x2fc : 0xeb);
     const items = this.c.menuItems(MenuId.ITEM_SHOP).slice(0, 2);
@@ -29,6 +34,260 @@ export class ItemShop {
       if (sel !== 0xff) await [() => this.buy(), () => this.sell()][sel]();
       b.after();
     } while (sel !== 0xff);
+  }
+  // 現代單視窗雙欄道具店工作台（買進/賣出分頁直達，不再選單套選單）
+  async runDomWorkbench() {
+    const b = this.b, m = this.m, { codec, art, sys, message, printf } = this.c;
+    const t = this.c.rt.time;
+    const capMsg = (id, ...args) => toSimp(captureConsoleText(this.c, () => message(id, ...args)).trim());
+    const initGreet = b.noEvent() ? capMsg(t >= 12 && t < 18 ? 0x2fc : 0xeb) : "";
+    const tabLabels = this.c.menuItems(MenuId.ITEM_SHOP).slice(0, 2).map(raw => decodeCleanCstr(codec, raw).replace(/\s+/g, ""));
+    const portName = decodeCleanCstr(codec, m.port(b.port).nameBytes);
+
+    return new Promise(resolve => {
+      let settled = false;
+      let tab = 0; // 0 = 買進, 1 = 賣出
+      let selIdx = 0;
+      let notice = initGreet;
+      let haggleState = null; // { it, price } when player declined first sell offer & shopkeeper counter-offered
+
+      const done = () => {
+        if (settled) return;
+        settled = true;
+        h.close();
+        b.after();
+        resolve();
+      };
+
+      const h = createDomModal({
+        title: `${portName} · 道具店`,
+        size: "wide",
+        cancelable: true,
+        closeLabel: "离开",
+        onCancel: done,
+      });
+
+      const cashBadge = document.createElement("span");
+      cashBadge.className = "uw2-badge";
+      h.headerRight.prepend(cashBadge);
+
+      const getList = () => {
+        if (tab === 0) {
+          const n = this.shopList();
+          return Array.from({ length: n }, (_, i) => this.c.persons[i] & 0xff);
+        }
+        const n = this.invList();
+        return Array.from({ length: n }, (_, i) => this.c.persons[i] & 0xff);
+      };
+
+      const isOwnedNonTool = it => {
+        const item = m.item(it);
+        if ((item.kindFlags & ItemFlag.KIND_MASK) >= ItemKind.NAVI_TOOL) return false;
+        for (let i = 0; i < GameConst.INV_SLOTS; i++) if (m.inventory(i) === it) return true;
+        return false;
+      };
+
+      const render = () => preserveScroll(h.body, () => {
+        cashBadge.textContent = `金币 ${this.money.toLocaleString()}`;
+        h.body.innerHTML = "";
+
+        const topBar = document.createElement("div");
+        topBar.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;flex-wrap:wrap;";
+
+        const tabs = document.createElement("div");
+        tabs.className = "uw2-tabs";
+        tabLabels.forEach((lbl, idx) => {
+          const btn = document.createElement("button");
+          btn.className = `uw2-tab ${tab === idx ? "active" : ""}`;
+          btn.textContent = lbl || (idx === 0 ? "买进" : "卖出");
+          btn.addEventListener("click", () => {
+            tab = idx;
+            selIdx = 0;
+            haggleState = null;
+            render();
+          });
+          tabs.appendChild(btn);
+        });
+        topBar.appendChild(tabs);
+
+        if (notice) {
+          const noteEl = document.createElement("div");
+          noteEl.style.cssText = "flex:1;min-width:220px;font-size:13px;color:var(--uw2-ink);padding:6px 10px;border-radius:6px;background:rgba(255,252,242,0.75);border:1px solid rgba(154,119,56,0.28);";
+          noteEl.textContent = notice;
+          topBar.appendChild(noteEl);
+        }
+        h.body.appendChild(topBar);
+
+        const listIds = getList();
+        if (selIdx >= listIds.length) selIdx = Math.max(0, listIds.length - 1);
+
+        const split = document.createElement("div");
+        split.className = "uw2-split";
+
+        const left = document.createElement("div");
+        left.className = "uw2-pane";
+        const listWrap = document.createElement("div");
+        listWrap.className = "uw2-list-col";
+        listWrap.style.maxHeight = "410px";
+
+        if (!listIds.length) {
+          const empty = document.createElement("div");
+          empty.className = "uw2-empty";
+          empty.textContent = tab === 1 ? capMsg(0xf3) : "暂无商品";
+          listWrap.appendChild(empty);
+        } else {
+          listIds.forEach((it, idx) => {
+            const item = m.item(it);
+            const name = decodeCleanCstr(codec, item.nameBytes);
+            const price = tab === 0
+              ? Math.imul(100, isS16(item.priceDiv100))
+              : Math.imul(isS16(Math.trunc(isS16(item.priceDiv100) / 2)), 100);
+            const equipped = !!(item.kindFlags & ItemFlag.EQUIPPED);
+            const owned = tab === 0 && isOwnedNonTool(it);
+
+            const row = document.createElement("button");
+            row.className = `uw2-row-card ${idx === selIdx ? "selected" : ""}`;
+            row.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:10px;";
+
+            const leftTxt = document.createElement("span");
+            leftTxt.style.fontWeight = "700";
+            leftTxt.textContent = name + (equipped ? " [装备中]" : owned ? " [已持有]" : "");
+
+            const rightTxt = document.createElement("span");
+            rightTxt.style.cssText = "font-size:13px;font-weight:700;color:#7c5216;white-space:nowrap;";
+            rightTxt.textContent = tab === 1 && item.power === 0 ? "不可出售" : `${price.toLocaleString()} 金币`;
+
+            row.append(leftTxt, rightTxt);
+            row.addEventListener("click", () => { selIdx = idx; haggleState = null; render(); });
+            listWrap.appendChild(row);
+          });
+        }
+        left.appendChild(listWrap);
+
+        const right = document.createElement("div");
+        right.className = "uw2-pane";
+        const detail = document.createElement("div");
+        detail.className = "uw2-action-box";
+
+        if (listIds.length) {
+          const it = listIds[selIdx];
+          const item = m.item(it);
+          const name = decodeCleanCstr(codec, item.nameBytes);
+          const R = DS.TBL_ITEM + it * 0x14;
+          const imgUrl = art?.discoveryUrl?.(this.st.u8(R + 0x0f) + 0x55) ?? null;
+          const infoLines = captureConsoleText(this.c, () => b.itemInfo(it, 0)).split("\n").map(s => toSimp(s.trim())).filter(Boolean);
+
+          const head = document.createElement("div");
+          head.style.cssText = "display:flex;align-items:center;gap:12px;";
+          if (imgUrl) {
+            const img = document.createElement("img");
+            img.src = imgUrl;
+            img.style.cssText = "width:64px;height:64px;object-fit:contain;border-radius:8px;border:1px solid rgba(154,119,56,0.4);background:#fffdf6;";
+            head.appendChild(img);
+          }
+          const titleBox = document.createElement("div");
+          titleBox.innerHTML = `<div style="font-size:18px;font-weight:700;color:var(--uw2-ink);">${name}</div>`;
+          head.appendChild(titleBox);
+          detail.appendChild(head);
+
+          if (infoLines.length) {
+            const infoBox = document.createElement("div");
+            infoBox.style.cssText = "font-size:13px;line-height:1.7;color:var(--uw2-ink);padding:8px 10px;border-radius:6px;background:rgba(255,252,242,0.7);border:1px solid rgba(154,119,56,0.22);";
+            infoBox.textContent = infoLines.join("\n");
+            detail.appendChild(infoBox);
+          }
+
+          if (tab === 0) {
+            const price = Math.imul(100, isS16(item.priceDiv100));
+            const owned = isOwnedNonTool(it);
+            const full = this.invList() >= GameConst.INV_SLOTS;
+            const ask = toSimp(captureConsoleText(this.c, () => { message(0xf0, item.nameBytes); printf(this.F.ld, price); message(0xf1); }).trim());
+            const pAsk = document.createElement("div");
+            pAsk.style.cssText = "font-size:14px;font-weight:600;color:var(--uw2-ink);";
+            pAsk.textContent = ask;
+            detail.appendChild(pAsk);
+
+            const buyBtn = document.createElement("button");
+            buyBtn.className = "uw2-btn uw2-btn-primary";
+            buyBtn.style.cssText = "padding:9px 22px;align-self:flex-start;";
+            buyBtn.textContent = `购买 (${price.toLocaleString()} 金币)`;
+            buyBtn.addEventListener("click", () => {
+              if (this.money === 0) { notice = capMsg(0xec); render(); return; }
+              if (full) { notice = capMsg(0xed); render(); return; }
+              if (owned) { notice = capMsg(0x14c); render(); return; }
+              if (price > this.money) { notice = capMsg(0xef); render(); return; }
+              this.money = (this.money - price) | 0;
+              for (let i = 0; i < GameConst.INV_SLOTS; i++) {
+                if (m.inventory(i) === GameConst.EMPTY_SLOT) { m.setInventory(i, it); break; }
+              }
+              this.b.p.panels();
+              notice = capMsg(0xf2);
+              render();
+            });
+            detail.appendChild(buyBtn);
+          } else {
+            const equipped = !!(item.kindFlags & ItemFlag.EQUIPPED);
+            const basePrice = Math.imul(isS16(Math.trunc(isS16(item.priceDiv100) / 2)), 100);
+            const activePrice = haggleState && haggleState.it === it ? haggleState.price : basePrice;
+
+            const ask = haggleState && haggleState.it === it
+              ? toSimp(captureConsoleText(this.c, () => { message(0xf6); printf(this.F.ld3, activePrice); message(0xf7); }).trim())
+              : toSimp(captureConsoleText(this.c, () => { message(0xf5, item.nameBytes); printf(this.F.ld2, activePrice); message(0xf7); }).trim());
+            const pAsk = document.createElement("div");
+            pAsk.style.cssText = "font-size:14px;font-weight:600;color:var(--uw2-ink);";
+            pAsk.textContent = ask;
+            detail.appendChild(pAsk);
+
+            const btnRow = document.createElement("div");
+            btnRow.style.cssText = "display:flex;gap:10px;flex-wrap:wrap;";
+
+            const sellBtn = document.createElement("button");
+            sellBtn.className = "uw2-btn uw2-btn-primary";
+            sellBtn.style.padding = "9px 22px";
+            sellBtn.textContent = `卖出 (${activePrice.toLocaleString()} 金币)`;
+            sellBtn.addEventListener("click", () => {
+              if (equipped) { notice = capMsg(0x14d); render(); return; }
+              if (item.power === 0) { notice = capMsg(0x3a1); render(); return; }
+              let nextCash = (this.money + activePrice) | 0;
+              if (nextCash >= GameConst.MAX_CASH) nextCash = GameConst.MAX_CASH;
+              this.money = nextCash;
+              for (let i = 0; i < GameConst.INV_SLOTS; i++) {
+                if (m.inventory(i) === it) { m.setInventory(i, GameConst.EMPTY_SLOT); break; }
+              }
+              haggleState = null;
+              this.b.p.panels();
+              notice = capMsg(0xf8);
+              render();
+            });
+            btnRow.appendChild(sellBtn);
+
+            if (!equipped && item.power !== 0 && !(haggleState && haggleState.it === it)) {
+              const hagBtn = document.createElement("button");
+              hagBtn.className = "uw2-btn";
+              hagBtn.style.padding = "9px 16px";
+              hagBtn.textContent = "再议价";
+              hagBtn.addEventListener("click", () => {
+                const hero = m.heroPerson();
+                if (sys.rng.random(100) <= hero.getStats(7)) {
+                  const boosted = (basePrice + Math.trunc(Math.imul(basePrice, hero.getStats(6)) / 200)) | 0;
+                  haggleState = { it, price: boosted };
+                } else {
+                  notice = capMsg(0xf8);
+                }
+                render();
+              });
+              btnRow.appendChild(hagBtn);
+            }
+            detail.appendChild(btnRow);
+          }
+        }
+        right.appendChild(detail);
+        split.append(left, right);
+        h.body.appendChild(split);
+      });
+
+      render();
+    });
   }
   // 130f7 本店商品 → [0538]
   shopList() {

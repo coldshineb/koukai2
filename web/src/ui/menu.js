@@ -308,7 +308,18 @@ export class MenuSystem {
     if (hasDom()) {
       const r = this.scr._battleHudActive
         ? await runDomBattleMenu(labels, this.disabled, !!cancelable, this.wideMenuTitle || "战斗指令")
-        : await runDomMenu(labels, this.disabled, !!cancelable, this.wideMenuTitle || "");
+        : await runDomMenu(
+            labels,
+            this.disabled,
+            !!cancelable,
+            this.wideMenuTitle || "",
+            this.scr.wideDialog?.text || "",
+            {
+              art: this.scr.wideArt,
+              portraitId: this.scr.wideDialog?.portraitId ?? null,
+              portraitComposed: this.scr.wideDialog?.portraitComposed ?? null,
+            },
+          );
       this.disabled = 0; this.lineH = 0x10; this.con.bg = 0x0f;
       await this.waitRelease();
       return r;

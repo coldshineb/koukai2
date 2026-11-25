@@ -182,7 +182,14 @@ export function createDomModal(opts: {
 }
 
 // ---------------- 1. 現代選單彈窗 (取代 listMenu) ----------------
-export function runDomMenu(items: string[], disabledMask: number, cancelable: boolean, title = ""): Promise<number> {
+export function runDomMenu(
+  items: string[],
+  disabledMask: number,
+  cancelable: boolean,
+  title = "",
+  promptText = "",
+  portrait?: DomDialogPortrait,
+): Promise<number> {
   return new Promise(resolve => {
     let settled = false;
     const done = (v: number) => { if (settled) return; settled = true; h.close(); resolve(v); };
@@ -193,6 +200,13 @@ export function runDomMenu(items: string[], disabledMask: number, cancelable: bo
       cancelable,
       onCancel: () => done(0xff),
     });
+
+    if (promptText) {
+      const box = document.createElement("div");
+      box.style.cssText = "padding:8px 10px;border-radius:8px;background:rgba(255,252,242,0.72);border:1px solid rgba(154,119,56,0.26);";
+      appendModalPrompt(box, promptText, portrait, "uw2-dialog-text");
+      h.body.appendChild(box);
+    }
 
     const list = document.createElement("div");
     list.className = "uw2-list-col";

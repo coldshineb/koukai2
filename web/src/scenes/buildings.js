@@ -123,7 +123,12 @@ export class Buildings {
     this.c.menu.wideAnchorCmd = -3;
     if (this._curBuildingName) this.c.menu.wideMenuTitle = this._curBuildingName;
     try {
-      return await this.c.menu.listMenu(0x3c, 0x68, items, 1);
+      const r = await this.c.menu.listMenu(0x3c, 0x68, items, 1);
+      if (r === 0xff && this.c.scr.wideDialog) {
+        this.c.scr.wideDialog = null;
+        this.c.scr.dirty = true;
+      }
+      return r;
     } finally {
       this.c.menu.wideAnchorCmd = prev;
       this.c.menu.wideMenuTitle = prevTitle;
