@@ -1,7 +1,13 @@
 // shipyard.js — 造船厂 (造新船 / 交船 / 买旧船 / 修理 / 卖船 / 改造 / 工业投资 / 折抵剩余货物分配)
-import { ListSelect } from "../ui/dos/listsel.js";
-import { DS, OFF } from "../model/schema_views.ts";
-import { WorkDS } from "../model/flags.ts";
+import { GameConst, ShipSlotFlag, SkillFlag } from "../model/flags.ts";
+import {
+  WorldConst,
+  getPortEcoExtra,
+  heroOrDockSlot,
+  heroShipSlot,
+  setPortBuildDays,
+  writeShipName,
+} from "../model/world_helpers.ts";
 import { domS16, domUmin16 } from "../domain/economy.ts";
 import { createDomModal, hasDom, preserveScroll } from "../ui/modals.ts";
 import { runDomShipyardWorkbench } from "../ui/buildings_panel.ts";
@@ -10,9 +16,9 @@ import { decodeCleanCstr, toSimp } from "../ui/text_util.ts";
 class ShipyardMixin {
   // ================= 2 造船厂 1fd9:cc01 =================
   async shipyard() {
-    const st = this.st, { palette, menu } = this.c;
+    const m = this.m, g = m.globals, { palette, menu } = this.c;
     if (!hasDom()) { palette.setTarget(palette.table("ships")); await palette.fadeToTarget(); }
-    if (st.u8(DS.DAILY_FLAGS) & 2) { this.greet(0xf9); await this.wait(); return; }
+    if (g.dailyFlags & 2) { this.greet(0xf9); await this.wait(); return; }
     if (hasDom() && this.c.codec) {
       await runDomShipyardWorkbench(this);
       this.fleetRecalc();
@@ -21,8 +27,8 @@ class ShipyardMixin {
     this.greet(0x4d);
     let sel;
     do {
-      const items = this.c.menuItems(22);
-      let n = 0; for (let i = 0; i < 5; i++) if (st.u8(DS.TBL_USED_SHIP_CACHE + i) !== 0xff) n++;   // seg0:5cc4(0) 中古船表第 1 笔 (到港 1bd16 把本港移到第 1 笔; 原版各处都传 al = 0)
+      const items = this.c.menuItems(22), cache = m.usedShipCache(0);
+      let n = 0; for (let i = 0; i < 5; i++) if (cache.getShipTypes(i) !== GameConst.EMPTY_SLOT) n++;   // seg0:5cc4(0) 中古船表第 1 笔
       if (!n) menu.disabled |= 2;
       this.b2f4 = this.b2f5 = this.b2f6 = this.b2f7 = 0xff; this.b2f8 = 0;
       sel = await this.menu(items);
@@ -31,26 +37,26 @@ class ShipyardMixin {
           () => this.remodel(), () => this.invest()][sel]();
         this.after();
       }
-    } while (sel !== 0xff && !(st.u8(DS.DAILY_FLAGS) & 2));
+    } while (sel !== 0xff && !(g.dailyFlags & 2));
     this.fleetRecalc();
     if (!hasDom()) {
-      palette.selectTimePalette(this.c.rt.time, false, st.weather);           // 0fea:98ce
+      palette.selectTimePalette(this.c.rt.time, false, g.weather);             // 0fea:98ce
       await palette.fadeToTarget();
     }
   }
   sTodo(n) { this.todo(n); }
   // 2bd77 造新船
   async newShip() {
-    const st = this.st, E = this.eco, { sys, win, con } = this.c;
+    const m = this.m, E = m.portEconomy(this.port), ecoEx = getPortEcoExtra(E), { sys, win, con } = this.c;
     this.b2f8 = 1; this.b2f5 = this.b2f4 = 0xff;
-    if (st.u8(E + 0x23) !== 0xff) {                                       // 2b867 有船在造
-      if (st.u8(E + 0x23)) { this.greet(0x105, st.u8(E + 0x23)); await this.wait(); return; }
+    if (ecoEx.buildDays !== GameConst.EMPTY_SLOT) {                          // 2b867 有船在造
+      if (ecoEx.buildDays) { this.greet(0x105, ecoEx.buildDays); await this.wait(); return; }
       return this.delivery();
     }
-    const t0 = this.BT.levels[st.u8(E + 0x22)][0];
-    if (((10 * st.u8(this.typeRec(t0))) & 0xffff) > st.u16(E + 4)) { this.greet(0xfb); await this.wait(); return; }
+    const t0 = this.BT.levels[ecoEx.shipRegion][0];
+    if (((10 * m.shipType(t0).shipClass) & 0xffff) > E.industry) { this.greet(0xfb); await this.wait(); return; }
     this.freeSlots();
-    if (domS16(this.c.persons[0]) < 10) {                                   // 船坞已满
+    if (domS16(this.c.persons[0]) < 10) {                                      // 船坞已满
       sys.mouseHide();
       await win.open(0x15, 0xc0, 0x1e, 0x48, 0);
       con.puts(this.BT.fmt.dockFull);
@@ -68,49 +74,49 @@ class ShipyardMixin {
   }
   // 2bb91 选船型 → 材质 → 交涉 → 开工
   async buildSelect() {
-    const st = this.st, E = this.eco, { menu } = this.c, list = this.listSel(), P = this.c.persons;
-    const row = this.BT.levels[st.u8(E + 0x22)];
+    const m = this.m, E = m.portEconomy(this.port), ecoEx = getPortEcoExtra(E), { menu } = this.c, list = this.listSel(), P = this.c.persons;
+    const row = this.BT.levels[ecoEx.shipRegion];
     let n = 0;
-    for (let i = 0; i < 8; i++) { const t = row[i]; if (t === 0xff) break; if (((10 * st.u8(this.typeRec(t))) & 0xffff) <= st.u16(E + 4)) P[n++] = t + 0x28; }
+    for (let i = 0; i < 8; i++) { const t = row[i]; if (t === 0xff) break; if (((10 * m.shipType(t).shipClass) & 0xffff) <= E.industry) P[n++] = t + 0x28; }
     for (;;) {
       const r = await list.select(0x8e, n);
       if (r === -1) return;
-      const t = (P[r] - 0x28) & 0xff, T = this.typeRec(t);
+      const t = (P[r] - 0x28) & 0xff, T = m.shipType(t);
       this.shipData(t, 2);
       this.greet(this.BT.typeMsg[t]); await this.wait();
       this.greet(0xfd);
       if (!(await menu.yesNo())) continue;
       const mat = await this.material(t);
-      const base = domS16(st.u16(T + 0x0a));
+      const base = domS16(T.price);
       const price = (Math.trunc(base * 4 / 5) + Math.trunc(base * mat / 10)) & 0xffff;
       if (!(await this.negotiate(t, price))) return;
       this.greet(0x101); await this.wait();
-      const S = this.fleetSlot(this.b2f6), ship = this.shipOf(this.b2f6), M = this.crewData(this.b2f6);
-      st.set8(S + OFF.DOCK_SLOT.FLAGS, 0x20);
-      st.set8(ship + 0x10, (st.u8(ship + 0x10) & 0xf8) | mat);
-      const d = domUmin16(Math.trunc((mat + 8) * st.u8(T + 1) / 10), 100);
-      st.set8(S + OFF.DOCK_SLOT.MAX_DURABILITY, d); st.set8(S + OFF.DOCK_SLOT.DURABILITY, d);
-      st.set8(M + 0x1b, this.port | 0x80);
+      const S = heroOrDockSlot(m, this.b2f6), ship = m.ship(S.ship), M = m.crewSlot(this.b2f6);
+      S.flags = ShipSlotFlag.BUILDING;
+      ship.flags = (ship.flags & 0xf8) | mat;
+      const d = domUmin16(Math.trunc((mat + 8) * T.durability / 10), 100);
+      S.maxDurability = d; S.durability = d;
+      M.captain = this.port | 0x80;
       this.shipData(t, 2);
-      this.durPrint(st.u8(S + OFF.DOCK_SLOT.DURABILITY));
+      this.durPrint(S.durability);
       await this.design(this.b2f6);
-      const q = ((100 - Math.trunc(st.u16(E + 4) / 50)) & 0xffff) * st.u8(T + 1);
-      st.set8(E + 0x23, Math.trunc(q / 100) & 0xff);
-      this.greet(0x106, st.u8(E + 0x23)); await this.wait();
+      const q = ((100 - Math.trunc(E.industry / 50)) & 0xffff) * T.durability;
+      setPortBuildDays(E, Math.trunc(q / 100) & 0xff);
+      this.greet(0x106, getPortEcoExtra(E).buildDays); await this.wait();
       return;
     }
   }
   // 2bad3 材质
   async material(t) {
-    const st = this.st, E = this.eco, { menu } = this.c, list = this.listSel(), P = this.c.persons, T = this.typeRec(t);
-    const ind = st.u16(E + 4);
+    const m = this.m, E = m.portEconomy(this.port), { menu } = this.c, list = this.listSel(), P = this.c.persons, T = m.shipType(t);
+    const ind = E.industry;
     const n = t === 0x18 ? 6 : Math.trunc((ind - domUmin16(500, ind)) / 200) + 3;
     for (let i = 0; i < n; i++) P[i] = i;
     for (;;) {
       this.greet(0xfe);
       let r; do r = await list.select(0x8f, n); while (r === -1);
       const v = P[r];
-      this.durPrint(domUmin16(Math.trunc((v + 8) * st.u8(T + 1) / 10), 100));
+      this.durPrint(domUmin16(Math.trunc((v + 8) * T.durability / 10), 100));
       this.greet(0xff);
       if (await menu.yesNo()) return v;
     }
@@ -130,51 +136,51 @@ class ShipyardMixin {
   }
   // 2b19d 设计 (水手数与武器数)
   async design(slot) {
-    const st = this.st, { menu, printf } = this.c, F = this.BT.fmt;
-    const S = this.fleetSlot(slot), ship = this.shipOf(slot), T = this.typeRec(st.u8(ship + 0x0f));
+    const m = this.m, { menu, printf } = this.c, F = this.BT.fmt;
+    const S = heroOrDockSlot(m, slot), ship = m.ship(S.ship), T = m.shipType(ship.type);
     for (;;) {
-      let cargo = st.u16(T + 6), crew;
+      let cargo = T.capacity, crew;
       this.designPrint(cargo, 0, 0);
-      this.greet(0x102); printf(F.crewRange, st.u8(T + 5), st.u8(T + 4));
-      do crew = (await this.numpad.input(0, st.u8(T + 4) * 10)) & 0xffff; while (st.u8(T + 5) > domS16(crew));
+      this.greet(0x102); printf(F.crewRange, T.minCrew, T.maxCrewDiv10);
+      do crew = (await this.numpad.input(0, T.maxCrewDiv10 * 10)) & 0xffff; while (T.minCrew > domS16(crew));
       cargo = (cargo - crew) & 0xffff;
       this.designPrint(cargo, crew, 0);
-      this.greet(0x103); printf(F.gunRange, st.u8(T + 8));
-      const guns = (await this.numpad.input(0, st.u8(T + 8))) & 0xff;
+      this.greet(0x103); printf(F.gunRange, T.maxGuns);
+      const guns = (await this.numpad.input(0, T.maxGuns)) & 0xff;
       cargo = (cargo - guns) & 0xffff;
       this.designPrint(cargo, crew, guns);
       this.greet(0x104);
       if (!(await menu.yesNo())) continue;
       if (domS16(this.cargoUsed(slot)) > domS16(cargo)) { this.greet(0x14); await this.wait(); return 0; }
-      st.set16(ship + 0x14, cargo); st.set16(ship + 0x12, crew); st.set8(ship + 0x11, guns);
-      const c12 = domS16(st.u16(ship + 0x12)), s0 = domS16(st.u16(S));
-      st.set16(S, c12 > s0 ? s0 : c12);
-      st.set8(S + OFF.DOCK_SLOT.GUNS, domUmin16(st.u8(S + OFF.DOCK_SLOT.GUNS), st.u8(ship + 0x11)));
+      ship.maxCargo = cargo; ship.maxCrew = crew; ship.maxGuns = guns;
+      const c12 = domS16(ship.maxCrew), s0 = domS16(S.crew);
+      S.crew = c12 > s0 ? s0 : c12;
+      S.guns = domUmin16(S.guns, ship.maxGuns);
       return 1;
     }
   }
   // 2b88d 交涉与付款 (造新船 / 买旧船)
   async negotiate(t, price) {
-    const st = this.st, { menu, message, sys } = this.c;
+    const m = this.m, g = m.globals, { menu, message, sys } = this.c;
     let k = 5, avail = this.money;
     let cost = Math.imul(Math.trunc(Math.imul(this.priceIndex() + 50, price) / 100), 10) | 0;
     if (this.b2f4 !== 0xff) {
       avail = (avail + Math.trunc(this.shipPrice(this.b2f4) / 2)) | 0;
-      this.b2f7 = st.u8(this.crewData(this.b2f4) + 0x1b);
+      this.b2f7 = m.crewSlot(this.b2f4).captain;
     }
     this.greet(this.b2f8 ? 0x100 : 0xc2, cost);
-    const floor = Math.trunc(Math.imul(500 - st.u8(this.hero + 0x22), cost) / 500) | 0;
+    const floor = Math.trunc(Math.imul(500 - m.heroPerson().getStats(6), cost) / 500) | 0;
     if (!(await menu.yesNo())) {
       const acc = this.roleMember(4);
       if (acc !== 0xff) {
-        if (!(st.u8(st.personRecord(acc) + 0x30) & 2)) k = sys.rng.random(10);
+        if (!(m.person(acc).skills & SkillFlag.ACCOUNTING)) k = sys.rng.random(10);
         this.crewSpeaks([4, 3, 5, 2, 6]); message(0xc4, Math.trunc(Math.imul(k + 95, floor) / 100) | 0);
         await this.wait(); await this.closeTalk();
       }
       this.greet(0xc3);
       const offer = (await this.numpad.input(0, avail > cost ? cost : avail)) | 0;
       if (offer < floor) {
-        if (!sys.rng.random(5)) { st.set8(DS.DAILY_FLAGS, st.u8(DS.DAILY_FLAGS) | 2); this.greet(0xc5); }
+        if (!sys.rng.random(5)) { g.dailyFlags |= 2; this.greet(0xc5); }
         else this.greet(0xc6);
         await this.wait();
         return 0;
@@ -202,7 +208,7 @@ class ShipyardMixin {
     await this.p.interior(2);
   }
   async leftoversDom(lg, la) {
-    const st = this.st, codec = this.c.codec;
+    const m = this.m, codec = this.c.codec;
     const dec = bts => toSimp(decodeCleanCstr(codec, bts));
     const supNames = ["水", "食物", "资材", "炮弹"];
     const goodsNames = this.LO?.goods ?? [];
@@ -220,35 +226,38 @@ class ShipyardMixin {
     };
     const getShips = () => {
       const out = [];
-      for (let i = 0; i < 10; i++) {
-        const S = this.fleetSlot(i);
-        if ((st.u8(S + OFF.DOCK_SLOT.FLAGS) & 0x30) !== 0x10) continue;
-        const ship = ListSelect.shipRec(st.u8(S + OFF.DOCK_SLOT.SHIP));
-        const max = st.u16(ship + 0x14), used = this.cargoUsed(i);
-        out.push({ slot: i, name: dec(this.dstr(ship)), used, max, free: Math.max(0, max - used) });
+      for (let i = 0; i < GameConst.FLEET_SHIPS; i++) {
+        const S = heroShipSlot(m, i);
+        if ((S.flags & ShipSlotFlag.STATE_MASK) !== ShipSlotFlag.ACTIVE) continue;
+        const ship = m.ship(S.ship);
+        const max = ship.maxCargo, used = this.cargoUsed(i);
+        out.push({ slot: i, name: dec(ship.nameBytes), used, max, free: Math.max(0, max - used) });
       }
       return out;
     };
     const putIntoShip = (leftItem, shipSlot) => {
-      const S = this.fleetSlot(shipSlot), ship = ListSelect.shipRec(st.u8(S + OFF.DOCK_SLOT.SHIP));
-      const free = Math.max(0, st.u16(ship + 0x14) - this.cargoUsed(shipSlot));
+      const S = heroOrDockSlot(m, shipSlot), ship = m.ship(S.ship);
+      const free = Math.max(0, ship.maxCargo - this.cargoUsed(shipSlot));
       if (free <= 0) return;
       const move = Math.min(leftItem.amt, free);
-      const M = this.crewData(shipSlot), g = leftItem.code;
+      const M = m.crewSlot(shipSlot), g = leftItem.code;
       if (g & 0x80) {
         const k = g & 0x7f;
         const mult = k < 2 ? 10 : 1;
-        st.set16(M + 2 * k, st.u16(M + 2 * k) + move * mult);
+        if (k === 0) M.water += move * mult;
+        else if (k === 1) M.food += move * mult;
+        else if (k === 2) M.material += move * mult;
+        else if (k === 3) M.ammo += move * mult;
       } else {
         let j = -1;
-        for (let k = 0; k < 5; k++) {
-          const cg = st.u8(M + OFF.CREW_SLOT.CARGO_GOODS + k);
+        for (let k = 0; k < GameConst.CARGO_SLOTS; k++) {
+          const cg = M.getCargoGoods(k);
           if (cg === g) { j = k; break; }
-          if (cg === 0xff && j < 0) j = k;
+          if (cg === GameConst.EMPTY_SLOT && j < 0) j = k;
         }
         if (j < 0) return;
-        st.set8(M + OFF.CREW_SLOT.CARGO_GOODS + j, g);
-        st.set16(M + OFF.CREW_SLOT.CARGO_AMTS + 2 * j, st.u16(M + OFF.CREW_SLOT.CARGO_AMTS + 2 * j) + move);
+        M.setCargoGoods(j, g);
+        M.setCargoAmts(j, M.getCargoAmts(j) + move);
       }
       la[leftItem.idx] -= move;
       if (la[leftItem.idx] <= 0) lg[leftItem.idx] = 0xff;
@@ -312,25 +321,25 @@ class ShipyardMixin {
   }
   // 1e628 舰队表 (不保存背景)
   fleetTable() {
-    const st = this.st, { win, con, printf } = this.c, F = this.LO.fmt;
+    const m = this.m, { win, con, printf } = this.c, F = this.LO.fmt;
     let n = 0;
-    for (let i = 0; i < 10; i++) if ((st.u8(this.fleetSlot(i) + 8) & 0x30) === 0x10) n++;
+    for (let i = 0; i < GameConst.FLEET_SHIPS; i++) if ((heroShipSlot(m, i).flags & ShipSlotFlag.STATE_MASK) === ShipSlotFlag.ACTIVE) n++;
     win.frame(0x0f, 0x20, 0x2b, ((n + 2) * 0x18) & 0xffff, 1);
     con.setCursor(0x20, 0x30); printf(F.fleetHdr);
     let row = 0;
-    for (let i = 0; i < 10; i++) {
-      const S = this.fleetSlot(i);
-      if ((st.u8(S + OFF.DOCK_SLOT.FLAGS) & 0x30) !== 0x10) continue;
-      const ship = ListSelect.shipRec(st.u8(S + OFF.DOCK_SLOT.SHIP)), M = this.crewData(i);
-      con.setCursor(0x11, (row + 3) * 0x18); con.puts(this.dstr(ship));
+    for (let i = 0; i < GameConst.FLEET_SHIPS; i++) {
+      const S = heroShipSlot(m, i);
+      if ((S.flags & ShipSlotFlag.STATE_MASK) !== ShipSlotFlag.ACTIVE) continue;
+      const ship = m.ship(S.ship), M = m.crewSlot(i);
+      con.setCursor(0x11, (row + 3) * 0x18); con.puts(ship.nameBytes);
       con.setCursor(0x20, -1);
-      if (st.u8(M + 0x1b) & 0x80) con.puts(F.fleetGone);
+      if (M.captain & 0x80) con.puts(F.fleetGone);
       else {
-        const T = this.typeRec(st.u8(ship + 0x0f)), s0 = st.u16(S);
-        const a = Math.floor(((st.u8(M + 9) * s0) & 0xffff) / 100), b = Math.floor(((st.u8(M + 8) * s0) & 0xffff) / 100);
+        const T = m.shipType(ship.type), s0 = S.crew;
+        const a = Math.floor(((M.navRatio * s0) & 0xffff) / 100), b = Math.floor(((M.lookRatio * s0) & 0xffff) / 100);
         const c = (s0 - b - a) & 0xffff;
-        const ld = domS16((this.cargoUsed(i) + st.u8(S + OFF.DOCK_SLOT.GUNS) + st.u16(S)) & 0xffff);          // seg0:5d8b
-        const d = Math.floor((Math.imul(ld, 100) >>> 0) / (domS16(st.u16(T + 6)) >>> 0 || 1)) & 0xffff;   // seg0:38ba 无号长整数除法
+        const ld = domS16((this.cargoUsed(i) + S.guns + S.crew) & 0xffff);                          // seg0:5d8b
+        const d = Math.floor((Math.imul(ld, 100) >>> 0) / (domS16(T.capacity) >>> 0 || 1)) & 0xffff;   // seg0:38ba 无号长整数除法
         printf(F.fleetRow, a, b, domS16(c), domS16(d), (this.shipSpeed(i) + 1) >> 1);
       }
       row++;
@@ -356,47 +365,48 @@ class ShipyardMixin {
   }
   // 1f64a 一艘船的补给与货物 → 暂存表 sg / sa (水与粮食 /10), 返回笔数
   shipList(slot, sg, sa) {
-    const st = this.st, { scr, con, printf } = this.c, F = this.LO.fmt, names = this.LO.goods, SUP = this.LO.supplies;
+    const m = this.m, { scr, con, printf } = this.c, F = this.LO.fmt, names = this.LO.goods, SUP = this.LO.supplies;
     scr.fillCols(0x18, 0x70, 0x10, 0x90, 7);
     sg.fill(0xff);
     con.left = 0x18; con.right = 0x27;
-    const ship = this.shipOf(slot), M = this.crewData(slot);
-    con.setCursor(0x18, 0x50); printf(F.shipName, this.dstr(ship));
-    const sup = [Math.trunc(domS16(st.u16(M)) / 10), Math.trunc(domS16(st.u16(M + 2)) / 10), st.u16(M + 4), st.u16(M + 6)];
+    const ship = m.ship(heroOrDockSlot(m, slot).ship), M = m.crewSlot(slot);
+    con.setCursor(0x18, 0x50); printf(F.shipName, ship.nameBytes);
+    const sup = [Math.trunc(domS16(M.water) / 10), Math.trunc(domS16(M.food) / 10), M.material, M.ammo];
     for (let k = 0; k < 4; k++) {
       con.setCursor(0x18, 0x70 + 0x10 * k); con.puts(SUP[k]);
       con.setCursor(0x18 + 0x0c, -1); printf(F.num, domS16(sup[k] & 0xffff));
       sg[k] = 0x80 + k; sa[k] = sup[k] & 0xffff;
     }
     let d = 4;
-    for (let i = 0; i < 5; i++) {
-      const g = st.u8(M + 0x16 + i);
-      if (g === 0xff) continue;
+    for (let i = 0; i < GameConst.CARGO_SLOTS; i++) {
+      const g = M.getCargoGoods(i);
+      if (g === GameConst.EMPTY_SLOT) continue;
+      const amt = M.getCargoAmts(i);
       con.setCursor(0x18, (d + 7) << 4); con.puts(names[g]);
-      con.setCursor(0x18 + 0x0c, -1); printf(F.num, domS16(st.u16(M + 0x0c + 2 * i)));
-      sg[d] = g; sa[d] = st.u16(M + 0x0c + 2 * i); d++;
+      con.setCursor(0x18 + 0x0c, -1); printf(F.num, domS16(amt));
+      sg[d] = g; sa[d] = amt; d++;
     }
     return d;
   }
   // 1f851 暂存表写回船员配置
   shipWrite(slot, sg, sa) {
-    const st = this.st, M = this.crewData(slot);
-    for (let k = 0; k < 5; k++) { st.set8(M + 0x16 + k, 0xff); st.set16(M + 0x0c + 2 * k, 0); }
+    const M = this.m.crewSlot(slot);
+    for (let k = 0; k < GameConst.CARGO_SLOTS; k++) { M.setCargoGoods(k, GameConst.EMPTY_SLOT); M.setCargoAmts(k, 0); }
     let d = 0;
     for (let s = 0; s < 9; s++) {
       const g = sg[s];
-      if (g === 0x80) st.set16(M, 10 * sa[s]);
-      else if (g === 0x81) st.set16(M + 2, 10 * sa[s]);
-      else if (g === 0x82) st.set16(M + 4, sa[s]);
-      else if (g === 0x83) st.set16(M + 6, sa[s]);
-      else if (g === 0xff || g >= 0x2e) { st.set8(M + 0x16 + d, 0xff); st.set16(M + 0x0c + 2 * d, 0); d++; }
-      else { st.set8(M + 0x16 + d, g); st.set16(M + 0x0c + 2 * d, sa[s]); d++; }
+      if (g === 0x80) M.water = 10 * sa[s];
+      else if (g === 0x81) M.food = 10 * sa[s];
+      else if (g === 0x82) M.material = sa[s];
+      else if (g === 0x83) M.ammo = sa[s];
+      else if (g === GameConst.EMPTY_SLOT || g >= 0x2e) { M.setCargoGoods(d, GameConst.EMPTY_SLOT); M.setCargoAmts(d, 0); d++; }
+      else { M.setCargoGoods(d, g); M.setCargoAmts(d, sa[s]); d++; }
     }
-    st.set16(M + 0x0a, this.loadTotal(slot));
+    M.loadTotal = this.loadTotal(slot);
   }
   // 1f93d 选中船上第 sel 列: 空列 → 先从剩余货物选一种; 再用计算机决定装在船上的数量
   async loadItem(slot, sel, sg, sa, lg, la) {
-    const st = this.st, { menu } = this.c, R = menu.rects, ship = this.shipOf(slot);
+    const m = this.m, { menu } = this.c, R = menu.rects, ship = m.ship(heroOrDockSlot(m, slot).ship);
     let total = 0;
     for (let i = 0; i < 9; i++) if (sg[i] !== 0xff) total = (total + sa[i]) & 0xffff;
     let g = sg[sel];
@@ -417,7 +427,7 @@ class ShipyardMixin {
       if (k === 0xff && lg[j] === 0xff) k = j;
     }
     if (k === 0xff) return;
-    const room = (sa[sel] + st.u16(ship + 0x14) - total) & 0xffff;
+    const room = (sa[sel] + ship.maxCargo - total) & 0xffff;
     const v = (await this.numpad.input(0, domS16(domUmin16(room, cur)))) & 0xffff;
     sa[sel] = v;
     lg[k] = sg[sel]; la[k] = (cur - v) & 0xffff;
@@ -465,61 +475,61 @@ class ShipyardMixin {
   }
   // 2b326 折抵船 (b2f4) 的砲、水手、补给与货物 (原版目的船位也是 b2f4)
   transfer(flag, left) {
-    const st = this.st, src = this.b2f4, dst = this.b2f4;
-    const Md = this.crewData(dst), Ms = this.crewData(src), Sd = this.fleetSlot(dst), Ss = this.fleetSlot(src), shipD = this.shipOf(dst);
+    const m = this.m, src = this.b2f4, dst = this.b2f4;
+    const Md = m.crewSlot(dst), Ms = m.crewSlot(src), Sd = heroOrDockSlot(m, dst), Ss = heroOrDockSlot(m, src), shipD = m.ship(Sd.ship);
     left.goods.fill(0xff);
-    st.set8(Sd + 6, domUmin16(st.u8(Ss + 6), st.u8(shipD + 0x11)));
-    st.set8(Sd + 8, st.u8(Sd + 8) & 0xf8);
-    if (st.u8(Sd + 6)) st.set8(Sd + 8, st.u8(Sd + 8) | (st.u8(Ss + 8) & 7));
-    st.set16(Sd, domUmin16(st.u16(Ss), st.u16(shipD + 0x12)));
-    if (flag && domS16(this.cargoUsed(src)) <= domS16(st.u16(shipD + 0x14))) {
-      for (let k = 0; k < 8; k += 2) st.set16(Md + k, st.u16(Ms + k));
-      for (let k = 0; k < 5; k++) { st.set8(Md + 0x16 + k, st.u8(Ms + 0x16 + k)); st.set16(Md + 0x0c + 2 * k, st.u16(Ms + 0x0c + 2 * k)); }
+    Sd.guns = domUmin16(Ss.guns, shipD.maxGuns);
+    Sd.flags &= 0xf8;
+    if (Sd.guns) Sd.flags |= Ss.flags & 7;
+    Sd.crew = domUmin16(Ss.crew, shipD.maxCrew);
+    if (flag && domS16(this.cargoUsed(src)) <= domS16(shipD.maxCargo)) {
+      Md.water = Ms.water; Md.food = Ms.food; Md.material = Ms.material; Md.ammo = Ms.ammo;
+      for (let k = 0; k < GameConst.CARGO_SLOTS; k++) { Md.setCargoGoods(k, Ms.getCargoGoods(k)); Md.setCargoAmts(k, Ms.getCargoAmts(k)); }
       return;
     }
     left.goods.fill(0xff);
     let c = 0;
     const add = (g, a) => { left.goods[c] = g; left.amt[c] = a & 0xffff; c++; };
-    const w = Math.trunc(domS16(st.u16(Ms)) / 10); if (w) add(0x80, w);
-    const f = Math.trunc(domS16(st.u16(Ms + 2)) / 10); if (f) add(0x81, f);
-    if (st.u16(Ms + 4)) add(0x82, st.u16(Ms + 4));
-    if (st.u16(Ms + 6)) add(0x83, st.u16(Ms + 6));
-    for (let k = 0; k < 5; k++) { const g = st.u8(Ms + 0x16 + k); if (g !== 0xff) add(g, st.u16(Ms + 0x0c + 2 * k)); }
+    const w = Math.trunc(domS16(Ms.water) / 10); if (w) add(0x80, w);
+    const f = Math.trunc(domS16(Ms.food) / 10); if (f) add(0x81, f);
+    if (Ms.material) add(0x82, Ms.material);
+    if (Ms.ammo) add(0x83, Ms.ammo);
+    for (let k = 0; k < GameConst.CARGO_SLOTS; k++) { const g = Ms.getCargoGoods(k); if (g !== GameConst.EMPTY_SLOT) add(g, Ms.getCargoAmts(k)); }
   }
   // 2ad12 创建新船记录并命名
   async createShip(t) {
-    const st = this.st, { win } = this.c, T = this.typeRec(t), tmpl = ListSelect.shipRec(t + 0x28);
-    const S = this.fleetSlot(this.b2f6), M = this.crewData(this.b2f6), trade = this.b2f4 !== 0xff;
+    const m = this.m, { win } = this.c, T = m.shipType(t), tmpl = m.ship(t + 0x28);
+    const S = heroOrDockSlot(m, this.b2f6), M = m.crewSlot(this.b2f6), trade = this.b2f4 !== 0xff;
     let n = 0;
-    for (let i = 0; i < 0x28; i++) if (st.u8(ListSelect.shipRec(i) + 0x0f) === 0xff) { n = i; break; }
-    const si = ListSelect.shipRec(n);
-    st.set8(si + 0x11, st.u8(T + 8)); st.set8(si + 0x0f, t);
-    st.set8(si + 0x10, st.u8(tmpl + 0x10)); st.set16(si + 0x12, st.u16(tmpl + 0x12));
-    st.set16(si + 0x14, (st.u16(T + 6) - st.u8(si + 0x11) - st.u16(si + 0x12)) & 0xffff);
-    const d = Math.trunc(9 * st.u8(T + 1) / 10) & 0xffff;
-    st.set8(S + OFF.DOCK_SLOT.MAX_DURABILITY, (d - Math.trunc((d & 0xff) / 15)) & 0xff); st.set8(S + OFF.DOCK_SLOT.DURABILITY, st.u8(S + OFF.DOCK_SLOT.MAX_DURABILITY));
-    st.set8(S + OFF.DOCK_SLOT.TURN, st.u8(T + 2)); st.set8(S + OFF.DOCK_SLOT.PROPULSION, st.u8(T + 3));
-    st.set8(S + OFF.DOCK_SLOT.GUNS, domUmin16(st.u8(S + OFF.DOCK_SLOT.GUNS), trade ? st.u8(si + 0x11) : 0));
-    st.set16(S, domUmin16(st.u16(S), trade ? st.u16(si + 0x12) : 0));
-    st.set8(S + OFF.DOCK_SLOT.SHIP, n);
-    if (!trade) st.set8(S + OFF.DOCK_SLOT.FLAGS, 0x10);
-    for (const k of [0, 2, 4, 6]) st.set16(M + k, 0);
-    st.set8(M + 8, 0x19); st.set8(M + 9, 0x32); st.set8(M + 0x1b, this.b2f7);
-    st.set16(M + 0x0a, 0); st.set8(M + 0x1d, 0);
-    for (let k = 0; k < 5; k++) { st.set8(M + 0x16 + k, 0xff); st.set16(M + 0x0c + 2 * k, 0); }
+    for (let i = 0; i < 0x28; i++) if (m.ship(i).type === GameConst.EMPTY_SLOT) { n = i; break; }
+    const si = m.ship(n);
+    si.maxGuns = T.maxGuns; si.type = t;
+    si.flags = tmpl.flags; si.maxCrew = tmpl.maxCrew;
+    si.maxCargo = (T.capacity - si.maxGuns - si.maxCrew) & 0xffff;
+    const d = Math.trunc(9 * T.durability / 10) & 0xffff;
+    S.maxDurability = (d - Math.trunc((d & 0xff) / 15)) & 0xff; S.durability = S.maxDurability;
+    S.turn = T.turn; S.propulsion = T.propulsion;
+    S.guns = domUmin16(S.guns, trade ? si.maxGuns : 0);
+    S.crew = domUmin16(S.crew, trade ? si.maxCrew : 0);
+    S.ship = n;
+    if (!trade) S.flags = ShipSlotFlag.ACTIVE;
+    M.water = 0; M.food = 0; M.material = 0; M.ammo = 0;
+    M.navRatio = 0x19; M.lookRatio = 0x32; M.captain = this.b2f7;
+    M.loadTotal = 0; M.figurehead = 0;
+    for (let k = 0; k < GameConst.CARGO_SLOTS; k++) { M.setCargoGoods(k, GameConst.EMPTY_SLOT); M.setCargoAmts(k, 0); }
     this.greet(0xc7);
     const ni = this.nameInput();
     for (;;) {
       ni.prompt(2, 7);
-      if ((await ni.run(si, 7)) === 1) break;
+      if ((await ni.run(si.addr, 7)) === 1) break;
       await win.close();
     }
     await win.close();
   }
   // 2b2f2 船员栏第一个职务 ≥ 3 的人 → b2f7
   findMate() {
-    const st = this.st;
-    for (let i = 0; i < 0x1e; i++) { const n = st.u8(DS.PARTY_CREW + i); if (n !== 0xff && st.u8(st.personRecord(n) + 0x2e) >= 3) { this.b2f7 = n; return 1; } }
+    const m = this.m;
+    for (let i = 0; i < GameConst.PARTY_SLOTS; i++) { const n = m.partyCrew(i); if (n !== GameConst.EMPTY_SLOT && m.person(n).role >= 3) { this.b2f7 = n; return 1; } }
     return 0;
   }
   // 2b66a 决定新船的船长与船位
@@ -533,23 +543,23 @@ class ShipyardMixin {
       this.b2f6 = await this.sellSelect(0);
       return this.b2f6 === 0xff ? 0 : 1;
     }
-    for (let i = 0; i < 10; i++) { const f = this.slotState(i); if (f !== 0x10 && f !== 0x20) { this.b2f6 = i; break; } }
+    for (let i = 0; i < GameConst.FLEET_SHIPS; i++) { const f = this.slotState(i); if (f !== ShipSlotFlag.ACTIVE && f !== ShipSlotFlag.BUILDING) { this.b2f6 = i; break; } }
     return 1;
   }
   // 2b701 交船
   async delivery() {
-    const st = this.st, E = this.eco, { menu } = this.c;
+    const m = this.m, heroId = m.globals.hero, E = m.portEconomy(this.port), { menu } = this.c;
     let slot = 0;
-    for (let i = 0; i < 0x28; i++) if (st.u8(this.crewData(i) + 0x1b) === (this.port | 0x80) && this.slotState(i) === 0x20) { slot = i; break; }
+    for (let i = 0; i < 0x28; i++) if (m.crewSlot(i).captain === (this.port | 0x80) && this.slotState(i) === ShipSlotFlag.BUILDING) { slot = i; break; }
     this.b2f6 = 0xff;
     this.greet(0xfa); await this.wait();
     this.greet(0x107); this.freeSlots();
     if (!(await menu.yesNo()) || !(await this.captainAndSlot())) { this.greet(0x109); await this.wait(); return; }
-    const S = this.fleetSlot(slot), M = this.crewData(slot);
-    st.set8(S + OFF.DOCK_SLOT.FLAGS, (st.u8(S + OFF.DOCK_SLOT.FLAGS) & 0xdf) | 0x10);
-    st.set8(M + 0x1b, this.b2f7);
-    if (this.b2f7 !== st.hero) st.set8(st.personRecord(this.b2f7) + 0x2e, 2);
-    st.set8(E + 0x23, 0xff);
+    const S = heroOrDockSlot(m, slot), M = m.crewSlot(slot);
+    S.flags = (S.flags & 0xdf) | ShipSlotFlag.ACTIVE;
+    M.captain = this.b2f7;
+    if (this.b2f7 !== heroId) m.person(this.b2f7).role = 2;
+    setPortBuildDays(E, GameConst.EMPTY_SLOT);
     if (this.b2f6 !== 0xff) this.swapSlots(slot, this.b2f6);
     this.compactSlots();
     if (this.b2f4 !== 0xff) {
@@ -559,16 +569,16 @@ class ShipyardMixin {
       this.sellDone();
       if (left.goods[0] !== 0xff) await this.leftovers(left);
     }
-    st.set8(st.personRecord(this.b2f7) + 0x2e, this.b2f7 !== st.hero ? 2 : 1);
+    m.person(this.b2f7).role = this.b2f7 !== heroId ? 2 : 1;
   }
   // 2be49 买旧船
   async usedShip() {
-    const st = this.st, { menu } = this.c, list = this.listSel(), P = this.c.persons;
+    const m = this.m, heroId = m.globals.hero, { menu } = this.c, list = this.listSel(), P = this.c.persons;
     this.b2f8 = 0;
     if (!(await this.captainAndSlot())) return;
-    const base = DS.TBL_USED_SHIP_CACHE, idx = [];                                        // seg0:5cc4(0): 2be62 / 2bf29 都是 sub al, al
+    const cache = m.usedShipCache(0), idx = [];                               // seg0:5cc4(0)
     let n = 0;
-    for (let i = 0; i < 5; i++) { const t = st.u8(base + i); if (t !== 0xff) { idx[n] = i; P[n++] = t + 0x28; } }
+    for (let i = 0; i < 5; i++) { const t = cache.getShipTypes(i); if (t !== GameConst.EMPTY_SLOT) { idx[n] = i; P[n++] = t + 0x28; } }
     for (;;) {
       const r = await list.select(0x8e, n);
       if (r === -1) return;
@@ -577,9 +587,9 @@ class ShipyardMixin {
       this.greet(this.BT.typeMsg[t]); await this.wait();
       this.greet(0xc1);
       if (!(await menu.yesNo())) continue;
-      if (!(await this.negotiate(t, st.u16(this.typeRec(t) + 0x0a)))) return;
-      if (this.b2f7 !== st.hero) st.set8(st.personRecord(this.b2f7) + 0x2e, 2);
-      st.set8(base + idx[r], 0xff);
+      if (!(await this.negotiate(t, m.shipType(t).price))) return;
+      if (this.b2f7 !== heroId) m.person(this.b2f7).role = 2;
+      cache.setShipTypes(idx[r], GameConst.EMPTY_SLOT);
       return;
     }
   }
@@ -598,15 +608,15 @@ class ShipyardMixin {
     const r = await this.listSel().select(0x80, this.fleetShips());
     if (r === -1) return -1;
     const slot = this.c.persons[r];
-    this.shipData(this.st.u8(this.fleetSlot(slot) + 7), 3, slot); this.figurehead(slot);
+    this.shipData(heroOrDockSlot(this.m, slot).ship, 3, slot); this.figurehead(slot);
     return slot;
   }
   // 2c371 船首像
   async rmFigure() {
-    const st = this.st, E = this.eco, H = this.hero, rng = this.c.sys.rng;
-    let n = domUmin16(Math.trunc(st.u16(E) / 100) + 1, 8);
-    if (st.u16(E + 4) > 800 && st.u16(E) > 800 && st.u8(H + 0x23) > 80 && !rng.random(20)) {
-      n++; if (rng.random(st.u8(H + 0x23)) >= 90) n++;
+    const m = this.m, E = m.portEconomy(this.port), H = m.heroPerson(), rng = this.c.sys.rng;
+    let n = domUmin16(Math.trunc(E.commerce / 100) + 1, 8);
+    if (E.industry > 800 && E.commerce > 800 && H.getStats(7) > 80 && !rng.random(20)) {
+      n++; if (rng.random(H.getStats(7)) >= 90) n++;
       this.greet(0x10a); await this.wait();
     }
     for (;;) {
@@ -618,7 +628,7 @@ class ShipyardMixin {
   }
   // 2c11d
   async chooseFigure(slot, n) {
-    const st = this.st, { menu } = this.c, P = this.c.persons, M = this.crewData(slot);
+    const { menu } = this.c, P = this.c.persons, M = this.m.crewSlot(slot);
     for (let i = 0; i < n; i++) P[i] = i + 1;
     for (;;) {
       this.greet(0x10c);
@@ -629,16 +639,16 @@ class ShipyardMixin {
       if (!(await menu.yesNo())) continue;
       if (this.money < price) { this.noMoney(); await this.wait(); await this.closeTalk(); continue; }
       this.money = (this.money - price) | 0;
-      st.set8(M + 0x1d, v);
+      M.figurehead = v;
       this.p.panels();
       return;
     }
   }
   // 2c43d 武装
   async rmGuns() {
-    const st = this.st, E = this.eco, H = this.hero, rng = this.c.sys.rng;
-    let n = domUmin16(Math.trunc(((st.u16(E + 4) + st.u16(E)) & 0xffff) / 200) + 1, 6);
-    if (st.u16(E + 4) > 900 && st.u16(E) > 900 && st.u8(H + 0x23) > 90 && !rng.random(20)) {
+    const m = this.m, E = m.portEconomy(this.port), H = m.heroPerson(), rng = this.c.sys.rng;
+    let n = domUmin16(Math.trunc(((E.industry + E.commerce) & 0xffff) / 200) + 1, 6);
+    if (E.industry > 900 && E.commerce > 900 && H.getStats(7) > 90 && !rng.random(20)) {
       n++; this.greet(0x10a); await this.wait();
     }
     for (;;) {
@@ -650,21 +660,21 @@ class ShipyardMixin {
   }
   // 2c1da
   async chooseGuns(slot, n) {
-    const st = this.st, { menu } = this.c, P = this.c.persons, BT = this.BT;
-    const S = this.fleetSlot(slot), ship = this.shipOf(slot);
+    const m = this.m, { menu } = this.c, P = this.c.persons, BT = this.BT;
+    const S = heroOrDockSlot(m, slot), ship = m.ship(S.ship);
     for (let i = 0; i < n; i++) P[i] = i + 1;
     for (;;) {
       this.greet(0x10c);
       const r = await this.listSel().select(0x91, n);
       if (r === -1) return;
       const v = P[r] & 0xff, kind = r + 1;
-      let room = st.u8(ship + 0x11);
+      let room = ship.maxGuns;
       if (!room) { this.greet(0x3fd); await this.wait(); continue; }
-      const same = (st.u8(S + OFF.DOCK_SLOT.FLAGS) & 7) === kind;
+      const same = (S.flags & 7) === kind;
       if (same) {
-        room = (room - st.u8(S + OFF.DOCK_SLOT.GUNS)) & 0xffff;
+        room = (room - S.guns) & 0xffff;
         if (!room) { this.greet(0x3fc); await this.wait(); continue; }
-        this.greet(0x14e, BT.cannons[v], st.u8(S + OFF.DOCK_SLOT.GUNS), room);
+        this.greet(0x14e, BT.cannons[v], S.guns, room);
       } else this.greet(0x10f);
       let q = (await this.numpad.input(0, room)) & 0xff;
       if (!q) continue;
@@ -673,20 +683,20 @@ class ShipyardMixin {
       if (!(await menu.yesNo())) continue;
       if (price > this.money) { this.noMoney(); await this.wait(); await this.closeTalk(); continue; }
       this.money = (this.money - price) | 0;
-      if ((st.u8(S + OFF.DOCK_SLOT.FLAGS) & 7) === kind) q = (q + st.u8(S + OFF.DOCK_SLOT.GUNS)) & 0xff;
-      st.set8(S + OFF.DOCK_SLOT.GUNS, q);
-      st.set8(S + OFF.DOCK_SLOT.FLAGS, (st.u8(S + OFF.DOCK_SLOT.FLAGS) & 0xf8) | (kind & 0xff));
+      if ((S.flags & 7) === kind) q = (q + S.guns) & 0xff;
+      S.guns = q;
+      S.flags = (S.flags & 0xf8) | (kind & 0xff);
       this.p.panels();
       return;
     }
   }
   // 2c4f6 积载比例变更
   async rmRatio() {
-    const st = this.st, { menu } = this.c;
+    const m = this.m, { menu } = this.c;
     for (;;) {
       const slot = await this.rmPick(0x111);
       if (slot === -1) return;
-      const cost = domS16(st.u16(this.typeRec(st.u8(this.shipOf(slot) + 0x0f)) + 0x0a));
+      const cost = domS16(m.shipType(m.ship(heroOrDockSlot(m, slot).ship).type).price);
       this.greet(0x112, cost);
       if (!(await menu.yesNo())) continue;
       if (cost > this.money) { this.noMoney(); await this.wait(); await this.closeTalk(); continue; }
@@ -695,54 +705,54 @@ class ShipyardMixin {
   }
   // 2c5c2 船名变更
   async rmName() {
-    const st = this.st, { win } = this.c;
+    const { win } = this.c;
     for (;;) {
       const slot = await this.rmPick(0x111);
       if (slot === -1) return;
-      const ship = this.shipOf(slot);
+      const ship = this.m.ship(heroOrDockSlot(this.m, slot).ship);
       this.greet(0x113);
-      const old = st.cstr(ship).slice(), n = old.indexOf(0) < 0 ? old.length : old.indexOf(0);
+      const old = ship.nameBytes.slice();
       const ni = this.nameInput();
       ni.prompt(2, 7);
-      if ((await ni.run(ship, 7)) !== 1) { for (let i = 0; i < n; i++) st.set8(ship + i, old[i]); st.set8(ship + n, 0); }
+      if ((await ni.run(ship.addr, 7)) !== 1) writeShipName(ship, old);
       await win.close();
       this.p.panels();
     }
   }
   // 2bf40 修理
   async repair() {
-    const st = this.st, { menu, message } = this.c, list = this.listSel();
+    const m = this.m, { menu, message } = this.c, list = this.listSel();
     for (;;) {
       const n = this.fleetShips();
       if (!n) return;
       const r = await list.select(0x80, n);
       if (r === -1) return;
-      const S = this.fleetSlot(this.c.persons[r]), T = this.typeRec(st.u8(this.shipOf(this.c.persons[r]) + 0x0f));
-      let cost = domS16(st.u8(S + OFF.DOCK_SLOT.MAX_DURABILITY) - st.u8(S + OFF.DOCK_SLOT.DURABILITY) - st.u8(S + OFF.DOCK_SLOT.TURN) - st.u8(S + OFF.DOCK_SLOT.PROPULSION) + st.u8(T + 2) + st.u8(T + 3));
+      const S = heroOrDockSlot(m, this.c.persons[r]), T = m.shipType(m.ship(S.ship).type);
+      let cost = domS16(S.maxDurability - S.durability - S.turn - S.propulsion + T.turn + T.propulsion);
       if (!cost) { this.greet(0xcc); await this.wait(); continue; }
       cost = domS16(cost * 20);
       this.greet(0xcd, cost);
       if (!(await menu.yesNo())) { this.greet(0xce); await this.wait(); continue; }
       if (cost > this.money) { this.crewSpeaks([4, 3, 5, 2, 6]); message(0xcf); await this.wait(); await this.closeTalk(); continue; }
       this.money = (this.money - cost) | 0;
-      st.set8(S + OFF.DOCK_SLOT.DURABILITY, st.u8(S + OFF.DOCK_SLOT.MAX_DURABILITY)); st.set8(S + OFF.DOCK_SLOT.TURN, st.u8(T + 2)); st.set8(S + OFF.DOCK_SLOT.PROPULSION, st.u8(T + 3));
+      S.durability = S.maxDurability; S.turn = T.turn; S.propulsion = T.propulsion;
       this.p.panels();
     }
   }
   // 2b571 选择要卖的船 (flag: 主角是该船船长时另选一艘当主角的船)
   async sellSelect(flag) {
-    const st = this.st, { menu, message } = this.c, list = this.listSel();
+    const m = this.m, heroId = m.globals.hero, { menu, message } = this.c, list = this.listSel();
     for (;;) {
       this.b2f5 = this.b2f4 = 0xff;
       this.greet(0xc8);
       const r = await list.select(0x80, this.fleetShips());
       if (r === -1) return this.b2f4;
       const slot = this.b2f4 = this.c.persons[r];
-      this.shipData(st.u8(this.fleetSlot(slot) + 7), 3, slot); this.figurehead(slot);
+      this.shipData(heroOrDockSlot(m, slot).ship, 3, slot); this.figurehead(slot);
       this.greet(0xc9);
       if (!(await menu.yesNo())) continue;
-      const M = this.crewData(slot);
-      if (st.u8(M + 0x1b) === st.hero) {
+      const M = m.crewSlot(slot);
+      if (M.captain === heroId) {
         this.crewSpeaks(); message(0xd1);
         if (!(await menu.yesNo())) { await this.closeTalk(); continue; }
         if (flag) {
@@ -753,13 +763,13 @@ class ShipyardMixin {
         }
         await this.closeTalk();
       }
-      this.b2f7 = st.u8(M + 0x1b);
+      this.b2f7 = M.captain;
       return this.b2f4;
     }
   }
   // 2c043 卖船
   async sellShip() {
-    const st = this.st, { menu, message } = this.c;
+    const m = this.m, { menu, message } = this.c;
     for (;;) {
       const n = this.fleetShips();
       if (!n) return;
@@ -771,7 +781,7 @@ class ShipyardMixin {
         if (!(await menu.yesNo())) { await this.closeTalk(); continue; }
         await this.closeTalk();
       }
-      if (st.u16(this.fleetSlot(slot))) {
+      if (heroOrDockSlot(m, slot).crew) {
         this.crewSpeaks(); message(0xd4);
         if (!(await menu.yesNo())) { await this.closeTalk(); continue; }
         await this.closeTalk();
@@ -783,26 +793,26 @@ class ShipyardMixin {
   }
   // 2b4f2
   sellDone() {
-    const st = this.st, M = this.crewData(this.b2f4);
-    if (this.b2f5 !== 0xff) { const M2 = this.crewData(this.b2f5); st.set8(M + 0x1b, st.u8(M2 + 0x1b)); st.set8(M2 + 0x1b, st.hero); }
-    st.set8(st.personRecord(st.u8(M + 0x1b)) + 0x2e, 6);
-    let m = this.money + Math.trunc(this.shipPrice(this.b2f4) / 2);
-    if (m > 600000000) m = 600000000;
-    this.money = m;
+    const m = this.m, M = m.crewSlot(this.b2f4);
+    if (this.b2f5 !== 0xff) { const M2 = m.crewSlot(this.b2f5); M.captain = M2.captain; M2.captain = m.globals.hero; }
+    m.person(M.captain).role = 6;
+    let money = this.money + Math.trunc(this.shipPrice(this.b2f4) / 2);
+    if (money > GameConst.MAX_CASH) money = GameConst.MAX_CASH;
+    this.money = money;
     this.removeShip(this.b2f4);
     this.p.panels();
   }
   // 2c8d0 工业投资
   async invest() {
-    const st = this.st, E = this.eco;
+    const E = this.m.portEconomy(this.port);
     if (this.isCapital()) { this.greet(2); await this.wait(); return; }
-    if (st.u16(E + 6) >= 50000) { this.greet(7); await this.wait(); return; }
+    if (E.industryInvest >= GameConst.MAX_INVEST) { this.greet(7); await this.wait(); return; }
     this.greet(8);
-    const di = this.money >= 50000 ? 50000 : this.money & 0xffff;
-    const v = await this.numpad.input(0, domUmin16(di, 50000 - st.u16(E + 6)));
+    const di = this.money >= GameConst.MAX_INVEST ? GameConst.MAX_INVEST : this.money & 0xffff;
+    const v = await this.numpad.input(0, domUmin16(di, GameConst.MAX_INVEST - E.industryInvest));
     if (!v) { this.greet(0x0d); await this.wait(); return; }
     this.greet(v < 500 ? 0x0e : v < 10000 ? 0x0f : 0x10); await this.wait();
-    st.set16(E + 6, st.u16(E + 6) + v);
+    E.industryInvest = (E.industryInvest + v) & 0xffff;
     this.investSupport(v);
     this.investOwner();
     this.money = (this.money - v) | 0;
