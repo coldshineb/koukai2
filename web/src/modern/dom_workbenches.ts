@@ -363,7 +363,7 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
         for (let ci = 0; ci < 10; ci++) {
           const row = document.createElement("button");
           row.className = `uw2-row-card ${ci === selPriceCat ? "selected" : ""}`;
-          row.innerHTML = `<span style="font-weight:700;">${dec(T.cats[ci])}</span><span style="font-weight:700;">${E.getPrices(ci) + 50}%</span>`;
+          row.innerHTML = `<span class="uw2-item-name">${dec(T.cats[ci])}</span><span class="uw2-item-price">${E.getPrices(ci) + 50}%</span>`;
           row.addEventListener("click", () => { selPriceCat = ci; render(); });
           left.appendChild(row);
         }
