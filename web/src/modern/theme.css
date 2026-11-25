@@ -16,7 +16,31 @@
   --uw2-font-serif: "Noto Serif SC", "Songti SC", "SimSun", Georgia, serif;
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(168, 130, 62, 0.72) rgba(232, 218, 184, 0.4);
+}
+
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(232, 218, 184, 0.45);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(196, 156, 82, 0.82), rgba(154, 118, 52, 0.88));
+  border-radius: 999px;
+  border: 1px solid rgba(244, 234, 210, 0.6);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(214, 174, 96, 0.95), rgba(170, 130, 58, 0.98));
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
 
 img {
   -webkit-user-drag: none;

@@ -343,6 +343,19 @@ export function mountDomWorldChart(container: HTMLElement, c: any, scene?: any) 
     tip.style.display = "none";
     renderAll();
   });
+  // 局部放大狀態下右鍵返回世界航海圖主介面（不直接關閉整個情報視窗）
+  const onLocalRightClick = (e: MouseEvent) => {
+    if (!container.isConnected) {
+      window.removeEventListener("contextmenu", onLocalRightClick, true);
+      return;
+    }
+    if (mode !== "local") return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    mode = "world";
+    renderAll();
+  };
+  window.addEventListener("contextmenu", onLocalRightClick, true);
   void localBuf;
 }
 
