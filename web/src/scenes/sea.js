@@ -21,6 +21,8 @@ import { Land } from "./land.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
 import { renderWideSea, hitWideCommandButton } from "../canvas_ui/wide_world.ts";
+import { hasDom, runDomInfoLines } from "../modern/dom_ui.ts";
+import { decodeCleanCstr, toSimp } from "../canvas_ui/text_util.ts";
 
 const seaHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const seaS16 = v => (v << 16) >> 16;
@@ -133,12 +135,12 @@ export class SeaScene extends PortScene {
 
   // ================= 畫面 =================
   // 7180: (col, 0x10) 印 %2d (v+1); 只在海上
-  seaNum(col, v) { const { con, printf } = this.c; con.right = 0x4f; con.setCursor(col, 0x10); printf(this.SS.day2, v + 1); }
+  seaNum(col, v) { if (this.c.scr.wideRenderer) return; const { con, printf } = this.c; con.right = 0x4f; con.setCursor(col, 0x10); printf(this.SS.day2, v + 1); }
   // 71ad 年 / 71c6 月 / 71f0 日 (只在海上; 主迴圈 1623a 在每年 / 每月 / 每天開始時也各呼叫一次)
-  seaYear() { if (this.port === 0xff) this.seaNum(0x43, this.c.rt.year + 0x5dc); }
-  seaMonth() { if (this.port === 0xff) { const { con, printf, rt } = this.c; con.setCursor(0x48, 0x10); printf(this.SS.month, this.seaMonths[rt.month]); } }
-  seaDay() { if (this.port === 0xff) this.seaNum(0x4c, this.c.rt.day); }
-  seaDate() { this.seaYear(); this.seaMonth(); this.seaDay(); }
+  seaYear() { if (this.port === 0xff && !this.c.scr.wideRenderer) this.seaNum(0x43, this.c.rt.year + 0x5dc); }
+  seaMonth() { if (this.port === 0xff && !this.c.scr.wideRenderer) { const { con, printf, rt } = this.c; con.setCursor(0x48, 0x10); printf(this.SS.month, this.seaMonths[rt.month]); } }
+  seaDay() { if (this.port === 0xff && !this.c.scr.wideRenderer) this.seaNum(0x4c, this.c.rt.day); }
+  seaDate() { if (this.c.scr.wideRenderer) return; this.seaYear(); this.seaMonth(); this.seaDay(); }
   // 6b30 / 6cfc / 3197c 共用: 主角所在的 3×3 海域格區域 → bda6 / bdaa (地圖格) 與區域編號
   regionOf() {
     const F = this.fleet;
@@ -222,7 +224,7 @@ export class SeaScene extends PortScene {
     } else this.drawFleet(this.fleet, 0, true);
     this.seaDate();
     this.dials();                                                      // 8fbf
-    con.setCursor(0x45, 0xd0); printf(this.SS.speed, (this.speed + 1) >> 1);
+    if (!this.c.scr.wideRenderer) { con.setCursor(0x45, 0xd0); printf(this.SS.speed, (this.speed + 1) >> 1); }
     this.seaCursor();
     sys.mouseShow();
     // 507d: 空函式
@@ -244,6 +246,7 @@ export class SeaScene extends PortScene {
   }
   // 8f4f(y, 方向, 強度): 強度 ≠ 0 且方向 < 8 → gfx + 0x490 + 方向 × 0x320, 否則 0x1d90 (5 欄 × 0x28 行); 強度 >= 0 (有號) 時於 (0x43, y+0x18) 印出
   dial(y, dir, str) {
+    if (this.c.scr.wideRenderer) return;
     const { scr, con, printf, art } = this.c;
     const idx = str !== 0 && dir < 8 ? dir : 8;
     art?.drawSheetTile(scr, "dials", idx, 0x47 * 8, y);
@@ -294,6 +297,7 @@ export class SeaScene extends PortScene {
     const loadPct = Math.trunc((sLoad * 100) / sCap);                  // 3722 有號長整數除法
     this.c.hud?.updateSea({ crewSum, maxCrewSum, minDur, water: sums[0], food: sums[1], lumber: sums[2], ammo: sums[3], daysAtSea: st.u8(DS.DAYS_AT_SEA), loadPct });
     this.sight = (Math.imul(this.bda8 & 0x80 ? 2 : 1, seaUmin(12, Math.floor(maxLook / 100))) & 0xffff);   // [bdca]
+    if (this.c.scr.wideRenderer) return;
     sys.mouseHide();
     const B = (y, v) => this.commandsObj().bar(2, y, seaS16(v));            // seg0:92f7
     for (let n = 0; n < 2; n++) {
@@ -426,11 +430,15 @@ export class SeaScene extends PortScene {
     sys.mouseHide();
     this.cursor = 0x2840; sys.setCursorShape(0x2840);                 // [06d6] = 0x2840, seg0:5050
     const deleg = st.u8(DS.SEA_FLAGS2) & 0x80;
-    if (!deleg) { win.labelBox(0x1b, 0xc8, 0x12, 0x20); printf(this.SS.destPrompt); con.right = 0x50; }
+    const isWide = !!this.c.scr.wideRenderer;
+    if (!deleg) {
+      if (isWide) this.cellSel().widePrompt = "请指定目的地";
+      else { win.labelBox(0x1b, 0xc8, 0x12, 0x20); printf(this.SS.destPrompt); con.right = 0x50; }
+    }
     await this.c.menu.waitRelease();                                   // 0fea:3343 = 131e3
     const init = (Math.imul(0x18, seaS16(st.u16(F + OFF.FLEET.Y) - this.vy1008)) - this.vx1006 + st.u16(F)) & 0xffff;
     const si = await this.cellSel().select(0x60, 8, 0x18, 0x10, 0x10, 0x18, seaS16(init));
-    if (!deleg) await win.close();
+    if (!deleg && !isWide) await win.close();
     sys.mouseShow();
     if (si === -1) return 0;
     const x = (si % 0x18) + this.vx1006, y = Math.trunc(si / 0x18) + this.vy1008;
@@ -1403,8 +1411,9 @@ export class SeaScene extends PortScene {
   }
   // ================= 停船 / 出航 20ee3 =================
   async stopToggle() {
-    const st = this.st, { win, con, menu } = this.c;
-    win.shadowedSaved(0x10, 0xa0, 0x24, 0x48, 1);
+    const st = this.st, { win, con, menu, scr } = this.c;
+    if (scr.wideRenderer) this.b.beginWideTalk(null);
+    else win.shadowedSaved(0x10, 0xa0, 0x24, 0x48, 1);
     if (st.u8(DS.SEA_FLAGS2) & 0x20) { con.puts(this.SS.move); st.set8(DS.SEA_FLAGS2, st.u8(DS.SEA_FLAGS2) & 0xdf); }
     else { con.puts(this.SS.stop); st.set8(DS.SEA_FLAGS2, (st.u8(DS.SEA_FLAGS2) | 0x20) & 0x7f); }
     await menu.waitPrompt(); await win.close();
@@ -1452,7 +1461,97 @@ export class SeaScene extends PortScene {
   }
   // 0fea:37d1 = 13671 以點擊區選擇 (數字鍵 4 / 6 循環, Enter 確定, Esc / '0' 取消 → 0xff); [a160] 不重設 (超出時才歸 0)
   async pickRect() {
-    const { sys, menu } = this.c;
+    const { sys, menu, scr } = this.c;
+    if (scr.wideRenderer && scr._wideSeaCam) {
+      await menu.waitRelease();
+      if (menu.count <= menu.cur) menu.cur = 0;
+      const toBox = i => {
+        const cam = scr._wideSeaCam;
+        const r = menu.rects[i];
+        const col = Math.trunc((r.x0 - 0x60) / 16);
+        const row = Math.trunc((r.y0 - 8) / 16);
+        let dx = (cam.vx1006 + col) - cam.baseWX;
+        if (dx < -cam.worldW / 2) dx += cam.worldW;
+        else if (dx > cam.worldW / 2) dx -= cam.worldW;
+        const dy = (cam.vy1008 + row) - cam.baseWY;
+        return { x: (dx - cam.camX) * cam.tile, y: (dy - cam.camY) * cam.tile, size: cam.tile * 2 };
+      };
+      const drawFn = ctx => {
+        ctx.save();
+        for (let i = 0; i < menu.count; i++) {
+          const b = toBox(i);
+          if (i === menu.cur) continue;
+          ctx.fillStyle = "rgba(255, 224, 130, 0.10)";
+          ctx.fillRect(b.x, b.y, b.size, b.size);
+          ctx.strokeStyle = "rgba(255, 224, 130, 0.55)";
+          ctx.lineWidth = 2;
+          ctx.setLineDash([6, 4]);
+          ctx.strokeRect(b.x + 1, b.y + 1, b.size - 2, b.size - 2);
+          ctx.setLineDash([]);
+        }
+        const curBox = toBox(menu.cur);
+        const pulse = 0.72 + 0.28 * Math.sin(performance.now() * 0.008);
+        ctx.fillStyle = `rgba(245, 200, 92, ${(0.24 * pulse).toFixed(3)})`;
+        ctx.fillRect(curBox.x, curBox.y, curBox.size, curBox.size);
+        ctx.strokeStyle = `rgba(255, 232, 148, ${(0.98 * pulse).toFixed(3)})`;
+        ctx.lineWidth = 3.5;
+        ctx.strokeRect(curBox.x + 1.5, curBox.y + 1.5, curBox.size - 3, curBox.size - 3);
+        // 頂部提示
+        const promptText = "请选择登陆地点";
+        ctx.font = '700 15px "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", sans-serif';
+        const pw = ctx.measureText(promptText).width + 36, ph = 38, px = (1280 - pw) / 2, py = 20;
+        ctx.fillStyle = "rgba(246, 236, 212, 0.96)";
+        ctx.strokeStyle = "#9c7432";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(px, py, pw, ph, 8);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#3d2817";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(promptText, 640, py + ph / 2);
+        ctx.restore();
+      };
+      const hitIdx = (vx, vy) => {
+        for (let i = 0; i < menu.count; i++) {
+          const b = toBox(i);
+          if (vx >= b.x && vx < b.x + b.size && vy >= b.y && vy < b.y + b.size) return i;
+        }
+        return -1;
+      };
+      scr.wideOverlays.push(drawFn);
+      scr.dirty = true;
+      sys.mouseShow();
+      let res = 0xff;
+      try {
+        for (;;) {
+          const vx = sys.mouse?.vx ?? -1, vy = sys.mouse?.vy ?? -1;
+          const hov = hitIdx(vx, vy);
+          if (hov >= 0 && hov !== menu.cur) { menu.cur = hov; scr.dirty = true; }
+          const k = menu.readEvent();
+          if (k === 0x1b || k === 0x30) { res = 0xff; break; }
+          if (k === 0x0d) {
+            if (menu.mouseFlag) {
+              if (hov >= 0) { menu.cur = hov; res = hov; break; }
+              res = 0xff; break;
+            }
+            res = menu.cur; break;
+          }
+          if (k === 0x34 || k === 0x1d || k === 0x1e || k === 0x38) menu.cur = menu.cur > 0 ? menu.cur - 1 : menu.count - 1;
+          else if (k === 0x36 || k === 0x1c || k === 0x1f || k === 0x32) menu.cur = menu.count - 1 > menu.cur ? menu.cur + 1 : 0;
+          scr.dirty = true;
+          await sys.poll();
+        }
+      } finally {
+        const idx = scr.wideOverlays.indexOf(drawFn);
+        if (idx >= 0) scr.wideOverlays.splice(idx, 1);
+        scr.dirty = true;
+        await menu.waitRelease();
+        sys.mouseHide();
+      }
+      return res;
+    }
     sys.mouseShow();
     if (menu.count <= menu.cur) menu.cur = 0;
     menu.highlight(0);
@@ -1485,7 +1584,12 @@ export class SeaScene extends PortScene {
     }
     return n;
   }
-  async smallMsg(m) { const { win, message, menu } = this.c; win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0); message(m); await menu.waitPrompt(); await win.close(); }
+  async smallMsg(m) {
+    const { win, message, menu, scr } = this.c;
+    if (scr.wideRenderer) this.b.beginWideTalk(null);
+    else win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0);
+    message(m); await menu.waitPrompt(); await win.close();
+  }
   // 20a6d 交涉 → 20127 (scenes/negotiate.js, 第 30.1 節)
   async negotiate() { return seaNegotiate(this); }
   // 10f7e 海戰 (AL, DL = 雙方指揮者, 其中一方是主角; BL、堆疊參數 = 雙方援軍, 0xff = 沒有) → scenes/battle.js (第 30 節)
@@ -1493,14 +1597,16 @@ export class SeaScene extends PortScene {
   // 0fea:1181 = 11021 戰鬥: 時刻 < 15 或 >= 60 → 0x30d「夜間不能開戰」; 10df0 選對象 (附近沒有 → 0x30a); 與主角同國 (非 6) → 0x30e 確認; → 10f7e(主角, 對象, 0xff, 0xff)
   async battle() {
     const st = this.st, t = this.c.rt.time;
-    if (t < 0x0f || t >= 0x3c) { this.c.win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0); this.c.message(0x30d); await this.c.menu.waitPrompt(); await this.c.win.close(); return; }
+    if (t < 0x0f || t >= 0x3c) { await this.smallMsg(0x30d); return; }
     for (;;) {
       const tg = await this.battleTarget();
       if (tg === 0xff) return;
       const nat = Math.floor(st.u8(st.personRecord(tg) + 0x2c) / 10), hn = st.u8(this.b.hero + 0x31) & 0x0f;
       if (nat === hn && hn !== 6) {
-        const { win, message, menu } = this.c;
-        win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0); message(0x30e);
+        const { win, message, menu, scr } = this.c;
+        if (scr.wideRenderer) this.b.beginWideTalk(null);
+        else win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0);
+        message(0x30e);
         const ok = await menu.yesNo(); await win.close();
         if (!ok) continue;
       }
@@ -1658,28 +1764,48 @@ export class SeaScene extends PortScene {
       const P = st.personRecord(al), F = DS.TBL_FLEET + ((0x85 * st.u8(P + OFF.PERSON.FLEET)) & 0xffff);   // seg0:5c28
       let nat = st.u8(P + OFF.PERSON.FACE) & 0x0f; if (nat === 6) nat = al % 6;
       let ty = st.u8(P + OFF.PERSON.FLEET) % 10; ty = ty ? Math.trunc(ty / 5) + 1 : 0;
-      win.shadowedSaved(0x0f, 0x20, 0x21, 0xd8, 1);                    // 7849
-      con.left = 0x11; con.right = 0x2e;
-      con.setCursor(-1, 0x30);                                         // seg0:4434
-      printf(S.scName, st.cstr(P), st.cstr(P + OFF.PERSON.FAMILY_NAME));
-      printf(S.scNation, nations[nat], types[ty]);
       const a = st.u8(DS.PORT_FLAGS), b = st.u8(DS.WIND_CUR);
       const spd = this.fleetSpeed(F, a & 7, a >> 3, b >> 3, b & 7);    // 0fea:ae1f = 1acbf
-      printf(S.scSpeed, Math.trunc(seaS16(spd) / 2));
-      printf(S.scHead, heads[st.u8(F + OFF.FLEET.DIR)] ?? Uint8Array.of(0));
-      con.setCursor(-1, 0x98);
-      con.lineH = 0x10;                                                // [8a1e]
-      let col = 0;
-      for (let i = 0; i < 10; i++) {
-        const Sl = F + OFF.FLEET.SHIPS + 9 * i;
-        if ((st.u8(Sl + 8) & 0x30) !== 0x10) continue;
-        con.setCursor(col ? 0x20 : 0x11, -1);                          // seg0:442c
-        printf(S.scShip, st.cstr(this.shipRec(st.u8(Sl + 7))));
-        if (col) printf(S.nl);
-        col ^= 1;
+      if (this.c.scr.wideRenderer && hasDom() && this.c.codec) {
+        const dec = bts => toSimp(decodeCleanCstr(this.c.codec, bts));
+        const gName = dec(st.cstr(P)), fName = dec(st.cstr(P + OFF.PERSON.FAMILY_NAME));
+        const fullName = fName ? `${gName}·${fName}` : gName;
+        const headName = dec(heads[st.u8(F + OFF.FLEET.DIR)] ?? Uint8Array.of(0));
+        const ships = [];
+        for (let i = 0; i < 10; i++) {
+          const Sl = F + OFF.FLEET.SHIPS + 9 * i;
+          if ((st.u8(Sl + 8) & 0x30) !== 0x10) continue;
+          ships.push(dec(st.cstr(this.shipRec(st.u8(Sl + 7)))));
+        }
+        const lines = [
+          `提督：${fullName}`,
+          `所属：${dec(nations[nat])} ${dec(types[ty])}`,
+          `航速：${Math.trunc(seaS16(spd) / 2)} 节　航向：${headName}`,
+          `舰船 (${ships.length})：${ships.join("、")}`,
+        ];
+        await runDomInfoLines("侦察报告", lines);
+      } else {
+        win.shadowedSaved(0x0f, 0x20, 0x21, 0xd8, 1);                    // 7849
+        con.left = 0x11; con.right = 0x2e;
+        con.setCursor(-1, 0x30);                                         // seg0:4434
+        printf(S.scName, st.cstr(P), st.cstr(P + OFF.PERSON.FAMILY_NAME));
+        printf(S.scNation, nations[nat], types[ty]);
+        printf(S.scSpeed, Math.trunc(seaS16(spd) / 2));
+        printf(S.scHead, heads[st.u8(F + OFF.FLEET.DIR)] ?? Uint8Array.of(0));
+        con.setCursor(-1, 0x98);
+        con.lineH = 0x10;                                                // [8a1e]
+        let col = 0;
+        for (let i = 0; i < 10; i++) {
+          const Sl = F + OFF.FLEET.SHIPS + 9 * i;
+          if ((st.u8(Sl + 8) & 0x30) !== 0x10) continue;
+          con.setCursor(col ? 0x20 : 0x11, -1);                          // seg0:442c
+          printf(S.scShip, st.cstr(this.shipRec(st.u8(Sl + 7))));
+          if (col) printf(S.nl);
+          col ^= 1;
+        }
+        await menu.waitPrompt(); await win.close();
+        con.lineH = 0x18;
       }
-      await menu.waitPrompt(); await win.close();
-      con.lineH = 0x18;
       if (Math.trunc(st.u8(P + OFF.PERSON.FLEET) / 10) !== 6 || st.u8(P + OFF.PERSON.FLEET) === 0x3c) continue;
       const n = this.b.crewCount(); let mx = 0;
       for (let i = 0; i < n; i++) { const v = st.u8(st.personRecord(this.c.persons[i] & 0xff) + 0x1e); if (v > mx) mx = v; }
@@ -1689,21 +1815,27 @@ export class SeaScene extends PortScene {
   // 1fd9c 偵察的選格: 0fea:5f74 地圖視窗 24 × 24 格 (起點 = 主角) → 取消 0xff; 已發現港口 (+15 bit4) 的座標 = 視窗左上 + 格 → 「船長，那是%s港．」0x80;
   //   0fea:31a8 該格的他艦隊: 0 → 0xd7「那兒什麼也沒有」0x80; 1 → 指揮者; 多個 → 清單 0x8c (種類 12) 選 (取消 0x80)
   async scoutPick() {
-    const st = this.st, F = this.fleet, { win, printf, message, menu } = this.c;
+    const st = this.st, F = this.fleet, { win, printf, message, menu, scr } = this.c;
     const init = seaS16(Math.imul(seaS16(st.u16(F + OFF.FLEET.Y) - this.vy1008), 0x18) + seaS16(st.u16(F) - this.vx1006));
+    if (scr.wideRenderer) this.cellSel().widePrompt = "请选择侦察目标";
     const c = await this.cellSel().select(0x60, 8, 0x18, 0x10, 0x10, 0x18, init);
     if (c < 0) return 0xff;
     for (let di = 0; di < 0x82; di++) {
       const R = DS.TBL_PORT + di * 0x16;
       if (((st.u16(R) - (c % 0x18)) & 0xffff) !== st.u16(DS.SEA_VIEW_X) || ((st.u16(R + 2) - Math.trunc(c / 0x18)) & 0xffff) !== st.u16(DS.SEA_VIEW_Y)) continue;
       if (!(st.u8(R + 0x15) & 0x10)) continue;
-      win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0);
+      if (scr.wideRenderer) this.b.beginWideTalk(null);
+      else win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0);
       printf(this.SS.scPort, st.cstr(R + 4));
       await menu.waitPrompt(); await win.close();
       return 0x80;
     }
     const n = this.fleetsAt(c);
-    if (!n) { win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0); message(0xd7); await menu.waitPrompt(); await win.close(); return 0x80; }
+    if (!n) {
+      if (scr.wideRenderer) this.b.beginWideTalk(null);
+      else win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0);
+      message(0xd7); await menu.waitPrompt(); await win.close(); return 0x80;
+    }
     if (n === 1) return this.c.persons[0] & 0xff;
     const si = await this.b.listSel().select(0x8c, n);
     if (si === -1) return 0x80;

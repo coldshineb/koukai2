@@ -167,7 +167,13 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
 
         const dock = document.createElement("div");
         dock.className = "uw2-action-box";
-        dock.innerHTML = `<div style="display:flex;justify-content:space-between;font-weight:700;font-size:14px;"><span>${selGood && selShip ? `${selGood.name} → ${selShip.name}` : ""}</span><span>${qty} / ${maxQty} (${selGood ? qty * selGood.price : 0})</span></div>`;
+        const dockHead = document.createElement("div");
+        dockHead.style.cssText = "display:flex;justify-content:space-between;font-weight:700;font-size:14px;";
+        const dockPair = document.createElement("span");
+        dockPair.textContent = selGood && selShip ? `${selGood.name} → ${selShip.name}` : "";
+        const qtyReadout = document.createElement("span");
+        dockHead.append(dockPair, qtyReadout);
+        dock.appendChild(dockHead);
 
         const slider = document.createElement("input");
         slider.type = "range";
@@ -175,16 +181,30 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
         slider.max = String(maxQty);
         slider.value = String(qty);
         slider.disabled = maxQty === 0;
-        slider.addEventListener("input", () => { qty = Number(slider.value); render(); });
+
+        const buyBtn = document.createElement("button");
+        buyBtn.className = "uw2-btn uw2-btn-primary";
+        buyBtn.style.marginLeft = "auto";
+        buyBtn.style.padding = "7px 22px";
+        buyBtn.textContent = tabLabels[0];
+
+        const syncQty = (next: number) => {
+          qty = Math.max(0, Math.min(maxQty, Math.trunc(next) || 0));
+          slider.value = String(qty);
+          qtyReadout.textContent = `${qty} / ${maxQty} (${selGood ? qty * selGood.price : 0})`;
+          buyBtn.disabled = qty <= 0 || !selGood || !selShip;
+        };
+        syncQty(qty);
+        slider.addEventListener("input", () => syncQty(Number(slider.value)));
 
         const stepRow = document.createElement("div");
         stepRow.className = "uw2-step-row";
         for (const [lb, fn] of [
-          ["-10", () => { qty = Math.max(0, qty - 10); render(); }],
-          ["-1", () => { qty = Math.max(0, qty - 1); render(); }],
-          ["+1", () => { qty = Math.min(maxQty, qty + 1); render(); }],
-          ["+10", () => { qty = Math.min(maxQty, qty + 10); render(); }],
-          ["MAX", () => { qty = maxQty; render(); }],
+          ["-10", () => syncQty(qty - 10)],
+          ["-1", () => syncQty(qty - 1)],
+          ["+1", () => syncQty(qty + 1)],
+          ["+10", () => syncQty(qty + 10)],
+          ["MAX", () => syncQty(maxQty)],
         ] as const) {
           const btn = document.createElement("button");
           btn.className = "uw2-step-btn";
@@ -193,13 +213,6 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
           btn.addEventListener("click", fn);
           stepRow.appendChild(btn);
         }
-
-        const buyBtn = document.createElement("button");
-        buyBtn.className = "uw2-btn uw2-btn-primary";
-        buyBtn.style.marginLeft = "auto";
-        buyBtn.style.padding = "7px 22px";
-        buyBtn.disabled = qty <= 0 || !selGood || !selShip;
-        buyBtn.textContent = tabLabels[0];
         buyBtn.addEventListener("click", () => {
           if (qty <= 0 || !selGood || !selShip) return;
           const E = market.eco, cs = market.m.crewSlot(selShip.slot);

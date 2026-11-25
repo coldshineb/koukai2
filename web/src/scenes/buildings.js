@@ -67,7 +67,7 @@ export class Buildings {
   }
   // ---------------- 共用 ----------------
   beginWideTalk(portrait = null, prefix = "") {
-    const { con, scr, codec } = this.c;
+    const { con, scr, codec, win } = this.c;
     if (!scr.wideRenderer || !codec) return false;
     if (this._wideTalk) this.endWideTalk();
     const portraitId = typeof portrait === "number" ? portrait : (portrait?.portraitId ?? null);
@@ -80,15 +80,23 @@ export class Buildings {
       scr.wideDialog = { text, portraitId, portraitComposed, waiting: false };
       scr.dirty = true;
     };
+    const marker = { wideTalk: true, onClose: () => this.endWideTalk() };
+    win?.stack?.push(marker);
     con.putc = createEscStripper(b => { raw.push(b); sync(); });
-    this._wideTalk = { origPutc, raw, portraitId, portraitComposed, prefix, sync };
+    this._wideTalk = { origPutc, raw, portraitId, portraitComposed, prefix, sync, marker };
     sync();
     return true;
   }
   endWideTalk() {
     if (!this._wideTalk) return false;
-    this.c.con.putc = this._wideTalk.origPutc;
+    const wt = this._wideTalk;
     this._wideTalk = null;
+    this.c.con.putc = wt.origPutc;
+    const stack = this.c.win?.stack;
+    if (stack && wt.marker) {
+      const idx = stack.lastIndexOf(wt.marker);
+      if (idx >= 0) stack.splice(idx, 1);
+    }
     this.c.scr.wideDialog = null;
     this.c.scr.dirty = true;
     return true;

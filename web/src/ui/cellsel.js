@@ -14,7 +14,10 @@ export class CellSelect {
   get m() { return this.c.menu; }
   // 0fea:5f74 = 15e14
   async select(x0, y0, cols, w, h, rows, init) {
-    const { sys } = this.c, m = this.m;
+    const { sys, scr } = this.c, m = this.m;
+    if (scr.wideRenderer && cols === 0x18 && rows === 0x18 && scr._wideSeaCam) {
+      return this.selectWideSea(init);
+    }
     this.one = w < 0 ? 1 : 0;                                          // [bb02]
     const span = this.one ? 1 : 2;                                     // [bp-2]
     this.x0 = x0; this.y0 = y0; this.cols = cols; this.rows = rows;    // [bb08] [bb0a] [bafe] [bb00]
@@ -45,6 +48,130 @@ export class CellSelect {
     this.draw();
     this.c.clip = [0, 0, 0x27f, 0x18f];                                // 1fd9:18de(0, 0, 0x27f, 0x18f)
     return k === 0x1b || k === 0x30 ? -1 : m.cur;
+  }
+  // 16:9 寬螢幕海面目標格選擇 (偵察 / 指定目的地等 24×24 視窗)
+  async selectWideSea(init) {
+    const { sys, scr } = this.c, m = this.m;
+    const cols = 0x18, rows = 0x18, span = 2;
+    await m.waitRelease();
+    let cur = Math.max(0, Math.min((rows - 2) * cols + (cols - span), init | 0));
+    const promptText = this.widePrompt || "";
+    this.widePrompt = "";
+
+    const cellToScreen = idx => {
+      const cam = scr._wideSeaCam;
+      if (!cam) return null;
+      const col = idx % cols, row = Math.trunc(idx / cols);
+      let dx = (cam.vx1006 + col) - cam.baseWX;
+      if (dx < -cam.worldW / 2) dx += cam.worldW;
+      else if (dx > cam.worldW / 2) dx -= cam.worldW;
+      const dy = (cam.vy1008 + row) - cam.baseWY;
+      return {
+        x: (dx - cam.camX) * cam.tile,
+        y: (dy - cam.camY) * cam.tile,
+        size: cam.tile * 2,
+      };
+    };
+
+    const screenToCell = (vx, vy) => {
+      const cam = scr._wideSeaCam;
+      if (!cam || vx < 0 || vy < 0 || vx >= 1280 || vy >= 720) return -1;
+      const mx = cam.camX + Math.floor(vx / cam.tile);
+      const my = cam.camY + Math.floor(vy / cam.tile);
+      const wx = cam.baseWX + mx;
+      const wy = cam.baseWY + my;
+      let col = wx - cam.vx1006;
+      if (col < -cam.worldW / 2) col += cam.worldW;
+      else if (col > cam.worldW / 2) col -= cam.worldW;
+      const row = wy - cam.vy1008;
+      if (col < 0 || col > cols - span || row < 0 || row > rows - span) return -1;
+      return row * cols + col;
+    };
+
+    const drawFn = ctx => {
+      const box = cellToScreen(cur);
+      ctx.save();
+      if (box) {
+        const { x, y, size } = box;
+        const pulse = 0.72 + 0.28 * Math.sin(performance.now() * 0.008);
+        ctx.fillStyle = `rgba(245, 200, 92, ${(0.18 * pulse).toFixed(3)})`;
+        ctx.fillRect(x, y, size, size);
+        ctx.strokeStyle = `rgba(255, 224, 130, ${(0.95 * pulse).toFixed(3)})`;
+        ctx.lineWidth = 3;
+        ctx.strokeRect(x + 1.5, y + 1.5, size - 3, size - 3);
+        // 四角瞄準括號
+        const cl = 14;
+        ctx.strokeStyle = "#fff4cc";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(x - 2, y + cl); ctx.lineTo(x - 2, y - 2); ctx.lineTo(x + cl, y - 2);
+        ctx.moveTo(x + size - cl, y - 2); ctx.lineTo(x + size + 2, y - 2); ctx.lineTo(x + size + 2, y + cl);
+        ctx.moveTo(x - 2, y + size - cl); ctx.lineTo(x - 2, y + size + 2); ctx.lineTo(x + cl, y + size + 2);
+        ctx.moveTo(x + size - cl, y + size + 2); ctx.lineTo(x + size + 2, y + size + 2); ctx.lineTo(x + size + 2, y + size - cl);
+        ctx.stroke();
+      }
+      if (promptText) {
+        ctx.font = '700 15px "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", sans-serif';
+        const tw = ctx.measureText(promptText).width;
+        const pw = tw + 36, ph = 38, px = (1280 - pw) / 2, py = 20;
+        ctx.fillStyle = "rgba(246, 236, 212, 0.96)";
+        ctx.strokeStyle = "#9c7432";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(px, py, pw, ph, 8);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#3d2817";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(promptText, 640, py + ph / 2);
+      }
+      ctx.restore();
+    };
+
+    scr.wideOverlays.push(drawFn);
+    scr.dirty = true;
+    sys.mouseShow();
+    let result = -1;
+    let lastVx = -1, lastVy = -1;
+    try {
+      for (;;) {
+        const vx = sys.mouse?.vx ?? -1;
+        const vy = sys.mouse?.vy ?? -1;
+        if (vx !== lastVx || vy !== lastVy) {
+          lastVx = vx; lastVy = vy;
+          const hov = screenToCell(vx, vy);
+          if (hov >= 0 && hov !== cur) {
+            cur = hov;
+            scr.dirty = true;
+          }
+        }
+        const k = m.readEvent();
+        if (k === 0x1b || k === 0x30) { result = -1; break; }
+        if (k === 0x0d) {
+          if (m.mouseFlag) {
+            const hov = screenToCell(vx, vy);
+            if (hov >= 0) { cur = hov; result = cur; break; }
+            result = -1; break;
+          }
+          result = cur; break;
+        }
+        const c = cur % cols;
+        if (k === 0x1c || k === 0x36) cur += cols - span > c ? 1 : span - cols;
+        else if (k === 0x1d || k === 0x34) cur += c > 0 ? -1 : cols - span;
+        else if (k === 0x1e || k === 0x38) cur += cur >= cols ? -cols : (rows - 2) * cols;
+        else if (k === 0x1f || k === 0x32) cur += (rows - 2) * cols > cur ? cols : (2 - rows) * cols;
+        scr.dirty = true;
+        await sys.poll();
+      }
+    } finally {
+      const idx = scr.wideOverlays.indexOf(drawFn);
+      if (idx >= 0) scr.wideOverlays.splice(idx, 1);
+      scr.dirty = true;
+      await m.waitRelease();
+      sys.mouseHide();
+    }
+    return result;
   }
   // 15b71 畫 / 擦游標 (第 cur 格)
   draw() {

@@ -11,14 +11,25 @@ export function hasDom(): boolean {
 
 /** 重繪彈窗內容時自動保留所有清單與捲動區的位置，避免點擊項目後跳回頂部 */
 export function preserveScroll(root: HTMLElement, fn: () => void, keep = true) {
-  const sel = ".uw2-list-col, .uw2-slot-list, .uw2-pane";
+  const sels = [".uw2-list-col", ".uw2-wharf-grid", ".uw2-slot-list", ".uw2-pane"];
   const bodyTop = keep ? root.scrollTop : 0;
-  const saved = keep ? Array.from(root.querySelectorAll<HTMLElement>(sel)).map(el => el.scrollTop) : [];
+  const saved = keep
+    ? sels.map(s => Array.from(root.querySelectorAll<HTMLElement>(s)).map(el => el.scrollTop))
+    : [];
   fn();
   if (keep) {
-    root.scrollTop = bodyTop;
-    const next = root.querySelectorAll<HTMLElement>(sel);
-    for (let i = 0; i < Math.min(saved.length, next.length); i++) next[i].scrollTop = saved[i];
+    const restore = () => {
+      root.scrollTop = bodyTop;
+      sels.forEach((s, si) => {
+        const next = root.querySelectorAll<HTMLElement>(s);
+        const arr = saved[si];
+        for (let i = 0; i < Math.min(arr.length, next.length); i++) {
+          if (arr[i] > 0) next[i].scrollTop = arr[i];
+        }
+      });
+    };
+    restore();
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(restore);
   }
 }
 
@@ -532,6 +543,7 @@ export function runDomControls(title: string, rows: {
     list.className = "uw2-list-col";
 
     const render = () => {
+      const prevTop = list.scrollTop;
       list.innerHTML = "";
       for (const row of rows) {
         const card = document.createElement("div");
@@ -571,6 +583,7 @@ export function runDomControls(title: string, rows: {
         card.append(lb, ctrl);
         list.appendChild(card);
       }
+      list.scrollTop = prevTop;
     };
     render();
     h.body.appendChild(list);

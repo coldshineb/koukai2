@@ -506,6 +506,16 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
   const viewRows = Math.ceil(VIEW_H / TILE); // 23
   const camX = Math.max(0, Math.min(SEA_VALID - viewCols, shipLX - Math.floor(viewCols / 2) + 1));
   const camY = Math.max(0, Math.min(SEA_VALID - viewRows, shipLY - Math.floor(viewRows / 2) + 1));
+  scr._wideSeaCam = {
+    camX,
+    camY,
+    baseWX,
+    baseWY,
+    tile: TILE,
+    vx1006: seaScene.vx1006,
+    vy1008: seaScene.vy1008,
+    worldW: WORLD_W,
+  };
 
   ctx.fillStyle = "#082040";
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);

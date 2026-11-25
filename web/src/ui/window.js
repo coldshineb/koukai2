@@ -31,6 +31,7 @@ export class WindowSystem {
   async close() {
     this.sys?.mouseHide();
     const win = this.stack.pop(); if (!win) { this.sys?.mouseShow(); return; }
+    if (win.wideTalk) { win.onClose?.(); this.sys?.mouseShow(); return; }
     if (win.h > 16 && this.options.animate) {
       const n = (Math.abs(win.h) >> 4) + 1;
       for (let i = 0; i < n; i++) {
@@ -42,7 +43,15 @@ export class WindowSystem {
     this.sys?.mouseShow();
   }
   // seg0:7a8e 關閉最上層視窗 (永不動畫)
-  closeNow() { this.sys?.mouseHide(); const win = this.stack.pop(); if (win) this.restoreRows(win, 0, win.y, win.h); this.sys?.mouseShow(); }
+  closeNow() {
+    this.sys?.mouseHide();
+    const win = this.stack.pop();
+    if (win) {
+      if (win.wideTalk) win.onClose?.();
+      else this.restoreRows(win, 0, win.y, win.h);
+    }
+    this.sys?.mouseShow();
+  }
   // 取出一塊畫面但不放入堆疊 (seg0:50c4 後立即 [0536]-=size 的用法, 例: 等待游標)
   grab(x, y, w, h) { this.save(x, y, w, h); return this.stack.pop(); }
   // seg0:042f 把 grab/save 的畫面放回

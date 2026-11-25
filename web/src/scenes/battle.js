@@ -18,6 +18,9 @@ import { duelInBattle } from "./duel.js";
 import { marketTradeLog } from "./market.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
+import { hasDom } from "../modern/dom_ui.ts";
+import { BATTLE_VIEWPORT, renderWideBattle, hideDomBattleHud } from "../modern/dom_battle.ts";
+import { createEscStripper } from "../canvas_ui/text_util.ts";
 
 const btHex = s => Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16)));
 const btS16 = v => (v << 16) >> 16;
@@ -97,7 +100,8 @@ export class NavalBattle {
       if (ally.d === 0xff && Math.floor(f / 10) === nD) { ally.d = p; m = 0x30b; }
       else if (ally.a === 0xff && Math.floor(f / 10) === nA) { ally.a = p; m = 0x30c; }
       else continue;
-      this.c.win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0);
+      if (this.c.scr.wideRenderer) this.sea.b.beginWideTalk(null);
+      else this.c.win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0);
       this.c.message(m, st.cstr(R), st.cstr(R + 0x0d));
       await this.c.menu.waitPrompt();
       await this.c.win.close();
@@ -106,10 +110,30 @@ export class NavalBattle {
 
   // ================= fcf9 開戰 =================
   async open(al, dl, bl, arg) {
-    const { palette, bgm, sys, scr } = this.c, st = this.st;
-    scr.wideRenderer = null;
+    const { palette, bgm, sys, scr, con, codec } = this.c, st = this.st;
     scr.wideDialog = null;
     scr.wideOverlays.length = 0;
+    if (hasDom()) {
+      scr.wideRenderer = (ctx, s) => renderWideBattle(ctx, s, this);
+      sys._battleViewport = BATTLE_VIEWPORT;
+      this._msgRaw = [];
+      this._wideMsg = "";
+      if (!this._origBattlePutc && codec) {
+        const orig = con.putc.bind(con);
+        const strip = createEscStripper(b => {
+          this._msgRaw.push(b);
+          this._wideMsg = codec.decode(Uint8Array.from(this._msgRaw)).replace(/\{[0-9A-F]{2}\}/g, "").trim();
+          scr.dirty = true;
+        });
+        this._origBattlePutc = con.putc;
+        con.putc = ch => {
+          if (con.left === 0x36 && con.right === 0x4b && con.y >= 0x148 && !this.sea.b._wideTalk) strip(ch);
+          return orig(ch);
+        };
+      }
+    } else {
+      scr.wideRenderer = null;
+    }
     await palette.fadeBlack();                                          // 99f2
     bgm.playSong(0x10);                                                 // 9670(0x10)
     this.sea.cursor = 0x2570; sys.setCursorShape(0x2570);               // [06d6] = 0x2570, 5050
@@ -398,6 +422,8 @@ export class NavalBattle {
   // c2ee 訊息區: 0906(0x35, 0x148, 0x18, 0x38, 0), 左右邊界 0x36 / 0x4b, 游標 (0x36, 0x150), 字串 9cb8
   msgArea() {
     const { scr, con } = this.c;
+    this._msgRaw = [];
+    this._wideMsg = "";
     scr.fillCols(0x35, 0x148, 0x18, 0x38, 0);
     con.right = 0x4b; con.left = 0x36; con.setCursor(0x36, 0x150);
     con.puts(this.ds(0x9cb8));
@@ -526,12 +552,20 @@ export class NavalBattle {
   // ================= 開戰前的對話 fcdb =================
   // f95d: 劇本視窗 n (2e09:3c76) + 頭像 (2e09:3e62 = 31ef2: 目前視窗的頭像位置畫人物記錄 R)
   async talkWin(n, R) {
+    if (this.c.scr.wideRenderer && this.c.codec) {
+      const id = Math.trunc(((R - DS.TBL_PERSON) & 0xffff) / 0x32);
+      this.sea.b.beginWideTalk(this.sea.b.resolvePersonPortrait(id));
+      return { op_win_close: async () => { this.sea.b.endWideTalk(); } };
+    }
     const sc = (this.c.events ??= new Scenario(this.c)); await sc.init();
     await sc.op_win_open({ win: n });
     if (sc.cur >= 0) { const w = sc.W(sc.cur); this.c.kao.drawPerson(this.c.scr, this.st.bytes(R, 0x32), w.faceX, w.faceY); }
     return sc;
   }
-  async closeAllWin() { const sc = (this.c.events ??= new Scenario(this.c)); await sc.init(); await sc.closeAll(); }   // 2e09:3d2b
+  async closeAllWin() {
+    if (this.c.scr.wideRenderer) { this.sea.b.endWideTalk(); return; }
+    const sc = (this.c.events ??= new Scenario(this.c)); await sc.init(); await sc.closeAll();
+  }   // 2e09:3d2b
   async parley(arg) {
     return this.u8(0x97e6) === this.st.u8(DS.HERO) ? this.parleyHero(arg) : this.parleyEnemy();
   }
@@ -1845,7 +1879,20 @@ export class NavalBattle {
     this.c.sfx?.off();                                                  // d3d0: 9888
     this.drawShip(T); this.drawShip(cur);                               // c05d
   }
-  async duel(ax, T) { return duelInBattle(this, ax, T); }             // 0fea:2d1a = 12bba (scenes/duel.js)
+  async duel(ax, T) {
+    const { scr, sys } = this.c;
+    const prevWide = scr.wideRenderer;
+    const prevBv = sys._battleViewport;
+    sys._battleViewport = null;
+    hideDomBattleHud();
+    try {
+      return await duelInBattle(this, ax, T);
+    } finally {
+      scr.wideRenderer = prevWide;
+      sys._battleViewport = prevBv;
+      scr.dirty = true;
+    }
+  }             // 0fea:2d1a = 12bba (scenes/duel.js)
 
   // b6f2 停船: c2ee → 0x307 → bca4 是否 → c2ee; 是 → 回傳 1 (本回合結束)
   async cmdStop() {
@@ -2235,10 +2282,12 @@ export class NavalBattle {
     }
     st.set8(A + hn, st.u8(A + hn) - btUmin(this.rnd(5) + 0x0a, st.u8(A + hn)));
     if (st.u8(A + hn) <= 0x28) {
-      win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0); message(0x238); await menu.waitPrompt(); await b.closeTalk();
+      if (this.c.scr.wideRenderer) b.beginWideTalk(null); else win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0);
+      message(0x238); await menu.waitPrompt(); await b.closeTalk();
       st.set8(D + 0x0d, 0); st.set8(H + 0x31, (st.u8(H + 0x31) & 0xf0) | 6);   // 變成海盜
     } else if (st.u8(D + 0x0d) && st.u8(A + hn) <= 0x46) {
-      win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0); message(0x239); await menu.waitPrompt(); await b.closeTalk();
+      if (this.c.scr.wideRenderer) b.beginWideTalk(null); else win.shadowedSaved(0x14, 0x80, 0x1e, 0x60, 0);
+      message(0x239); await menu.waitPrompt(); await b.closeTalk();
       st.set8(D + 0x0d, 0);
     } else return;
     st.set8(DS.COMMON_SEC, 0); st.set8(DS.COMMON_CHAP, 0); st.set8(WorkDS.FLAGS, st.u8(WorkDS.FLAGS) & 0xf8);
@@ -2260,6 +2309,13 @@ export class NavalBattle {
   // ff5c = 84de: 把 DS:09e4 的檔案第 0xb 項重新解壓到 [03ee] (被 HDAT.PUT 蓋掉的緩衝; 移植版各資源各自保存, 不需要)
   // 19ba1: 主角艦隊在的船各呼叫一次 5d8b (只計算, 不寫回) → 0000:851f 回到海上畫面
   async backToSea() {
+    this.sea.b.endWideTalk();
+    if (this._origBattlePutc) {
+      this.c.con.putc = this._origBattlePutc;
+      this._origBattlePutc = null;
+    }
+    this.c.sys._battleViewport = null;
+    hideDomBattleHud();
     await this.fadeOutField();                                          // bd26
     if (this.c.palette.ending) return;
     await this.sea.enterSea();

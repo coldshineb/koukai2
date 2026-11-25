@@ -28,8 +28,14 @@ export function bindInput(canvas, sys) {
     const vy = Math.max(0, Math.min(VIEW_H - 1, Math.floor(((e.clientY - r.top) * VIEW_H) / r.height)));
     sys.mouse.vx = vx;
     sys.mouse.vy = vy;
-    sys.mouse.x = Math.max(0, Math.min(SCREEN_W - 1, Math.floor((vx - LEGACY_OFF_X) / LEGACY_SCALE)));
-    sys.mouse.y = Math.max(0, Math.min(CANVAS_H - 1, Math.floor(vy / LEGACY_SCALE) + Y_OFFSET));
+    const bv = sys._battleViewport;
+    if (bv) {
+      sys.mouse.x = Math.max(0, Math.min(SCREEN_W - 1, Math.floor(((vx - bv.x) * bv.srcW) / bv.w)));
+      sys.mouse.y = Math.max(0, Math.min(CANVAS_H - 1, Math.floor(((vy - bv.y) * bv.srcH) / bv.h) + Y_OFFSET));
+    } else {
+      sys.mouse.x = Math.max(0, Math.min(SCREEN_W - 1, Math.floor((vx - LEGACY_OFF_X) / LEGACY_SCALE)));
+      sys.mouse.y = Math.max(0, Math.min(CANVAS_H - 1, Math.floor(vy / LEGACY_SCALE) + Y_OFFSET));
+    }
   };
   // INT 33h 移動量 (mickey): 每 8 像素 = sys.mickeyRatio (seg0:5022 依「滑鼠速度」設定, 預設水平 8 / 垂直 16)
   canvas.addEventListener("mousemove", e => {

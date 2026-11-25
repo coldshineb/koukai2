@@ -399,6 +399,9 @@ export class MenuSystem {
   }
   // 1458c 在滑鼠位置彈出的選單 (第 1 層)
   async popupMenu(table, cancelable) {
+    if (this.scr.wideRenderer && this.codec) {
+      return this.wideListMenu(table, cancelable);
+    }
     await this.waitRelease();
     const saveBg = this.con.bg;
     this.count = table.length; this.cur = 0; this.a154 = 1; this.level = 1; this.cancelable = cancelable; this.table = table;

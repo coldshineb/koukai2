@@ -878,3 +878,116 @@ html, body {
   border-color: #d4a64a;
   transform: translateY(-1px);
 }
+
+/* 16:9 海戰現代羊皮紙右側 HUD */
+.uw2-battle-hud {
+  position: absolute;
+  top: 10px;
+  right: 16px;
+  bottom: 10px;
+  width: min(39%, 496px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: auto;
+  z-index: 12;
+}
+.uw2-battle-card {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.uw2-battle-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.uw2-battle-ship {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--uw2-ink);
+}
+.uw2-battle-sub {
+  font-size: 12px;
+  color: var(--uw2-ink-muted);
+  margin-top: 2px;
+}
+.uw2-battle-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.uw2-battle-clock {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--uw2-ink);
+  font-variant-numeric: tabular-nums;
+}
+.uw2-battle-wind {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--uw2-ink);
+}
+.uw2-battle-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.uw2-battle-stat {
+  display: grid;
+  grid-template-columns: 38px 1fr 68px;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--uw2-ink);
+}
+.uw2-battle-stat strong {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.uw2-battle-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(138, 93, 23, 0.2);
+}
+.uw2-battle-grid > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--uw2-ink-muted);
+}
+.uw2-battle-grid strong {
+  color: var(--uw2-ink);
+  font-variant-numeric: tabular-nums;
+}
+.uw2-battle-mini-card {
+  align-items: center;
+}
+.uw2-battle-mini-canvas {
+  width: 100%;
+  max-width: 312px;
+  height: auto;
+  aspect-ratio: 208 / 192;
+  image-rendering: pixelated;
+  border-radius: 6px;
+  border: 1px solid var(--uw2-gold);
+  background: #163b64;
+}
+.uw2-battle-msg-card {
+  flex: 1;
+  min-height: 76px;
+}
+.uw2-battle-msg-text {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--uw2-ink);
+  white-space: pre-wrap;
+}
