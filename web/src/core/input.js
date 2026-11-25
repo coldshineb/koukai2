@@ -54,5 +54,6 @@ export function bindInput(canvas, sys) {
   });
   addEventListener("mouseup", e => { sys.mouse.buttons &= ~(e.button === 2 ? 2 : e.button === 0 ? 1 : 0); });
   window.addEventListener("contextmenu", e => e.preventDefault());
+  window.addEventListener("dragstart", e => e.preventDefault());
   canvas.style.cursor = "default";        // 階段 4: 使用瀏覽器原生高精度指標
 }
