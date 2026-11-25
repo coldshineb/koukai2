@@ -12,6 +12,7 @@ import {
   personRawBytes,
   revealEntireWorldMap,
   setExploreUnrep,
+  setPortBuildDays,
   setWorkCurParam,
   writeShipName,
 } from "../model/world_helpers.ts";
@@ -1415,21 +1416,18 @@ export async function runDomTavernWorkbench(b: any, drinkNameBytes: Uint8Array, 
         const headBox = document.createElement("div");
         headBox.className = "uw2-action-box";
 
-        const msgEl = document.createElement("div");
-        msgEl.className = "uw2-speech-box";
-        if (isHire) {
-          if (hiredToday) msgEl.textContent = "今天已经招募过水手了，请明天再来。";
-          else if (totalRoom === 0) msgEl.textContent = capMsg(c, 0x1d);
+        if (isHire && !hiredToday) {
+          const msgEl = document.createElement("div");
+          msgEl.className = "uw2-speech-box";
+          if (totalRoom === 0) msgEl.textContent = capMsg(c, 0x1d);
           else if (b.money < 10) msgEl.textContent = capMsg(c, 0x1e);
           else {
             const countLine = capMsg(c, si >= 0x14 ? 0x79 : si > 0 ? 0x7a : 0x7b, si);
             const warn = A < 0x1e ? `${capMsg(c, 0x1f)} ` : "";
-            msgEl.textContent = `${warn}${countLine}（每人 ${wage} 金币 · 本次最多可雇 ${lim} 人）`;
+            msgEl.textContent = `${warn}${countLine} ${capMsg(c, 0x7c, wage)} ${capMsg(c, 0x7d, lim)}`.trim();
           }
-        } else {
-          msgEl.textContent = "调整各船要解雇的水手人数（降至 0 人时该船士气归零），确认后生效。";
+          headBox.appendChild(msgEl);
         }
-        headBox.appendChild(msgEl);
 
         const summaryBar = document.createElement("div");
         summaryBar.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:space-between;";
@@ -1442,17 +1440,17 @@ export async function runDomTavernWorkbench(b: any, drinkNameBytes: Uint8Array, 
         if (isHire) {
           fillAllBtn.className = "uw2-step-btn";
           fillAllBtn.disabled = lim <= 0;
-          fillAllBtn.textContent = "一键补满";
+          fillAllBtn.textContent = "最大";
           btnBar.appendChild(fillAllBtn);
         }
 
         const clearBtn = document.createElement("button");
         clearBtn.className = "uw2-step-btn";
-        clearBtn.textContent = "清零";
+        clearBtn.textContent = "0";
 
         const commitBtn = document.createElement("button");
         commitBtn.className = "uw2-btn uw2-btn-primary";
-        commitBtn.textContent = isHire ? "确认招募" : "确认解雇";
+        commitBtn.textContent = tabLabels[isHire ? 0 : 1] || (isHire ? "水手雇用" : "水手解雇");
 
         btnBar.append(clearBtn, commitBtn);
         summaryBar.append(totalBadge, btnBar);
@@ -1468,8 +1466,8 @@ export async function runDomTavernWorkbench(b: any, drinkNameBytes: Uint8Array, 
         const syncAll = () => {
           const total = getTotalSelected();
           totalBadge.textContent = isHire
-            ? `合计招募 +${total} 人 · 费用 ${(total * wage).toLocaleString()} 金币`
-            : `合计解雇 -${total} 人`;
+            ? `+${total}（${(total * wage).toLocaleString()}）`
+            : `-${total}`;
           clearBtn.disabled = total <= 0;
           commitBtn.disabled = total <= 0 || (isHire && lim <= 0);
           rowSyncs.forEach(fn => fn());
@@ -1606,7 +1604,7 @@ export async function runDomTavernWorkbench(b: any, drinkNameBytes: Uint8Array, 
             m.globals.dailyFlags |= 1;
             hireAdds.clear();
             b.p.panels();
-            notice = `已招募 ${total} 名水手，花费 ${(total * wage).toLocaleString()} 金币。`;
+            notice = `+${total}（${(total * wage).toLocaleString()} 金币）`;
           } else {
             for (const s of ships) {
               const sub = dismissSubs.get(s.slot) || 0;
@@ -1616,7 +1614,7 @@ export async function runDomTavernWorkbench(b: any, drinkNameBytes: Uint8Array, 
             }
             dismissSubs.clear();
             b.p.panels();
-            notice = `已解雇 ${total} 名水手。`;
+            notice = `-${total}`;
           }
           render();
         });
@@ -1848,10 +1846,31 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
   let investAmt = 1000;
   let investReply = "";
   let replaceSlot = -1;
+  let newMat = 0;
+  let designCrew = -1;
+  let designGuns = -1;
+  let customShipName = "";
+  let lastNameKey = "";
+  let offerPrice = -1;
+  let lastPriceKey = "";
   let notice = specialNotice || initGreet;
 
+  const hexToU8 = (s: string) => Uint8Array.from([...(s.match(/../g) || []).map(h => parseInt(h, 16)), 0]);
+  const matTab = (c.portAssets?.data?.build?.materials || []).map(hexToU8);
+  const figTab = (c.portAssets?.data?.build?.figureheads || []).map(hexToU8);
+
+  const encodeShipNameSafe = (txt: string, fallback: Uint8Array): Uint8Array => {
+    const trimmed = txt.trim();
+    if (!trimmed) return fallback;
+    try {
+      return c.font.encode(trimmed);
+    } catch {
+      return fallback;
+    }
+  };
+
   for (;;) {
-    let pending: null | { kind: "new_ship" | "deliver" | "used_ship" | "ratio"; arg?: number } = null;
+    let pendingLeftovers: null | { goods: number[]; amt: number[] } = null;
 
     await new Promise<void>(resolve => {
       let settled = false;
@@ -1892,6 +1911,41 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
         return out;
       };
 
+      const getFreeFleetSlot = () => {
+        for (let i = 0; i < GameConst.FLEET_SHIPS; i++) {
+          const f = b.slotState(i);
+          if (f !== ShipSlotFlag.ACTIVE && f !== ShipSlotFlag.BUILDING) return i;
+        }
+        return -1;
+      };
+
+      const allocShipRecord = (slotIdx: number, typeId: number, tmpl: any, stype: any, isTrade: boolean, captainId: number, nameBytes: Uint8Array) => {
+        const S = heroOrDockSlot(m, slotIdx), M = m.crewSlot(slotIdx);
+        let n = 0;
+        for (let i = 0; i < 0x28; i++) if (m.ship(i).type === GameConst.EMPTY_SLOT) { n = i; break; }
+        const si = m.ship(n);
+        si.maxGuns = stype.maxGuns;
+        si.type = typeId;
+        si.flags = tmpl.flags;
+        si.maxCrew = tmpl.maxCrew;
+        si.maxCargo = (stype.capacity - si.maxGuns - si.maxCrew) & 0xffff;
+        const d = Math.trunc(9 * stype.durability / 10) & 0xffff;
+        S.maxDurability = (d - Math.trunc((d & 0xff) / 15)) & 0xff;
+        S.durability = S.maxDurability;
+        S.turn = stype.turn;
+        S.propulsion = stype.propulsion;
+        S.guns = plUmin(S.guns, isTrade ? si.maxGuns : 0);
+        S.crew = plUmin(S.crew, isTrade ? si.maxCrew : 0);
+        S.ship = n;
+        if (!isTrade) S.flags = ShipSlotFlag.ACTIVE;
+        M.water = 0; M.food = 0; M.material = 0; M.ammo = 0;
+        M.navRatio = 0x19; M.lookRatio = 0x32; M.captain = captainId;
+        M.loadTotal = 0; M.figurehead = 0;
+        for (let k = 0; k < GameConst.CARGO_SLOTS; k++) { M.setCargoGoods(k, GameConst.EMPTY_SLOT); M.setCargoAmts(k, 0); }
+        writeShipName(si, nameBytes);
+        return { S, M, si };
+      };
+
       const renderShipHeader = (box: HTMLElement, shipType: number, titleText: string, subText: string) => {
         const head = document.createElement("div");
         head.style.cssText = "display:flex;align-items:center;gap:14px;";
@@ -1911,6 +1965,176 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
         box.appendChild(head);
       };
 
+      const mountDesignControls = (box: HTMLElement, stype: any, initCrew?: number, initGuns?: number) => {
+        const maxCrewCap = stype.maxCrewDiv10 * 10;
+        if (designCrew < stype.minCrew || designCrew > maxCrewCap) {
+          designCrew = Math.max(stype.minCrew, Math.min(maxCrewCap, initCrew ?? stype.minCrew));
+        }
+        const maxGunsAllow = Math.max(0, Math.min(stype.maxGuns, stype.capacity - designCrew));
+        if (designGuns < 0 || designGuns > maxGunsAllow) {
+          designGuns = Math.max(0, Math.min(maxGunsAllow, initGuns ?? 0));
+        }
+
+        const wrap = document.createElement("div");
+        wrap.style.cssText = "display:flex;flex-direction:column;gap:6px;padding:8px 10px;border-radius:8px;background:rgba(255,253,246,0.7);border:1px solid rgba(154,119,56,0.28);";
+
+        const capSummary = document.createElement("div");
+        capSummary.style.cssText = "font-size:13px;font-weight:700;color:var(--uw2-ink);";
+        wrap.appendChild(capSummary);
+
+        const makeRow = (label: string, min: number, getMax: () => number, getVal: () => number, setVal: (v: number) => void, stepBig = 10) => {
+          const row = document.createElement("div");
+          row.className = "uw2-step-row";
+          const lb = document.createElement("span");
+          lb.style.cssText = "min-width:68px;font-size:12px;font-weight:700;color:var(--uw2-ink-muted);";
+          lb.textContent = label;
+          const sl = document.createElement("input");
+          sl.type = "range";
+          sl.style.flex = "1";
+          sl.min = String(min);
+          const valEl = document.createElement("span");
+          valEl.style.cssText = "min-width:44px;text-align:right;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;";
+          const btns: { el: HTMLButtonElement; d: number }[] = [];
+          for (const d of [-stepBig, -1, 1, stepBig]) {
+            const btn = document.createElement("button");
+            btn.className = "uw2-step-btn";
+            btn.textContent = d > 0 ? `+${d}` : String(d);
+            btn.addEventListener("click", () => { setVal(getVal() + d); syncDesign(); });
+            btns.push({ el: btn, d });
+          }
+          sl.addEventListener("input", () => { setVal(Number(sl.value)); syncDesign(); });
+          row.append(lb, sl, ...btns.map(b0 => b0.el), valEl);
+          wrap.appendChild(row);
+          return () => {
+            const mx = getMax();
+            const v = Math.max(min, Math.min(mx, getVal()));
+            sl.max = String(mx);
+            sl.value = String(v);
+            sl.disabled = mx <= min;
+            valEl.textContent = String(v);
+            for (const b0 of btns) b0.el.disabled = b0.d < 0 ? v <= min : v >= mx;
+          };
+        };
+
+        let syncGunsRow = () => {};
+        const syncCrewRow = makeRow(
+          "最大水手", stype.minCrew, () => maxCrewCap,
+          () => designCrew,
+          v => {
+            designCrew = Math.max(stype.minCrew, Math.min(maxCrewCap, v));
+            const maxG = Math.max(0, Math.min(stype.maxGuns, stype.capacity - designCrew));
+            if (designGuns > maxG) designGuns = maxG;
+          },
+          10,
+        );
+        syncGunsRow = makeRow(
+          "最大火炮", 0, () => Math.max(0, Math.min(stype.maxGuns, stype.capacity - designCrew)),
+          () => designGuns,
+          v => {
+            const maxG = Math.max(0, Math.min(stype.maxGuns, stype.capacity - designCrew));
+            designGuns = Math.max(0, Math.min(maxG, v));
+          },
+          5,
+        );
+
+        const syncDesign = () => {
+          syncCrewRow();
+          syncGunsRow();
+          const cargo = Math.max(0, stype.capacity - designCrew - designGuns);
+          capSummary.textContent = `载货 ${cargo}/${stype.capacity} · 水手 ${designCrew} · 火炮 ${designGuns}`;
+        };
+        syncDesign();
+        box.appendChild(wrap);
+      };
+
+      const mountNegotiateAndName = (opts: {
+        box: HTMLElement;
+        priceKey: string;
+        defaultName: string;
+        listPrice: number;
+        tradeInSlot: number;
+        submitLabel: string;
+        onCommit: (offer: number, avail: number, nameTxt: string) => void;
+      }) => {
+        if (lastNameKey !== opts.priceKey) {
+          customShipName = opts.defaultName;
+          lastNameKey = opts.priceKey;
+        }
+        const avail = (b.money + (opts.tradeInSlot >= 0 ? Math.trunc(b.shipPrice(opts.tradeInSlot) / 2) : 0)) | 0;
+        const maxOffer = Math.max(0, Math.min(avail, opts.listPrice));
+        if (lastPriceKey !== opts.priceKey || offerPrice < 0 || offerPrice > maxOffer) {
+          offerPrice = maxOffer;
+          lastPriceKey = opts.priceKey;
+        }
+        const floor = Math.trunc(Math.imul(500 - hero.getStats(6), opts.listPrice) / 500) | 0;
+
+        const nameRow = document.createElement("div");
+        nameRow.style.cssText = "display:flex;align-items:center;gap:8px;";
+        const nLbl = document.createElement("span");
+        nLbl.style.cssText = "font-size:13px;font-weight:700;color:var(--uw2-ink-muted);white-space:nowrap;";
+        nLbl.textContent = "新船名";
+        const nameInp = document.createElement("input");
+        nameInp.type = "text";
+        nameInp.maxLength = 7;
+        nameInp.value = customShipName;
+        nameInp.style.cssText = "flex:1;padding:6px 10px;font-size:14px;font-weight:700;border:1px solid var(--uw2-gold);border-radius:6px;background:#fffdf6;color:var(--uw2-ink);";
+        nameInp.addEventListener("input", () => { customShipName = nameInp.value; });
+        nameRow.append(nLbl, nameInp);
+        opts.box.appendChild(nameRow);
+
+        const priceWrap = document.createElement("div");
+        priceWrap.style.cssText = "display:flex;flex-direction:column;gap:6px;padding:8px 10px;border-radius:8px;background:rgba(255,253,246,0.7);border:1px solid rgba(154,119,56,0.28);";
+        const topLine = document.createElement("div");
+        topLine.style.cssText = "display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:700;";
+        const acc = b.roleMember(4);
+        const accHint = acc !== GameConst.EMPTY_SLOT
+          ? (m.person(acc).skills & SkillFlag.ACCOUNTING ? floor : Math.trunc(Math.imul(98, floor) / 100) | 0)
+          : -1;
+        const pInfo = document.createElement("span");
+        pInfo.style.color = "var(--uw2-ink)";
+        const origAsk = capMsg(c, opts.priceKey.startsWith("new_") ? 0x100 : 0xc2, opts.listPrice);
+        pInfo.textContent = accHint >= 0 ? `${origAsk} ${capMsg(c, 0xc4, accHint)}` : origAsk;
+        const offerReadout = document.createElement("span");
+        offerReadout.style.color = "#7c5216";
+        topLine.append(pInfo, offerReadout);
+
+        const sl = document.createElement("input");
+        sl.type = "range";
+        sl.min = "0";
+        sl.max = String(maxOffer);
+        sl.value = String(offerPrice);
+        sl.disabled = maxOffer <= 0;
+
+        const btnRow = document.createElement("div");
+        btnRow.className = "uw2-step-row";
+        const decBtn = document.createElement("button");
+        decBtn.className = "uw2-step-btn";
+        decBtn.textContent = "-5%";
+        const resetBtn = document.createElement("button");
+        resetBtn.className = "uw2-step-btn";
+        resetBtn.textContent = "原价";
+        const goBtn = document.createElement("button");
+        goBtn.className = "uw2-btn uw2-btn-primary";
+        goBtn.style.marginLeft = "auto";
+
+        const syncOffer = (val: number) => {
+          offerPrice = Math.max(0, Math.min(maxOffer, Math.trunc(val) || 0));
+          sl.value = String(offerPrice);
+          offerReadout.textContent = `出价 ${offerPrice.toLocaleString()} 金币`;
+          goBtn.textContent = `${opts.submitLabel}（${offerPrice.toLocaleString()} 金币）`;
+          goBtn.disabled = avail < opts.listPrice && offerPrice <= 0;
+        };
+        syncOffer(offerPrice);
+        sl.addEventListener("input", () => syncOffer(Number(sl.value)));
+        decBtn.addEventListener("click", () => syncOffer(offerPrice - Math.max(100, Math.trunc(opts.listPrice * 0.05))));
+        resetBtn.addEventListener("click", () => syncOffer(maxOffer));
+        goBtn.addEventListener("click", () => opts.onCommit(offerPrice, avail, nameInp.value));
+
+        btnRow.append(decBtn, resetBtn, goBtn);
+        priceWrap.append(topLine, sl, btnRow);
+        opts.box.appendChild(priceWrap);
+      };
+
       const render = () => preserveScroll(shell.h.body, () => {
         shell.moneyPill.textContent = fmtMoneyPill(b.money);
         shell.toastEl.textContent = notice;
@@ -1925,7 +2149,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
           btn.disabled = (idx === 1 && usedList.length === 0) || ((idx === 2 || idx === 3 || idx === 4) && fleetSlots.length === 0);
           btn.textContent = lbl;
           btn.addEventListener("click", () => {
-            tab = idx; selIdx = 0; replaceSlot = -1;
+            tab = idx; selIdx = 0; replaceSlot = -1; designCrew = -1; designGuns = -1;
             if (tab === 4) {
               if (rmSub === 0 && rollFigureheads()) notice = specialNotice;
               else if (rmSub === 1 && rollGuns()) notice = specialNotice;
@@ -1944,7 +2168,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
         right.className = "uw2-pane";
 
         if (tab === 0) {
-          // ---- 0. 造新船 ----
+          // ---- 0. 造新船 & 交船（全部就地完成，零层叠弹窗） ----
           const buildDays = ecoEx.buildDays;
           const types = getBuildableTypes();
           if (selIdx >= types.length) selIdx = Math.max(0, types.length - 1);
@@ -1965,7 +2189,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
             row.className = `uw2-row-card ${idx === selIdx ? "selected" : ""}`;
             row.style.cssText = "display:flex;justify-content:space-between;align-items:center;";
             row.innerHTML = `<span class="uw2-item-name">${decodeCleanCstr(codec, tmpl.nameBytes)}</span><span class="uw2-item-price">${basePrice.toLocaleString()} 金币</span>`;
-            row.addEventListener("click", () => { selIdx = idx; render(); });
+            row.addEventListener("click", () => { selIdx = idx; designCrew = -1; designGuns = -1; render(); });
             list.appendChild(row);
           });
           left.appendChild(list);
@@ -1983,35 +2207,167 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
             p.textContent = buildDays > 0 ? capMsg(c, 0x105, buildDays) : capMsg(c, 0x106, 0);
             box.appendChild(p);
             if (buildDays === 0) {
+              const needMate = !b.findMate();
+              const fleetFull = fleetSlots.length >= 10;
+              const needPickReplace = needMate || fleetFull;
+              if (needPickReplace) {
+                const warn = document.createElement("div");
+                warn.className = "uw2-speech-box";
+                warn.textContent = needMate ? capMsg(c, 0xa6) : capMsg(c, 0xa7);
+                box.appendChild(warn);
+                if (replaceSlot < 0 || !fleetSlots.includes(replaceSlot)) replaceSlot = fleetSlots[0] ?? -1;
+                const repRow = document.createElement("div");
+                repRow.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;align-items:center;";
+                fleetSlots.forEach(fs => {
+                  const sNm = decodeCleanCstr(codec, m.ship(heroOrDockSlot(m, fs).ship).nameBytes);
+                  const rb = document.createElement("button");
+                  rb.className = `uw2-btn ${replaceSlot === fs ? "active" : ""}`;
+                  rb.textContent = `替换 ${sNm}`;
+                  rb.addEventListener("click", () => { replaceSlot = fs; render(); });
+                  repRow.appendChild(rb);
+                });
+                box.appendChild(repRow);
+              }
               const delBtn = document.createElement("button");
               delBtn.className = "uw2-btn uw2-btn-primary";
               delBtn.style.alignSelf = "flex-start";
               delBtn.textContent = "领取新船";
-              delBtn.addEventListener("click", () => { pending = { kind: "deliver" }; done(); });
+              delBtn.addEventListener("click", () => {
+                let buildSlot = 0;
+                for (let i = 0; i < 0x28; i++) {
+                  if (m.crewSlot(i).captain === (b.port | 0x80) && b.slotState(i) === ShipSlotFlag.BUILDING) { buildSlot = i; break; }
+                }
+                let targetSlot = getFreeFleetSlot();
+                let tradeIn = -1;
+                let capId = b.findMate() ? b.b2f7 : m.globals.hero;
+                if (needPickReplace) {
+                  if (replaceSlot < 0) return;
+                  tradeIn = replaceSlot;
+                  targetSlot = replaceSlot;
+                  capId = m.crewSlot(replaceSlot).captain;
+                }
+                const S = heroOrDockSlot(m, buildSlot), M = m.crewSlot(buildSlot);
+                S.flags = (S.flags & 0xdf) | ShipSlotFlag.ACTIVE;
+                M.captain = capId;
+                if (capId !== m.globals.hero) m.person(capId).role = 2;
+                setPortBuildDays(eco, GameConst.EMPTY_SLOT);
+                if (targetSlot >= 0 && targetSlot !== buildSlot) b.swapSlots(buildSlot, targetSlot);
+                if (tradeIn >= 0) {
+                  b.b2f4 = buildSlot;
+                  b.b2f5 = GameConst.EMPTY_SLOT;
+                  const leftData = { goods: new Array(9).fill(0xff), amt: new Array(9).fill(0) };
+                  b.transfer(1, leftData);
+                  b.sellDone();
+                  b.compactSlots();
+                  if (leftData.goods[0] !== 0xff) { pendingLeftovers = leftData; done(); return; }
+                } else {
+                  b.compactSlots();
+                }
+                m.person(capId).role = capId !== m.globals.hero ? 2 : 1;
+                b.fleetRecalc();
+                b.p.panels();
+                notice = capMsg(c, 0xfa);
+                replaceSlot = -1;
+                render();
+              });
               box.appendChild(delBtn);
             }
           } else if (types.length) {
             const t = types[selIdx];
             const tmpl = m.ship(t + 40);
             const stype = m.shipType(t);
-            renderShipHeader(box, t, decodeCleanCstr(codec, tmpl.nameBytes), `耐久 ${stype.durability} · 转向 ${stype.turn} · 推进 ${stype.propulsion} · 容量 ${stype.capacity}`);
+            const matCount = t === 0x18 ? 6 : Math.trunc((eco.industry - plUmin(500, eco.industry)) / 200) + 3;
+            if (newMat >= matCount) newMat = matCount - 1;
+            if (newMat < 0) newMat = 0;
+
+            const durVal = plUmin(Math.trunc((newMat + 8) * stype.durability / 10), 100);
+            const buildTime = Math.trunc((((100 - Math.trunc(eco.industry / 50)) & 0xffff) * stype.durability) / 100) & 0xff;
+            const base = domS16(stype.price);
+            const matPrice = (Math.trunc(base * 4 / 5) + Math.trunc(base * newMat / 10)) & 0xffff;
+            const listPrice = Math.imul(Math.trunc(Math.imul(b.priceIndex() + 50, matPrice) / 100), 10) | 0;
+
+            renderShipHeader(box, t, decodeCleanCstr(codec, tmpl.nameBytes), `耐久 ${durVal} · 转向 ${stype.turn} · 推进 ${stype.propulsion} · 工期 ${buildTime} 天`);
             const desc = document.createElement("div");
             desc.className = "uw2-speech-box";
             desc.textContent = capMsg(c, b.BT.typeMsg[t]);
             box.appendChild(desc);
 
-            const goBtn = document.createElement("button");
-            goBtn.className = "uw2-btn uw2-btn-primary";
-            goBtn.style.alignSelf = "flex-start";
-            goBtn.textContent = tabLabels[0];
-            goBtn.addEventListener("click", () => { pending = { kind: "new_ship", arg: t }; done(); });
-            box.appendChild(goBtn);
+            b.freeSlots();
+            const hasDockSlot = domS16(c.persons[0]) >= 10;
+            if (!hasDockSlot) {
+              const full = document.createElement("div");
+              full.style.cssText = "font-size:13px;font-weight:700;color:#a13626;";
+              full.textContent = decodeCleanCstr(codec, b.BT.fmt.dockFull);
+              box.appendChild(full);
+            } else {
+              const buildSlot = c.persons[0];
+              const matRow = document.createElement("div");
+              matRow.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;align-items:center;";
+              const mLbl = document.createElement("span");
+              mLbl.style.cssText = "font-size:12px;font-weight:700;color:var(--uw2-ink-muted);";
+              mLbl.textContent = "材质";
+              matRow.appendChild(mLbl);
+              for (let mi = 0; mi < matCount; mi++) {
+                const mName = matTab[mi] ? decodeCleanCstr(codec, matTab[mi]) : `材质#${mi}`;
+                const mb = document.createElement("button");
+                mb.className = `uw2-btn ${newMat === mi ? "active" : ""}`;
+                mb.style.cssText = "padding:4px 10px;font-size:12px;";
+                mb.textContent = mName;
+                mb.addEventListener("click", () => { newMat = mi; render(); });
+                matRow.appendChild(mb);
+              }
+              box.appendChild(matRow);
+
+              mountDesignControls(box, stype);
+              mountNegotiateAndName({
+                box,
+                priceKey: `new_${t}_${newMat}`,
+                defaultName: decodeCleanCstr(codec, tmpl.nameBytes),
+                listPrice,
+                tradeInSlot: -1,
+                submitLabel: `签约造船 (${buildTime}天)`,
+                onCommit: (offer, avail, nameTxt) => {
+                  const floor = Math.trunc(Math.imul(500 - hero.getStats(6), listPrice) / 500) | 0;
+                  if (offer < floor) {
+                    if (!rng.random(5)) {
+                      m.globals.dailyFlags |= 2;
+                      notice = capMsg(c, 0xc5);
+                      done();
+                      return;
+                    }
+                    notice = capMsg(c, 0xc6);
+                    render();
+                    return;
+                  }
+                  if (avail < offer) { notice = capMsg(c, 0xef); render(); return; }
+                  b.money = (avail - offer) | 0;
+                  b.b2f4 = GameConst.EMPTY_SLOT;
+                  b.b2f6 = buildSlot;
+                  b.b2f7 = b.port | 0x80;
+                  const { S, M, si } = allocShipRecord(buildSlot, t, tmpl, stype, false, b.port | 0x80, encodeShipNameSafe(nameTxt, tmpl.nameBytes));
+                  S.flags = ShipSlotFlag.BUILDING;
+                  si.flags = (si.flags & 0xf8) | newMat;
+                  S.maxDurability = durVal;
+                  S.durability = durVal;
+                  si.maxCrew = designCrew;
+                  si.maxGuns = designGuns;
+                  si.maxCargo = Math.max(0, stype.capacity - designCrew - designGuns);
+                  S.crew = plUmin(S.crew, si.maxCrew);
+                  S.guns = plUmin(S.guns, si.maxGuns);
+                  M.captain = b.port | 0x80;
+                  setPortBuildDays(eco, buildTime);
+                  b.p.panels();
+                  notice = capMsg(c, 0x106, getPortEcoExtra(eco).buildDays);
+                  render();
+                },
+              });
+            }
           } else {
             box.textContent = capMsg(c, 0xfb);
           }
           right.appendChild(box);
         } else if (tab === 1) {
-          // ---- 1. 买旧船 ----
+          // ---- 1. 买旧船（全部就地完成，零层叠弹窗） ----
           if (selIdx >= usedList.length) selIdx = Math.max(0, usedList.length - 1);
           const lt = document.createElement("div");
           lt.className = "uw2-pane-title";
@@ -2043,18 +2399,79 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
             const u = usedList[selIdx];
             const tmpl = m.ship(u.type + 40);
             const stype = m.shipType(u.type);
-            renderShipHeader(box, u.type, decodeCleanCstr(codec, tmpl.nameBytes), `耐久 ${stype.durability} · 转向 ${stype.turn} · 推进 ${stype.propulsion} · 容量 ${stype.capacity}`);
+            const d0 = Math.trunc(9 * stype.durability / 10) & 0xffff;
+            const usedDur = (d0 - Math.trunc((d0 & 0xff) / 15)) & 0xff;
+            renderShipHeader(box, u.type, decodeCleanCstr(codec, tmpl.nameBytes), `耐久 ${usedDur} · 转向 ${stype.turn} · 推进 ${stype.propulsion} · 容量 ${stype.capacity}`);
             const desc = document.createElement("div");
             desc.className = "uw2-speech-box";
             desc.textContent = capMsg(c, b.BT.typeMsg[u.type]);
             box.appendChild(desc);
 
-            const buyBtn = document.createElement("button");
-            buyBtn.className = "uw2-btn uw2-btn-primary";
-            buyBtn.style.alignSelf = "flex-start";
-            buyBtn.textContent = tabLabels[1];
-            buyBtn.addEventListener("click", () => { pending = { kind: "used_ship", arg: u.cacheIdx }; done(); });
-            box.appendChild(buyBtn);
+            const hasMate = !!b.findMate();
+            const needReplace = !hasMate || fleetSlots.length >= 10;
+            if (needReplace) {
+              const warn = document.createElement("div");
+              warn.style.cssText = "font-size:13px;font-weight:700;color:#8a4f11;";
+              warn.textContent = !hasMate ? capMsg(c, 0xa6) : capMsg(c, 0xa7);
+              box.appendChild(warn);
+              if (replaceSlot < 0 || !fleetSlots.includes(replaceSlot)) replaceSlot = fleetSlots[0] ?? -1;
+              const repRow = document.createElement("div");
+              repRow.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;";
+              fleetSlots.forEach(fs => {
+                const sNm = decodeCleanCstr(codec, m.ship(heroOrDockSlot(m, fs).ship).nameBytes);
+                const rb = document.createElement("button");
+                rb.className = `uw2-btn ${replaceSlot === fs ? "active" : ""}`;
+                rb.textContent = `替换 ${sNm}`;
+                rb.addEventListener("click", () => { replaceSlot = fs; render(); });
+                repRow.appendChild(rb);
+              });
+              box.appendChild(repRow);
+            }
+
+            const tradeInSlot = needReplace ? replaceSlot : -1;
+            const listPrice = Math.imul(Math.trunc(Math.imul(b.priceIndex() + 50, stype.price) / 100), 10) | 0;
+
+            mountNegotiateAndName({
+              box,
+              priceKey: `used_${u.cacheIdx}_${u.type}_${tradeInSlot}`,
+              defaultName: decodeCleanCstr(codec, tmpl.nameBytes),
+              listPrice,
+              tradeInSlot,
+              submitLabel: tabLabels[1],
+              onCommit: (offer, avail, nameTxt) => {
+                const floor = Math.trunc(Math.imul(500 - hero.getStats(6), listPrice) / 500) | 0;
+                if (offer < floor) {
+                  if (!rng.random(5)) {
+                    m.globals.dailyFlags |= 2;
+                    notice = capMsg(c, 0xc5);
+                    done();
+                    return;
+                  }
+                  notice = capMsg(c, 0xc6);
+                  render();
+                  return;
+                }
+                if (avail < offer) { notice = capMsg(c, 0xef); render(); return; }
+                const targetSlot = needReplace ? replaceSlot : getFreeFleetSlot();
+                if (targetSlot < 0) return;
+                const capId = needReplace ? m.crewSlot(replaceSlot).captain : b.b2f7;
+                b.money = (avail - offer) | 0;
+                b.b2f4 = needReplace ? replaceSlot : GameConst.EMPTY_SLOT;
+                b.b2f6 = targetSlot;
+                b.b2f7 = capId;
+                const leftData = { goods: new Array(9).fill(0xff), amt: new Array(9).fill(0) };
+                if (b.b2f4 !== GameConst.EMPTY_SLOT) b.transfer(0, leftData);
+                allocShipRecord(targetSlot, u.type, tmpl, stype, b.b2f4 !== GameConst.EMPTY_SLOT, capId, encodeShipNameSafe(nameTxt, tmpl.nameBytes));
+                if (capId !== m.globals.hero) m.person(capId).role = 2;
+                m.usedShipCache(0).setShipTypes(u.cacheIdx, GameConst.EMPTY_SLOT);
+                b.fleetRecalc();
+                b.p.panels();
+                if (leftData.goods[0] !== 0xff) { pendingLeftovers = leftData; done(); return; }
+                notice = decodeCleanCstr(codec, tmpl.nameBytes);
+                replaceSlot = -1;
+                render();
+              },
+            });
           }
           right.appendChild(box);
         } else if (tab === 2) {
@@ -2250,8 +2667,6 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
           if (rmSub === 0) {
             // 船首像
             if (selFig > figCount) selFig = 1;
-            const hexToU8 = (s: string) => Uint8Array.from([...(s.match(/../g) || []).map(h => parseInt(h, 16)), 0]);
-            const figTab = (c.portAssets?.data?.build?.figureheads || []).map(hexToU8);
             const fGrid = document.createElement("div");
             fGrid.style.cssText = "display:grid;grid-template-columns:repeat(2,1fr);gap:6px;";
             for (let v = 1; v <= figCount; v++) {
@@ -2346,17 +2761,33 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
               box.appendChild(buyG);
             }
           } else if (rmSub === 2) {
-            // 积载比例变更
-            const cost = domS16(m.shipType(ship.type).price);
+            // 积载比例变更（就地滑杆调整，零弹窗）
+            const stype = m.shipType(ship.type);
+            const cost = domS16(stype.price);
             const p = document.createElement("div");
             p.style.fontSize = "14px";
-            p.textContent = capMsg(c, 0x112, cost);
+            p.textContent = `${capMsg(c, 0x112, cost)}（当前载货 ${b.cargoUsed(slot)}/${ship.maxCargo}）`;
+            box.appendChild(p);
+            mountDesignControls(box, stype, ship.maxCrew, ship.maxGuns);
             const btn = document.createElement("button");
             btn.className = "uw2-btn uw2-btn-primary";
             btn.style.alignSelf = "flex-start";
-            btn.textContent = remodelLabels[2];
-            btn.addEventListener("click", () => { pending = { kind: "ratio", arg: slot }; done(); });
-            box.append(p, btn);
+            btn.textContent = `${remodelLabels[2]}（${cost.toLocaleString()} 金币）`;
+            btn.addEventListener("click", () => {
+              if (cost > b.money) { notice = capMsg(c, 0xcf); render(); return; }
+              const nextCargo = Math.max(0, stype.capacity - designCrew - designGuns);
+              if (domS16(b.cargoUsed(slot)) > domS16(nextCargo)) { notice = capMsg(c, 0x14); render(); return; }
+              b.money = (b.money - cost) | 0;
+              ship.maxCargo = nextCargo;
+              ship.maxCrew = designCrew;
+              ship.maxGuns = designGuns;
+              slotView.crew = plUmin(slotView.crew, ship.maxCrew);
+              slotView.guns = plUmin(slotView.guns, ship.maxGuns);
+              b.p.panels();
+              notice = `${decodeCleanCstr(codec, ship.nameBytes)}：载货 ${nextCargo} · 水手 ${designCrew} · 火炮 ${designGuns}`;
+              render();
+            });
+            box.appendChild(btn);
           } else {
             // 船名变更（就地输入改名）
             const curName = decodeCleanCstr(codec, ship.nameBytes);
@@ -2426,25 +2857,8 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
       render();
     });
 
-    if (!pending) break;
-    const act: { kind: string; arg?: number } = pending;
-    b.b2f4 = b.b2f5 = b.b2f6 = b.b2f7 = 0xff;
-    b.b2f8 = 0;
-    if (act.kind === "deliver") {
-      await b.delivery();
-    } else if (act.kind === "new_ship") {
-      await b.newShip();
-    } else if (act.kind === "used_ship") {
-      await b.usedShip();
-    } else if (act.kind === "ratio" && act.arg !== undefined) {
-      const slot = act.arg;
-      const ship = m.ship(heroOrDockSlot(m, slot).ship);
-      const cost = domS16(m.shipType(ship.type).price);
-      if (cost <= b.money && (await b.design(slot))) {
-        b.money = (b.money - cost) | 0;
-        b.p.panels();
-      }
-    }
+    if (!pendingLeftovers) break;
+    await b.leftovers(pendingLeftovers);
     b.after();
     if (m.globals.dailyFlags & 2) break;
   }
