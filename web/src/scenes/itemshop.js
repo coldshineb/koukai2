@@ -41,7 +41,7 @@ export class ItemShop {
     const b = this.b, m = this.m, { codec, art, sys, message, printf } = this.c;
     const t = this.c.rt.time;
     const capMsg = (id, ...args) => toSimp(captureConsoleText(this.c, () => message(id, ...args)).trim());
-    const initGreet = b.noEvent() ? capMsg(t >= 12 && t < 18 ? 0x2fc : 0xeb) : "";
+    const initGreet = capMsg(t >= 12 && t < 18 ? 0x2fc : 0xeb);
     const tabLabels = [...UI_STR.itemShopTabs];
     const portName = decodeCleanCstr(codec, m.port(b.port).nameBytes);
 
@@ -156,11 +156,11 @@ export class ItemShop {
             row.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:10px;";
 
             const leftTxt = document.createElement("span");
-            leftTxt.style.fontWeight = "700";
+            leftTxt.className = "uw2-item-name";
             leftTxt.textContent = name + (equipped ? " [装备中]" : owned ? " [已持有]" : "");
 
             const rightTxt = document.createElement("span");
-            rightTxt.style.cssText = "font-size:13px;font-weight:700;color:#7c5216;white-space:nowrap;";
+            rightTxt.className = "uw2-item-price";
             rightTxt.textContent = tab === 1 && item.power === 0 ? "不可出售" : `${price.toLocaleString()} 金币`;
 
             row.append(leftTxt, rightTxt);
@@ -197,13 +197,13 @@ export class ItemShop {
             head.appendChild(img);
           }
           const titleBox = document.createElement("div");
-          titleBox.innerHTML = `<div style="font-size:18px;font-weight:700;color:var(--uw2-ink);">${name}</div>`;
+          titleBox.innerHTML = `<div class="uw2-detail-title">${name}</div>`;
           head.appendChild(titleBox);
           detail.appendChild(head);
 
           if (infoLines.length) {
             const infoBox = document.createElement("div");
-            infoBox.style.cssText = "font-size:13px;line-height:1.7;color:var(--uw2-ink);padding:8px 10px;border-radius:6px;background:rgba(255,252,242,0.7);border:1px solid rgba(154,119,56,0.22);";
+            infoBox.className = "uw2-speech-box";
             infoBox.textContent = infoLines.join("\n");
             detail.appendChild(infoBox);
           }

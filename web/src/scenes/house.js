@@ -5,6 +5,7 @@
 import { ListSelect } from "../ui/listsel.js";
 import { DiscoveryFlag, GameConst, NobleFlag, SkillFlag, WorkDS } from "../model/flags.ts";
 import { hasDom, runDomStoryCard } from "../modern/dom_ui.ts";
+import { runDomHouseWorkbench } from "../modern/dom_buildings.ts";
 import { captureConsoleText, toSimp } from "../canvas_ui/text_util.ts";
 
 const hsS16 = v => (v << 16) >> 16;
@@ -29,6 +30,7 @@ export class House {
       this.noble = noble;                                                        // [bd80]
       const t = noble.kind;
       if (t > 3) { console.warn("住宅種類 " + t + " 沒有處理函式 (原版會跳到 DS:b4e4 表外)"); return; }
+      if (hasDom() && this.c.codec) return runDomHouseWorkbench(this);
       return [() => this.collector(), () => this.mapper(), () => this.school(0), () => this.school(1)][t]();
     }
     b.crewSpeaks(); this.c.message(0x3a5); await b.wait(); await b.closeTalk();

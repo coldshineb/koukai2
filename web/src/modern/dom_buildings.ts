@@ -2,13 +2,14 @@
 // 涵蓋：王宮 (Palace)、銀行 (Bank)、事務所 (Office)、旅館 (Inn)、教會 (Church)、占卜師 (Fortune)
 // 統一結構：createDomModal(wide) + headerRight(.uw2-pill + 關閉) + .uw2-modal-toolbar(.uw2-tab-btn) + .uw2-split + .uw2-modal-footer
 import { DS, OFF } from "../model/schema_views.ts";
-import { GameConst, OptionFlag, TreatyFlag, WorkDS } from "../model/flags.ts";
+import { DiscoveryFlag, GameConst, NobleFlag, OptionFlag, SkillFlag, TreatyFlag, WorkDS } from "../model/flags.ts";
 import { domS16, calcDepositLimit, canTakeLoan, calcLoanLimit } from "../domain/economy.ts";
 import { captureConsoleText, decodeCleanCstr, toSimp } from "../canvas_ui/text_util.ts";
-import { createDomModal, getPersonPortraitSrc, preserveScroll } from "./dom_ui.ts";
+import { createDomModal, getPersonPortraitSrc, preserveScroll, runDomStoryCard } from "./dom_ui.ts";
 import { UI_STR } from "./ui_strings.ts";
 import { ENV_COMMON, ENV_HERO } from "../game/scenario.js";
 import { mainEnding } from "../game/endgame.js";
+import { ListSelect } from "../ui/listsel.js";
 
 const capMsg = (c: any, id: number, ...args: any[]) =>
   toSimp(captureConsoleText(c, () => c.message(id, ...args)).trim());
@@ -299,7 +300,7 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
           const meta = document.createElement("div");
           meta.style.cssText = "display:flex;flex-direction:column;gap:4px;";
           meta.innerHTML =
-            `<div style="font-size:18px;font-weight:700;color:var(--uw2-ink);">${kingName}</div>` +
+            `<div class="uw2-detail-title">${kingName}</div>` +
             `<div style="font-size:13px;color:var(--uw2-ink-muted);">当前爵位：${titleStr} · 贡献度：${standing - 100}</div>` +
             `<div style="font-size:13px;color:var(--uw2-ink-muted);">本国同盟港：${portCount} 座</div>`;
           head.appendChild(meta);
@@ -519,9 +520,9 @@ export function runDomBankWorkbench(bank: any): Promise<void> {
   const b = bank.b, c = bank.c, m = bank.m, g = m.globals, codec = c.codec;
   const portName = decodeCleanCstr(codec, m.port(b.port).nameBytes);
   const tabLabels = [...UI_STR.bankTabs];
-  const initGreet = b.noEvent()
-    ? (b.port === GameConst.VENICE_PORT_ID ? capMsg(c, 0x61) : capMsg(c, 0x62, m.port(b.port).nameBytes))
-    : "";
+  const initGreet = b.port === GameConst.VENICE_PORT_ID
+    ? capMsg(c, 0x61)
+    : capMsg(c, 0x62, m.port(b.port).nameBytes);
 
   return new Promise(resolve => {
     let settled = false;
@@ -713,7 +714,7 @@ export async function runDomOfficeWorkbench(office: any): Promise<void> {
   const portName = decodeCleanCstr(codec, m.port(b.port).nameBytes);
   const tabLabels = [...UI_STR.officeTabs];
   const nationNames = office.nations.slice(0, 6).map((raw: Uint8Array) => decodeCleanCstr(codec, raw).replace(/\s+/g, ""));
-  const initGreet = b.noEvent() ? capMsg(c, 0x55) : "";
+  const initGreet = capMsg(c, 0x55);
 
   let tab = 0; // 0: 工作介绍, 1: 各国情报
   let selNation = 0;
@@ -937,7 +938,7 @@ export async function runDomInnWorkbench(b: any): Promise<void> {
   const tabLabels = [...UI_STR.innTabs];
   let isCapital = false;
   for (let i = 0; i < 6; i++) if (st.u8(DS.TBL_COUNTRY + i * 0x20 + 0x0a) === b.port) isCapital = true;
-  const initGreet = b.noEvent() ? capMsg(c, 0x42) : "";
+  const initGreet = capMsg(c, 0x42);
 
   let tab = 0;
   let notice = initGreet;
@@ -1080,7 +1081,7 @@ export function runDomChurchWorkbench(b: any, base: number): Promise<void> {
   const c = b.c, st = b.st, codec = c.codec;
   const portName = decodeCleanCstr(codec, st.model.port(b.port).nameBytes);
   const tabLabels = [...UI_STR.churchTabs];
-  const initGreet = b.noEvent() ? capMsg(c, base + 0x5b) : "";
+  const initGreet = capMsg(c, base + 0x5b);
 
   return new Promise(resolve => {
     let settled = false;
@@ -1203,7 +1204,7 @@ export function runDomFortuneWorkbench(b: any): Promise<void> {
   const c = b.c, st = b.st, codec = c.codec;
   const portName = decodeCleanCstr(codec, st.model.port(b.port).nameBytes);
   const tabLabels = [...UI_STR.fortuneTabs];
-  const initGreet = b.noEvent() ? capMsg(c, 0x12a) : "";
+  const initGreet = capMsg(c, 0x12a);
 
   const expNeed = (lv: number) => { const m = Math.min(lv, 0x12); return (m * m * 30) & 0xffff; };
 
@@ -1333,7 +1334,7 @@ export async function runDomTavernWorkbench(b: any, drinkNameBytes: Uint8Array, 
   const drinkName = decodeCleanCstr(codec, drinkNameBytes);
   const k = st.u8(b.eco + 0x24);
   const drinkPrice = b.T.liquorPrice[k];
-  const initGreet = b.noEvent() ? capMsg(c, 0x12, drinkNameBytes) : "";
+  const initGreet = capMsg(c, 0x12, drinkNameBytes);
 
   let tab = 2;
   if (b.fleetShips() && !(st.u8(DS.DAILY_FLAGS) & 1)) tab = 0;
@@ -1524,7 +1525,7 @@ export async function runDomTavernWorkbench(b: any, drinkNameBytes: Uint8Array, 
               head.appendChild(img);
             }
             const nm = document.createElement("div");
-            nm.style.cssText = "font-size:18px;font-weight:700;color:var(--uw2-ink);";
+            nm.className = "uw2-detail-title";
             nm.textContent = gName;
             head.appendChild(nm);
             box.appendChild(head);
@@ -1680,7 +1681,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
         const meta = document.createElement("div");
         meta.style.cssText = "display:flex;flex-direction:column;gap:4px;";
         meta.innerHTML =
-          `<div style="font-size:18px;font-weight:700;color:var(--uw2-ink);">${titleText}</div>` +
+          `<div class="uw2-detail-title">${titleText}</div>` +
           `<div style="font-size:13px;color:var(--uw2-ink-muted);">${subText}</div>`;
         head.appendChild(meta);
         box.appendChild(head);
@@ -1739,7 +1740,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
             const row = document.createElement("button");
             row.className = `uw2-row-card ${idx === selIdx ? "selected" : ""}`;
             row.style.cssText = "display:flex;justify-content:space-between;align-items:center;";
-            row.innerHTML = `<span style="font-weight:700;">${decodeCleanCstr(codec, tmpl.nameBytes)}</span><span style="font-size:13px;color:#7c5216;">${basePrice.toLocaleString()} 金币</span>`;
+            row.innerHTML = `<span class="uw2-item-name">${decodeCleanCstr(codec, tmpl.nameBytes)}</span><span class="uw2-item-price">${basePrice.toLocaleString()} 金币</span>`;
             row.addEventListener("click", () => { selIdx = idx; render(); });
             list.appendChild(row);
           });
@@ -1772,7 +1773,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
             const dur = st.u8(T + 1), turn = st.u8(T + 2), prop = st.u8(T + 3), cap = st.u16(T + 6);
             renderShipHeader(box, t, decodeCleanCstr(codec, tmpl.nameBytes), `耐久 ${dur} · 转向 ${turn} · 推进 ${prop} · 容量 ${cap}`);
             const desc = document.createElement("div");
-            desc.style.cssText = "font-size:13.5px;line-height:1.6;color:var(--uw2-ink);padding:8px 10px;border-radius:6px;background:rgba(255,252,242,0.72);border:1px solid rgba(154,119,56,0.24);";
+            desc.className = "uw2-speech-box";
             desc.textContent = capMsg(c, b.BT.typeMsg[t]);
             box.appendChild(desc);
 
@@ -1802,7 +1803,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
             const row = document.createElement("button");
             row.className = `uw2-row-card ${idx === selIdx ? "selected" : ""}`;
             row.style.cssText = "display:flex;justify-content:space-between;align-items:center;";
-            row.innerHTML = `<span style="font-weight:700;">${decodeCleanCstr(codec, tmpl.nameBytes)}</span><span style="font-size:13px;color:#7c5216;">${price.toLocaleString()} 金币</span>`;
+            row.innerHTML = `<span class="uw2-item-name">${decodeCleanCstr(codec, tmpl.nameBytes)}</span><span class="uw2-item-price">${price.toLocaleString()} 金币</span>`;
             row.addEventListener("click", () => { selIdx = idx; render(); });
             list.appendChild(row);
           });
@@ -1821,7 +1822,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
             const T = b.typeRec(u.type);
             renderShipHeader(box, u.type, decodeCleanCstr(codec, tmpl.nameBytes), `耐久 ${st.u8(T + 1)} · 转向 ${st.u8(T + 2)} · 推进 ${st.u8(T + 3)} · 容量 ${st.u16(T + 6)}`);
             const desc = document.createElement("div");
-            desc.style.cssText = "font-size:13.5px;line-height:1.6;color:var(--uw2-ink);padding:8px 10px;border-radius:6px;background:rgba(255,252,242,0.72);border:1px solid rgba(154,119,56,0.24);";
+            desc.className = "uw2-speech-box";
             desc.textContent = capMsg(c, b.BT.typeMsg[u.type]);
             box.appendChild(desc);
 
@@ -1851,8 +1852,8 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
             row.className = `uw2-row-card ${idx === selIdx ? "selected" : ""}`;
             row.style.cssText = "display:flex;justify-content:space-between;align-items:center;";
             row.innerHTML =
-              `<span style="font-weight:700;">${decodeCleanCstr(codec, ship.nameBytes)}</span>` +
-              `<span style="font-size:13px;color:${cost ? "#b83d3d" : "#247544"};">${cost ? `${cost.toLocaleString()} 金币` : "完好"}</span>`;
+              `<span class="uw2-item-name">${decodeCleanCstr(codec, ship.nameBytes)}</span>` +
+              `<span class="uw2-item-price ${cost ? "err" : "ok"}">${cost ? `${cost.toLocaleString()} 金币` : "完好"}</span>`;
             row.addEventListener("click", () => { selIdx = idx; render(); });
             list.appendChild(row);
           });
@@ -1913,7 +1914,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
             const row = document.createElement("button");
             row.className = `uw2-row-card ${idx === selIdx ? "selected" : ""}`;
             row.style.cssText = "display:flex;justify-content:space-between;align-items:center;";
-            row.innerHTML = `<span style="font-weight:700;">${decodeCleanCstr(codec, ship.nameBytes)}</span><span style="font-size:13px;color:#7c5216;">${val.toLocaleString()} 金币</span>`;
+            row.innerHTML = `<span class="uw2-item-name">${decodeCleanCstr(codec, ship.nameBytes)}</span><span class="uw2-item-price">${val.toLocaleString()} 金币</span>`;
             row.addEventListener("click", () => { selIdx = idx; replaceSlot = -1; render(); });
             list.appendChild(row);
           });
@@ -1990,7 +1991,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
             const row = document.createElement("button");
             row.className = `uw2-row-card ${idx === selIdx ? "selected" : ""}`;
             row.style.cssText = "display:flex;justify-content:space-between;align-items:center;";
-            row.innerHTML = `<span style="font-weight:700;">${decodeCleanCstr(codec, ship.nameBytes)}</span><span style="font-size:12.5px;color:var(--uw2-ink-muted);">火炮 ${st.u8(S + OFF.DOCK_SLOT.GUNS)}/${ship.maxGuns}</span>`;
+            row.innerHTML = `<span class="uw2-item-name">${decodeCleanCstr(codec, ship.nameBytes)}</span><span class="uw2-item-meta">火炮 ${st.u8(S + OFF.DOCK_SLOT.GUNS)}/${ship.maxGuns}</span>`;
             row.addEventListener("click", () => { selIdx = idx; render(); });
             list.appendChild(row);
           });
@@ -2224,5 +2225,465 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
     }
     b.after();
     if (st.u8(DS.DAILY_FLAGS) & 2) break;
+  }
+}
+
+// =========================================================================
+// 9. 住宅一體化工作台 (House — 發現物收購 / 地圖製作 / 測量技術 / 砲術)
+// =========================================================================
+export async function runDomHouseWorkbench(house: any): Promise<void> {
+  const b = house.b, c = house.c, st = house.st, m = house.m, noble = house.noble;
+  const { codec, art, sys } = c;
+  const kind = noble.kind;
+  const portName = decodeCleanCstr(codec, m.port(b.port).nameBytes);
+  const nobleName = decodeCleanCstr(codec, st.cstr(noble.addr));
+  const hero = m.heroPerson();
+
+  const hsS16 = (v: number) => (v << 16) >> 16;
+  const hsUmin = (a: number, bv: number) => ((a & 0xffff) > (bv & 0xffff) ? bv & 0xffff : a & 0xffff);
+
+  const tabLabels = kind === 0
+    ? c.menuItems(0x18).slice(0, 3).map((x: Uint8Array) => decodeCleanCstr(codec, x))
+    : kind === 1
+      ? c.menuItems(0x19).slice(0, 4).map((x: Uint8Array) => decodeCleanCstr(codec, x))
+      : [kind === 3 ? "炮术" : "测量技术"];
+
+  const initGreet = (() => {
+    if (kind === 0) return noble.flags & NobleFlag.CONTRACTED ? capMsg(c, 0x1de, hero.familyNameBytes) : capMsg(c, 0x1dd);
+    if (kind === 1) return capMsg(c, noble.flags & NobleFlag.CONTRACTED ? 0x1ee : 0x1ed, hero.familyNameBytes);
+    return capMsg(c, kind === 3 ? 0x2e7 : 0x2ee);
+  })();
+
+  let activeTab = 0;
+  let selDiscIdx = 0;
+  let reportedGeo = false;
+  let speechText = "";
+  let notice = initGreet;
+
+  for (;;) {
+    const pendingStory = await new Promise<{ txt: string } | null>(resolve => {
+      let settled = false;
+      const finish = (story: { txt: string } | null) => {
+        if (settled) return;
+        settled = true;
+        shell.h.close();
+        resolve(story);
+      };
+
+      const shell = createWorkbenchShell(`${portName} · 住宅`, house.money, () => finish(null));
+
+      const hasTreasureMap = () => {
+        for (let i = 0; i < GameConst.INV_SLOTS; i++) {
+          const v = m.inventory(i);
+          if (v >= 0x50 && v <= 0x59) return true;
+        }
+        return false;
+      };
+
+      const getReportableDiscs = () => {
+        const out: number[] = [];
+        for (let i = 0; i < 100; i++) {
+          const f = m.discovery(i).flags;
+          if (!(f & DiscoveryFlag.FOUND) && (f & DiscoveryFlag.KNOWN) && !(f & 0x10)) out.push(i);
+        }
+        return out;
+      };
+
+      const render = () => preserveScroll(shell.h.body, () => {
+        shell.moneyPill.textContent = fmtMoneyPill(house.money);
+        shell.toastEl.textContent = notice;
+
+        shell.toolbar.innerHTML = "";
+        tabLabels.forEach((lbl: string, idx: number) => {
+          const btn = document.createElement("button");
+          btn.className = `uw2-tab-btn ${activeTab === idx ? "active" : ""}`;
+          btn.textContent = lbl;
+          btn.addEventListener("click", () => { activeTab = idx; speechText = ""; render(); });
+          shell.toolbar.appendChild(btn);
+        });
+
+        shell.h.body.innerHTML = "";
+        const split = document.createElement("div");
+        split.className = "uw2-split";
+
+        const left = document.createElement("div");
+        left.className = "uw2-pane";
+        const right = document.createElement("div");
+        right.className = "uw2-pane";
+
+        // 左欄：主人頭像與基本資訊（或發現物報告清單）
+        const profile = document.createElement("div");
+        profile.style.cssText = "display:flex;gap:14px;align-items:center;";
+        const url = art?.portraitUrl?.(noble.portrait);
+        if (url) {
+          const img = document.createElement("img");
+          img.className = "uw2-portrait-img";
+          img.src = url;
+          profile.appendChild(img);
+        }
+        const meta = document.createElement("div");
+        meta.style.cssText = "display:flex;flex-direction:column;gap:4px;";
+        meta.innerHTML =
+          `<div class="uw2-detail-title">${nobleName}</div>` +
+          (kind <= 1
+            ? `<div class="uw2-detail-sub">${noble.flags & NobleFlag.CONTRACTED ? "已签约" : "未签约"}</div>`
+            : `<div class="uw2-detail-sub">${kind === 3 ? "炮术指导" : "测量技术指导"}</div>`);
+        profile.appendChild(meta);
+        left.appendChild(profile);
+
+        if (kind === 0 && activeTab === 1) {
+          const discs = getReportableDiscs();
+          const lt = document.createElement("div");
+          lt.className = "uw2-pane-title";
+          lt.textContent = `${tabLabels[1]} (${discs.length})`;
+          left.appendChild(lt);
+
+          const list = document.createElement("div");
+          list.className = "uw2-list-col";
+          if (!discs.length) {
+            const emp = document.createElement("div");
+            emp.className = "uw2-speech-box";
+            emp.textContent = capMsg(c, 0x1e4);
+            list.appendChild(emp);
+          } else {
+            if (selDiscIdx >= discs.length) selDiscIdx = 0;
+            discs.forEach((n, idx) => {
+              const d = m.discovery(n), v = d.importance;
+              const kMul = hsS16(Math.imul(5 - (noble.flags & NobleFlag.REWARD_MASK), v === 100 ? 4 : 1));
+              const pay = Math.imul(Math.imul(kMul, v), 50);
+              const name = decodeCleanCstr(codec, ListSelect.colonyRec(c, n));
+              const row = document.createElement("button");
+              row.className = `uw2-row-card ${idx === selDiscIdx ? "selected" : ""}`;
+              row.innerHTML = `<span class="uw2-item-name">${name}</span><span class="uw2-item-price">${pay.toLocaleString()} 金币</span>`;
+              row.addEventListener("click", () => { selDiscIdx = idx; speechText = ""; render(); });
+              list.appendChild(row);
+            });
+          }
+          left.appendChild(list);
+        } else if (kind === 1) {
+          const kvBox = document.createElement("div");
+          kvBox.style.cssText = "display:flex;flex-direction:column;gap:8px;margin-top:8px;";
+          const unrep = st.u16(WorkDS.EXPLORE_UNREP);
+          const total = st.u16(WorkDS.EXPLORE_TOTAL);
+          kvBox.innerHTML =
+            `<div class="uw2-kv-row"><span class="uw2-kv-label">地图制作技能</span><span class="uw2-kv-val">${hero.skills & SkillFlag.CARTOGRAPHY ? "已习得" : "未习得"}</span></div>` +
+            `<div class="uw2-kv-row"><span class="uw2-kv-label">未报告探索格数</span><span class="uw2-kv-val">${unrep}</span></div>` +
+            `<div class="uw2-kv-row"><span class="uw2-kv-label">累计探索格数</span><span class="uw2-kv-val">${total} / 3300</span></div>`;
+          left.appendChild(kvBox);
+        } else if (kind >= 2) {
+          const isGun = kind === 3;
+          const req = isGun ? [75, 65, 80] : [70, 80, 70];
+          const idxs = isGun ? house.D.gunSkills : house.D.measureSkills;
+          const learned = !!(hero.skills & (isGun ? SkillFlag.GUNNERY : SkillFlag.SURVEY));
+          const kvBox = document.createElement("div");
+          kvBox.style.cssText = "display:flex;flex-direction:column;gap:8px;margin-top:8px;";
+          let html = `<div class="uw2-kv-row"><span class="uw2-kv-label">状态</span><span class="uw2-kv-val">${learned ? "已习得" : "未习得"}</span></div>`;
+          for (let i = 0; i < 3; i++) {
+            const sName = decodeCleanCstr(codec, house.stats[idxs[i]]);
+            const cur = hero.getStats(idxs[i]);
+            html += `<div class="uw2-kv-row"><span class="uw2-kv-label">${sName}</span><span class="uw2-kv-val" style="color:${cur >= req[i] ? "#247544" : "#b83d3d"};">${cur} / ${req[i]}</span></div>`;
+          }
+          html += `<div class="uw2-kv-row"><span class="uw2-kv-label">学费</span><span class="uw2-item-price">${house.fee().toLocaleString()} 金币</span></div>`;
+          kvBox.innerHTML = html;
+          left.appendChild(kvBox);
+        }
+
+        // 右欄：對應頁籤的操作面板
+        const rt = document.createElement("div");
+        rt.className = "uw2-pane-title";
+        rt.textContent = tabLabels[activeTab];
+        right.appendChild(rt);
+
+        if (kind === 0) {
+          if (activeTab === 0) {
+            const box = document.createElement("div");
+            box.className = "uw2-speech-box";
+            box.textContent = speechText || (noble.flags & NobleFlag.CONTRACTED
+              ? capMsg(c, 0x1de, hero.familyNameBytes)
+              : `${capMsg(c, 0x1e0, hero.familyNameBytes)} ${capMsg(c, 0x1e1)}`);
+            right.appendChild(box);
+            if (!(noble.flags & NobleFlag.CONTRACTED)) {
+              const btn = document.createElement("button");
+              btn.className = "uw2-btn uw2-btn-primary";
+              btn.style.cssText = "padding:9px 22px;align-self:flex-start;";
+              btn.textContent = tabLabels[0];
+              btn.addEventListener("click", () => {
+                for (let i = 0; i < 20; i++) { const n = m.noble(i); if (n.kind === 0) n.flags &= ~NobleFlag.CONTRACTED; }
+                noble.flags |= NobleFlag.CONTRACTED;
+                speechText = capMsg(c, 0x1e3);
+                notice = speechText;
+                render();
+              });
+              right.appendChild(btn);
+            }
+          } else if (activeTab === 1) {
+            const discs = getReportableDiscs();
+            if (!(noble.flags & NobleFlag.CONTRACTED)) {
+              const box = document.createElement("div");
+              box.className = "uw2-speech-box";
+              box.textContent = capMsg(c, 0x1dd);
+              right.appendChild(box);
+            } else if (!discs.length) {
+              const box = document.createElement("div");
+              box.className = "uw2-speech-box";
+              box.textContent = speechText || capMsg(c, 0x1e4);
+              right.appendChild(box);
+            } else {
+              const n = discs[selDiscIdx] ?? discs[0];
+              const d = m.discovery(n), v = d.importance;
+              const kMul = hsS16(Math.imul(5 - (noble.flags & NobleFlag.REWARD_MASK), v === 100 ? 4 : 1));
+              const pay = Math.imul(Math.imul(kMul, v), 50);
+              const name = decodeCleanCstr(codec, ListSelect.colonyRec(c, n));
+              const box = document.createElement("div");
+              box.className = "uw2-speech-box";
+              box.textContent = speechText || capMsg(c, 0x1e5);
+              right.appendChild(box);
+
+              const btn = document.createElement("button");
+              btn.className = "uw2-btn uw2-btn-primary";
+              btn.style.cssText = "padding:9px 22px;align-self:flex-start;";
+              btn.textContent = `${tabLabels[1]}「${name}」（+${pay.toLocaleString()} 金币）`;
+              btn.addEventListener("click", () => {
+                const nameBytes = ListSelect.colonyRec(c, n);
+                speechText = capMsg(c, 0x1e6 + Math.trunc(v / 25), nameBytes, pay);
+                notice = speechText;
+                let nextCash = (house.money + pay) | 0;
+                if (nextCash > GameConst.MAX_CASH) nextCash = GameConst.MAX_CASH;
+                house.money = nextCash;
+                const hd = m.heroInfo(), add = ((v === 100 ? 15 : 8) * v) & 0xffff;
+                hd.adventureFame = (hd.adventureFame + hsUmin((GameConst.MAX_FAME - hd.adventureFame) & 0xffff, add)) & 0xffff;
+                d.flags |= 0x10;
+                b.p.panels();
+                render();
+              });
+              right.appendChild(btn);
+            }
+          } else {
+            const box = document.createElement("div");
+            box.className = "uw2-speech-box";
+            box.textContent = speechText || (noble.flags & NobleFlag.CONTRACTED ? capMsg(c, 0x1de, hero.familyNameBytes) : capMsg(c, 0x1dd));
+            right.appendChild(box);
+            if (noble.flags & NobleFlag.CONTRACTED) {
+              const btn = document.createElement("button");
+              btn.className = "uw2-btn uw2-btn-primary";
+              btn.style.cssText = "padding:9px 22px;align-self:flex-start;";
+              btn.textContent = tabLabels[2];
+              btn.addEventListener("click", () => {
+                const dir = c.menuItems(0x30);
+                let d: any = null;
+                for (let i = 0; i < 50; i++) { const dc = m.discovery(i); if (!(dc.flags & DiscoveryFlag.FOUND) && !(dc.flags & 0x40)) { d = dc; break; } }
+                if (!d) { speechText = capMsg(c, 0x1eb); notice = speechText; render(); return; }
+                let ew, lon, ns, lat;
+                if ((sys.rng.random(0x50) & 0xff) > hero.getStats(7)) {
+                  const di = sys.rng.random(0x48);
+                  ew = di >= 0x24 ? 1 : 0;
+                  lon = hsS16(Math.imul(Math.abs(hsS16(di - 0x24)), 5));
+                  const r = sys.rng.random(0x1b);
+                  ns = r >= 0x32 ? 2 : 3;
+                  lat = hsS16(Math.imul(Math.abs(hsS16(r - 10)), 5));
+                } else {
+                  ew = 0;
+                  let di = (hsS16(d.x) + 0x7bd) % 0x870;
+                  if (di > 0x438) { ew = 1; di = 0x870 - di; }
+                  lon = Math.trunc(Math.trunc(di / 6) / 5) * 5;
+                  const v = hsS16(0x280 - d.y);
+                  ns = v >= 0 ? 2 : 3;
+                  lat = hsS16(Math.imul(Math.trunc(Math.trunc(hsS16(Math.abs(v) << 3) / 0x39) / 5), 5));
+                }
+                speechText = capMsg(c, 0x1ec, dir[ew], lon, dir[ns], lat);
+                notice = speechText;
+                render();
+              });
+              right.appendChild(btn);
+            }
+          }
+        } else if (kind === 1) {
+          if (activeTab === 0) {
+            const box = document.createElement("div");
+            box.className = "uw2-speech-box";
+            box.textContent = speechText || (noble.flags & NobleFlag.CONTRACTED ? capMsg(c, 0x1ee, hero.familyNameBytes) : capMsg(c, 0x1ef));
+            right.appendChild(box);
+            if (!(noble.flags & NobleFlag.CONTRACTED)) {
+              const btn = document.createElement("button");
+              btn.className = "uw2-btn uw2-btn-primary";
+              btn.style.cssText = "padding:9px 22px;align-self:flex-start;";
+              btn.textContent = tabLabels[0];
+              btn.addEventListener("click", () => {
+                if (!(hero.skills & SkillFlag.CARTOGRAPHY)) { speechText = capMsg(c, 0x1f0); notice = speechText; render(); return; }
+                for (let i = 0; i < 20; i++) { const n = m.noble(i); if (n.kind === 1) n.flags &= ~NobleFlag.CONTRACTED; }
+                noble.flags |= NobleFlag.CONTRACTED;
+                st.set16(WorkDS.EXPLORE_UNREP, 0);
+                speechText = capMsg(c, 0x1f4);
+                notice = speechText;
+                render();
+              });
+              right.appendChild(btn);
+            }
+          } else if (activeTab === 1) {
+            const names = c.menuItems(0x2b);
+            const fee = house.fee();
+            const kv = document.createElement("div");
+            kv.style.cssText = "display:flex;flex-direction:column;gap:6px;";
+            let html = "";
+            for (let i = 0; i < 3; i++) {
+              const cur = hero.getStats(house.D.mapSkills[i]);
+              html += `<div class="uw2-kv-row"><span class="uw2-kv-label">${decodeCleanCstr(codec, names[i])}</span><span class="uw2-kv-val" style="color:${cur >= 75 ? "#247544" : "#b83d3d"};">${cur} / 75</span></div>`;
+            }
+            html += `<div class="uw2-kv-row"><span class="uw2-kv-label">学费</span><span class="uw2-item-price">${fee.toLocaleString()} 金币</span></div>`;
+            kv.innerHTML = html;
+            right.appendChild(kv);
+
+            const box = document.createElement("div");
+            box.className = "uw2-speech-box";
+            box.textContent = speechText || capMsg(c, 0x1f5);
+            right.appendChild(box);
+
+            if (!(hero.skills & SkillFlag.CARTOGRAPHY)) {
+              const btn = document.createElement("button");
+              btn.className = "uw2-btn uw2-btn-primary";
+              btn.style.cssText = "padding:9px 22px;align-self:flex-start;";
+              btn.textContent = `${tabLabels[1]}（${fee.toLocaleString()} 金币）`;
+              btn.addEventListener("click", () => {
+                for (let i = 0; i < 3; i++) {
+                  if (hero.getStats(house.D.mapSkills[i]) < 75) {
+                    speechText = capMsg(c, 0x1f6, names[i]);
+                    notice = speechText;
+                    render();
+                    return;
+                  }
+                }
+                if (house.money < fee) { speechText = capMsg(c, 0x1f8); notice = speechText; render(); return; }
+                house.money = (house.money - fee) | 0;
+                hero.skills |= SkillFlag.CARTOGRAPHY;
+                b.p.panels();
+                speechText = capMsg(c, 0x1f7, fee);
+                notice = speechText;
+                render();
+              });
+              right.appendChild(btn);
+            }
+          } else if (activeTab === 2) {
+            const unrep = st.u16(WorkDS.EXPLORE_UNREP);
+            const pay = Math.imul(Math.imul(hsS16(5 - (noble.flags & NobleFlag.REWARD_MASK)), unrep), 20);
+            const box = document.createElement("div");
+            box.className = "uw2-speech-box";
+            box.textContent = speechText || (unrep ? capMsg(c, 0x1fc, pay) : capMsg(c, 0x1fa));
+            right.appendChild(box);
+            if ((noble.flags & NobleFlag.CONTRACTED) && !reportedGeo && unrep > 0) {
+              const btn = document.createElement("button");
+              btn.className = "uw2-btn uw2-btn-primary";
+              btn.style.cssText = "padding:9px 22px;align-self:flex-start;";
+              btn.textContent = `${tabLabels[2]}（+${pay.toLocaleString()} 金币）`;
+              btn.addEventListener("click", () => {
+                reportedGeo = true;
+                const total = st.u16(WorkDS.EXPLORE_TOTAL);
+                const hd = m.heroInfo();
+                hd.adventureFame = (hd.adventureFame + hsUmin((GameConst.MAX_FAME - hd.adventureFame) & 0xffff, Math.imul(5, unrep))) & 0xffff;
+                const room = (GameConst.MAX_CASH - house.money) | 0;
+                house.money = (house.money + (room > pay ? pay : room)) | 0;
+                st.set16(WorkDS.EXPLORE_UNREP, 0);
+                b.p.panels();
+                if (total >= 3300) {
+                  for (let r = 0; r < 45; r++) {
+                    for (let k = 0; k < 11; k++) st.set8(WorkDS.EXPLORE_MAP + r * 12 + k, 0xff);
+                    st.set8(WorkDS.EXPLORE_MAP + r * 12 + 11, 0xc0);
+                  }
+                  const txt = capMsg(c, 0x1fb);
+                  speechText = capMsg(c, 0x1fc, pay);
+                  notice = speechText;
+                  finish({ txt });
+                  return;
+                }
+                speechText = `${capMsg(c, 0x1fc, pay)} ${capMsg(c, 0x1fd)}`;
+                notice = speechText;
+                render();
+              });
+              right.appendChild(btn);
+            }
+          } else {
+            const hasMap = hasTreasureMap();
+            const box = document.createElement("div");
+            box.className = "uw2-speech-box";
+            box.textContent = speechText || (hasMap ? capMsg(c, 0x311) : capMsg(c, 0x1fa));
+            right.appendChild(box);
+            if (hasMap) {
+              const btn = document.createElement("button");
+              btn.className = "uw2-btn uw2-btn-primary";
+              btn.style.cssText = "padding:9px 22px;align-self:flex-start;";
+              btn.textContent = `${tabLabels[3]}（20,000 金币）`;
+              btn.addEventListener("click", () => {
+                if (house.money <= 20000) { speechText = capMsg(c, 0xef); notice = speechText; render(); return; }
+                let idx = 0;
+                for (; idx < GameConst.INV_SLOTS; idx++) { const v = m.inventory(idx); if (v >= 0x50 && v <= 0x59) break; }
+                const d = m.discovery(m.item(m.inventory(idx)).power);
+                let si = (hsS16(d.x) + 0x7bd) % 0x870, di = hsS16(0x280 - d.y), ew = 0x80;
+                if (si > 0x438) { ew = 0x81; si = 0x870 - si; }
+                const ns = di >= 0 ? 0x7e : 0x7f;
+                di = Math.trunc(hsS16(Math.abs(di) << 3) / 0x39);
+                si = hsS16(Math.imul(Math.trunc(Math.trunc(si / 6) / 5) + sys.rng.random(2), 5));
+                di = hsS16(Math.imul(Math.trunc(di / 5) + sys.rng.random(2), 5));
+                house.money = (house.money - 20000) | 0;
+                speechText = toSimp(captureConsoleText(c, () => {
+                  c.message(0x30f); c.message(ns, di); c.message(ew, si); c.message(0x310);
+                }).trim());
+                notice = speechText;
+                render();
+              });
+              right.appendChild(btn);
+            }
+          }
+        } else {
+          // 種類 2 測量技術 / 種類 3 砲術
+          const isGun = kind === 3;
+          const M = isGun
+            ? { ask: 0x2e7, done: 0x2e8, lack: 0x2e9, poor: 0x2eb, ok: 0x2ec, bye: 0x2ed, bit: SkillFlag.GUNNERY, req: [75, 65, 80], idx: house.D.gunSkills }
+            : { ask: 0x2ee, done: 0x2ef, lack: 0x2f0, poor: 0x1f8, ok: 0x1f9, bye: 0x2f1, bit: SkillFlag.SURVEY, req: [70, 80, 70], idx: house.D.measureSkills };
+          const learned = !!(hero.skills & M.bit);
+          const fee = house.fee();
+
+          const box = document.createElement("div");
+          box.className = "uw2-speech-box";
+          box.textContent = speechText || (learned ? capMsg(c, M.done) : capMsg(c, M.ask));
+          right.appendChild(box);
+
+          if (!learned) {
+            const btn = document.createElement("button");
+            btn.className = "uw2-btn uw2-btn-primary";
+            btn.style.cssText = "padding:9px 22px;align-self:flex-start;";
+            btn.textContent = `${tabLabels[0]}（${fee.toLocaleString()} 金币）`;
+            btn.addEventListener("click", () => {
+              for (let i = 0; i < 3; i++) {
+                if (hero.getStats(M.idx[i]) < M.req[i]) {
+                  speechText = capMsg(c, M.lack, house.stats[M.idx[i]], M.req[i]);
+                  notice = speechText;
+                  render();
+                  return;
+                }
+              }
+              if (house.money < fee) { speechText = capMsg(c, M.poor); notice = speechText; render(); return; }
+              house.money = (house.money - fee) | 0;
+              hero.skills |= M.bit;
+              b.p.panels();
+              speechText = capMsg(c, M.bye);
+              notice = speechText;
+              render();
+            });
+            right.appendChild(btn);
+          }
+        }
+
+        split.append(left, right);
+        shell.h.body.appendChild(split);
+      });
+
+      render();
+    });
+
+    if (pendingStory) {
+      await runDomStoryCard(art, 0x3f, pendingStory.txt, "世界地图完成");
+      continue;
+    }
+    b.after();
+    break;
   }
 }

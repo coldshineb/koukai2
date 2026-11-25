@@ -1442,6 +1442,12 @@ body[data-uw2-modal="open"] .uw2-dialog-floating {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+.uw2-item-price.ok {
+  color: #247544;
+}
+.uw2-item-price.err {
+  color: #b83d3d;
+}
 .uw2-modal-footer {
   font-size: 13px;
   font-weight: 600;

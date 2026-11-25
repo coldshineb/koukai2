@@ -27,7 +27,8 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
     let selPriceCat = 0;
     let qty = 0;
     let investAmt = 1000;
-    let toastMsg = "";
+    const hero = market.m.heroPerson();
+    let toastMsg = b.captureMessage(market.m.heroInfo().tradeFame >= 1000 ? 1 : 0, hero.givenNameBytes, hero.familyNameBytes);
 
     const h = createDomModal({
       title: `${portName} · ${marketTitle}`,
@@ -140,7 +141,7 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
         goods.forEach((g, i) => {
           const row = document.createElement("button");
           row.className = `uw2-row-card ${i === selGoodIdx ? "selected" : ""}`;
-          row.innerHTML = `<span style="font-weight:700;${g.isSpec ? "color:#9e5a00;" : ""}">${g.name}</span><span style="font-weight:700;font-variant-numeric:tabular-nums;">${g.price} <small style="color:var(--uw2-ink-muted)">(${g.idx}%)</small></span>`;
+          row.innerHTML = `<span class="uw2-item-name" style="${g.isSpec ? "color:#9e5a00;" : ""}">${g.name}</span><span class="uw2-item-price">${g.price} <small class="uw2-item-meta">(${g.idx}%)</small></span>`;
           row.addEventListener("click", () => { selGoodIdx = i; qty = 0; render(); });
           glist.appendChild(row);
         });
@@ -265,7 +266,7 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
         cargos.forEach((cg, i) => {
           const row = document.createElement("button");
           row.className = `uw2-row-card ${i === selCargoIdx ? "selected" : ""}`;
-          row.innerHTML = `<span style="font-weight:700;">${cg.name} ×${cg.amt}</span><span style="font-weight:700;color:#247544;">${cg.sellPrice}</span>`;
+          row.innerHTML = `<span class="uw2-item-name">${cg.name} ×${cg.amt}</span><span class="uw2-item-price ok">${cg.sellPrice}</span>`;
           row.addEventListener("click", () => { selCargoIdx = i; qty = cg.amt; render(); });
           clist.appendChild(row);
         });
@@ -376,7 +377,7 @@ export function runDomMarketWorkbench(market: any): Promise<void> {
           const buyStr = rb ? String(rb) : g === E.specialtyGood ? String(market.price(g)) : dec(T.none);
           const card = document.createElement("div");
           card.className = "uw2-slot-card";
-          card.innerHTML = `<span class="uw2-slot-title">${dec(market.goodsName(g))}</span><span style="font-weight:700;font-size:13px;">${buyStr} / ${market.sellPrice(g)}</span>`;
+          card.innerHTML = `<span class="uw2-item-name">${dec(market.goodsName(g))}</span><span class="uw2-item-price">${buyStr} / ${market.sellPrice(g)}</span>`;
           right.appendChild(card);
         }
         split.append(left, right);
@@ -430,8 +431,8 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
   for (;;) {
     const action = await new Promise<{ type: "close" | "depart"; days?: number }>(resolve => {
       let activeTab: 0 | 1 = 0; // 0 = 補給, 1 = 船塢
-      let toastMsg = "";
-      let toastOk = false;
+      let toastMsg = b.captureMessage(0x38);
+      let toastOk = true;
       let selFleetDockIdx = 0;
       let selDockShipIdx = 0;
 
