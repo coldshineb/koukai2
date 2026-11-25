@@ -348,11 +348,10 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats):
 
             uniq_idx = set(np.unique(tile_idx).tolist())
             c0_cnt = int(np.sum(tile_idx == 0))
-            is_grass_shadow_tile = (t_id < p2) and (c0_cnt >= 90) and uniq_idx.issubset({0, 13, 14})
-            is_sand_shadow_tile = (t_id < p2) and (c0_cnt >= 90) and (
-                uniq_idx.issubset({0, 8, 10, 11, 15}) or uniq_idx.issubset({0, 10, 13})
-            )
-            is_ground_shadow_tile = is_grass_shadow_tile or is_sand_shadow_tile
+            is_grass_shadow_tile = (t_id < p2) and (c0_cnt >= 90) and (13 in uniq_idx) and uniq_idx.issubset({0, 10, 13, 14})
+            is_sand_shadow_tile = (t_id < p2) and (c0_cnt >= 90) and (8 not in uniq_idx) and (13 not in uniq_idx) and uniq_idx.issubset({0, 10, 11, 15})
+            is_stone_shadow_tile = (t_id < p1) and (c0_cnt >= 40) and (8 in uniq_idx) and uniq_idx.issubset({0, 8, 10, 11})
+            is_ground_shadow_tile = is_grass_shadow_tile or is_sand_shadow_tile or is_stone_shadow_tile
 
             # 行1 (t_id >= 16) 且位于 < p2 的多黑线建筑底座/门扇 (如门下半格 22, 23 / 屋顶 26) 归为建筑，但排除纯地面墙影 (21, 27 等)
             is_arch_walk = (t_id >= 16) and (t_id < p2) and (c0_cnt >= 25) and not np.any(is_water) and not is_ground_shadow_tile
@@ -362,8 +361,13 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats):
 
             sem[is_water] = 1
             if is_ground_shadow_tile:
-                # 原版建筑左侧的纯黑硬块投影：还原为平坦草坪/砂地，把真实投影完全交给 WebGL2 实时太阳光影！
-                sem[:, :] = 3 if is_grass_shadow_tile else 2
+                # 原版建筑左侧投影格：保持平地高程 (elev=0)，避免突出墙体与二次阴影，同时保留与沙地影格 (9/11) 一致的柔和地面暗影
+                if is_grass_shadow_tile:
+                    sem[:, :] = 3
+                    if 10 in uniq_idx:
+                        sem[tile_idx == 10] = 2
+                else:
+                    sem[:, :] = 2
             elif is_walk:
                 is_grass = (tile_idx == 13) | (tile_idx == 14)
                 is_sand = ((tile_idx == 10) | (tile_idx == 11) | (tile_idx == 15) | (tile_idx == 8)) & ~is_water & ~is_grass
@@ -391,11 +395,13 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats):
             pairs = GROUND_DITHER_PAIRS if (is_walk or is_shore_tile or is_tree_tile) else ARCH_DITHER_PAIRS
             tile_pal = MODERN_GROUND_PAL if (is_walk or is_tree_tile or is_shore_tile) else MODERN_ARCH_PAL
             base_16 = dedither_tile_rgb(tile_idx, tile_pal, pairs, is_water=is_water, wrap_edges=(is_walk and t_id < p1 and not is_ground_shadow_tile))
-            if is_ground_shadow_tile:
+            if is_ground_shadow_tile and not is_stone_shadow_tile:
                 if is_grass_shadow_tile:
-                    fill_col = MODERN_GROUND_PAL[13] * 0.45 + MODERN_GROUND_PAL[14] * 0.55
+                    sunlit_grass = MODERN_GROUND_PAL[13] * 0.48 + MODERN_GROUND_PAL[14] * 0.52
+                    fill_col = sunlit_grass * 0.56 + np.array([3.0, 8.0, 18.0], dtype=np.float32)
                 else:
-                    fill_col = MODERN_GROUND_PAL[10] * 0.45 + MODERN_GROUND_PAL[11] * 0.55
+                    sunlit_sand = MODERN_GROUND_PAL[10] * 0.45 + MODERN_GROUND_PAL[11] * 0.55
+                    fill_col = sunlit_sand * 0.68 + np.array([6.0, 8.0, 16.0], dtype=np.float32)
                 base_16[tile_idx == 0] = fill_col
             if pure_water_ripple_tile:
                 # 153 等水上影波纹格：只保留柔和深暗水波层次，不生成刺眼黑刺团块
@@ -407,7 +413,7 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats):
                     m = (sem == m_val).astype(np.float32)
                     if np.sum(m) < 4:
                         continue
-                    mode = "wrap" if (is_walk and t_id < p1) else "nearest"
+                    mode = "wrap" if (is_walk and t_id < p1 and not is_ground_shadow_tile) else "nearest"
                     denom = np.maximum(1e-4, gaussian_filter(m, sigma=sig, mode=mode))
                     for ch in range(3):
                         num = gaussian_filter(base_16[:, :, ch] * m, sigma=sig, mode=mode)
@@ -426,7 +432,7 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats):
                 m = (sem64 == m_val).astype(np.float32)
                 if np.sum(m) < 16:
                     continue
-                mode = "wrap" if ((is_walk and t_id < p1) or m_val == 1) else "nearest"
+                mode = "wrap" if ((is_walk and t_id < p1 and not is_ground_shadow_tile) or m_val == 1) else "nearest"
                 denom = np.maximum(1e-4, gaussian_filter(m, sigma=sigma, mode=mode))
                 for ch in range(3):
                     num = gaussian_filter(up64[:, :, ch] * m, sigma=sigma, mode=mode)
