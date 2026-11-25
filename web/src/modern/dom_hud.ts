@@ -443,3 +443,182 @@ export function runDomTitleMenu(labels: string[]): Promise<number> {
     window.addEventListener("keydown", onKey, true);
   });
 }
+
+export interface DomSettingsToggle {
+  label: string;
+  onText: string;
+  offText: string;
+  get: () => boolean;
+  toggle: () => void | Promise<void>;
+}
+
+export interface DomSettingsSlider {
+  label: string;
+  min: number;
+  max: number;
+  get: () => number;
+  set: (v: number) => void;
+}
+
+/** 獨立現代環境設定介面（開關分段鈕 + 可拖曳古銅金滑桿，標題畫面與遊戲內共用） */
+export function runDomSettingsModal(opts: {
+  title: string;
+  toggles: DomSettingsToggle[];
+  sliders: DomSettingsSlider[];
+}): Promise<void> {
+  if (!hasDom()) return Promise.resolve();
+
+  return new Promise(resolve => {
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      h.close();
+      resolve();
+    };
+
+    const h = createDomModal({
+      title: toSimp(opts.title),
+      size: "md",
+      cancelable: true,
+      closeLabel: "×",
+      onCancel: done,
+    });
+    h.modal.classList.add("uw2-settings-modal");
+
+    const wrap = document.createElement("div");
+    wrap.className = "uw2-settings-wrap";
+
+    if (opts.toggles.length) {
+      const sec = document.createElement("div");
+      sec.className = "uw2-settings-section";
+      const hd = document.createElement("div");
+      hd.className = "uw2-settings-heading";
+      hd.textContent = "显示与音频";
+      sec.appendChild(hd);
+
+      opts.toggles.forEach(item => {
+        const row = document.createElement("div");
+        row.className = "uw2-settings-row";
+
+        const lbl = document.createElement("span");
+        lbl.className = "uw2-settings-label";
+        lbl.textContent = toSimp(item.label).replace(/\s+/g, "");
+
+        const seg = document.createElement("div");
+        seg.className = "uw2-seg-group";
+        const btnOn = document.createElement("button");
+        btnOn.type = "button";
+        btnOn.className = "uw2-seg-btn";
+        btnOn.textContent = toSimp(item.onText).replace(/\s+/g, "") || "开";
+
+        const btnOff = document.createElement("button");
+        btnOff.type = "button";
+        btnOff.className = "uw2-seg-btn";
+        btnOff.textContent = toSimp(item.offText).replace(/\s+/g, "") || "关";
+
+        const sync = () => {
+          const on = item.get();
+          btnOn.classList.toggle("active", on);
+          btnOff.classList.toggle("active", !on);
+        };
+
+        let busy = false;
+        const setTarget = async (wantOn: boolean) => {
+          if (busy || item.get() === wantOn) return;
+          busy = true;
+          try { await item.toggle(); } finally { busy = false; sync(); }
+        };
+        btnOn.addEventListener("click", () => { void setTarget(true); });
+        btnOff.addEventListener("click", () => { void setTarget(false); });
+        sync();
+
+        seg.append(btnOn, btnOff);
+        row.append(lbl, seg);
+        sec.appendChild(row);
+      });
+      wrap.appendChild(sec);
+    }
+
+    if (opts.sliders.length) {
+      const sec = document.createElement("div");
+      sec.className = "uw2-settings-section";
+      const hd = document.createElement("div");
+      hd.className = "uw2-settings-heading";
+      hd.textContent = "操作与速度";
+      sec.appendChild(hd);
+
+      opts.sliders.forEach(item => {
+        const row = document.createElement("div");
+        row.className = "uw2-settings-row";
+
+        const lbl = document.createElement("span");
+        lbl.className = "uw2-settings-label";
+        lbl.textContent = toSimp(item.label).replace(/\s+/g, "");
+
+        const ctrl = document.createElement("div");
+        ctrl.className = "uw2-settings-slider-box";
+
+        const minusBtn = document.createElement("button");
+        minusBtn.type = "button";
+        minusBtn.className = "uw2-btn uw2-btn-step";
+        minusBtn.textContent = "−";
+
+        const range = document.createElement("input");
+        range.type = "range";
+        range.className = "uw2-slider uw2-settings-slider";
+        range.min = String(item.min);
+        range.max = String(item.max);
+        range.step = "1";
+
+        const plusBtn = document.createElement("button");
+        plusBtn.type = "button";
+        plusBtn.className = "uw2-btn uw2-btn-step";
+        plusBtn.textContent = "+";
+
+        const valBadge = document.createElement("span");
+        valBadge.className = "uw2-settings-val";
+
+        const sync = () => {
+          const cur = item.get();
+          range.value = String(cur);
+          valBadge.textContent = `${cur} / ${item.max}`;
+          minusBtn.disabled = cur <= item.min;
+          plusBtn.disabled = cur >= item.max;
+        };
+
+        range.addEventListener("input", () => {
+          item.set(Number(range.value));
+          sync();
+        });
+        minusBtn.addEventListener("click", () => {
+          item.set(Math.max(item.min, item.get() - 1));
+          sync();
+        });
+        plusBtn.addEventListener("click", () => {
+          item.set(Math.min(item.max, item.get() + 1));
+          sync();
+        });
+        sync();
+
+        ctrl.append(minusBtn, range, plusBtn, valBadge);
+        row.append(lbl, ctrl);
+        sec.appendChild(row);
+      });
+      wrap.appendChild(sec);
+    }
+
+    h.body.appendChild(wrap);
+
+    const footer = document.createElement("div");
+    footer.className = "uw2-modal-footer";
+    const okBtn = document.createElement("button");
+    okBtn.type = "button";
+    okBtn.className = "uw2-btn uw2-btn-primary";
+    okBtn.style.padding = "8px 28px";
+    okBtn.textContent = "完成";
+    okBtn.addEventListener("click", done);
+    footer.appendChild(okBtn);
+    h.modal.appendChild(footer);
+  });
+}

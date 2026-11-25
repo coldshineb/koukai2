@@ -67,7 +67,7 @@ export class Title {
       if (hasDom() && this.c.codec) {
         scr.wideRenderer = c2d => renderWideTitle(c2d, art);
         scr.dirty = true;
-        const labels = items.slice(0, 4).map(b => decodeCleanCstr(this.c.codec, b));
+        const labels = items.slice(0, 3).map(b => decodeCleanCstr(this.c.codec, b));
         sel = await runDomTitleMenu(labels);
         if (sel === 0xff) continue;
       } else if (useWide) {

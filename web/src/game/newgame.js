@@ -7,6 +7,7 @@ import { NameInput } from "../ui/nameinput.js";
 import { DS } from "../model/schema_views.ts";
 import { DiscoveryFlag, FleetFlag, WorkDS } from "../model/flags.ts";
 import { renderWideNewGame, hitWideHeroCard } from "../canvas_ui/wide_newgame.ts";
+import { renderWideTitle } from "../canvas_ui/wide_title.ts";
 import { captureConsoleText, decodeCleanCstr } from "../canvas_ui/text_util.ts";
 import { hasDom } from "../modern/dom_ui.ts";
 import { runDomNewGameSelect, hideDomWorldHud } from "../modern/dom_hud.ts";
@@ -70,8 +71,8 @@ export class NewGame {
 
       if (hasDom()) {
         hideDomWorldHud();
-        scr.wideRenderer = null;
-        scr.clear(0);
+        scr.wideRenderer = c2d => renderWideTitle(c2d, art);
+        scr.dirty = true;
         const res = await runDomNewGameSelect(heroes, statLabels, di < 1);
         if (!res) return -1;
         this.m.globals.hero = res.id;

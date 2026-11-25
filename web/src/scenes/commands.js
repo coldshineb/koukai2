@@ -19,6 +19,7 @@ import { runWideLordInfo, runWideInfoLinesModal, runWideLogBook, runWideWorldCha
 import { runWideFleetHub } from "../canvas_ui/wide_fleet_hub.ts";
 import { captureConsoleText, decodeCleanCstr, UI_FONT } from "../canvas_ui/text_util.ts";
 import { hasDom } from "../modern/dom_ui.ts";
+import { runDomSettingsModal } from "../modern/dom_hud.ts";
 import { runDomPersonInfo, runDomShipInfo } from "../modern/dom_workbenches.ts";
 import { runDomInfoHub, runDomBelongings, runDomFormation, runDomPortMapModal } from "../modern/dom_info_hub.ts";
 
@@ -1766,6 +1767,59 @@ export class Commands {
   // 214cf 環境設定
   async settings() {
     const st = this.st, { win, con, printf, menu, scr } = this.c, S = this.S;
+    if (hasDom() && this.c.codec) {
+      const onTxt = this.dec(S.on), offTxt = this.dec(S.off);
+      const title = this.dec(this.c.menuItems(0x14)[0]);
+      const setSlider = (addr, max, v) => {
+        const clamped = Math.max(0, Math.min(max, Math.round(v)));
+        st.set8(addr, clamped);
+        const m = (st.u8(DS.MOUSE_SENS) + 2) * 2;
+        this.c.sys.mickeyRatio = [m, m];
+      };
+      await runDomSettingsModal({
+        title,
+        toggles: [
+          {
+            label: this.dec(S.optAnim),
+            onText: onTxt,
+            offText: offTxt,
+            get: () => !!(st.options & 1),
+            toggle: () => this.settingsToggle(0),
+          },
+          {
+            label: this.dec(S.optBgm),
+            onText: onTxt,
+            offText: offTxt,
+            get: () => !!(st.options & 4),
+            toggle: () => this.settingsToggle(2),
+          },
+        ],
+        sliders: [
+          {
+            label: this.dec(S.optMouse),
+            min: 0,
+            max: 4,
+            get: () => st.u8(DS.MOUSE_SENS),
+            set: v => setSlider(DS.MOUSE_SENS, 4, v),
+          },
+          {
+            label: this.dec(S.optSeaMove),
+            min: 0,
+            max: 10,
+            get: () => st.u8(DS.MOUSE_SENS + 1),
+            set: v => setSlider(DS.MOUSE_SENS + 1, 10, v),
+          },
+          {
+            label: this.dec(S.optSeaSpeed),
+            min: 0,
+            max: 10,
+            get: () => st.u8(DS.SEA_SPEED),
+            set: v => setSlider(DS.SEA_SPEED, 10, v),
+          },
+        ],
+      });
+      return;
+    }
     if (scr.wideRenderer && this.c.codec) {
       const onTxt = this.dec(S.on), offTxt = this.dec(S.off);
       const title = this.dec(this.c.menuItems(0x14)[0]);

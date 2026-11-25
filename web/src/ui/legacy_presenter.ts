@@ -54,6 +54,7 @@ export class LegacyScenarioHost implements IScenarioHost {
   readonly c: any;
   readonly getScene: () => any;
   readonly deps: LegacyScenarioDeps;
+  private readonly windowFaces = new Map<ScenarioWindowDef, number | null>();
 
   constructor(ctx: any, getScene: () => any, deps: LegacyScenarioDeps) {
     this.c = ctx;
@@ -72,7 +73,8 @@ export class LegacyScenarioHost implements IScenarioHost {
   }
   selectWindow(w: ScenarioWindowDef, textColor: Uint8Array): void {
     if (this.c.scr.wideRenderer) {
-      this.c.scr.wideDialog = { text: "", portraitId: this.c.scr.wideDialog?.portraitId ?? null, waiting: false };
+      const portraitId = this.windowFaces.get(w) ?? null;
+      this.c.scr.wideDialog = { text: "", portraitId, waiting: false };
       this.c.scr.dirty = true;
       return;
     }
@@ -85,6 +87,7 @@ export class LegacyScenarioHost implements IScenarioHost {
   }
   openWindow(id: number, w: ScenarioWindowDef): void {
     if (this.c.scr.wideRenderer) {
+      this.windowFaces.set(w, null);
       this.c.scr.wideDialog = { text: "", portraitId: null, waiting: false };
       this.c.scr.dirty = true;
       return;
@@ -95,6 +98,7 @@ export class LegacyScenarioHost implements IScenarioHost {
   }
   async closeWindow(id: number, w: ScenarioWindowDef): Promise<void> {
     if (this.c.scr.wideRenderer) {
+      this.windowFaces.delete(w);
       this.c.scr.wideDialog = null;
       this.c.scr.dirty = true;
       return;
@@ -105,6 +109,7 @@ export class LegacyScenarioHost implements IScenarioHost {
   drawFace(faceId: number, w: ScenarioWindowDef): void {
     if (this.c.scr.wideRenderer) {
       const fid = faceId & 0xff;
+      this.windowFaces.set(w, fid);
       if (this.c.art?.portraitUrl) void this.c.art.loadImage(this.c.art.portraitUrl(fid)).catch(() => {});
       this.c.scr.wideDialog = { text: this.c.scr.wideDialog?.text ?? "", portraitId: fid, waiting: false };
       this.c.scr.dirty = true;

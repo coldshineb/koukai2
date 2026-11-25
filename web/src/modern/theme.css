@@ -1266,3 +1266,91 @@ body[data-uw2-battle="1"] .uw2-dialog-floating {
   box-shadow: 0 3px 10px rgba(158, 111, 30, 0.24);
   transform: translateY(-1px);
 }
+
+/* 獨立環境設定介面 */
+.uw2-settings-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.uw2-settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(255, 252, 242, 0.65);
+  border: 1px solid rgba(154, 119, 56, 0.28);
+}
+.uw2-settings-heading {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #7c5216;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(154, 119, 56, 0.22);
+}
+.uw2-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 36px;
+}
+.uw2-settings-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--uw2-ink);
+  min-width: 84px;
+}
+.uw2-seg-group {
+  display: inline-flex;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(138, 102, 42, 0.45);
+  background: rgba(236, 224, 198, 0.6);
+}
+.uw2-seg-btn {
+  min-width: 66px;
+  padding: 6px 16px;
+  border: 0;
+  background: transparent;
+  color: var(--uw2-ink-muted);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.14s, color 0.14s;
+}
+.uw2-seg-btn.active {
+  background: linear-gradient(180deg, #c99a45 0%, #9b6c20 100%);
+  color: #fffaf0;
+}
+.uw2-settings-slider-box {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.uw2-settings-slider {
+  flex: 1;
+  min-width: 120px;
+  accent-color: #9e6f1e;
+}
+.uw2-btn-step {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+}
+.uw2-settings-val {
+  min-width: 48px;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--uw2-ink);
+  font-variant-numeric: tabular-nums;
+}
