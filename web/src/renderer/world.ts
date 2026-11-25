@@ -12,22 +12,24 @@ const CMD_LABELS = ["情报", "经营", "命令", "航海术"] as const;
 const CMD_BTN_W = 94;
 const CMD_BTN_H = 42;
 const CMD_GAP = 10;
-const CMD_BAR_Y = VIEW_H - CMD_BTN_H - 18;
-const CMD_BAR_X = VIEW_W - (CMD_BTN_W * 4 + CMD_GAP * 3) - 18;
 
-export function getCommandButtonRects() {
+export function getCommandButtonRects(scr?: any) {
+  const vw = scr?.viewW || VIEW_W;
+  const vh = scr?.viewH || VIEW_H;
+  const barX = vw - (CMD_BTN_W * 4 + CMD_GAP * 3) - 18;
+  const barY = vh - CMD_BTN_H - 18;
   return CMD_LABELS.map((label, i) => ({
     index: i,
     label,
-    x: CMD_BAR_X + i * (CMD_BTN_W + CMD_GAP),
-    y: CMD_BAR_Y,
+    x: barX + i * (CMD_BTN_W + CMD_GAP),
+    y: barY,
     w: CMD_BTN_W,
     h: CMD_BTN_H,
   }));
 }
 
-export function hitWideCommandButton(vx: number, vy: number): number {
-  for (const r of getCommandButtonRects()) {
+export function hitWideCommandButton(vx: number, vy: number, scr?: any): number {
+  for (const r of getCommandButtonRects(scr)) {
     if (vx >= r.x && vx <= r.x + r.w && vy >= r.y && vy <= r.y + r.h) return r.index;
   }
   return -1;
@@ -201,13 +203,15 @@ let wideStageCanvas: HTMLCanvasElement | null = null;
 let wideStageCtx: CanvasRenderingContext2D | null = null;
 
 /** 取得与屏幕 DPR 无关的 1:1 整数像素离屏舞台画布，杜绝 HiDPI 缩放下拼接图块产生 1px 黑线 */
-function getWideStageCtx(fallback: CanvasRenderingContext2D): CanvasRenderingContext2D {
+function getWideStageCtx(fallback: CanvasRenderingContext2D, vw: number, vh: number): CanvasRenderingContext2D {
   if (typeof document === "undefined") return fallback;
   if (!wideStageCanvas) {
     wideStageCanvas = document.createElement("canvas");
-    wideStageCanvas.width = VIEW_W;
-    wideStageCanvas.height = VIEW_H;
     wideStageCtx = wideStageCanvas.getContext("2d", { alpha: false });
+  }
+  if (wideStageCanvas.width !== vw || wideStageCanvas.height !== vh) {
+    wideStageCanvas.width = vw;
+    wideStageCanvas.height = vh;
   }
   return wideStageCtx || fallback;
 }
@@ -284,12 +288,14 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
   const useSmoothMove = Boolean(prefs?.smoothMove);
   const useSmoothCam = Boolean(prefs?.smoothCamera);
 
+  const vw = scr?.viewW || VIEW_W;
+  const vh = scr?.viewH || VIEW_H;
   const heroWX = portScene.vx + portScene.hx;
   const heroWY = portScene.vy + portScene.hy;
-  const viewCols = VIEW_W / TILE;
-  const viewRows = VIEW_H / TILE;
-  const maxCamX = P_MAP_W - viewCols;
-  const maxCamY = P_MAP_W - viewRows;
+  const viewCols = vw / TILE;
+  const viewRows = vh / TILE;
+  const maxCamX = Math.max(0, P_MAP_W - viewCols);
+  const maxCamY = Math.max(0, P_MAP_W - viewRows);
 
   const tNow = nowMs();
   const portId = portScene.port ?? -1;
@@ -327,13 +333,13 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
   const camPxX = clamp(Math.round(camX * TILE), 0, Math.round(maxCamX * TILE));
   const camPxY = clamp(Math.round(camY * TILE), 0, Math.round(maxCamY * TILE));
   const startCol = Math.max(0, Math.floor(camPxX / TILE));
-  const endCol = Math.min(P_MAP_W - 1, Math.floor((camPxX + VIEW_W - 1) / TILE));
+  const endCol = Math.min(P_MAP_W - 1, Math.floor((camPxX + vw - 1) / TILE));
   const startRow = Math.max(0, Math.floor(camPxY / TILE));
-  const endRow = Math.min(P_MAP_W - 1, Math.floor((camPxY + VIEW_H - 1) / TILE));
+  const endRow = Math.min(P_MAP_W - 1, Math.floor((camPxY + vh - 1) / TILE));
 
-  const wctx = getWideStageCtx(ctx);
+  const wctx = getWideStageCtx(ctx, vw, vh);
   wctx.fillStyle = "#081424";
-  wctx.fillRect(0, 0, VIEW_W, VIEW_H);
+  wctx.fillRect(0, 0, vw, vh);
   wctx.imageSmoothingEnabled = false;
 
   for (let my = startRow; my <= endRow; my++) {
@@ -358,7 +364,7 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
       const [nx, ny] = useSmoothMove ? evalGridTween(nTw) : [n.x, n.y];
       const sx = Math.round(nx * TILE) - camPxX;
       const sy = Math.round(ny * TILE) - camPxY;
-      if (sx < -64 || sx > VIEW_W || sy < -64 || sy > VIEW_H) continue;
+      if (sx < -64 || sx > vw || sy < -64 || sy > vh) continue;
       const anim = i >= 4 ? (portScene._npcFrames?.[i - 4] ?? ((portScene.toggle ^ i) & 1)) : (((n.x + n.y) & 1) === 0 ? 1 : 0);
       const localIdx = i >= 4 ? (n.d + 12) * 2 + anim : ((i & 1) * 4 + n.d + 4) * 2 + anim;
       const globalIdx = 48 + Math.max(0, Math.min(23, localIdx - 8));
@@ -378,7 +384,7 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
 
   if (wideStageCanvas && wctx !== ctx) {
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(wideStageCanvas, 0, 0, VIEW_W, VIEW_H, 0, 0, VIEW_W, VIEW_H);
+    ctx.drawImage(wideStageCanvas, 0, 0, vw, vh, 0, 0, vw, vh);
   }
 
   // 悬浮现代 HUD（所有日夜时段色调直接由原版 16 色调色盘呈现，无人工打灯覆层）
@@ -586,9 +592,11 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
   fleetsMap.set(F, heroTr);
   const heroSmooth = { wx: heroTr.visX, wy: heroTr.visY };
 
-  const viewColsF = VIEW_W / TILE; // 40
-  const viewRowsF = VIEW_H / TILE; // 22.5
-  const maxCamWY = SEA_WORLD_H - viewRowsF;
+  const vw = scr?.viewW || VIEW_W;
+  const vh = scr?.viewH || VIEW_H;
+  const viewColsF = vw / TILE;
+  const viewRowsF = vh / TILE;
+  const maxCamWY = Math.max(0, SEA_WORLD_H - viewRowsF);
   const targetCamWX = wrapMod(heroSmooth.wx - (viewColsF / 2 - 1), WORLD_W);
   const targetCamWY = clamp(heroSmooth.wy - (viewRowsF / 2 - 1), 0, maxCamWY);
 
@@ -611,8 +619,8 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
   const baseWY = Math.floor(camPxY / TILE);
   const offPxX = camPxX - baseWX * TILE;
   const offPxY = camPxY - baseWY * TILE;
-  const viewCols = Math.ceil((VIEW_W + offPxX) / TILE);
-  const viewRows = Math.ceil((VIEW_H + offPxY) / TILE);
+  const viewCols = Math.ceil((vw + offPxX) / TILE);
+  const viewRows = Math.ceil((vh + offPxY) / TILE);
 
   scr._wideSeaCam = {
     camX: offPxX / TILE,
@@ -620,6 +628,8 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
     baseWX,
     baseWY,
     tile: TILE,
+    viewW: vw,
+    viewH: vh,
     vx1006: seaScene.vx1006,
     vy1008: seaScene.vy1008,
     worldW: WORLD_W,
@@ -628,9 +638,9 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
     viewRows,
   };
 
-  const wctx = getWideStageCtx(ctx);
+  const wctx = getWideStageCtx(ctx, vw, vh);
   wctx.fillStyle = "#082040";
-  wctx.fillRect(0, 0, VIEW_W, VIEW_H);
+  wctx.fillRect(0, 0, vw, vh);
   wctx.imageSmoothingEnabled = false;
 
   for (let r = 0; r < viewRows; r++) {
@@ -662,7 +672,7 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
     if (fx < -2 || fx > viewCols + 1 || fy < -2 || fy > viewRows + 1) return;
     const sx = Math.round(fx * TILE) - offPxX;
     const sy = Math.round(fy * TILE) - offPxY;
-    if (sx < -64 || sx > VIEW_W || sy < -64 || sy > VIEW_H) return;
+    if (sx < -64 || sx > vw || sy < -64 || sy > vh) return;
     let si: number;
     if (isHero) {
       let i = 0;
@@ -694,7 +704,7 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
 
   if (wideStageCanvas && wctx !== ctx) {
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(wideStageCanvas, 0, 0, VIEW_W, VIEW_H, 0, 0, VIEW_W, VIEW_H);
+    ctx.drawImage(wideStageCanvas, 0, 0, vw, vh, 0, 0, vw, vh);
   }
 
   drawFloatingHud(seaScene, true);

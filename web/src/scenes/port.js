@@ -603,7 +603,7 @@ export class PortScene {
   async buttons(key) {
     const m = this.c.sys.mouse;
     if (this.c.scr.wideRenderer && key === 0xff && m?.vx !== undefined) {
-      const cmd = hitWideCommandButton(m.vx, m.vy);
+      const cmd = hitWideCommandButton(m.vx, m.vy, this.c.scr);
       if (cmd >= 0) {
         await (this.commands ??= new Commands(this)).button(cmd);
         return 0xff;

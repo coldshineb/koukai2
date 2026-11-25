@@ -12,7 +12,7 @@ function browserReserved(e) {
   return false;
 }
 
-export function bindInput(canvas, sys) {
+export function bindInput(canvas, sys, scr = null) {
   addEventListener("keydown", e => {
     if (document.body?.dataset.uw2Modal === "open") return;
     const tag = e.target?.tagName;
@@ -24,8 +24,9 @@ export function bindInput(canvas, sys) {
   });
   const pos = e => {
     const r = canvas.getBoundingClientRect();
-    const vx = Math.max(0, Math.min(VIEW_W - 1, Math.floor(((e.clientX - r.left) * VIEW_W) / r.width)));
-    const vy = Math.max(0, Math.min(VIEW_H - 1, Math.floor(((e.clientY - r.top) * VIEW_H) / r.height)));
+    const vw = scr?.viewW || VIEW_W, vh = scr?.viewH || VIEW_H;
+    const vx = Math.max(0, Math.min(vw - 1, Math.floor(((e.clientX - r.left) * vw) / r.width)));
+    const vy = Math.max(0, Math.min(vh - 1, Math.floor(((e.clientY - r.top) * vh) / r.height)));
     sys.mouse.vx = vx;
     sys.mouse.vy = vy;
     const bv = sys._battleViewport;
@@ -33,8 +34,10 @@ export function bindInput(canvas, sys) {
       sys.mouse.x = Math.max(0, Math.min(SCREEN_W - 1, Math.floor(((vx - bv.x) * bv.srcW) / bv.w)));
       sys.mouse.y = Math.max(0, Math.min(CANVAS_H - 1, Math.floor(((vy - bv.y) * bv.srcH) / bv.h) + Y_OFFSET));
     } else {
-      sys.mouse.x = Math.max(0, Math.min(SCREEN_W - 1, Math.floor((vx - LEGACY_OFF_X) / LEGACY_SCALE)));
-      sys.mouse.y = Math.max(0, Math.min(CANVAS_H - 1, Math.floor(vy / LEGACY_SCALE) + Y_OFFSET));
+      const lr = scr?.legacyRect;
+      const lx = lr ? lr.x : LEGACY_OFF_X, ly = lr ? lr.y : 0, ls = lr ? lr.scale : LEGACY_SCALE;
+      sys.mouse.x = Math.max(0, Math.min(SCREEN_W - 1, Math.floor((vx - lx) / ls)));
+      sys.mouse.y = Math.max(0, Math.min(CANVAS_H - 1, Math.floor((vy - ly) / ls) + Y_OFFSET));
     }
   };
   // INT 33h 移动量 (mickey): 每 8 像素 = sys.mickeyRatio (seg0:5022 依「鼠标速度」设置, 默认水平 8 / 垂直 16)

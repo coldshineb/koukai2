@@ -31,7 +31,15 @@ const canvas = document.getElementById("screen");
 
 const scr = new Screen(canvas);
 const sys = new Sys();
-bindInput(canvas, sys);
+const stageEl = document.getElementById("uw2-stage") || canvas;
+const syncStageSize = () => {
+  const r = stageEl.getBoundingClientRect();
+  scr.resize(r.width, r.height);
+};
+syncStageSize();
+if (typeof ResizeObserver !== "undefined") new ResizeObserver(syncStageSize).observe(stageEl);
+addEventListener("resize", syncStageSize);
+bindInput(canvas, sys, scr);
 
 // 加载结构化游戏数据 (world.json -> GameState)
 const [schema, charmap, world] = await Promise.all(["schema", "../font/charmap", "world"].map(n => loadJSON(`${ASSETS}/data/${n}.json`)));

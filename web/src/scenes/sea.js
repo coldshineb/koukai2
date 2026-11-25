@@ -381,7 +381,7 @@ export class SeaScene extends PortScene {
     }
     const steerFromViewPos = (vx, vy) => {
       // 以主角船只实际画面座标为中心计算 8 方向（靠近地图边缘时也能精准转向）
-      let cx = 640, cy = 360;
+      let cx = (scr.viewW || 1280) / 2, cy = (scr.viewH || 720) / 2;
       const cam = scr._wideSeaCam;
       if (cam) {
         let dxw = this.wx(this.fleet) - cam.baseWX;
@@ -447,7 +447,7 @@ export class SeaScene extends PortScene {
     const { sys, con } = this.c, g = this.m.globals, B = this.SJ.tab.buttons;
     const m = sys.mouse;
     if (this.c.scr.wideRenderer && key === 0xff && (this.a9c8 & 3) && m?.vx !== undefined) {
-      const cmd = hitWideCommandButton(m.vx, m.vy);
+      const cmd = hitWideCommandButton(m.vx, m.vy, this.c.scr);
       if (cmd >= 0) {
         sys.mouseHide();
         const cm = this.commandsObj();
@@ -1613,8 +1613,9 @@ export class SeaScene extends PortScene {
         ctx.strokeRect(curBox.x + 1.5, curBox.y + 1.5, curBox.size - 3, curBox.size - 3);
         // 顶部提示
         const promptText = "请选择登陆地点";
+        const vw = scr.viewW || 1280;
         ctx.font = '700 15px "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", sans-serif';
-        const pw = ctx.measureText(promptText).width + 36, ph = 38, px = (1280 - pw) / 2, py = 20;
+        const pw = ctx.measureText(promptText).width + 36, ph = 38, px = (vw - pw) / 2, py = 20;
         ctx.fillStyle = "rgba(246, 236, 212, 0.96)";
         ctx.strokeStyle = "#9c7432";
         ctx.lineWidth = 2;
@@ -1625,7 +1626,7 @@ export class SeaScene extends PortScene {
         ctx.fillStyle = "#3d2817";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText(promptText, 640, py + ph / 2);
+        ctx.fillText(promptText, vw / 2, py + ph / 2);
         ctx.restore();
       };
       const hitIdx = (vx, vy) => {

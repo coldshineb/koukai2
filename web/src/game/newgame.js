@@ -77,7 +77,7 @@ export class NewGame {
       const statLabels = [...UI_STR.heroStats];
 
       hideDomWorldHud();
-      scr.wideRenderer = c2d => renderWideTitle(c2d, art);
+      scr.wideRenderer = (c2d, s) => renderWideTitle(c2d, art, s);
       scr.dirty = true;
       const res = await runDomNewGameSelect(heroes, statLabels, di < 1);
       if (!res) return -1;

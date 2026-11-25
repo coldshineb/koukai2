@@ -49,6 +49,9 @@ export class Screen {
     this.wideArt = null;               // ArtRegistry 参考 (供 wideDialog 加载头像)
     this.wideOverlays = [];            // 16:9 原生现代 Canvas 浮层 (菜单/清单/确认框/数字器)
     this.winStackRef = null;           // 链接 WindowSystem.stack，在宽屏幕地图上仅叠加打开中的窗口
+    this.viewW = VIEW_W;
+    this.viewH = VIEW_H;
+    this.legacyRect = { x: LEGACY_OFF_X, y: 0, w: Math.round(SCREEN_W * LEGACY_SCALE), h: VIEW_H, scale: LEGACY_SCALE };
     if (canvas) {
       this.canvas = canvas;
       this.dpr = typeof window !== "undefined" ? Math.min(2, Math.max(1, window.devicePixelRatio || 1)) : 1;
@@ -478,9 +481,35 @@ export class Screen {
   drawAtmosphere(_ctx) {
     // 已改由原版时段调色盘直接渲染地表与精灵材质，不再叠加人工夜幕/打灯滤镜
   }
+  /** 根据舞台容器实际 CSS 宽高自适应调整逻辑视口，保持 1:1 正方形像素与零黑边铺满 */
+  resize(cssW, cssH) {
+    if (!this.canvas || !this.ctx || !(cssW >= 64) || !(cssH >= 64)) return;
+    this.dpr = typeof window !== "undefined" ? Math.min(2, Math.max(1, window.devicePixelRatio || 1)) : 1;
+    const vh = cssH <= 540
+      ? 540
+      : cssH <= 760
+        ? Math.round(cssH)
+        : Math.round(760 + (cssH - 760) * 0.25);
+    const vw = Math.max(360, Math.round((cssW * vh) / cssH));
+    const pw = Math.max(1, Math.round(cssW * this.dpr));
+    const ph = Math.max(1, Math.round(cssH * this.dpr));
+    if (this.viewW === vw && this.viewH === vh && this.canvas.width === pw && this.canvas.height === ph) return;
+    this.viewW = vw;
+    this.viewH = vh;
+    if (this.canvas.width !== pw || this.canvas.height !== ph) {
+      this.canvas.width = pw;
+      this.canvas.height = ph;
+    }
+    this.dirty = true;
+  }
   present() {
     if (!this.ctx) return;
-    if (this.dpr && this.dpr !== 1) this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    const vw = this.viewW || VIEW_W, vh = this.viewH || VIEW_H;
+    if (this.canvas) {
+      this.ctx.setTransform(this.canvas.width / vw, 0, 0, this.canvas.height / vh, 0, 0);
+    } else if (this.dpr && this.dpr !== 1) {
+      this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    }
     const cur = this.cursor, key = cur && cur.visible ? `${cur.x},${cur.y},${cur.shape}` : "";
     const liveFx = !!this.wideRenderer;
     if (!this.dirty && !liveFx && key === this.lastCursor) return;
@@ -492,11 +521,13 @@ export class Screen {
       if (key) this.drawCursor(cur);
       this.fbCtx.putImageData(this.img, 0, 0);
       this.ctx.fillStyle = "#070f1c";
-      this.ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-      const scale = VIEW_H / CANVAS_H;
-      const dw = Math.round(SCREEN_W * scale), dx = Math.round((VIEW_W - dw) / 2);
+      this.ctx.fillRect(0, 0, vw, vh);
+      const scale = Math.min(vw / SCREEN_W, vh / CANVAS_H);
+      const dw = Math.round(SCREEN_W * scale), dh = Math.round(CANVAS_H * scale);
+      const dx = Math.round((vw - dw) / 2), dy = Math.round((vh - dh) / 2);
+      this.legacyRect = { x: dx, y: dy, w: dw, h: dh, scale };
       this.ctx.imageSmoothingEnabled = false;
-      this.ctx.drawImage(this.fbCanvas, 0, 0, SCREEN_W, CANVAS_H, dx, 0, dw, VIEW_H);
+      this.ctx.drawImage(this.fbCanvas, 0, 0, SCREEN_W, CANVAS_H, dx, dy, dw, dh);
       this.dirty = false;
       return;
     }
@@ -513,33 +544,36 @@ export class Screen {
     for (let i = 0; i < 48; i++) if (this.raw[i] > maxPal) maxPal = this.raw[i];
 
     if (this.wideRenderer) {
-      // 模式 A: 16:9 (1280x720) 全屏现代游戏布局
+      // 模式 A: 自适应全屏现代游戏布局
       this.wideRenderer(this.ctx, this);
-      // 16:9 现代底部对话栏（浏览器使用与读取进度同款的羊皮纸 DOM 对话卡）
+      // 现代底部对话栏（浏览器使用与读取进度同款的羊皮纸 DOM 对话卡）
       if (hasDom()) syncDomDialog(this.wideArt, this.wideDialog);
-      // 16:9 原生现代 Canvas 浮层 (小地图 / 世界航海图等)
+      // 原生现代 Canvas 浮层 (小地图 / 世界航海图等)
       for (const fn of this.wideOverlays) fn(this.ctx, this);
       if (maxPal < 15) {
         this.ctx.fillStyle = `rgba(0,0,0,${(1 - maxPal / 15).toFixed(3)})`;
-        this.ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+        this.ctx.fillRect(0, 0, vw, vh);
       }
       this.dirty = false;
       return;
     }
     if (hasDom()) { syncDomDialog(null, null); hideDomWorldHud(); hideDomBattleHud(); hideDomDuelHud(); }
 
-    // 模式 B: 非全屏过渡场景 (标题 / 建筑内景 / 海战 / 一骑打) 居中无黑边高清显示 (1152x720)
+    // 模式 B: 非全屏过渡场景 (标题 / 建筑内景 / 海战 / 一骑打) 按 4:3 等比居中显示
     this.ctx.fillStyle = "#081222";
-    this.ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-    const dw = Math.round(SCREEN_W * LEGACY_SCALE);
+    this.ctx.fillRect(0, 0, vw, vh);
+    const scale = Math.min(vw / SCREEN_W, vh / SCREEN_H);
+    const dw = Math.round(SCREEN_W * scale), dh = Math.round(SCREEN_H * scale);
+    const dx = Math.round((vw - dw) / 2), dy = Math.round((vh - dh) / 2);
+    this.legacyRect = { x: dx, y: dy, w: dw, h: dh, scale };
     this.ctx.imageSmoothingEnabled = true;
-    this.ctx.drawImage(this.hdCanvas, 0, 0, SCREEN_W * HD_SCALE, SCREEN_H * HD_SCALE, LEGACY_OFF_X, 0, dw, VIEW_H);
+    this.ctx.drawImage(this.hdCanvas, 0, 0, SCREEN_W * HD_SCALE, SCREEN_H * HD_SCALE, dx, dy, dw, dh);
     if (maxPal < 15) {
       this.ctx.fillStyle = `rgba(0,0,0,${(1 - maxPal / 15).toFixed(3)})`;
-      this.ctx.fillRect(LEGACY_OFF_X, 0, dw, VIEW_H);
+      this.ctx.fillRect(dx, dy, dw, dh);
     }
     this.ctx.imageSmoothingEnabled = false;
-    this.ctx.drawImage(this.fbCanvas, 0, Y_OFFSET, SCREEN_W, SCREEN_H, LEGACY_OFF_X, 0, dw, VIEW_H);
+    this.ctx.drawImage(this.fbCanvas, 0, Y_OFFSET, SCREEN_W, SCREEN_H, dx, dy, dw, dh);
     this.dirty = false;
   }
   // 原版软件光标 (seg0:31fd): 24 行 x 24 像素; 每个平面 先 AND 遮罩 (gfx+off+0x48) 再 OR 图像 (gfx+off) 于颜色 [2f14]=15 的平面

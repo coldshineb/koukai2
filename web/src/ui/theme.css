@@ -1658,3 +1658,15 @@ body[data-uw2-modal="open"] .uw2-dialog-floating {
   color: var(--uw2-ink-muted);
   font-size: 14px;
 }
+
+/* 矮宽窗口下的紧凑 HUD 布局，防止右上港情/直达面板与右下主指令栏重叠 */
+@media (max-height: 580px) {
+  .uw2-hud-tl { top: 8px; left: 12px; padding: 7px 10px; gap: 9px; }
+  .uw2-hud-tr-wrap { top: 8px; right: 12px; gap: 5px; }
+  .uw2-hud-tr-wrap .uw2-hud-card { padding: 7px 11px; width: 320px; }
+  .uw2-hud-pm { padding: 7px 9px; gap: 4px; width: 320px; }
+  .uw2-pm-btn { padding: 4px 5px; font-size: 12.5px; }
+  .uw2-hud-compass { left: 12px; bottom: 8px; width: 64px; height: 64px; }
+  .uw2-hud-cmdbar { right: 12px; bottom: 8px; gap: 8px; }
+  .uw2-hud-cmdbtn { min-width: 84px; padding: 7px 13px; font-size: 13.5px; }
+}

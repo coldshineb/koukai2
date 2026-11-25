@@ -785,19 +785,31 @@ export function syncDomBattleHud(battle: any) {
   }
 }
 
-/** 16:9 现代海战场渲染器：左侧渲染 1.75× 缩放六角格战场，右侧交由羊皮纸 DOM HUD */
+/** 自适应现代海战场渲染器：左侧等比渲染六角格战场，右侧交由羊皮纸 DOM HUD */
 export function renderWideBattle(ctx: CanvasRenderingContext2D, scr: any, battle: any) {
-  const { x, y, w, h, srcW, srcH } = BATTLE_VIEWPORT;
+  const vw = scr?.viewW || 1280;
+  const vh = scr?.viewH || 720;
+  const hudReserve = Math.min(vw * 0.41, 512);
+  const availW = Math.max(260, vw - hudReserve - 24);
+  const availH = Math.max(260, vh - 20);
+  const scale = Math.min(availW / BATTLE_VIEWPORT.srcW, availH / BATTLE_VIEWPORT.srcH);
+  const w = Math.round(BATTLE_VIEWPORT.srcW * scale);
+  const h = Math.round(BATTLE_VIEWPORT.srcH * scale);
+  const x = 20;
+  const y = Math.round((vh - h) / 2);
+  const vp = { x, y, w, h, srcW: BATTLE_VIEWPORT.srcW, srcH: BATTLE_VIEWPORT.srcH };
+  if (battle?.c?.sys) battle.c.sys._battleViewport = vp;
+
   ctx.fillStyle = "#081222";
-  ctx.fillRect(0, 0, 1280, 720);
+  ctx.fillRect(0, 0, vw, vh);
 
   if (scr.hdCanvas) {
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(scr.hdCanvas, 0, 0, srcW * 2, srcH * 2, x, y, w, h);
+    ctx.drawImage(scr.hdCanvas, 0, 0, vp.srcW * 2, vp.srcH * 2, x, y, w, h);
   }
   if (scr.fbCanvas) {
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(scr.fbCanvas, 0, 40, srcW, srcH, x, y, w, h);
+    ctx.drawImage(scr.fbCanvas, 0, 40, vp.srcW, vp.srcH, x, y, w, h);
   }
 
   ctx.save();

@@ -27,14 +27,19 @@ export function renderWideBuilding(
   const m = c.state.model;
   const art = c.art;
 
+  const vw = scr?.viewW || VIEW_W;
+  const vh = scr?.viewH || VIEW_H;
+
   // 1. 背景保留实时港口地图 + 柔和暗角遮罩
   renderWidePort(ctx, scr, portScene);
   ctx.save();
   ctx.fillStyle = "rgba(4, 10, 20, 0.62)";
-  ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+  ctx.fillRect(0, 0, vw, vh);
 
   // 2. 紧凑双栏建筑主卡片
-  const { x: wx, y: wy, w: ww, h: wh } = BLD_CARD;
+  const ww = BLD_CARD.w, wh = BLD_CARD.h;
+  const wx = Math.round((vw - ww) / 2);
+  const wy = Math.max(16, Math.min(vh - wh - 16, Math.round((vh - wh) / 2 - 40)));
   ctx.shadowColor = "rgba(0, 0, 0, 0.72)";
   ctx.shadowBlur = 34;
   ctx.shadowOffsetY = 12;

@@ -75,7 +75,7 @@ export class CellSelect {
 
     const screenToCell = (vx, vy, clampToRange = false) => {
       const cam = scr._wideSeaCam;
-      if (!cam || vx < 0 || vy < 0 || vx >= 1280 || vy >= 720) return -1;
+      if (!cam || vx < 0 || vy < 0 || vx >= (cam.viewW || 1280) || vy >= (cam.viewH || 720)) return -1;
       // 以光标为 2×2 瞄准框中心（减去半格偏移，点在船/港任意位置都能精准命中）
       const mx = Math.floor(cam.camX + (vx - cam.tile * 0.5) / cam.tile);
       const my = Math.floor(cam.camY + (vy - cam.tile * 0.5) / cam.tile);

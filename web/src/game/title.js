@@ -42,7 +42,7 @@ export class Title {
   // 171a2(1); restart = 171a2(0) (1757d: 功能「结束游戏」后回到标题: 不做 1752c, 以 DATA1 #15 重新加载初始状态代替 162fd)
   async run(restart = false) {
     const modernTitle = hasDom() && !!this.c.codec;
-    this.c.scr.wideRenderer = modernTitle ? (c2d => renderWideTitle(c2d, this.c.art)) : null;
+    this.c.scr.wideRenderer = modernTitle ? ((c2d, s) => renderWideTitle(c2d, this.c.art, s)) : null;
     this.c.scr.dirty = true;
     this.c.scr.setAtmosphere?.({ active: false });
     if (!restart) await this.init();
@@ -78,12 +78,12 @@ export class Title {
     for (;;) {
       let sel;
       if (hasDom() && this.c.codec) {
-        scr.wideRenderer = c2d => renderWideTitle(c2d, art);
+        scr.wideRenderer = (c2d, s) => renderWideTitle(c2d, art, s);
         scr.dirty = true;
         sel = await runDomTitleMenu([...UI_STR.titleMenu]);
         if (sel === 0xff) continue;
       } else if (useWide) {
-        scr.wideRenderer = c2d => renderWideTitle(c2d, art);
+        scr.wideRenderer = (c2d, s) => renderWideTitle(c2d, art, s);
         scr.dirty = true;
         menu.wideAnchorCmd = -2;
         sel = await menu.listMenu(0x18, 0x30, items.slice(0, 4), 0);
