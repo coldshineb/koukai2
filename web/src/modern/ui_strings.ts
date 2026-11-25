@@ -50,7 +50,7 @@ export const UI_STR = {
   officeTabs: ["工作介绍", "各国情报"] as const,
   innTabs: ["与航海者闲聊", "海港支持度", "就寝"] as const,
   churchTabs: ["礼拜", "赠献"] as const,
-  fortuneTabs: ["人生运", "事业运", "恋爱运", "朋友运"] as const,
+  fortuneTabs: ["人生运", "事业运", "爱情运", "朋友运"] as const,
   tavernTabs: ["水手雇用", "水手解雇", "饮酒叙话", "与航海者闲聊", "酒吧女郎", "赌博"] as const,
   itemShopTabs: ["买进", "卖出"] as const,
 
