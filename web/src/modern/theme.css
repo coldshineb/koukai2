@@ -406,22 +406,16 @@ html, body {
   letter-spacing: 1px;
 }
 
-.uw2-modal-body .uw2-btn:not(.uw2-btn-primary):not(.active),
-.uw2-modal-footer .uw2-btn:not(.uw2-btn-primary):not(.active),
-.uw2-modal-toolbar .uw2-btn:not(.uw2-btn-primary):not(.active) {
+.uw2-modal > :not(.uw2-modal-header) .uw2-btn:not(.uw2-btn-primary):not(.active) {
   color: var(--uw2-ink);
   background: rgba(255, 252, 244, 0.92);
   border-color: rgba(154, 119, 56, 0.55);
 }
-.uw2-modal-body .uw2-btn:not(.uw2-btn-primary):not(.active):hover:not(:disabled),
-.uw2-modal-footer .uw2-btn:not(.uw2-btn-primary):not(.active):hover:not(:disabled),
-.uw2-modal-toolbar .uw2-btn:not(.uw2-btn-primary):not(.active):hover:not(:disabled) {
+.uw2-modal > :not(.uw2-modal-header) .uw2-btn:not(.uw2-btn-primary):not(.active):hover:not(:disabled) {
   background: rgba(200, 162, 88, 0.28);
   border-color: var(--uw2-gold);
 }
-.uw2-modal-body .uw2-btn:disabled,
-.uw2-modal-footer .uw2-btn:disabled,
-.uw2-modal-toolbar .uw2-btn:disabled {
+.uw2-modal > :not(.uw2-modal-header) .uw2-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
