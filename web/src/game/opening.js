@@ -233,6 +233,7 @@ export class Opening {
     this.scr.wideDialog = null;
     this.scr.wideOverlays.length = 0;
     this.scr.setAtmosphere?.({ active: false });
+    this.scr.setPaletteRaw(new Uint8Array(48).fill(15));
     await this.preloadAll();
     this.scr.wideRenderer = ctx => this.renderWide(ctx);
     this.flushKeys();
@@ -245,6 +246,7 @@ export class Opening {
       await this.fade(this.stageAlpha, 0, 14, { skippable: false });
     } finally {
       this.scr.wideRenderer = null;
+      this.scr.setPaletteRaw(new Uint8Array(48));
       this.scr.clear(0);
     }
   }

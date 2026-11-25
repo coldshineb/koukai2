@@ -570,6 +570,7 @@ export class Ending {
     }
 
     await this.preloadAssets(c);
+    this.scr.setPaletteRaw(new Uint8Array(48).fill(15));
     this.scr.wideRenderer = ctx => this.renderWide(ctx);
 
     try {
@@ -579,6 +580,7 @@ export class Ending {
       await this.waitInput();
       await this.fadeAlpha(1, 0, 12);
       this.scr.wideRenderer = null;
+      this.scr.setPaletteRaw(new Uint8Array(48));
       this.scr.clear(0);
     }
     return { exit: "end" };
