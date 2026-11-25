@@ -3,9 +3,9 @@
 //   → KOUKAI2.COM 运行 END.EXE (game/ending.js)。网页版以 MainExit 例外带着同样的参数离开游戏循环, 由 main.js 接着运行结局。
 import { Commands } from "../scenes/commands.js";
 import { GameConst, OptionFlag } from "../model/flags.ts";
-import { hasDom, runDomStoryCard } from "../modern/dom_ui.ts";
-import { hideDomBattleHud } from "../modern/dom_battle.ts";
-import { captureConsoleText, toSimp } from "../canvas_ui/text_util.ts";
+import { hasDom, runDomStoryCard } from "../ui/dom_ui.ts";
+import { hideDomBattleHud } from "../ui/dom_battle.ts";
+import { captureConsoleText, toSimp } from "../ui/text_util.ts";
 
 export class MainExit extends Error {
   constructor(code, params) { super("main exit " + code); Object.defineProperty(this, "name", { value: "MainExit" }); this.mainExit = true; this.code = code; this.params = params; }

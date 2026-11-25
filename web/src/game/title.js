@@ -6,11 +6,11 @@ import { NewGame } from "./newgame.js";
 import { Commands, openDomSettings } from "../scenes/commands.js";
 import { loadPortAssets } from "../scenes/port.js";
 import { GameConst, MenuId, OptionFlag } from "../model/flags.ts";
-import { renderWideTitle } from "../canvas_ui/wide_title.ts";
-import { captureConsoleText, decodeCleanCstr } from "../canvas_ui/text_util.ts";
-import { hasDom } from "../modern/dom_ui.ts";
-import { runDomTitleMenu } from "../modern/dom_hud.ts";
-import { UI_STR } from "../modern/ui_strings.ts";
+import { renderWideTitle } from "../renderer/title.ts";
+import { captureConsoleText, decodeCleanCstr } from "../ui/text_util.ts";
+import { hasDom } from "../ui/dom_ui.ts";
+import { runDomTitleMenu } from "../ui/dom_hud.ts";
+import { UI_STR } from "../ui/ui_strings.ts";
 
 const ESC = 0x1b;
 const STR_STAR = Uint8Array.of(ESC, 0x43, 0x32, 0x2a, ESC, 0x43, 0x30, 0);   // DS:a37a  ESC C2 * ESC C0

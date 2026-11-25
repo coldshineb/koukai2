@@ -5,9 +5,9 @@
 //   levels[1]=a164.., levels[2]=a170.. {x,y,xmax,ymax}     rects=bdcc (每项 {x0,x1,y0,y1})
 //   lastMouse=bd9a/bd9c
 // 游戏内按键码: 0D 确定, 1B / 30('0') 取消, 1C → 1D ← 1E ↑ 1F ↓, 32/34/36/38 = 数字键 2/4/6/8
-import { decodeCleanCstr } from "../canvas_ui/text_util.ts";
-import { hasDom, runDomMenu, runDomYesNo } from "../modern/dom_ui.ts";
-import { runDomBattleMenu, runDomBattleYesNo } from "../modern/dom_battle.ts";
+import { decodeCleanCstr } from "../text_util.ts";
+import { hasDom, runDomMenu, runDomYesNo } from "../dom_ui.ts";
+import { runDomBattleMenu, runDomBattleYesNo } from "../dom_battle.ts";
 
 const HL_SOLID = 0x0000;      // 外框图形 [0c86] 偏移 0: 640 bytes 全 FF, 用作高亮反白位图
 const GREY_PATTERN = 0x0280;  // AA 55 交错点阵, 用于不可选项目

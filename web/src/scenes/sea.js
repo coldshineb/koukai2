@@ -15,14 +15,14 @@ import { seaNegotiate } from "./negotiate.js";
 import { NavalBattle } from "./battle.js";
 import { marketTradeLog } from "./market.js";
 import { WorldMap } from "../gfx/worldmap.js";
-import { CellSelect } from "../ui/cellsel.js";
+import { CellSelect } from "../ui/dos/cellsel.js";
 import { FleetAI } from "../game/fleetai.js";
 import { Land } from "./land.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
-import { renderWideSea, hitWideCommandButton } from "../canvas_ui/wide_world.ts";
-import { createDomModal, hasDom, runDomInfoLines, runDomStoryCard } from "../modern/dom_ui.ts";
-import { captureConsoleText, decodeCleanCstr, toSimp } from "../canvas_ui/text_util.ts";
+import { renderWideSea, hitWideCommandButton } from "../renderer/world.ts";
+import { createDomModal, hasDom, runDomInfoLines, runDomStoryCard } from "../ui/dom_ui.ts";
+import { captureConsoleText, decodeCleanCstr, toSimp } from "../ui/text_util.ts";
 
 const seaHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const seaS16 = v => (v << 16) >> 16;

@@ -18,9 +18,9 @@ import { duelInBattle } from "./duel.js";
 import { marketTradeLog } from "./market.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
-import { hasDom, runDomStoryCard } from "../modern/dom_ui.ts";
-import { BATTLE_VIEWPORT, renderWideBattle, hideDomBattleHud, runDomBattleFleetModal, runDomBattlePersonModal, runDomBattleCrewModal, runDomBattleShipModal, runDomBattleOrdersModal, runDomBattleSignal, runDomBattleShipOrders } from "../modern/dom_battle.ts";
-import { captureConsoleText, createEscStripper, toSimp } from "../canvas_ui/text_util.ts";
+import { hasDom, runDomStoryCard } from "../ui/dom_ui.ts";
+import { BATTLE_VIEWPORT, renderWideBattle, hideDomBattleHud, runDomBattleFleetModal, runDomBattlePersonModal, runDomBattleCrewModal, runDomBattleShipModal, runDomBattleOrdersModal, runDomBattleSignal, runDomBattleShipOrders } from "../ui/dom_battle.ts";
+import { captureConsoleText, createEscStripper, toSimp } from "../ui/text_util.ts";
 
 const btHex = s => Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16)));
 const btS16 = v => (v << 16) >> 16;

@@ -2,11 +2,11 @@
 // 住宅记录 nobles (前 20 笔; name, kind, portrait, flags, port)
 //   找本港的第一笔 → DS:b4e4[种类]: 0 = 2d803 (发现物收购), 1 = 2dcae (地图制作), 2 = 2ddb6 (测量技术), 3 = 2def5 (砲术); 没有 → 船员说 0x3a5 (这房子锁着)
 // 记录 10..15 是各国国王, 种类 FF 且港 = 0; 里斯本有种类 0 的第 0 笔在前面, 所以不会用到
-import { ListSelect } from "../ui/listsel.js";
+import { ListSelect } from "../ui/dos/listsel.js";
 import { DiscoveryFlag, GameConst, NobleFlag, SkillFlag, WorkDS } from "../model/flags.ts";
-import { hasDom, runDomStoryCard } from "../modern/dom_ui.ts";
-import { runDomHouseWorkbench } from "../modern/dom_buildings.ts";
-import { captureConsoleText, toSimp } from "../canvas_ui/text_util.ts";
+import { hasDom, runDomStoryCard } from "../ui/dom_ui.ts";
+import { runDomHouseWorkbench } from "../ui/dom_buildings.ts";
+import { captureConsoleText, toSimp } from "../ui/text_util.ts";
 
 const hsS16 = v => (v << 16) >> 16;
 const hsUmin = (a, b) => ((a & 0xffff) > (b & 0xffff) ? b & 0xffff : a & 0xffff);   // seg0:4d7c

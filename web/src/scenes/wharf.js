@@ -1,12 +1,12 @@
 // wharf.js — 码头 (补给 / 出航前检查 / 船坞 / 补给港命名 / 出航清除画面)
-import { ListSelect } from "../ui/listsel.js";
+import { ListSelect } from "../ui/dos/listsel.js";
 import { marketTradeLog } from "./market.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
 import { domS16, domUmin16 } from "../domain/economy.ts";
-import { runWideTableSelect } from "../canvas_ui/wide_table.ts";
-import { runDomWharfWorkbench } from "../modern/dom_workbenches.ts";
-import { decodeCleanCstr } from "../canvas_ui/text_util.ts";
+import { runDomTableSelect } from "../ui/dom_ui.ts";
+import { runDomWharfWorkbench } from "../ui/dom_workbenches.ts";
+import { decodeCleanCstr } from "../ui/text_util.ts";
 
 class WharfMixin {
   async wharf() {
@@ -367,7 +367,7 @@ class WharfMixin {
           const vals = [Math.trunc(domS16(st.u16(M)) / 10), Math.trunc(domS16(st.u16(M + 2)) / 10), domS16(st.u16(M + 4)), domS16(st.u16(M + 6))];
           items.push({ label: nm, rightText: vals.join(" / ") });
         }
-        const sel = await runWideTableSelect(this.c, { title: hdr, columns: 1, items, toggleLabel: dec(labels[mode]) });
+        const sel = await runDomTableSelect({ title: hdr, items, toggleLabel: dec(labels[mode]) });
         if (sel === 0xff) break;
         if (sel === -2) { mode ^= 1; continue; }
         const slot = this.c.persons[sel];

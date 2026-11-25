@@ -2,8 +2,8 @@
 // 图形: DATA1.LZW 第 9 项 (assets/gfx/gamble.bin, 0x15c0 bytes) 每次进入赌博时重新加载到 [c2ec]:
 //   扑克牌 花色 k (牌 / 13) 于 0x300×k (k = 4 为背面), 4 栏 × 48 行平面交错; 骰子 v (0..5) 于 0xf00 + 0x120×v, 3 栏 × 24 行
 // 文字与格式字符串: port.json gamble (tools/extract_port.py)
-import { hasDom } from "../modern/dom_ui.ts";
-import { runDomGamble } from "../modern/dom_gamble.ts";
+import { hasDom } from "../ui/dom_ui.ts";
+import { runDomGamble } from "../ui/dom_gamble.ts";
 
 const gHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 

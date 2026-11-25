@@ -1,11 +1,11 @@
 // shipyard.js — 造船厂 (造新船 / 交船 / 买旧船 / 修理 / 卖船 / 改造 / 工业投资 / 折抵剩余货物分配)
-import { ListSelect } from "../ui/listsel.js";
+import { ListSelect } from "../ui/dos/listsel.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
 import { domS16, domUmin16 } from "../domain/economy.ts";
-import { createDomModal, hasDom, preserveScroll } from "../modern/dom_ui.ts";
-import { runDomShipyardWorkbench } from "../modern/dom_buildings.ts";
-import { decodeCleanCstr, toSimp } from "../canvas_ui/text_util.ts";
+import { createDomModal, hasDom, preserveScroll } from "../ui/dom_ui.ts";
+import { runDomShipyardWorkbench } from "../ui/dom_buildings.ts";
+import { decodeCleanCstr, toSimp } from "../ui/text_util.ts";
 
 class ShipyardMixin {
   // ================= 2 造船厂 1fd9:cc01 =================

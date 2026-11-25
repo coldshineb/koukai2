@@ -3,9 +3,9 @@
 //   0 交易所 (market.js) / 1 酒馆 (tavern.js + gamble.js) / 2 造船厂 (shipyard.js) / 3 码头 (wharf.js)
 //   4 旅馆 + 10 教会 + 11 占卜师 (church_inn_fortune.js) / 5 王宫 (palace.js) / 6 事务所 (office.js)
 //   7 住宅 (house.js) / 8 银行 (bank.js) / 9 道具店 (itemshop.js)
-import { NumPad } from "../ui/numpad.js";
-import { ListSelect } from "../ui/listsel.js";
-import { NameInput } from "../ui/nameinput.js";
+import { NumPad } from "../ui/dos/numpad.js";
+import { ListSelect } from "../ui/dos/listsel.js";
+import { NameInput } from "../ui/dos/nameinput.js";
 import { Market } from "./market.js";
 import { Palace } from "./palace.js";
 import { Office } from "./office.js";
@@ -19,7 +19,7 @@ import { installChurchInnFortune } from "./church_inn_fortune.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { domS16, domUmin16 } from "../domain/economy.ts";
 import { calcCargoUsed, calcShipLoadTotal, calcShipSpeed } from "../domain/fleet.ts";
-import { captureConsoleText, createEscStripper, decodeCleanCstr, toSimp } from "../canvas_ui/text_util.ts";
+import { captureConsoleText, createEscStripper, decodeCleanCstr, toSimp } from "../ui/text_util.ts";
 
 const bHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const B_SPEECH = Uint8Array.of(0x1b, 0x43, 0x30, 0x01, 0x1b, 0x42, 0x37, 0);   // DS:8c12

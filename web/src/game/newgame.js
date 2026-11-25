@@ -3,14 +3,14 @@
 //   16564 主角选择 (6 位主角头像, 调色盘循环, 框选高亮)   1637a 主角数据窗口   1630f 确认框
 //   164b7 改名 (2e09:2a38 键盘)   164e0 / 16506 姓名备份/还原
 //   16949 新游戏初始化: 162e4, 16854 (发现物/宝物), 168ea (地图窗口), 1681a, 167bd + 1fd9:333a (已探索范围)
-import { NameInput } from "../ui/nameinput.js";
+import { NameInput } from "../ui/dos/nameinput.js";
 import { DS } from "../model/schema_views.ts";
 import { DiscoveryFlag, FleetFlag, WorkDS } from "../model/flags.ts";
-import { renderWideTitle } from "../canvas_ui/wide_title.ts";
-import { captureConsoleText, decodeCleanCstr } from "../canvas_ui/text_util.ts";
-import { hasDom } from "../modern/dom_ui.ts";
-import { runDomNewGameSelect, hideDomWorldHud } from "../modern/dom_hud.ts";
-import { UI_STR } from "../modern/ui_strings.ts";
+import { renderWideTitle } from "../renderer/title.ts";
+import { captureConsoleText, decodeCleanCstr } from "../ui/text_util.ts";
+import { hasDom } from "../ui/dom_ui.ts";
+import { runDomNewGameSelect, hideDomWorldHud } from "../ui/dom_hud.ts";
+import { UI_STR } from "../ui/ui_strings.ts";
 
 const ngHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const ngDiv8 = v => (v < 0 ? -((-v) >> 3) : v >> 3);

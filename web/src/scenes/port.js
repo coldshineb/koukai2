@@ -16,10 +16,10 @@ import { Scenario, ENV_COMMON, ENV_HERO } from "../game/scenario.js";
 import { loadDuelAssets } from "./duel.js";
 import { PortMove } from "./portmove.js";
 import { GameConst, OptionFlag, TreatyFlag } from "../model/flags.ts";
-import { renderWidePort, hitWideCommandButton } from "../canvas_ui/wide_world.ts";
-import { renderWideBuilding } from "../canvas_ui/wide_building.ts";
-import { hasDom } from "../modern/dom_ui.ts";
-import { captureConsoleText } from "../canvas_ui/text_util.ts";
+import { renderWidePort, hitWideCommandButton } from "../renderer/world.ts";
+import { renderWideBuilding } from "../renderer/building.ts";
+import { hasDom } from "../ui/dom_ui.ts";
+import { captureConsoleText } from "../ui/text_util.ts";
 
 const pHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const P_MAP_W = 96, P_VIEW = 24, P_VIEW_X = 96, P_VIEW_Y = 8;

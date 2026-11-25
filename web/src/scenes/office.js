@@ -3,8 +3,8 @@
 // 共用剧本 SNR0 的工作状态: globals.commonChap / commonSec / WorkDS.*
 import { Scenario, ENV_COMMON } from "../game/scenario.js";
 import { GameConst, WorkDS, TreatyFlag } from "../model/flags.ts";
-import { hasDom } from "../modern/dom_ui.ts";
-import { runDomOfficeWorkbench } from "../modern/dom_buildings.ts";
+import { hasDom } from "../ui/dom_ui.ts";
+import { runDomOfficeWorkbench } from "../ui/dom_buildings.ts";
 
 const ofHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const ofS16 = v => (v << 16) >> 16;

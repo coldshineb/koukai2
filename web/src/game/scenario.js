@@ -9,7 +9,7 @@ import { duelFromScenario } from "../scenes/duel.js";
 import { mainEnding } from "./endgame.js";
 import { DS } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
-import { LegacyScenarioHost } from "../ui/legacy_presenter.ts";
+import { LegacyScenarioHost } from "../ui/dos/legacy_presenter.ts";
 import { ScenarioMemoryAdapter, SC_STRLEN } from "./scenario_adapter.ts";
 import { calcCargoUsed, calcShipFreeCargo } from "../domain/fleet.ts";
 

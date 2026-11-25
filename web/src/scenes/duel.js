@@ -6,9 +6,9 @@
 //   9f5e + 8k 精灵画布第 k 格的 x, y, w, h (word)   a01e + 7k 装备 (k = 0 是 9d44, 1 是 9d46): +0 武器 +1 防具 +2 武器种类 +3 武器值 +5 防具值
 import { PlanarBuf, LsFile, frameHeader } from "../gfx/duelanim.js";
 import { DS } from "../model/schema_views.ts";
-import { hasDom } from "../modern/dom_ui.ts";
-import { renderWideDuel, hideDomDuelHud, runDomDuelMove } from "../modern/dom_duel.ts";
-import { decodeCleanCstr } from "../canvas_ui/text_util.ts";
+import { hasDom } from "../ui/dom_ui.ts";
+import { renderWideDuel, hideDomDuelHud, runDomDuelMove } from "../ui/dom_duel.ts";
+import { decodeCleanCstr } from "../ui/text_util.ts";
 
 const duHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const duS16 = v => (v << 16) >> 16;

@@ -11,9 +11,9 @@ import { faFleet } from "./fleetai.js";
 import { Monthly } from "./monthly.js";
 import { mainEnding } from "./endgame.js";
 import { GameConst, OptionFlag } from "../model/flags.ts";
-import { hasDom, runDomStoryCard } from "../modern/dom_ui.ts";
-import { hideDomBattleHud } from "../modern/dom_battle.ts";
-import { captureConsoleText, toSimp } from "../canvas_ui/text_util.ts";
+import { hasDom, runDomStoryCard } from "../ui/dom_ui.ts";
+import { hideDomBattleHud } from "../ui/dom_battle.ts";
+import { captureConsoleText, toSimp } from "../ui/text_util.ts";
 
 const clockWarned = new Set();
 const clockTodo = name => { if (!clockWarned.has(name)) { clockWarned.add(name); console.warn("尚未移植: " + name); } };

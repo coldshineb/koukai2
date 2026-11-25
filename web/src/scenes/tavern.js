@@ -1,13 +1,13 @@
 // tavern.js — 酒馆 (饮酒叙话 / 航海者闲聊 / 酒吧女郎 / 雇用水手 / 解雇水手 / 赌博分派)
-import { ListSelect } from "../ui/listsel.js";
+import { ListSelect } from "../ui/dos/listsel.js";
 import { Gamble } from "./gamble.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
 import { domS16, domUmin16 } from "../domain/economy.ts";
-import { captureConsoleText, decodeCleanCstr } from "../canvas_ui/text_util.ts";
-import { runDomInfoLines } from "../modern/dom_ui.ts";
-import { hasDom } from "../modern/dom_ui.ts";
-import { runDomTavernWorkbench } from "../modern/dom_buildings.ts";
+import { captureConsoleText, decodeCleanCstr } from "../ui/text_util.ts";
+import { runDomInfoLines } from "../ui/dom_ui.ts";
+import { hasDom } from "../ui/dom_ui.ts";
+import { runDomTavernWorkbench } from "../ui/dom_buildings.ts";
 
 class TavernMixin {
   // 27592 / 275d2 本港的酒吧女郎 (DS:2bde, 每笔 0x13)

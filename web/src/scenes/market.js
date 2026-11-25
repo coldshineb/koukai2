@@ -2,9 +2,9 @@
 import { DS } from "../model/schema_views.ts";
 import { GameConst, MenuId, SkillFlag } from "../model/flags.ts";
 import { domS16, domUmin16, domUmax16, goodsCategory, hasTradeLicense, calcBuyPrice, calcSellPrice, calcHaggleBounds, calcBuyPriceShift, calcSellPriceShift, clampPriceIndexUp, clampPriceIndexDown } from "../domain/economy.ts";
-import { runWideTableSelect } from "../canvas_ui/wide_table.ts";
-import { runDomMarketWorkbench } from "../modern/dom_workbenches.ts";
-import { decodeCleanCstr } from "../canvas_ui/text_util.ts";
+import { runDomTableSelect } from "../ui/dom_ui.ts";
+import { runDomMarketWorkbench } from "../ui/dom_workbenches.ts";
+import { decodeCleanCstr } from "../ui/text_util.ts";
 
 const mHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const mS16 = domS16, mUmin = domUmin16, mUmax = domUmax16;
@@ -129,7 +129,7 @@ export class Market {
           rightText: String(this.price(v)),
           accent: k >= n,
         }));
-        r = await runWideTableSelect(this.c, { title: dec(T.buyHdr), columns: 2, items: rows });
+        r = await runDomTableSelect({ title: dec(T.buyHdr), columns: 2, items: rows });
       } else {
         b.table();
         let k = 0;
@@ -241,7 +241,7 @@ export class Market {
         rows.push({ label: `${dec(this.goodsName(g))}   ×${mS16(cs.getCargoAmts(j))}`, rightText: String(this.sellPrice(g)) });
         P[si++] = j;
       }
-      return runWideTableSelect(this.c, { title: dec(T.sellHdr), columns: 1, items: rows });
+      return runDomTableSelect({ title: dec(T.sellHdr), columns: 1, items: rows });
     }
     this.b.table();
     con.setCursor(0x19, 0x90); con.puts(T.sellHdr);
@@ -324,7 +324,7 @@ export class Market {
         const buyStr = r ? String(r) : g === E.specialtyGood ? String(this.price(g)) : dec(T.none);
         items.push({ label: dec(this.goodsName(g)), rightText: `${buyStr} / ${this.sellPrice(g)}` });
       }
-      await runWideTableSelect(this.c, { title: dec(T.cats[c]), columns: 2, items }, { interactive: false });
+      await runDomTableSelect({ title: dec(T.cats[c]), columns: 2, items }, { interactive: false });
       return;
     }
     this.b.table();

@@ -11,7 +11,7 @@
 // 计时: FMDRV INT 66h 倒数 (F1 01 设置 / F1 00 读取, 1 tick = 16.58 ms) → sys.timer。
 // 音乐: END.EXE 内嵌 2 曲 (0771:0002, 00ecb 以 AH=00 登记); 359f(k) → AH=01 AL=k+1, 网页版以 BGM playSong(k+1) (assets/data/bgm.json "ending")。
 
-import { cprintf } from "../ui/printf.js";
+import { cprintf } from "../ui/dos/printf.js";
 import { decodeGraph } from "../gfx/graphdec.js";
 // 剧本结局序幕 (DS:0e00 far 函数表)
 import { PROLOGUES } from "./ending_pro.js";

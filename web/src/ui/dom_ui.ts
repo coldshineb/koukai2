@@ -834,3 +834,22 @@ export async function runDomPersonnelSelect(
 ): Promise<number> {
   return runDomList(title, cards.map(c => `${c.roleLabel}：${c.personName || "----"}`));
 }
+
+/** 通用表格选择/展示（供补给港补给表及交易所回退路径使用） */
+export async function runDomTableSelect(
+  opts: { title?: string; items: { label: string; rightText?: string }[]; toggleLabel?: string },
+  { interactive = true } = {},
+): Promise<number> {
+  const title = opts.title || "";
+  const lines = opts.items.map(it => (it.rightText ? `${it.label}   ${it.rightText}` : it.label));
+  if (!interactive) {
+    await runDomInfoLines(title, lines);
+    return 0xff;
+  }
+  const hasToggle = !!opts.toggleLabel;
+  const rows = hasToggle ? [`⇄ ${opts.toggleLabel}`, ...lines] : lines;
+  const sel = await runDomList(title, rows);
+  if (sel < 0) return 0xff;
+  if (hasToggle) return sel === 0 ? -2 : sel - 1;
+  return sel;
+}

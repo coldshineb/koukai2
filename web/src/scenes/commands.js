@@ -12,10 +12,8 @@ import { Title } from "../game/title.js";
 import { PortMove } from "./portmove.js";
 import { DS, OFF } from "../model/schema_views.ts";
 import { WorkDS } from "../model/flags.ts";
-import { drawWideFleetView } from "../canvas_ui/wide_fleet.ts";
-import { drawWideShipInfo, drawWidePersonInfo } from "../canvas_ui/wide_info.ts";
-import { runDomFleetHub } from "../modern/dom_workbenches.ts";
-import { captureConsoleText, decodeCleanCstr, UI_FONT } from "../canvas_ui/text_util.ts";
+import { runDomFleetHub } from "../ui/dom_workbenches.ts";
+import { captureConsoleText, decodeCleanCstr, UI_FONT } from "../ui/text_util.ts";
 import {
   hasDom,
   showWideNotice,
@@ -25,11 +23,11 @@ import {
   runDomLordInfo,
   runDomInfoLines,
   runDomLogBook,
-} from "../modern/dom_ui.ts";
-import { runDomSettingsModal } from "../modern/dom_hud.ts";
-import { UI_STR } from "../modern/ui_strings.ts";
-import { runDomPersonInfo, runDomShipInfo } from "../modern/dom_workbenches.ts";
-import { runDomInfoHub, runDomBelongings, runDomFormation, runDomPortMapModal, runDomWorldChartModal } from "../modern/dom_info_hub.ts";
+} from "../ui/dom_ui.ts";
+import { runDomSettingsModal } from "../ui/dom_hud.ts";
+import { UI_STR } from "../ui/ui_strings.ts";
+import { runDomPersonInfo, runDomShipInfo } from "../ui/dom_workbenches.ts";
+import { runDomInfoHub, runDomBelongings, runDomFormation, runDomPortMapModal, runDomWorldChartModal } from "../ui/dom_info_hub.ts";
 
 const cmHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 const cmStrlen = s => { let n = 0; while (n < s.length && s[n]) n++; return n; };
@@ -312,17 +310,6 @@ export class Commands {
         ...ships.map(s => this.c.art.shipUrl(s.typeId)),
         this.c.art.portraitUrl(st.u8(A + 0x1a)),
       ]);
-      const data = {
-        ships,
-        admiralFace: st.u8(A + 0x1a),
-        lineAdmiral: capMsg(0x397, st.cstr(A)),
-        lineNav: capMsg(0x398, st.u8(A + OFF.PERSON.NAV_LEVEL)),
-        lineBat: capMsg(0x399, st.u8(A + OFF.PERSON.BATTLE_LEVEL)),
-        lineTurnCrew: capMsg(0x39a, st.u8(slow + 4), sumSail),
-        linePropGuns: capMsg(0x39b, st.u8(slow + 5), sumGuns),
-        lineDurPower: capMsg(0x39c, minDur, sumX),
-      };
-      scr.wideRenderer = ctx => drawWideFleetView(ctx, this.c.art, data);
     }
 
     palette.setTarget(palette.table("ships")); await palette.fadeToTarget();
@@ -427,10 +414,6 @@ export class Commands {
         bars: lab.slice(0, 7).map((l, i) => ({ label: dec(l), cur: cur[i], max: s16(max[i]) })),
       };
       void this.c.art.preloadUrls([this.c.art.shipUrl(data.typeId), fh ? this.c.art.figureheadUrl(fh) : null]);
-      if (!hasDom()) {
-        scr.wideRenderer = ctx => drawWideShipInfo(ctx, this.c.art, data);
-        scr.dirty = true;
-      }
       return data;
     }
   }
@@ -545,10 +528,6 @@ export class Commands {
         stats: b.T.stats.slice(0, 7).map((lb, i) => ({ label: dec(lb), val: st.u8(P + 0x1c + i) })),
         detailLines: detailLines.filter(Boolean),
       };
-      if (!hasDom()) {
-        scr.wideRenderer = ctx => drawWidePersonInfo(ctx, this.c.art, data);
-        scr.dirty = true;
-      }
       return data;
     }
   }
