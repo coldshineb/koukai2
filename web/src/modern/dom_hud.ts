@@ -124,7 +124,7 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
 
   const ss = atSea ? scene._seaStats : null;
   const tlKey = atSea && ss
-    ? `S|${heroId}|${dateText}|${ss.loadPct}|${ss.minDur}|${ss.crewSum}/${ss.maxCrewSum}|${ss.morale}|${ss.water}|${ss.food}|${ss.lumber}|${ss.ammo}`
+    ? `S|${heroId}|${dateText}|${fame}|${ss.daysAtSea}|${ss.water}|${ss.food}|${ss.lumber}|${ss.ammo}`
     : `P|${heroId}|${dateText}|${fame}|${bars}|${gold}`;
   if (tlKey !== lastTlKey) {
     lastTlKey = tlKey;
@@ -135,18 +135,15 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
     void getPersonPortraitSrc(art, st.bytes(st.personRecord(heroId), 0x32)).then(src => { if (src) img.src = src; });
 
     const info = document.createElement("div");
-    info.style.cssText = "display:flex;flex-direction:column;gap:4px;min-width:218px;";
+    info.style.cssText = "display:flex;flex-direction:column;gap:4px;min-width:228px;";
     if (atSea && ss) {
       info.innerHTML = `
         <div style="font-size:13px;font-weight:700;color:#7a4e10;">${dateText}</div>
-        <div style="display:flex;gap:12px;font-size:12.5px;font-weight:600;color:var(--uw2-ink);">
-          <span>吃水 <b style="color:${ss.loadPct >= 90 ? "#b83d3d" : "#8a5d17"};">${ss.loadPct}%</b></span>
-          <span>耐久 <b>${ss.minDur}</b></span>
-          <span>水手 <b>${ss.crewSum}/${ss.maxCrewSum}</b></span>
-        </div>
-        <div style="display:flex;gap:10px;font-size:12px;font-weight:600;color:var(--uw2-ink);">
+        <div style="display:flex;gap:14px;font-size:12.5px;font-weight:600;color:var(--uw2-ink);">
           <span>水 <b style="color:${ss.water <= 10 ? "#b83d3d" : "#2a6bb8"};">${ss.water}</b></span>
           <span>粮食 <b style="color:${ss.food <= 10 ? "#b83d3d" : "#247544"};">${ss.food}</b></span>
+        </div>
+        <div style="display:flex;gap:14px;font-size:12.5px;font-weight:600;color:var(--uw2-ink);">
           <span>物资 <b>${ss.lumber}</b></span>
           <span>炮弹 <b>${ss.ammo}</b></span>
         </div>
@@ -210,6 +207,8 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
       }
       const pmKey = `${P}|${rt.time}|${scene.hx},${scene.hy},${scene.vx},${scene.vy}|` + items.map(x => `${x.k}:${x.open ? 1 : 0}${x.ok ? 1 : 0}`).join(",");
       pmEl.style.display = items.length ? "grid" : "none";
+      pmEl.style.gridTemplateColumns = "";
+      pmEl.style.gap = "";
       if (pmKey !== lastPmKey) {
         lastPmKey = pmKey;
         pmEl.innerHTML = "";
@@ -233,7 +232,6 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
       pmEl.style.display = "none";
     }
   } else {
-    pmEl.style.display = "none";
     const a = st.u8(DS.PORT_FLAGS);
     const b = st.u8(DS.WIND_CUR);
     const windDir = (a & 0x38) >> 3, windStr = a & 7;
@@ -274,6 +272,33 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
           </div>
         </div>
       `;
+    }
+
+    // 海上右側艦隊完整狀態欄（還原原版 7 項屬性：轉向 / 推進 / 耐久 / 吃水 / 瞭望 / 水手 / 狀態）
+    if (ss) {
+      const crewPct = ss.maxCrewSum > 0 ? Math.min(100, Math.round((ss.crewSum * 100) / ss.maxCrewSum)) : 0;
+      const seaPmKey = `SEA|${ss.turn}|${ss.prop}|${ss.minDur}|${ss.loadPct}|${ss.sight}|${ss.crewSum}/${ss.maxCrewSum}|${ss.morale}`;
+      pmEl.style.display = "grid";
+      pmEl.style.gridTemplateColumns = "1fr 1fr";
+      pmEl.style.gap = "6px 12px";
+      if (seaPmKey !== lastPmKey) {
+        lastPmKey = seaPmKey;
+        const barRow = (lbl: string, valTxt: string, pct: number, cls = "") =>
+          `<div style="display:flex;flex-direction:column;gap:2px;">` +
+          `<div style="display:flex;justify-content:space-between;font-size:11.5px;font-weight:700;color:var(--uw2-ink);"><span style="color:var(--uw2-ink-muted);">${lbl}</span><span style="font-variant-numeric:tabular-nums;">${valTxt}</span></div>` +
+          `<div class="uw2-bar-track" style="height:5px;"><div class="uw2-bar-fill ${cls}" style="width:${Math.max(0, Math.min(100, pct))}%"></div></div>` +
+          `</div>`;
+        pmEl.innerHTML =
+          barRow("转向", `${ss.turn}`, ss.turn) +
+          barRow("推进", `${ss.prop}`, ss.prop) +
+          barRow("耐久", `${ss.minDur}`, ss.minDur, ss.minDur < 40 ? "red" : "green") +
+          barRow("吃水", `${ss.loadPct}%`, ss.loadPct, ss.loadPct >= 90 ? "red" : "") +
+          barRow("瞭望", `${ss.sightPct}%`, ss.sightPct) +
+          barRow("水手", `${ss.crewSum}/${ss.maxCrewSum}`, crewPct, crewPct < 40 ? "red" : "green") +
+          barRow("状态", `${ss.morale}`, ss.morale, ss.morale < 40 ? "red" : "green");
+      }
+    } else {
+      pmEl.style.display = "none";
     }
   }
 

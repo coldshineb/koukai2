@@ -396,21 +396,21 @@ export class Commands {
     }
     if (this.c.codec && this.c.art && scr.hdCtx) {
       const dec = bts => this.dec(bts);
-      const cap = fn => this.cap(fn);
+      const capFn = fn => this.cap(fn);
       const leftLines = [
         dec(st.cstr(tmpl)),
-        cap(() => message(0x374, st.cstr(ship))),
-        cap(() => message(0x375, st.cstr(cap))),
-        cap(() => message(0x377, T.cannons[st.u8(S + OFF.DOCK_SLOT.FLAGS) & 7])),
+        capFn(() => message(0x374, st.cstr(ship))),
+        capFn(() => message(0x375, st.cstr(cap))),
+        capFn(() => message(0x377, T.cannons[st.u8(S + OFF.DOCK_SLOT.FLAGS) & 7])),
       ];
       if (st.u8(S + OFF.DOCK_SLOT.FLAGS) & 7) {
-        leftLines.push(cap(() => message(0x378, st.u8(S + OFF.DOCK_SLOT.GUNS), st.u8(ship + 0x11), s16(T.gunW[st.u8(S + OFF.DOCK_SLOT.FLAGS) & 7] * st.u8(S + OFF.DOCK_SLOT.GUNS)))));
+        leftLines.push(capFn(() => message(0x378, st.u8(S + OFF.DOCK_SLOT.GUNS), st.u8(ship + 0x11), s16(T.gunW[st.u8(S + OFF.DOCK_SLOT.FLAGS) & 7] * st.u8(S + OFF.DOCK_SLOT.GUNS)))));
       }
       leftLines.push(
-        cap(() => { message(0x379); message(0x37a, a, bb, (s0 - a - bb) & 0xffff); }),
-        cap(() => message(0x37b, st.u8(TR + 5))),
-        cap(() => { message(0x37c); message(0x37d, pct); }),
-        cap(() => message(0x37e, (b.shipSpeed(slot) + 1) >> 1)),
+        capFn(() => { message(0x379); message(0x37a, a, bb, (s0 - a - bb) & 0xffff); }),
+        capFn(() => message(0x37b, st.u8(TR + 5))),
+        capFn(() => { message(0x37c); message(0x37d, pct); }),
+        capFn(() => message(0x37e, (b.shipSpeed(slot) + 1) >> 1)),
       );
       const data = {
         typeId: st.u8(ship + 0x0f),

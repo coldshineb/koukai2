@@ -113,6 +113,12 @@ export class NavalBattle {
     const { palette, bgm, sys, scr, con, codec } = this.c, st = this.st;
     scr.wideDialog = null;
     scr.wideOverlays.length = 0;
+    await palette.fadeBlack();                                          // 99f2（先在原海上畫面淡黑，避免未初始化的戰場層閃現原版 UI）
+    bgm.playSong(0x10);                                                 // 9670(0x10)
+    this.sea.cursor = 0x2570; sys.setCursorShape(0x2570);               // [06d6] = 0x2570, 5050
+    const di = this.setup(al, dl, bl, arg);                             // f84d
+    this.drawPanel();                                                   // c581
+    this.drawField();                                                   // c5ff
     if (hasDom()) {
       scr.wideRenderer = (ctx, s) => renderWideBattle(ctx, s, this);
       scr._battleHudActive = true;
@@ -136,12 +142,6 @@ export class NavalBattle {
     } else {
       scr.wideRenderer = null;
     }
-    await palette.fadeBlack();                                          // 99f2
-    bgm.playSong(0x10);                                                 // 9670(0x10)
-    this.sea.cursor = 0x2570; sys.setCursorShape(0x2570);               // [06d6] = 0x2570, 5050
-    const di = this.setup(al, dl, bl, arg);                             // f84d
-    this.drawPanel();                                                   // c581
-    this.drawField();                                                   // c5ff
     await this.fadeIn();                                                // bcfa
     // 劇本: 2e09:55c2(0xa1, [0d56]) / 2e09:5546、2e09:5481(0xa1, [0de0]) / 2e09:53f0 — 劇本要求時 [9bfb] = 8, 不打
     let si = 0;

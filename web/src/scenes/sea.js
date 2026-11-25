@@ -296,9 +296,24 @@ export class SeaScene extends PortScene {
     const sLoad = seaS16(st.u16(this.crewOf(slowIdx) + 0x0a)), sCap = seaS16(st.u16(this.typeOf(sT) + 6));
     const loadPct = Math.trunc((sLoad * 100) / sCap);                  // 3722 有號長整數除法
     const avgMorale = crewSum ? Math.trunc(morale / crewSum) : 0;
-    this._seaStats = { crewSum, maxCrewSum, minDur, water: sums[0], food: sums[1], lumber: sums[2], ammo: sums[3], daysAtSea: st.u8(DS.DAYS_AT_SEA), loadPct, morale: avgMorale };
-    this.c.hud?.updateSea(this._seaStats);
     this.sight = (Math.imul(this.bda8 & 0x80 ? 2 : 1, seaUmin(12, Math.floor(maxLook / 100))) & 0xffff);   // [bdca]
+    this._seaStats = {
+      turn: st.u8(slowSlot + 4),
+      prop: st.u8(slowSlot + 5),
+      minDur,
+      loadPct,
+      sight: this.sight,
+      sightPct: Math.trunc((100 * this.sight) / 24),
+      crewSum,
+      maxCrewSum,
+      morale: avgMorale,
+      water: Math.floor(sums[0] / 10),
+      food: Math.floor(sums[1] / 10),
+      lumber: seaS16(sums[2]),
+      ammo: seaS16(sums[3]),
+      daysAtSea: st.u8(DS.DAYS_AT_SEA),
+    };
+    this.c.hud?.updateSea(this._seaStats);
     if (this.c.scr.wideRenderer) return;
     sys.mouseHide();
     const B = (y, v) => this.commandsObj().bar(2, y, seaS16(v));            // seg0:92f7

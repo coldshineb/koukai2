@@ -131,24 +131,17 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  padding: 8px 12px;
+  padding: 0;
   position: relative;
 }
 
 #uw2-stage {
   position: relative;
-  aspect-ratio: 16 / 9;
-  max-height: calc(100dvh - 52px);
-  height: min(calc(100dvh - 52px), calc((100vw - 24px) * 9 / 16));
-  width: auto;
-  max-width: calc(100vw - 24px);
-  border: 2px solid var(--uw2-gold-dim);
-  border-radius: 6px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.65), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  width: 100%;
+  height: 100%;
   overflow: hidden;
   background: #070f1c;
-  flex: 0 1 auto;
+  flex: 1 1 auto;
 }
 
 #uw2-sidepanel {
@@ -568,6 +561,29 @@ html, body {
 .uw2-pill.err {
   color: #ff9c9c;
   border-color: rgba(255, 156, 156, 0.5);
+}
+.uw2-tab-btn {
+  appearance: none;
+  border: 1px solid rgba(154, 119, 56, 0.45);
+  background: #fffdf6;
+  color: var(--uw2-ink);
+  font-family: var(--uw2-font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  line-height: 1.25;
+  transition: background 0.14s, border-color 0.14s, color 0.14s;
+}
+.uw2-tab-btn:hover:not(:disabled) {
+  background: #f3e4c2;
+  border-color: var(--uw2-gold);
+  color: var(--uw2-ink);
+}
+.uw2-tab-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 .uw2-tab-btn.active {
   background: var(--uw2-navy-mid) !important;
