@@ -77,6 +77,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
 
   for (;;) {
     let pendingLeftovers: null | { goods: number[]; amt: number[] } = null;
+    let kickedOut = false;
 
     await new Promise<void>(resolve => {
       let settled = false;
@@ -300,6 +301,22 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
         const pInfo = document.createElement("span");
         pInfo.style.color = "var(--uw2-ink)";
 
+        const tryCommit = (offer: number) => {
+          if (offer < floor) {
+            if (!rng.random(5)) {
+              m.globals.dailyFlags |= 2;
+              kickedOut = true;
+              done();
+              return;
+            }
+            notice = capMsg(c, 0xc6);
+            render();
+            return;
+          }
+          if (avail < offer) { notice = capMsg(c, 0xef); render(); return; }
+          opts.onCommit(offer, avail, nameInp.value);
+        };
+
         if (!haggleOpen) {
           pInfo.textContent = origAsk;
           topLine.appendChild(pInfo);
@@ -320,7 +337,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
           buyFullBtn.className = "uw2-btn uw2-btn-primary";
           buyFullBtn.style.marginLeft = "auto";
           buyFullBtn.textContent = `${opts.submitLabel}（${opts.listPrice.toLocaleString()} 金币）`;
-          buyFullBtn.addEventListener("click", () => opts.onCommit(opts.listPrice, avail, nameInp.value));
+          buyFullBtn.addEventListener("click", () => tryCommit(opts.listPrice));
           btnRow.append(hagBtn, buyFullBtn);
           priceWrap.append(topLine, btnRow);
           opts.box.appendChild(priceWrap);
@@ -365,7 +382,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
         sl.addEventListener("input", () => syncOffer(Number(sl.value)));
         decBtn.addEventListener("click", () => syncOffer(offerPrice - Math.max(100, Math.trunc(opts.listPrice * 0.05))));
         resetBtn.addEventListener("click", () => syncOffer(maxOffer));
-        goBtn.addEventListener("click", () => opts.onCommit(offerPrice, avail, nameInp.value));
+        goBtn.addEventListener("click", () => tryCommit(offerPrice));
 
         btnRow.append(decBtn, resetBtn, goBtn);
         priceWrap.append(topLine, sl, btnRow);
@@ -564,19 +581,6 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
                 tradeInSlot: -1,
                 submitLabel: `签约造船 (${buildTime}天)`,
                 onCommit: (offer, avail, nameTxt) => {
-                  const floor = Math.trunc(Math.imul(500 - hero.getStats(6), listPrice) / 500) | 0;
-                  if (offer < floor) {
-                    if (!rng.random(5)) {
-                      m.globals.dailyFlags |= 2;
-                      notice = capMsg(c, 0xc5);
-                      done();
-                      return;
-                    }
-                    notice = capMsg(c, 0xc6);
-                    render();
-                    return;
-                  }
-                  if (avail < offer) { notice = capMsg(c, 0xef); render(); return; }
                   b.money = (avail - offer) | 0;
                   b.b2f4 = GameConst.EMPTY_SLOT;
                   b.b2f6 = buildSlot;
@@ -676,19 +680,6 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
               tradeInSlot,
               submitLabel: tabLabels[1],
               onCommit: (offer, avail, nameTxt) => {
-                const floor = Math.trunc(Math.imul(500 - hero.getStats(6), listPrice) / 500) | 0;
-                if (offer < floor) {
-                  if (!rng.random(5)) {
-                    m.globals.dailyFlags |= 2;
-                    notice = capMsg(c, 0xc5);
-                    done();
-                    return;
-                  }
-                  notice = capMsg(c, 0xc6);
-                  render();
-                  return;
-                }
-                if (avail < offer) { notice = capMsg(c, 0xef); render(); return; }
                 const targetSlot = needReplace ? replaceSlot : getFreeFleetSlot();
                 if (targetSlot < 0) return;
                 const capId = needReplace ? m.crewSlot(replaceSlot).captain : b.b2f7;
@@ -1094,6 +1085,12 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
       render();
     });
 
+    if (kickedOut) {
+      b.greet(0xc5);
+      await b.wait();
+      await b.closeTalk();
+      break;
+    }
     if (!pendingLeftovers) break;
     await b.leftovers(pendingLeftovers);
     b.after();
