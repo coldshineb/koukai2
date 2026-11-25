@@ -422,17 +422,75 @@ WALL_PLAQUE_SKIP_SAND = {
     6: {56, 157},
 }
 
-# 马赛克码头岸壁格：允许通过 adj_pairs 传播开放沙边，但剥离时严格限制在最底 y>=14 纯 {11,15} 沙边距，绝不向上侵蚀马赛克墙体
+# 马赛克码头岸壁格：无论 open_edges 是否被相邻水域阻断，均严格剥离最底 y>=14 的地面砖边距（set 0/2 为 {11,15}，set 1 为 {8,10}），绝不向上侵蚀墙体
 QUAY_APRON_TILES = {
     0: {108, 109, 130, 132},
+    1: {103, 104, 129, 131},
     2: {81, 107, 109},
+}
+
+# 船帆/船艏与码头围墙重叠格：将前景船体 (ship_fg, elev=0.88) 与背景围墙 (bg_elev) 分离，使阴影仅由船体投射到围墙及地面
+SHIP_OVER_WALL_BG = {
+    0: {
+        110: (14, 0.0), 111: (14, 0.0), 112: (14, 0.0),
+        120: (14, 0.28), 121: (14, 0.28), 122: (14, 0.28),
+        130: (108, 0.28), 131: (108, 0.28), 132: (108, 0.28),
+    },
+    1: {
+        105: (14, 0.0), 106: (14, 0.0), 107: (14, 0.0),
+        117: (14, 0.28), 118: (14, 0.28), 119: (14, 0.28),
+        129: (103, 0.28), 130: (103, 0.28), 131: (103, 0.28),
+    },
+    2: {
+        107: (81, 0.28), 108: (81, 0.28), 109: (81, 0.28),
+    },
+}
+
+# 与重叠船体相邻的纯围墙/矮墙格保持统一的低矮高程 (0.28 < 0.36)，既不产生墙间假崖影，又能接收前景船帆投下的阴影
+QUAY_PARAPET_ELEV = {
+    0: {78: 0.28, 91: 0.28, 108: 0.28, 109: 0.28},
+    1: {59: 0.28, 74: 0.28, 103: 0.28, 104: 0.28},
+    2: {81: 0.28},
 }
 
 def extract_outer_ground(tile_idx: np.ndarray, set_idx: int, t_id: int, p2: int, edge_map: dict, is_water: np.ndarray, has_water_adj: bool):
     """从图块邻接步行地面的开放边界向内泛洪，剥离树冠、旱坞船、马车、沙漠斜顶与路缘外围的平地沙地/草地"""
     outer_sand = np.zeros_like(tile_idx, dtype=bool)
     outer_grass = np.zeros_like(tile_idx, dtype=bool)
-    if t_id < p2 or np.any(is_water) or not edge_map:
+    if t_id < p2 or np.any(is_water):
+        return outer_sand, outer_grass
+
+    if t_id in QUAY_APRON_TILES.get(set_idx, set()):
+        apron_vals = (8, 10) if set_idx == 1 else (11, 15)
+        if not np.any(tile_idx == 9):
+            q2 = deque()
+            ms2 = np.zeros_like(tile_idx, dtype=bool)
+            run = []
+            for x in range(16):
+                if int(tile_idx[15, x]) in apron_vals:
+                    run.append(x)
+                else:
+                    if len(run) >= 3:
+                        for rx in run:
+                            ms2[15, rx] = True
+                            q2.append((15, rx))
+                    run = []
+            if len(run) >= 3:
+                for rx in run:
+                    ms2[15, rx] = True
+                    q2.append((15, rx))
+            while q2:
+                cy, cx = q2.popleft()
+                for dy, dx in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                    ny, nx = cy + dy, cx + dx
+                    if 14 <= ny < 16 and 0 <= nx < 16 and not ms2[ny, nx] and int(tile_idx[ny, nx]) in apron_vals:
+                        ms2[ny, nx] = True
+                        q2.append((ny, nx))
+            if int(np.sum(ms2)) >= 6:
+                outer_sand |= ms2
+        return outer_sand, outer_grass
+
+    if not edge_map:
         return outer_sand, outer_grass
 
     def flood_group(grp: set[int], allow_mask: np.ndarray | None = None) -> tuple[np.ndarray, set[int]]:
@@ -474,35 +532,6 @@ def extract_outer_ground(tile_idx: np.ndarray, set_idx: int, t_id: int, p2: int,
     mg, ag = flood_group({13, 14})
     if int(np.sum(mg)) >= 12 and {13, 14}.issubset(ag) and int(np.sum(mg & (tile_idx == 14))) >= 3:
         outer_grass |= mg
-
-    if t_id in QUAY_APRON_TILES.get(set_idx, set()):
-        if not np.any(tile_idx == 9) and 2 in edge_map and {11, 15}.issubset(edge_map[2]):
-            q2 = deque()
-            ms2 = np.zeros_like(tile_idx, dtype=bool)
-            run = []
-            for x in range(16):
-                if int(tile_idx[15, x]) in (11, 15):
-                    run.append(x)
-                else:
-                    if len(run) >= 4:
-                        for rx in run:
-                            ms2[15, rx] = True
-                            q2.append((15, rx))
-                    run = []
-            if len(run) >= 4:
-                for rx in run:
-                    ms2[15, rx] = True
-                    q2.append((15, rx))
-            while q2:
-                cy, cx = q2.popleft()
-                for dy, dx in ((-1, 0), (1, 0), (0, -1), (0, 1)):
-                    ny, nx = cy + dy, cx + dx
-                    if 14 <= ny < 16 and 0 <= nx < 16 and not ms2[ny, nx] and int(tile_idx[ny, nx]) in (11, 15):
-                        ms2[ny, nx] = True
-                        q2.append((ny, nx))
-            if int(np.sum(ms2)) >= 10:
-                outer_sand |= ms2
-        return outer_sand, outer_grass
 
     if t_id in WALL_PLAQUE_SKIP_SAND.get(set_idx, set()):
         return outer_sand, outer_grass
@@ -704,9 +733,9 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats, water_
                     # 清除旱坞船体 (set 0/2/3)、椰树等左侧原版 1993 {8,11} 灰格假影，由 WebGL2 实时光线统一投射斜影
                     clean_sand = MODERN_GROUND_PAL[11] * 0.48 + MODERN_GROUND_PAL[15] * 0.52
                     base_ext[outer_sand & ((tile_idx == 8) | (tile_idx == 10))] = clean_sand
-                elif set_idx == 1 and t_id in (141, 153, 165) and np.any(outer_sand):
-                    # 清除 set 1 旱坞船体行 (141/153/165) 左侧 {0, 8, 10} 灰格假影，匹配其邻接地砖 stone_ref
-                    base_ext[outer_sand & ((tile_idx == 8) | (tile_idx == 0))] = stone_ref
+                elif set_idx == 1 and t_id in (103, 104, 129, 131, 141, 153, 165) and np.any(outer_sand):
+                    # 清除 set 1 码头岸壁与旱坞船体周围 {0, 8, 10} 灰/米砖假影或边距，匹配其邻接地砖 stone_ref
+                    base_ext[outer_sand & ((tile_idx == 8) | (tile_idx == 0) | (tile_idx == 10))] = stone_ref
                 base_16 = np.where(outer_bg[:, :, None], base_ext, base_16)
             if is_ground_shadow_tile:
                 if is_grass_shadow_tile:
@@ -819,6 +848,23 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats, water_
             elif t_id < p2 and not is_arch_walk:
                 solid_m = edge_close(((sem64 == 4) | (sem64 == 0)) & ~void_64, 4) & (sem64 != 1) & ~void_64
                 tile_elev = gaussian_filter(np.where(solid_m, 0.34, 0.0).astype(np.float32), sigma=1.4, mode="nearest")
+            elif t_id in SHIP_OVER_WALL_BG.get(set_idx, {}):
+                bg_tid, bg_elev = SHIP_OVER_WALL_BG[set_idx][t_id]
+                br, bc = bg_tid // cols, bg_tid % cols
+                bg_tile = idx_all[br * tile_sz:(br + 1) * tile_sz, bc * tile_sz:(bc + 1) * tile_sz]
+                outer_bg_64 = np.repeat(np.repeat(outer_bg, 4, axis=0), 4, axis=1)
+                ship_fg_16 = (tile_idx != bg_tile) & ~outer_bg & ~is_water
+                ship_fg_64 = np.repeat(np.repeat(ship_fg_16, 4, axis=0), 4, axis=1)
+                ship_fg_64 = edge_close(ship_fg_64, 3) & ~outer_bg_64 & (sem64 != 1)
+                solid_wall = ~outer_bg_64 & (sem64 != 1)
+                base_e = np.where(ship_fg_64, 0.88, np.where(solid_wall, bg_elev, 0.0))
+                tile_elev = gaussian_filter(base_e.astype(np.float32), sigma=1.4, mode="nearest")
+            elif t_id in QUAY_PARAPET_ELEV.get(set_idx, {}):
+                p_elev = QUAY_PARAPET_ELEV[set_idx][t_id]
+                outer_bg_64 = np.repeat(np.repeat(outer_bg, 4, axis=0), 4, axis=1)
+                solid_wall = ~outer_bg_64 & (sem64 != 1)
+                base_e = np.where(solid_wall, p_elev, 0.0)
+                tile_elev = gaussian_filter(base_e.astype(np.float32), sigma=1.4, mode="nearest")
             else:
                 caster_raw = ((sem64 == 4) | (sem64 == 0)) & ~void_64
                 solid_m = edge_close(caster_raw, 4) & (sem64 != 1) & ~void_64
