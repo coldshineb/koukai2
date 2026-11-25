@@ -63,12 +63,13 @@ export class NewGame {
       };
       const heroes = Array.from({ length: 6 }, (_, i) => buildHero(i));
       await Promise.all(heroes.map(h => h.portraitUrl ? art.loadImage(h.portraitUrl).catch(() => {}) : null));
+      const splitCols = id => this.captureMessage(id).split(/\s{3,}/).map(s => s.replace(/\s+/g, "")).filter(Boolean);
       const statLabels = [
-        ...this.captureMessage(0x3a7).split(/\s+/),
-        ...this.captureMessage(0x3a8).split(/\s+/),
-        ...this.captureMessage(0x3a9).split(/\s+/),
-        ...this.captureMessage(0x3aa).split(/\s+/),
-      ].filter(Boolean).slice(0, 7);
+        ...splitCols(0x3a7).slice(1), // 統禦力, 航海術 (略過「年齡」)
+        ...splitCols(0x3a8),          // 知識, 直覺
+        ...splitCols(0x3a9).slice(1), // 勇氣, 劍術 (略過「技能」)
+        ...splitCols(0x3aa),          // 魅力
+      ].slice(0, 7);
 
       if (hasDom()) {
         hideDomWorldHud();
