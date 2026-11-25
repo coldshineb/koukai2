@@ -158,9 +158,9 @@
     const bgmJson = JSON.parse(fs.readFileSync(path.resolve(__dirname, "../../web/assets/data/bgm.json"), "utf8"));
     const bgmDir = path.resolve(__dirname, "../../web/bgm");
     const ps1Files = Object.values(bgmJson.songs).filter(Boolean);
-    const cd30Files = Object.values(bgmJson.packs?.cd30 || {}).filter(Boolean);
+    const cd30Unique = [...new Set(Object.values(bgmJson.packs?.cd30 || {}).filter(Boolean))];
     check("bgm ps1 files all exist", ps1Files.length >= 20 && ps1Files.every(f => fs.existsSync(path.join(bgmDir, f))));
-    check("bgm cd30 files all exist", cd30Files.length === 12 && cd30Files.every(f => fs.existsSync(path.join(bgmDir, f))));
+    check("bgm cd30 files all exist", cd30Unique.length === 12 && bgmJson.packs?.cd30?.["3"] === "cd30/cd30_02.mp3" && cd30Unique.every(f => fs.existsSync(path.join(bgmDir, f))));
   }
 
   console.log(`[domain_tests] passed=${passed} failed=${failed}`);
