@@ -10,7 +10,7 @@ import math
 import os
 from PIL import Image
 import numpy as np
-from scipy.ndimage import binary_closing, gaussian_filter, label, sobel
+from scipy.ndimage import binary_closing, binary_fill_holes, gaussian_filter, label, sobel
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ART_SHEETS = os.path.join(ROOT, "web", "assets", "art", "sheets")
@@ -87,13 +87,14 @@ GROUND_DITHER_PAIRS = {
     (8, 7), (7, 8),
 }
 
-# 建筑只去除大块白灰粉墙与门扇的阴影点阵，保留石砖与木门框结构
+# 建筑只去除大块白灰粉墙、蓝灰瓦顶与门扇的阴影点阵，保留石砖与木门框结构
 ARCH_DITHER_PAIRS = {
     (11, 15), (15, 11),
     (11, 7), (7, 11),
     (12, 15), (15, 12),
     (12, 7), (7, 12),
     (13, 14), (14, 13),
+    (8, 13), (13, 8),
     (10, 13), (13, 10),
     (9, 12), (12, 9),
     (0, 10), (10, 0),
@@ -345,42 +346,49 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats):
                 hull_near = sum(hull_pad[dy:dy + tile_sz, dx:dx + tile_sz] for dy in range(3) for dx in range(3))
                 is_water = water_base | (((tile_idx == 0) | (tile_idx == 8)) & (blue_sum >= 4) & (hull_near == 0))
 
-            is_tree_tile = (t_id >= p2) and (int(np.sum(tile_idx == 14)) >= 70) and not np.any(is_water)
+            is_arch_walk = (t_id >= 16) and (t_id < p2) and (int(np.sum(tile_idx == 0)) >= 25) and not np.any(is_water)
+            is_walk = (t_id < p2) and not is_arch_walk
+            is_tree_tile = (t_id >= p2) and (int(np.sum((tile_idx == 13) | (tile_idx == 14))) >= 120) and not np.any(is_water) and (int(np.sum(tile_idx == 0)) >= 8)
             is_shore_tile = (t_id >= p2) and np.any(is_water) and (int(np.sum((tile_idx == 13) | (tile_idx == 14))) >= 18)
+
             sem[is_water] = 1
-            if t_id < p2:
+            if is_walk:
                 is_grass = (tile_idx == 13) | (tile_idx == 14)
                 is_sand = ((tile_idx == 10) | (tile_idx == 11) | (tile_idx == 15) | (tile_idx == 8)) & ~is_water & ~is_grass
                 sem[is_sand] = 2
                 sem[is_grass] = 3
+            elif is_tree_tile:
+                # 仅把与图块外缘草坪 (13/14) 不连通的内部树冠与树干保留为遮挡实体，外围草地归入草坪 sem=3
+                grass_mask = (tile_idx == 13) | (tile_idx == 14)
+                lbl_g, _ = label(grass_mask, structure=np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]], dtype=np.int32))
+                border_ids = set(lbl_g[0, :].tolist()) | set(lbl_g[-1, :].tolist()) | set(lbl_g[:, 0].tolist()) | set(lbl_g[:, -1].tolist())
+                border_ids.discard(0)
+                outer_grass = np.isin(lbl_g, list(border_ids))
+                sem[outer_grass] = 3
             else:
                 if np.any(is_water):
                     sem[((tile_idx == 13) | (tile_idx == 14)) & ~is_water] = 3
                     blk_pad = np.pad((tile_idx == 0).astype(np.int32), ((1, 1), (1, 1)), mode="edge")
                     blk_near = sum(blk_pad[dy:dy + tile_sz, dx:dx + tile_sz] for dy in range(3) for dx in range(3))
                     sem[((tile_idx == 10) | (tile_idx == 11)) & (blk_near == 0) & ~is_water] = 2
-                elif is_tree_tile:
-                    blk_pad = np.pad((tile_idx == 0).astype(np.int32), ((1, 1), (1, 1)), mode="edge")
-                    blk_near = sum(blk_pad[dy:dy + tile_sz, dx:dx + tile_sz] for dy in range(3) for dx in range(3))
-                    sem[(tile_idx == 14) & (blk_near == 0)] = 3
             sem[tile_idx == 0] = 0
             sem[is_water] = 1
 
-            # 1) Albedo: 地面、海岸草坡与树格使用草地色盘，其余实体建筑使用建筑色盘（含压沉的门扇阴影 13）
-            pairs = GROUND_DITHER_PAIRS if (is_walk or is_shore_tile) else ARCH_DITHER_PAIRS
+            # 1) Albedo: 地面、海岸草坡与树格使用草地色盘，其余实体建筑使用建筑色盘（含门下半格 22/23）
+            pairs = GROUND_DITHER_PAIRS if (is_walk or is_shore_tile or is_tree_tile) else ARCH_DITHER_PAIRS
             tile_pal = MODERN_GROUND_PAL if (is_walk or is_tree_tile or is_shore_tile) else MODERN_ARCH_PAL
-            base_16 = dedither_tile_rgb(tile_idx, tile_pal, pairs, is_water=is_water, wrap_edges=(t_id < p1))
+            base_16 = dedither_tile_rgb(tile_idx, tile_pal, pairs, is_water=is_water, wrap_edges=(is_walk and t_id < p1))
             if pure_water_ripple_tile:
                 # 153 等水上影波纹格：只保留柔和深暗水波层次，不生成刺眼黑刺团块
                 dark_ripple = (tile_idx == 0) | (tile_idx == 8)
                 base_16[dark_ripple] = MODERN_GROUND_PAL[9] * 0.72 + np.array([4.0, 12.0, 28.0], dtype=np.float32)
-            if t_id < p2 or np.any(is_water):
+            if is_walk or np.any(is_water) or is_tree_tile:
                 smooth_16 = base_16.copy()
                 for m_val, alpha, sig in ((1, 0.88, 0.95), (2, 0.85, 0.85), (3, 0.78, 0.78)):
                     m = (sem == m_val).astype(np.float32)
                     if np.sum(m) < 4:
                         continue
-                    mode = "wrap" if t_id < p1 else "nearest"
+                    mode = "wrap" if (is_walk and t_id < p1) else "nearest"
                     denom = np.maximum(1e-4, gaussian_filter(m, sigma=sig, mode=mode))
                     for ch in range(3):
                         num = gaussian_filter(base_16[:, :, ch] * m, sigma=sig, mode=mode)
@@ -399,7 +407,7 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats):
                 m = (sem64 == m_val).astype(np.float32)
                 if np.sum(m) < 16:
                     continue
-                mode = "wrap" if (t_id < p1 or m_val == 1) else "nearest"
+                mode = "wrap" if ((is_walk and t_id < p1) or m_val == 1) else "nearest"
                 denom = np.maximum(1e-4, gaussian_filter(m, sigma=sigma, mode=mode))
                 for ch in range(3):
                     num = gaussian_filter(up64[:, :, ch] * m, sigma=sigma, mode=mode)
@@ -441,18 +449,28 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats):
             )
             micro_height = gaussian_filter(micro_height, sigma=0.75, mode="nearest")
 
-            # 物理高程：地上行走层 (~0.00)，纯水波纹 (~0.00)，半阻挡石栏 (~0.32)，实心建筑/树冠/船体 (~0.82)
-            # 对实心建筑做 3x3 闭运算填平砖缝微小孔洞，保证投射出的建筑影子浑然一体不碎裂
-            if t_id < p1 or pure_water_ripple_tile:
+            # 物理高程：地上行走层 (~0.00)，纯水波纹 (~0.00)，半阻挡石栏 (~0.32)，实心建筑/门框/树冠/船体 (~0.85)
+            # 闭运算前必须 edge 外扩，防止边缘被 scipy 默认清零而让屋顶/墙砖产生黑线格子！
+            def edge_close(mask_bool: np.ndarray, k: int) -> np.ndarray:
+                p = np.pad(mask_bool, ((k, k), (k, k)), mode="edge")
+                c = binary_closing(p, structure=np.ones((k * 2 - 1, k * 2 - 1), dtype=bool))
+                return c[k:-k, k:-k]
+
+            if (is_walk and not is_arch_walk) or pure_water_ripple_tile:
                 tile_elev = np.zeros_like(micro_height)
-            elif t_id < p2:
-                solid_m = binary_closing((sem64 == 4) | (sem64 == 0), structure=np.ones((5, 5), dtype=bool))
-                tile_elev = gaussian_filter(np.where(solid_m & (sem64 != 1), 0.34, 0.0).astype(np.float32), sigma=1.4, mode="nearest")
+            elif is_tree_tile:
+                # 仅树木剪影内部填洞隆起（绝不到图块方框边！）
+                tree_raw = (sem64 == 4) | (sem64 == 0)
+                tree_filled = binary_fill_holes(tree_raw) | tree_raw
+                tile_elev = gaussian_filter(np.where(tree_filled, 0.72, 0.0).astype(np.float32), sigma=1.4, mode="nearest")
+            elif t_id < p2 and not is_arch_walk:
+                solid_m = edge_close((sem64 == 4) | (sem64 == 0), 4) & (sem64 != 1)
+                tile_elev = gaussian_filter(np.where(solid_m, 0.34, 0.0).astype(np.float32), sigma=1.4, mode="nearest")
             else:
                 caster_raw = (sem64 == 4) | (sem64 == 0)
-                solid_m = binary_closing(caster_raw, structure=np.ones((7, 7), dtype=bool)) & (sem64 != 1)
+                solid_m = edge_close(caster_raw, 4) & (sem64 != 1)
                 base_e = np.where(solid_m, 0.85, 0.0)
-                tile_elev = gaussian_filter(base_e.astype(np.float32), sigma=1.6, mode="nearest")
+                tile_elev = gaussian_filter(base_e.astype(np.float32), sigma=1.4, mode="nearest")
 
             nrm_tile = height_to_normal_rgba(micro_height, tile_elev, strength=3.4)
 
