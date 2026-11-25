@@ -280,6 +280,10 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
   if (!M || !art) return;
   const sheetName = portScene.chipSetName || "portchip_0";
 
+  const prefs = portScene.c?.prefs;
+  const useSmoothMove = Boolean(prefs?.smoothMove);
+  const useSmoothCam = Boolean(prefs?.smoothCamera);
+
   const heroWX = portScene.vx + portScene.hx;
   const heroWY = portScene.vy + portScene.hy;
   const viewCols = VIEW_W / TILE;
@@ -296,14 +300,14 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
   const speedScale = Math.max(0.25, portScene.c?.sys?.timeScale || 1);
   const stepDur = Math.max(24, (baseTicks * 16.581) / speedScale);
 
-  const heroTw = stepGridTween(portSmooth?.hero, heroWX, heroWY, dt, stepDur, gapReset);
-  const [visHeroX, visHeroY] = evalGridTween(heroTw);
+  const heroTw = stepGridTween(portSmooth?.hero, heroWX, heroWY, dt, stepDur, gapReset || !useSmoothMove);
+  const [visHeroX, visHeroY] = useSmoothMove ? evalGridTween(heroTw) : [heroWX, heroWY];
   const targetCamX = clamp(visHeroX - (viewCols / 2 - 1), 0, maxCamX);
   const targetCamY = clamp(visHeroY - (viewRows / 2 - 1), 0, maxCamY);
 
   let camX = targetCamX;
   let camY = targetCamY;
-  if (!gapReset && portSmooth && Math.hypot(targetCamX - portSmooth.camX, targetCamY - portSmooth.camY) < 4) {
+  if (useSmoothCam && !gapReset && portSmooth && Math.hypot(targetCamX - portSmooth.camX, targetCamY - portSmooth.camY) < 4) {
     const camAlpha = 1 - Math.exp((-12 * Math.max(1, speedScale) * dt) / 1000);
     camX = clamp(portSmooth.camX + (targetCamX - portSmooth.camX) * camAlpha, 0, maxCamX);
     camY = clamp(portSmooth.camY + (targetCamY - portSmooth.camY) * camAlpha, 0, maxCamY);
@@ -349,9 +353,9 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
         portSmooth.npcs[i] = undefined;
         continue;
       }
-      const nTw = stepGridTween(portSmooth.npcs[i], n.x, n.y, dt, stepDur * 1.15, gapReset);
+      const nTw = stepGridTween(portSmooth.npcs[i], n.x, n.y, dt, stepDur * 1.15, gapReset || !useSmoothMove);
       portSmooth.npcs[i] = nTw;
-      const [nx, ny] = evalGridTween(nTw);
+      const [nx, ny] = useSmoothMove ? evalGridTween(nTw) : [n.x, n.y];
       const sx = Math.round(nx * TILE) - camPxX;
       const sy = Math.round(ny * TILE) - camPxY;
       if (sx < -64 || sx > VIEW_W || sy < -64 || sy > VIEW_H) continue;
@@ -556,10 +560,17 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
     seaChunkDiscSig = discSig;
   }
 
+  const prefs = seaScene.c?.prefs;
+  const useSmoothMove = Boolean(prefs?.smoothMove);
+  const useSmoothCam = Boolean(prefs?.smoothCamera);
   const WORLD_W = SEA_WORLD_W;
   const F = seaScene.fleet;
   const heroFl = fleetByAddr(m, F);
-  const [heroRawWX, heroRawWY] = exactFleetPos(seaScene, heroFl);
+  const fleetRawPos = (fl: any): [number, number] =>
+    useSmoothMove
+      ? exactFleetPos(seaScene, fl)
+      : [wrapMod(seaScene.wx(fl.addr), WORLD_W), clamp(seaScene.wy(fl.addr), 0, SEA_WORLD_H - 1)];
+  const [heroRawWX, heroRawWY] = fleetRawPos(heroFl);
 
   const tNow = nowMs();
   const gapReset = !seaSmooth || seaSmooth.scene !== seaScene || tNow - seaSmooth.lastMs > 220;
@@ -571,7 +582,7 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
   const heroStopped = paused || !!(m.globals.seaFlags2 & 0x20) || (heroFl.dir & 0xff) === 8;
 
   const fleetsMap = gapReset ? new Map<number, SeaSmoothTrack>() : seaSmooth!.fleets;
-  const heroTr = stepSeaSmooth(fleetsMap.get(F), heroRawWX, heroRawWY, dt, defaultSeaStepMs, heroStopped, gapReset);
+  const heroTr = stepSeaSmooth(fleetsMap.get(F), heroRawWX, heroRawWY, dt, defaultSeaStepMs, heroStopped, gapReset || !useSmoothMove);
   fleetsMap.set(F, heroTr);
   const heroSmooth = { wx: heroTr.visX, wy: heroTr.visY };
 
@@ -583,7 +594,7 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
 
   let camWX = targetCamWX;
   let camWY = targetCamWY;
-  if (!gapReset && seaSmooth) {
+  if (useSmoothCam && !gapReset && seaSmooth) {
     const cdx = wrapSignedDelta(targetCamWX - seaSmooth.camWX, WORLD_W);
     const cdy = targetCamWY - seaSmooth.camWY;
     if (Math.hypot(cdx, cdy) < 5) {
@@ -641,8 +652,8 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
     if (isHero) {
       pos = heroSmooth;
     } else {
-      const [rwx, rwy] = exactFleetPos(seaScene, fl);
-      const tr = stepSeaSmooth(fleetsMap.get(fl.addr), rwx, rwy, dt, defaultSeaStepMs, paused, gapReset);
+      const [rwx, rwy] = fleetRawPos(fl);
+      const tr = stepSeaSmooth(fleetsMap.get(fl.addr), rwx, rwy, dt, defaultSeaStepMs, paused, gapReset || !useSmoothMove);
       fleetsMap.set(fl.addr, tr);
       pos = { wx: tr.visX, wy: tr.visY };
     }

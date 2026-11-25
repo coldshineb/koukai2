@@ -139,6 +139,7 @@
     eq("default prefs all rule toggles off",
       prefs.unlock1552 || prefs.unlockCashCap || prefs.fixItemShopNight || prefs.fixPalaceHeroCaptain || prefs.fixScoutSpeedArgs,
       false);
+    eq("default prefs experimental smooth toggles off", prefs.smoothMove || prefs.smoothCamera, false);
     eq("cash cap default == 600M", U.getCashCap({ prefs }), 600_000_000);
     eq("addCashClamped default clamps to 600M", U.addCashClamped(590_000_000, 50_000_000, { prefs }), 600_000_000);
     const unlocked = { prefs: { ...prefs, unlockCashCap: true } };

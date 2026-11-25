@@ -558,12 +558,13 @@ export interface DomSettingsSlider {
   set: (v: number) => void;
 }
 
-/** 独立现代环境设置界面（开关分段钮 + 可拖拽古铜金滑杆 + 复刻扩展开关，标题画面与游戏内共用） */
+/** 独立现代环境设置界面（开关分段钮 + 可拖拽古铜金滑杆 + 复刻扩展开关 + 实验性开关，标题画面与游戏内共用） */
 export function runDomSettingsModal(opts: {
   title: string;
   toggles: DomSettingsToggle[];
   sliders: DomSettingsSlider[];
   ruleToggles?: DomSettingsToggle[];
+  experimentalToggles?: DomSettingsToggle[];
 }): Promise<void> {
   if (!hasDom()) return Promise.resolve();
 
@@ -721,6 +722,10 @@ export function runDomSettingsModal(opts: {
 
     if (opts.ruleToggles?.length) {
       renderToggleSection("复刻扩展选项（独立开关 · 默认关）", opts.ruleToggles, false);
+    }
+
+    if (opts.experimentalToggles?.length) {
+      renderToggleSection("实验性选项（默认关）", opts.experimentalToggles, false);
     }
 
     h.body.appendChild(wrap);

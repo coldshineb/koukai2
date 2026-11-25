@@ -40,7 +40,7 @@ import {
 } from "../ui/modals.ts";
 import { runDomSettingsModal } from "../ui/hud.ts";
 import { UI_STR } from "../ui/strings.ts";
-import { createDefaultPrefs, RULE_TOGGLES, savePrefs } from "../core/prefs.ts";
+import { createDefaultPrefs, EXPERIMENTAL_TOGGLES, RULE_TOGGLES, savePrefs } from "../core/prefs.ts";
 import { runDomPersonInfo, runDomShipInfo } from "../ui/fleet_panel.ts";
 import { runDomInfoHub } from "../ui/info_hub.ts";
 import { runDomPortMapModal, runDomWorldChartModal } from "../ui/info_maps.ts";
@@ -1985,6 +1985,17 @@ export async function openDomSettings(ctx) {
   const setSlider = (prop, max, v) => {
     g[prop] = Math.max(0, Math.min(max, Math.round(v)));
   };
+  const mapPrefToggles = list => list.map(item => ({
+    label: item.label,
+    hint: item.hint,
+    onText: "开",
+    offText: "关",
+    get: () => Boolean(prefs[item.key]),
+    toggle: () => {
+      prefs[item.key] = !prefs[item.key];
+      savePrefs(prefs);
+    },
+  }));
   const SL = UI_STR.settingsLabels;
   await runDomSettingsModal({
     title: UI_STR.settingsTitle,
@@ -1997,16 +2008,7 @@ export async function openDomSettings(ctx) {
       { label: SL[3], min: 0, max: 10, get: () => g.seaScroll, set: v => setSlider("seaScroll", 10, v) },
       { label: SL[4], min: 0, max: 10, get: () => g.seaSpeed, set: v => setSlider("seaSpeed", 10, v) },
     ],
-    ruleToggles: RULE_TOGGLES.map(item => ({
-      label: item.label,
-      hint: item.hint,
-      onText: "开",
-      offText: "关",
-      get: () => Boolean(prefs[item.key]),
-      toggle: () => {
-        prefs[item.key] = !prefs[item.key];
-        savePrefs(prefs);
-      },
-    })),
+    ruleToggles: mapPrefToggles(RULE_TOGGLES),
+    experimentalToggles: mapPrefToggles(EXPERIMENTAL_TOGGLES),
   });
 }

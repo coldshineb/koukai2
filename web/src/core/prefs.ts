@@ -11,6 +11,8 @@ export interface UserPrefs {
   fixItemShopNight: boolean;
   fixPalaceHeroCaptain: boolean;
   fixScoutSpeedArgs: boolean;
+  smoothMove: boolean;
+  smoothCamera: boolean;
 }
 
 export const PREFS_STORAGE_KEY = "uw2.prefs.v1";
@@ -22,6 +24,8 @@ export const DEFAULT_PREFS: Readonly<UserPrefs> = Object.freeze({
   fixItemShopNight: false,
   fixPalaceHeroCaptain: false,
   fixScoutSpeedArgs: false,
+  smoothMove: false,
+  smoothCamera: false,
 });
 
 export function createDefaultPrefs(): UserPrefs {
@@ -41,6 +45,8 @@ export function loadPrefs(): UserPrefs {
     out.fixItemShopNight = Boolean(parsed.fixItemShopNight);
     out.fixPalaceHeroCaptain = Boolean(parsed.fixPalaceHeroCaptain);
     out.fixScoutSpeedArgs = Boolean(parsed.fixScoutSpeedArgs);
+    out.smoothMove = Boolean(parsed.smoothMove);
+    out.smoothCamera = Boolean(parsed.smoothCamera);
   } catch {
     // 忽略损坏的本地存储
   }
@@ -99,5 +105,18 @@ export const RULE_TOGGLES: readonly RuleToggleMeta[] = [
     key: "fixScoutSpeedArgs",
     label: "修复侦察船速参数顺序",
     hint: "纠正侦察情报计算船速时风向/风力与海流方向/强度传反的原版缺陷",
+  },
+];
+
+export const EXPERIMENTAL_TOGGLES: readonly RuleToggleMeta[] = [
+  {
+    key: "smoothMove",
+    label: "角色与船只平滑移动",
+    hint: "港口步行与海上航行改为 60fps 连续插值移动（海上速度波动尚不稳定）",
+  },
+  {
+    key: "smoothCamera",
+    label: "摄像机平滑跟随",
+    hint: "港口与海面镜头移动加入缓动跟随（默认使用原版即时居中）",
   },
 ];
