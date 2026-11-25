@@ -1,4 +1,4 @@
-"""build_hd_textures.py — 生成《八方旅人》风格 HD-2D 港口 PBR 材质图集
+"""build_hd_textures.py — 生成大航海时代 II HD-2D 港口 PBR 材质图集
 为每个港口图集 (portchip_0..6) 与角色图集 (chars) 生成 4× 分辨率贴图：
   - portchip_{s}.png      : 高质感真彩漫反射贴图 (Albedo，保留锐利石砖/瓦片/木纹/草叶颗粒感)
   - portchip_{s}_nrm.png  : 切线空间凹凸法线 (RGB) + 物理高程遮挡高度 (A，用于实时斜向太阳投影)
@@ -927,7 +927,7 @@ def process_chars_sheet():
             base32 = dedither_tile_rgb(np.where(tile_idx < 16, tile_idx, 0), MODERN_SPRITE_PAL, SPRITE_DITHER_PAIRS)
             base_rgba = np.dstack([base32, alpha32 * 255.0])
 
-            # 保持八方旅人式清晰立体轮廓 (仅 4x EPX + 极轻量内抗锯齿)
+            # 保持清晰锐利的角色立体轮廓 (仅 4x EPX + 极轻量内抗锯齿)
             up64 = epx_2x_rgb(base_rgba)
             up128 = epx_2x_rgb(up64)
 

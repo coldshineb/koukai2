@@ -503,7 +503,7 @@ export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScen
 
   const portMode = typeof portScene.time === "number" ? portModeFromTime(portScene.time) : undefined;
 
-  // 优先走《八方旅人》风格 WebGL2 HD-2D 实时光影/法线/阴影/波光水面/移轴景深管线
+  // 优先走 WebGL2 HD-2D 实时光影/法线/阴影/波光水面/移轴景深管线
   if (useHd) {
     const sheetMeta = art.sheet?.(sheetName);
     const charsMeta = art.sheet?.("chars");
