@@ -130,6 +130,39 @@
     eq("portmap.json decoded byte length", decodePortMapJson(rd("portmap.json")).length, 930816);
   }
 
+  // ---- 6. UserPrefs defaults, cash cap unlock, hero captain bugfix, 1552 unlock, BGM packs ----
+  {
+    const fs = require("fs");
+    const path = require("path");
+    const prefs = U.createDefaultPrefs();
+    eq("default prefs bgmPack == ps1", prefs.bgmPack, "ps1");
+    eq("default prefs all rule toggles off",
+      prefs.unlock1552 || prefs.unlockCashCap || prefs.fixItemShopNight || prefs.fixPalaceHeroCaptain || prefs.fixScoutSpeedArgs,
+      false);
+    eq("cash cap default == 600M", U.getCashCap({ prefs }), 600_000_000);
+    eq("addCashClamped default clamps to 600M", U.addCashClamped(590_000_000, 50_000_000, { prefs }), 600_000_000);
+    const unlocked = { prefs: { ...prefs, unlockCashCap: true } };
+    eq("cash cap unlocked == 2B", U.getCashCap(unlocked), 2_000_000_000);
+    eq("addCashClamped unlocked allows 1.5B without i32 wrap", U.addCashClamped(1_000_000_000, 500_000_000, unlocked), 1_500_000_000);
+    eq("addCashClamped unlocked clamps to 2B", U.addCashClamped(1_900_000_000, 500_000_000, unlocked), 2_000_000_000);
+
+    const st = new U.GameState();
+    st.model.globals.hero = 0;
+    st.model.heroPerson().fleet = 0;
+    st.model.fleet(0).shipSlot(0).flags = 0x10;
+    st.model.crewSlot(0).captain = 2; // hero not commanding slot 0
+    // empty slot 1 has captain=0 (john) and flags=0
+    eq("collectAvailableCaptains original skips hero 0 on empty slot", U.collectAvailableCaptains(st.model, false).includes(0), false);
+    eq("collectAvailableCaptains fixed includes hero 0 on empty slot", U.collectAvailableCaptains(st.model, true).includes(0), true);
+
+    const bgmJson = JSON.parse(fs.readFileSync(path.resolve(__dirname, "../../web/assets/data/bgm.json"), "utf8"));
+    const bgmDir = path.resolve(__dirname, "../../web/bgm");
+    const ps1Files = Object.values(bgmJson.songs).filter(Boolean);
+    const cd30Files = Object.values(bgmJson.packs?.cd30 || {}).filter(Boolean);
+    check("bgm ps1 files all exist", ps1Files.length >= 20 && ps1Files.every(f => fs.existsSync(path.join(bgmDir, f))));
+    check("bgm cd30 files all exist", cd30Files.length === 12 && cd30Files.every(f => fs.existsSync(path.join(bgmDir, f))));
+  }
+
   console.log(`[domain_tests] passed=${passed} failed=${failed}`);
   if (failed > 0) process.exit(1);
 })();

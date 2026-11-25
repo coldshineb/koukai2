@@ -3,7 +3,8 @@
 import { Scenario, ENV_COMMON, ENV_HERO } from "../game/scenario.js";
 import { mainEnding } from "../game/endgame.js";
 import { GameConst, MenuId, OptionFlag, ShipSlotFlag } from "../model/flags.ts";
-import { getCountryExtra, getWorkState, heroShipSlot, setPortBuildDays } from "../model/world_helpers.ts";
+import { collectAvailableCaptains, getCountryExtra, getWorkState, heroShipSlot, setPortBuildDays } from "../model/world_helpers.ts";
+import { getCashCap } from "../core/prefs.ts";
 import { captureConsoleText, decodeCleanCstr } from "../ui/text_util.ts";
 import { runDomInfoLines } from "../ui/modals.ts";
 import { hasDom } from "../ui/modals.ts";
@@ -125,7 +126,9 @@ export class Palace {
     this.king();
     await this.kingSayWait(0x1c1, this.heroName());
     await this.kingSayWait(0x1c2); await this.kingSayWait(0x1c3); await this.kingSayWait(0x1c4);
-    this.money = (this.money + Math.trunc((this.money << 2) / -5)) | 0;          // _ldiv(现金 << 2, −5) (左移 32 比特回绕)
+    this.money = this.c.prefs?.unlockCashCap
+      ? Math.trunc(this.money / 5)
+      : (this.money + Math.trunc((this.money << 2) / -5)) | 0;               // _ldiv(现金 << 2, −5) (左移 32 比特回绕)
     const nb = (bal + Math.trunc((bal << 2) / -5)) | 0, q = Math.trunc(nb / 100);
     g.bankQuotient = q & 0xffff; g.bankRem = ((q & 0xff) * 0x9c + (nb & 0xff)) & 0xff;
     m.heroInfo().setCountryStanding(this.nation, 100);
@@ -301,7 +304,7 @@ export class Palace {
   async funds() {
     const country = this.m.country(this.nation), v = country.aidMoneyK;
     if (!v) return this.gw(0x1cd);
-    if (((this.money + v * 1000) | 0) > GameConst.MAX_CASH) return this.gw(0x212);
+    if (this.money + v * 1000 > getCashCap(this.c)) return this.gw(0x212);
     await this.gw(0x1ce, v);
     this.money = (this.money + v * 1000) | 0;
     country.aidMoneyK = 0;
@@ -335,13 +338,7 @@ export class Palace {
   }
   // 0fea:2f43 = 12de3 可当船长的人: 主角 (没有担任舰队船长时) + 船员栏中职务 > 2 的人
   mates() {
-    const m = this.m, heroId = m.globals.hero, L = [];
-    let i = 0; for (; i < GameConst.FLEET_SHIPS; i++) if (m.crewSlot(i).captain === heroId) break;
-    if (i === GameConst.FLEET_SHIPS) L.push(heroId);
-    for (let k = 0; k < GameConst.PARTY_SLOTS; k++) {
-      const n = m.partyCrew(k);
-      if (n !== GameConst.EMPTY_SLOT && m.person(n).role > 2) L.push(n);
-    }
+    const L = collectAvailableCaptains(this.m, Boolean(this.c.prefs?.fixPalaceHeroCaptain));
     this.b.setPersons(L); return L.length;
   }
   // 2e09:44bc = 3254c 援助船 (船型 t): 放在第一个空的舰队位, 状态 0x20 (在造船所保管), 船员配置 captain = 本港 | 0x80

@@ -545,6 +545,7 @@ export interface DomSettingsToggle {
   label: string;
   onText: string;
   offText: string;
+  hint?: string;
   get: () => boolean;
   toggle: () => void | Promise<void>;
 }
@@ -557,11 +558,12 @@ export interface DomSettingsSlider {
   set: (v: number) => void;
 }
 
-/** 独立现代环境设置界面（开关分段钮 + 可拖拽古铜金滑杆，标题画面与游戏内共用） */
+/** 独立现代环境设置界面（开关分段钮 + 可拖拽古铜金滑杆 + 复刻扩展开关，标题画面与游戏内共用） */
 export function runDomSettingsModal(opts: {
   title: string;
   toggles: DomSettingsToggle[];
   sliders: DomSettingsSlider[];
+  ruleToggles?: DomSettingsToggle[];
 }): Promise<void> {
   if (!hasDom()) return Promise.resolve();
 
@@ -586,21 +588,31 @@ export function runDomSettingsModal(opts: {
     const wrap = document.createElement("div");
     wrap.className = "uw2-settings-wrap";
 
-    if (opts.toggles.length) {
+    const renderToggleSection = (heading: string, items: DomSettingsToggle[], compactLabel = true) => {
+      if (!items.length) return;
       const sec = document.createElement("div");
       sec.className = "uw2-settings-section";
       const hd = document.createElement("div");
       hd.className = "uw2-settings-heading";
-      hd.textContent = "显示与音频";
+      hd.textContent = heading;
       sec.appendChild(hd);
 
-      opts.toggles.forEach(item => {
+      items.forEach(item => {
         const row = document.createElement("div");
         row.className = "uw2-settings-row";
 
+        const labelWrap = document.createElement("div");
+        labelWrap.style.cssText = "display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;";
         const lbl = document.createElement("span");
         lbl.className = "uw2-settings-label";
-        lbl.textContent = toSimp(item.label).replace(/\s+/g, "");
+        lbl.textContent = compactLabel ? toSimp(item.label).replace(/\s+/g, "") : toSimp(item.label);
+        labelWrap.appendChild(lbl);
+        if (item.hint) {
+          const hintEl = document.createElement("span");
+          hintEl.className = "uw2-settings-hint";
+          hintEl.textContent = item.hint;
+          labelWrap.appendChild(hintEl);
+        }
 
         const seg = document.createElement("div");
         seg.className = "uw2-seg-group";
@@ -631,11 +643,13 @@ export function runDomSettingsModal(opts: {
         sync();
 
         seg.append(btnOn, btnOff);
-        row.append(lbl, seg);
+        row.append(labelWrap, seg);
         sec.appendChild(row);
       });
       wrap.appendChild(sec);
-    }
+    };
+
+    renderToggleSection("显示与音频", opts.toggles, true);
 
     if (opts.sliders.length) {
       const sec = document.createElement("div");
@@ -703,6 +717,10 @@ export function runDomSettingsModal(opts: {
         sec.appendChild(row);
       });
       wrap.appendChild(sec);
+    }
+
+    if (opts.ruleToggles?.length) {
+      renderToggleSection("复刻扩展选项（独立开关 · 默认关）", opts.ruleToggles, false);
     }
 
     h.body.appendChild(wrap);

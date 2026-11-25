@@ -1,5 +1,6 @@
 // shipyard.js — 造船厂 (造新船 / 交船 / 买旧船 / 修理 / 卖船 / 改造 / 工业投资 / 折抵剩余货物分配)
 import { GameConst, ShipSlotFlag, SkillFlag } from "../model/flags.ts";
+import { addCashClamped } from "../core/prefs.ts";
 import {
   WorldConst,
   getPortEcoExtra,
@@ -683,9 +684,7 @@ class ShipyardMixin {
     const m = this.m, M = m.crewSlot(this.b2f4);
     if (this.b2f5 !== 0xff) { const M2 = m.crewSlot(this.b2f5); M.captain = M2.captain; M2.captain = m.globals.hero; }
     m.person(M.captain).role = 6;
-    let money = this.money + Math.trunc(this.shipPrice(this.b2f4) / 2);
-    if (money > GameConst.MAX_CASH) money = GameConst.MAX_CASH;
-    this.money = money;
+    this.money = addCashClamped(this.money, Math.trunc(this.shipPrice(this.b2f4) / 2), this.c);
     this.removeShip(this.b2f4);
     this.p.panels();
   }

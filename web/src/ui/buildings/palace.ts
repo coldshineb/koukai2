@@ -1,5 +1,6 @@
 // ui/buildings/palace.ts — 王宫一体化工作台
 import { GameConst, OptionFlag } from "../../model/flags.ts";
+import { getCashCap } from "../../core/prefs.ts";
 import { getCountryExtra, getWorkState } from "../../model/world_helpers.ts";
 import { ENV_COMMON, ENV_HERO } from "../../game/scenario.js";
 import { mainEnding } from "../../game/endgame.js";
@@ -310,7 +311,7 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
           fundsBtn.textContent = UI_STR.palaceActions.funds;
           fundsBtn.addEventListener("click", () => {
             if (!country.aidMoneyK) { notice = capMsg(c, 0x1cd); render(); return; }
-            if (((palace.money + country.aidMoneyK * 1000) | 0) > GameConst.MAX_CASH) { notice = capMsg(c, 0x212); render(); return; }
+            if (palace.money + country.aidMoneyK * 1000 > getCashCap(c)) { notice = capMsg(c, 0x212); render(); return; }
             const amtK = country.aidMoneyK;
             palace.money = (palace.money + amtK * 1000) | 0;
             country.aidMoneyK = 0;

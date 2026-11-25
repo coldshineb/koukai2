@@ -29,6 +29,7 @@ export * from "./web/src/ui/info_hub.ts";
 export * from "./web/src/ui/buildings/shipyard_parts.ts";
 export * from "./web/src/ui/buildings/shipyard.ts";
 export * from "./web/src/core/opl.js";
+export * from "./web/src/core/prefs.ts";
 export * from "./web/src/core/sfx.js";
 export * from "./web/src/core/screen.js";
 export * from "./web/src/core/font.js";

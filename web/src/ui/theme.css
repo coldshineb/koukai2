@@ -1287,6 +1287,11 @@ body[data-uw2-battle="1"] .uw2-dialog-floating {
   color: var(--uw2-ink);
   min-width: 84px;
 }
+.uw2-settings-hint {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--uw2-ink-muted);
+}
 .uw2-seg-group {
   display: inline-flex;
   border-radius: 8px;

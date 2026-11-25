@@ -1,5 +1,6 @@
 // ui/buildings/itemshop.ts — 道具店一体化工作台
 import { GameConst, ItemFlag } from "../../model/flags.ts";
+import { addCashClamped } from "../../core/prefs.ts";
 import { captureConsoleText, decodeCleanCstr, toSimp } from "../text_util.ts";
 import { createDomModal, getBuildingArtUrl, mountBuildingBanner, preserveScroll } from "../modals.ts";
 import { UI_STR } from "../strings.ts";
@@ -9,7 +10,8 @@ export async function runDomItemShopWorkbench(shop: any): Promise<void> {
   const b = shop.b, m = shop.m, c = shop.c;
   const { codec, art, sys, message, printf } = c;
   const t = c.rt.time;
-  const initGreet = capMsg(c, t >= 12 && t < 18 ? 0x2fc : 0xeb);
+  const isNightGreet = c.prefs?.fixItemShopNight ? (t >= 6 && t < 9) : (t >= 12 && t < 18);
+  const initGreet = capMsg(c, isNightGreet ? 0x2fc : 0xeb);
   const tabLabels = [...UI_STR.itemShopTabs];
   const portName = decodeCleanCstr(codec, m.port(b.port).nameBytes);
 
@@ -224,9 +226,7 @@ export async function runDomItemShopWorkbench(shop: any): Promise<void> {
           sellBtn.addEventListener("click", () => {
             if (equipped) { notice = capMsg(c, 0x14d); render(); return; }
             if (item.power === 0) { notice = capMsg(c, 0x3a1); render(); return; }
-            let nextCash = (shop.money + activePrice) | 0;
-            if (nextCash >= GameConst.MAX_CASH) nextCash = GameConst.MAX_CASH;
-            shop.money = nextCash;
+            shop.money = addCashClamped(shop.money, activePrice, c);
             for (let i = 0; i < GameConst.INV_SLOTS; i++) {
               if (m.inventory(i) === it) { m.setInventory(i, GameConst.EMPTY_SLOT); break; }
             }

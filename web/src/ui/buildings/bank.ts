@@ -1,5 +1,6 @@
 // ui/buildings/bank.ts — 银行一体化工作台
 import { GameConst } from "../../model/flags.ts";
+import { getCashCap } from "../../core/prefs.ts";
 import { domS16, calcDepositLimit, canTakeLoan, calcLoanLimit } from "../../domain/economy.ts";
 import { decodeCleanCstr } from "../text_util.ts";
 import { getBuildingArtUrl, preserveScroll } from "../modals.ts";
@@ -44,7 +45,7 @@ export function runDomBankWorkbench(bank: any): Promise<void> {
       }
       if (tab === 1) {
         if (bal <= 0) return { max: 0, blockMsg: capMsg(c, 0x68) };
-        if (bank.money > 599999900) return { max: 0, blockMsg: capMsg(c, 0x6b) };
+        if (bank.money > getCashCap(c) - 100) return { max: 0, blockMsg: capMsg(c, 0x6b) };
         return { max: bal, blockMsg: "" };
       }
       if (tab === 2) {
@@ -166,7 +167,7 @@ export function runDomBankWorkbench(bank: any): Promise<void> {
             bank.money = (bank.money - amt) | 0;
             notice = capMsg(c, 0x6a, amt);
           } else if (tab === 1) {
-            if (((bank.money + amt) | 0) > GameConst.MAX_CASH) { notice = capMsg(c, 0x6d); render(); return; }
+            if (bank.money + amt > getCashCap(c)) { notice = capMsg(c, 0x6d); render(); return; }
             const nb = (bal - amt) | 0;
             bank.store(nb, "normal");
             bank.money = (bank.money + amt) | 0;

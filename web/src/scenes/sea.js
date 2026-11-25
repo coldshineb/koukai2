@@ -1885,7 +1885,9 @@ export class SeaScene extends PortScene {
       let nat = P.face & 0x0f; if (nat === 6) nat = al % 6;
       let ty = P.fleet % 10; ty = ty ? Math.trunc(ty / 5) + 1 : 0;
       const a = g.portFlags, b = g.windCur;
-      const spd = this.fleetSpeed(F, a & 7, a >> 3, b >> 3, b & 7);    // 0fea:ae1f = 1acbf
+      const spd = this.c.prefs?.fixScoutSpeedArgs
+        ? this.fleetSpeed(F, (a >> 3) & 7, a & 7, b & 7, (b >> 3) & 7)
+        : this.fleetSpeed(F, a & 7, a >> 3, b >> 3, b & 7);    // 0fea:ae1f = 1acbf
       if (this.c.scr.wideRenderer && hasDom() && this.c.codec) {
         const dec = bts => toSimp(decodeCleanCstr(this.c.codec, bts));
         const gName = dec(P.givenNameBytes), fName = dec(P.familyNameBytes);

@@ -1,5 +1,6 @@
 // ui/buildings/house.ts — 住宅一体化工作台
 import { DiscoveryFlag, GameConst, NobleFlag, SkillFlag } from "../../model/flags.ts";
+import { addCashClamped, getCashCap } from "../../core/prefs.ts";
 import { getWorkState, revealEntireWorldMap, setExploreUnrep } from "../../model/world_helpers.ts";
 import { captureConsoleText, decodeCleanCstr, toSimp } from "../text_util.ts";
 import { getBuildingArtUrl, preserveScroll, runDomStoryCard } from "../modals.ts";
@@ -225,9 +226,7 @@ export async function runDomHouseWorkbench(house: any): Promise<void> {
                 const nameBytes = ListSelect.colonyRec(c, n);
                 speechText = capMsg(c, 0x1e6 + Math.trunc(v / 25), nameBytes, pay);
                 notice = speechText;
-                let nextCash = (house.money + pay) | 0;
-                if (nextCash > GameConst.MAX_CASH) nextCash = GameConst.MAX_CASH;
-                house.money = nextCash;
+                house.money = addCashClamped(house.money, pay, c);
                 const hd = m.heroInfo(), add = ((v === 100 ? 15 : 8) * v) & 0xffff;
                 hd.adventureFame = (hd.adventureFame + hsUmin((GameConst.MAX_FAME - hd.adventureFame) & 0xffff, add)) & 0xffff;
                 d.flags |= 0x10;
@@ -357,7 +356,7 @@ export async function runDomHouseWorkbench(house: any): Promise<void> {
                 const total = getWorkState(m).exploreTotal;
                 const hd = m.heroInfo();
                 hd.adventureFame = (hd.adventureFame + hsUmin((GameConst.MAX_FAME - hd.adventureFame) & 0xffff, Math.imul(5, unrep))) & 0xffff;
-                const room = (GameConst.MAX_CASH - house.money) | 0;
+                const room = getCashCap(c) - house.money;
                 house.money = (house.money + (room > pay ? pay : room)) | 0;
                 setExploreUnrep(m, 0);
                 b.p.panels();

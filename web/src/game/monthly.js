@@ -2,6 +2,7 @@
 // 港口与海上共用; 与舰队 AI (fleetai.js) 共用 18299 战力、33921 去港 与运行期变量 [c2ea]
 import { faUmin, faUmax, faLdiv, faLmul } from "./fleetai.js";
 import { FleetFlag, GameConst, ShipSlotFlag, TreatyFlag } from "../model/flags.ts";
+import { getCashCap } from "../core/prefs.ts";
 import {
   fleetByAddr,
   fleetShipSlot,
@@ -43,7 +44,7 @@ export class Monthly {
     const m = this.m, rt = this.c.rt;
     m.globals.month = 0;                                                         // [0caa] (存盘的年) 不更新
     rt.year = (rt.year + 1) & 0xff;
-    if (rt.year > 0x34) this.c.palette.ending = 0x10;                            // 1552 年 → 游戏结束
+    if (rt.year > 0x34 && !this.c.prefs?.unlock1552) this.c.palette.ending = 0x10; // 1552 年 → 游戏结束
     this.ai.sea.seaYear();                                                       // 71ad
     for (let p = 0; p < 120; p++) { const pv = m.person(p); pv.age = pv.age + 1; }
     for (let g = 0; g < 30; g++) { const bm = m.barmaid(g); bm.age = bm.age + 1; }
@@ -408,7 +409,7 @@ export class Monthly {
         if (n !== GameConst.EMPTY_SLOT) { const pv = m.person(n); pv.face = pv.face | 0x80; }
       }
       msg = 0x23c;
-    } else { setHeroMoney(m, (gold - total) | 0); msg = 0x23e; }
+    } else { setHeroMoney(m, (gold - total) | 0, getCashCap(this.c)); msg = 0x23e; }
     const h1c = m.heroPerson().getStats(0);
     for (let i = 0; i < GameConst.PARTY_SLOTS; i++) {
       const n = m.partyCrew(i); if (n === GameConst.EMPTY_SLOT) continue;

@@ -1,6 +1,6 @@
-// audio.js — BGM (PS 版音源, mp3)
+// audio.js — BGM (支持 PS1 重制版 mp3 与 30 周年纪念 CD 重编版热切换)
 // 原版: 0:9670(曲目) 以 DS:8c20 表把游戏内曲目编号 (0..0x17) 转成 FMDRV 的乐曲编号再播放 (同曲播放中则不重播, 否则先淡出); 0:9712(0x14) 淡出停止。
-// 游戏内曲目编号 -> PS 版音档 的对应在 assets/data/bgm.json ("songs", 依旋律比对与播放场景逆向决定, 见 docs/RE_NOTES.md 第 23 节)。
+// 游戏内曲目编号 -> 音档 的对应在 assets/data/bgm.json ("songs" 为 PS 版全曲兜底，"packs.cd30" 为 30 周年 CD 音轨映射)。
 //   值为 null = 原版送 FMDRV 乐曲 0 (停止); "once" 列出的曲目原版播放后以 96eb(0) 关闭重播, 只播一次 (海战胜利短曲 0x15)。
 import { loadJSON } from "./assets.js";
 
@@ -10,9 +10,18 @@ export class BGM {
   constructor(base) {
     this.base = base; this.el = typeof Audio !== "undefined" ? new Audio() : null; if (this.el) this.el.loop = true; this.cur = null; this.enabled = true;
     this.volume = 0.8; this.muted = false;
+    this.pack = "ps1";                   // 当前音源包: "ps1" | "cd30"
     this.song = 0xff;                    // [8c1e] 目前曲目 (游戏内编号; 9670 写入, 环境设置打开 BGM 时重播它)
     this.optionOff = null;               // () => 环境设置「BGM」关闭 ([0ca4] bit2 = 0); title.js init 设置
     if (this.el) this.el.addEventListener?.("ended", () => { this.cur = null; this.done(); if (this.next) this.start(); });   // 只播一次的曲子播完 = 停止
+  }
+  async setPack(pack) {
+    const nextPack = pack === "cd30" ? "cd30" : "ps1";
+    if (this.pack === nextPack) return;
+    this.pack = nextPack;
+    if (this.song <= 0x17 && !this.optionOff?.()) {
+      await this.playSong(this.song);
+    }
   }
   get effectiveVolume() { return this.muted ? 0 : Math.max(0, Math.min(1, this.volume)); }
   setVolume(v) { this.volume = Math.max(0, Math.min(1, +v || 0)); if (this.el && !this.fading) this.el.volume = this.effectiveVolume; }
@@ -42,7 +51,12 @@ export class BGM {
   // 0:9670: 编号 ≤ 0x17 时 [8c1e] = 编号; BGM 关闭时只记下编号、不播放 ([8c1f] = FF; 之后打开 BGM 由环境设置 213c5 重播)
   playSong(id) {
     if (id <= 0x17) { this.song = id; if (this.optionOff?.()) return Promise.resolve(); }
-    const songs = this.map.songs, k = String(id);
+    const k = String(id);
+    const packSongs = this.pack !== "ps1" ? this.map?.packs?.[this.pack] : null;
+    if (packSongs && k in packSongs && packSongs[k]) {
+      return this.playFile(packSongs[k], !(this.map.once || []).includes(id));
+    }
+    const songs = this.map.songs;
     if (songs && k in songs) {
       if (!songs[k]) { this.stop(); return Promise.resolve(); }                              // FMDRV 乐曲 0: 停止
       return this.playFile(songs[k], !(this.map.once || []).includes(id));

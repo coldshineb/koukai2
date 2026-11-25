@@ -3,6 +3,7 @@
 /** 游戏规则常用常数 */
 export const GameConst = {
   MAX_CASH: 600_000_000,
+  MAX_CASH_UNLOCKED: 2_000_000_000,
   MAX_FAME: 50_000,
   MAX_INVEST: 50_000,
   INV_SLOTS: 20,

@@ -4,6 +4,7 @@
 // 记录 10..15 是各国国王, 种类 FF 且港 = 0; 里斯本有种类 0 的第 0 笔在前面, 所以不会用到
 import { ListSelect } from "../ui/dos/listsel.js";
 import { DiscoveryFlag, GameConst, NobleFlag, SkillFlag } from "../model/flags.ts";
+import { addCashClamped, getCashCap } from "../core/prefs.ts";
 import { getWorkState, revealEntireWorldMap, setExploreUnrep } from "../model/world_helpers.ts";
 import { hasDom, runDomStoryCard } from "../ui/modals.ts";
 import { runDomHouseWorkbench } from "../ui/buildings/house.ts";
@@ -78,8 +79,7 @@ export class House {
     const pay = Math.imul(Math.imul(k, v), 50);
     const name = ListSelect.colonyRec(this.c, n);                               // 2e09:66d1 / 66f3 / 66e3
     await this.sayWait(0x1e6 + Math.trunc(v / 25), name, pay);
-    let nextCash = (this.money + pay) | 0; if (nextCash > GameConst.MAX_CASH) nextCash = GameConst.MAX_CASH;
-    this.money = nextCash;
+    this.money = addCashClamped(this.money, pay, this.c);
     const hd = m.heroInfo(), add = ((v === 100 ? 15 : 8) * v) & 0xffff;
     hd.adventureFame = (hd.adventureFame + hsUmin((GameConst.MAX_FAME - hd.adventureFame) & 0xffff, add)) & 0xffff;
     d.flags |= 0x10;
@@ -186,7 +186,7 @@ export class House {
     if (total < 3300) await this.sayWait(0x1fd);
     const hd = m.heroInfo();
     hd.adventureFame = (hd.adventureFame + hsUmin((GameConst.MAX_FAME - hd.adventureFame) & 0xffff, Math.imul(5, unrep))) & 0xffff;
-    const room = (GameConst.MAX_CASH - this.money) | 0;
+    const room = getCashCap(this.c) - this.money;
     this.money = (this.money + (room > pay ? pay : room)) | 0;
     w.exploreUnrep = 0;
   }

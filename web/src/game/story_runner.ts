@@ -1,6 +1,7 @@
 // game/story_runner.ts — 语义化剧情 JSON (uw2-story-v1) 的直接执行引擎
 // 支持高层融合指令 (say / get_field / set_field / alu_field / set / calc / when) 与结构化流程树。
 import { GameConst, ShipSlotFlag } from "../model/flags.ts";
+import { getCashCap } from "../core/prefs.ts";
 import {
   fleetShipSlot,
   heroFleet,
@@ -84,7 +85,7 @@ export class StoryRunner {
   get m() { return this.c.state.model; }
   get str() { return this.mem.str; }
   get money(): number { return this.m.globals.money; }
-  set money(v: number) { setHeroMoney(this.m, v); }
+  set money(v: number) { setHeroMoney(this.m, v, getCashCap(this.c)); }
 
   setVmConfig(vm: { windows: ScenarioWindowDef[]; textColor: string; seed0: number }): void {
     this.vm = vm;

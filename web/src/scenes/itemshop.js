@@ -4,6 +4,7 @@
 // 随身物: DS:2e57 (20 格, FF = 空), 道具记录 items (+0 名称, +10 价格/100, +12 数值, +13 低 4 位 种类 / bit4 已装备)
 // 原版怪行为 (照搬): 问候判断夜市用的是 12 ≤ [0535] < 18 (而营业时间是 2:00–3:00 = 6..8 与 8:00–20:00), 所以「夜市」问候 0x2fc 实际上不会出现
 import { GameConst, ItemFlag, ItemKind, MenuId } from "../model/flags.ts";
+import { addCashClamped } from "../core/prefs.ts";
 import { captureConsoleText, decodeCleanCstr } from "../ui/text_util.ts";
 import { hasDom, runDomInfoLines } from "../ui/modals.ts";
 import { runDomItemShopWorkbench } from "../ui/buildings/itemshop.ts";
@@ -25,7 +26,8 @@ export class ItemShop {
       return;
     }
     const b = this.b, t = this.c.rt.time;
-    if (b.noEvent()) b.greet(t >= 12 && t < 18 ? 0x2fc : 0xeb);
+    const isNightGreet = this.c.prefs?.fixItemShopNight ? (t >= 6 && t < 9) : (t >= 12 && t < 18);
+    if (b.noEvent()) b.greet(isNightGreet ? 0x2fc : 0xeb);
     const items = this.c.menuItems(MenuId.ITEM_SHOP).slice(0, 2);
     let sel;
     do {
@@ -125,8 +127,7 @@ export class ItemShop {
           if (!(await menu.yesNo())) continue;
         }
       }
-      let nextCash = (this.money + price) | 0; if (nextCash >= GameConst.MAX_CASH) nextCash = GameConst.MAX_CASH;
-      this.money = nextCash;
+      this.money = addCashClamped(this.money, price, this.c);
       for (let i = 0; i < GameConst.INV_SLOTS; i++) if (m.inventory(i) === it) { m.setInventory(i, GameConst.EMPTY_SLOT); first = 0; break; }
       this.b.p.panels();
     }

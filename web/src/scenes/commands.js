@@ -40,6 +40,7 @@ import {
 } from "../ui/modals.ts";
 import { runDomSettingsModal } from "../ui/hud.ts";
 import { UI_STR } from "../ui/strings.ts";
+import { createDefaultPrefs, RULE_TOGGLES, savePrefs } from "../core/prefs.ts";
 import { runDomPersonInfo, runDomShipInfo } from "../ui/fleet_panel.ts";
 import { runDomInfoHub } from "../ui/info_hub.ts";
 import { runDomPortMapModal, runDomWorldChartModal } from "../ui/info_maps.ts";
@@ -1958,9 +1959,10 @@ export class Commands {
   }
 }
 
-// 现代 DOM 版环境设置弹窗（不依赖 portAssets，供标题页与港海指令共用，逻辑与原版 214cf / 213c5 完全一致）
+// 现代 DOM 版环境设置弹窗（不依赖 portAssets，供标题页与港海指令共用；全局偏好与规则开关跨存档保存）
 export async function openDomSettings(ctx) {
   const g = ctx.state.model.globals;
+  const prefs = (ctx.prefs ??= createDefaultPrefs());
   const toggle = async r => {
     if ((r >> 1) === 0) { g.options ^= OptionFlag.ANIMATION; return; }
     const bgm = ctx.bgm, song = bgm.song ?? 0xff;
@@ -1975,10 +1977,13 @@ export async function openDomSettings(ctx) {
       await bgm.stopped?.();
     }
   };
+  const togglePack = async () => {
+    prefs.bgmPack = prefs.bgmPack === "cd30" ? "ps1" : "cd30";
+    savePrefs(prefs);
+    await ctx.bgm?.setPack?.(prefs.bgmPack);
+  };
   const setSlider = (prop, max, v) => {
     g[prop] = Math.max(0, Math.min(max, Math.round(v)));
-    const m = (g.mouseSens + 2) * 2;
-    ctx.sys.mickeyRatio = [m, m];
   };
   const SL = UI_STR.settingsLabels;
   await runDomSettingsModal({
@@ -1986,11 +1991,22 @@ export async function openDomSettings(ctx) {
     toggles: [
       { label: SL[0], onText: "ON", offText: "OFF", get: () => !!(g.options & OptionFlag.ANIMATION), toggle: () => toggle(0) },
       { label: SL[1], onText: "ON", offText: "OFF", get: () => !!(g.options & OptionFlag.BGM), toggle: () => toggle(2) },
+      { label: "音乐版本", onText: "30周年CD", offText: "PS1版", hint: "未收录曲目自动回退 PS1 版", get: () => prefs.bgmPack === "cd30", toggle: togglePack },
     ],
     sliders: [
-      { label: SL[2], min: 0, max: 4, get: () => g.mouseSens, set: v => setSlider("mouseSens", 4, v) },
       { label: SL[3], min: 0, max: 10, get: () => g.seaScroll, set: v => setSlider("seaScroll", 10, v) },
       { label: SL[4], min: 0, max: 10, get: () => g.seaSpeed, set: v => setSlider("seaSpeed", 10, v) },
     ],
+    ruleToggles: RULE_TOGGLES.map(item => ({
+      label: item.label,
+      hint: item.hint,
+      onText: "开",
+      offText: "关",
+      get: () => Boolean(prefs[item.key]),
+      toggle: () => {
+        prefs[item.key] = !prefs[item.key];
+        savePrefs(prefs);
+      },
+    })),
   });
 }

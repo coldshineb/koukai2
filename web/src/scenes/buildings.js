@@ -20,6 +20,7 @@ import { FleetFlag, GameConst, ShipSlotFlag } from "../model/flags.ts";
 import {
   WorldConst,
   barmaidByAddr,
+  collectAvailableCaptains,
   getWorkState,
   heroFleet,
   heroOrDockSlot,
@@ -29,6 +30,7 @@ import {
   shipSlotByAddr,
   swapShipAndCrewSlots,
 } from "../model/world_helpers.ts";
+import { addCashClamped, getCashCap } from "../core/prefs.ts";
 import { domS16, domUmin16 } from "../domain/economy.ts";
 import { calcCargoUsed, calcShipLoadTotal, calcShipSpeed } from "../domain/fleet.ts";
 import { captureConsoleText, createEscStripper, decodeCleanCstr, toSimp } from "../ui/text_util.ts";
@@ -56,7 +58,7 @@ export class Buildings {
   get m() { return this.c.state.model; }
   get port() { return this.m.globals.port; }
   get money() { return this.m.globals.money; }
-  set money(v) { setHeroMoney(this.m, v); }
+  set money(v) { setHeroMoney(this.m, v, getCashCap(this.c)); }
   noEvent() { const w = getWorkState(this.m); return w.commonEvent === 0 && w.heroEvent === 0; }
   captureMessage(n, ...args) {
     return captureConsoleText(this.c, () => this.c.message(n, ...args));
@@ -261,8 +263,8 @@ export class Buildings {
     for (let i = 0; i < GameConst.FLEET_SHIPS; i++) if ((heroShipSlot(m, i).flags & ShipSlotFlag.STATE_MASK) === ShipSlotFlag.ACTIVE) L.push(i);
     this.setPersons(L); return L.length;
   }
-  // seg0:8894 后的金钱增减 (2553b: 上限 600000000)
-  addMoney(v) { let m = this.money + v; if (m > 600000000) m = 600000000; this.money = m; this.p.panels(); }
+  // seg0:8894 后的金钱增减 (2553b: 默认上限 6 亿, unlockCashCap 时 20 亿)
+  addMoney(v) { this.money = addCashClamped(this.money, v, this.c); this.p.panels(); }
   payMoney(v) { if ((v >>> 0) > (this.money >>> 0)) return 0; this.money = (this.money - v) | 0; this.p.panels(); return 1; }   // 25515
   // seg0:7eac 酒吧女郎头像 (具名头像 face) 与姓名
   talkGirl(face, rec) {
@@ -367,12 +369,8 @@ export class Buildings {
   isCapital() { for (let i = 0; i < WorldConst.TOTAL_COUNTRIES; i++) if (this.m.country(i).capitalPort === this.port) return 1; return 0; }   // 0fea:b578
   // 0fea:2f43 = 12de3: 主角没有担任任何船的船长时列入主角, 再列入职务 > 2 的船员 → [0538]
   crewList() {
-    const m = this.m, heroId = m.globals.hero, L = [];
-    let k = 0; for (; k < GameConst.FLEET_SHIPS; k++) if (m.crewSlot(k).captain === heroId) break;
-    if (k === GameConst.FLEET_SHIPS) L.push(heroId);
-    for (let i = 0; i < GameConst.PARTY_SLOTS; i++) { const n = m.partyCrew(i); if (n !== GameConst.EMPTY_SLOT && m.person(n).role > 2) L.push(n); }
-    this.c.persons ??= [];
-    for (let i = 0; i < L.length; i++) this.c.persons[i] = L[i];
+    const L = collectAvailableCaptains(this.m, Boolean(this.c.prefs?.fixPalaceHeroCaptain));
+    this.setPersons(L);
     return L.length;
   }
   // seg0:5d36 船上已用的载货量

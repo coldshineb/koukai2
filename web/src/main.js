@@ -4,6 +4,7 @@ import { Font } from "./core/font.js";
 import { Sys } from "./core/sys.js";
 import { bindInput } from "./core/input.js";
 import { BGM } from "./core/audio.js";
+import { loadPrefs } from "./core/prefs.ts";
 import { SfxPort } from "./core/sfx.js";
 import { loadJSON, loadBinary } from "./core/assets.js";
 import { Palette, paletteTables } from "./core/palette.js";
@@ -38,12 +39,16 @@ const codec = new TextCodec(charmap);
 const initState = encodeState(world, schema, codec);
 const state = new GameState(initState, schema);
 
+const prefs = loadPrefs();
+const bgm = await new BGM(ASSETS).init();
+bgm.pack = prefs.bgmPack;
+
 const ctx = {
-  scr, sys, ASSETS, state, initState, schema, codec,
+  scr, sys, ASSETS, state, initState, schema, codec, prefs,
   art: await new ArtRegistry(ASSETS).load(),
   names: await loadJSON(ASSETS + "/data/names.json"),
   font: await new Font().load(ASSETS),
-  bgm: await new BGM(ASSETS).init(),
+  bgm,
   sfx: new SfxPort("./src/core/sfx_worklet.js", { gain: +(new URLSearchParams(location.search).get("sfxvol") ?? 2) }),
   options: { get animate() { return !!(state.model.globals.options & 1); } },
   portMove: new URLSearchParams(location.search).get("portmove") !== "0",

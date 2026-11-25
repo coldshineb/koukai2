@@ -5,6 +5,7 @@
 //   贷款 / 还款写回时另把商减 1 (贷款: 余额 < 0 时; 还款: 余额 ≠ 0 时), 所以借款正好是 100 的倍数时存成 (商 − 1, 100) —— 原版如此, 照搬
 // 银行内的金钱增减不调用 8894 (面板要等下次菜单才重画) —— 原版如此
 import { GameConst, MenuId } from "../model/flags.ts";
+import { getCashCap } from "../core/prefs.ts";
 import { domS16, encodeBankBalance, calcDepositLimit, canTakeLoan, calcLoanLimit } from "../domain/economy.ts";
 import { hasDom } from "../ui/modals.ts";
 import { runDomBankWorkbench } from "../ui/buildings/bank.ts";
@@ -69,12 +70,13 @@ export class Bank {
   async withdraw() {
     const b = this.b, bal = this.bal;
     if (bal <= 0) return this.greetWait(0x68);
-    if (this.money > 599999900) return this.greetWait(0x6b);                    // 0x23c3459c
+    const cap = getCashCap(this.c);
+    if (this.money > cap - 100) return this.greetWait(0x6b);
     await this.greetWait(0x67, bal);
     b.greet(0x6c, bal);
     const v = await b.numpad.input(0, bal);
     if (!v) return;
-    if (((this.money + v) | 0) > GameConst.MAX_CASH) return this.greetWait(0x6d);
+    if (this.money + v > cap) return this.greetWait(0x6d);
     await this.greetWait(0x6e, v);
     const nb = (bal - v) | 0;
     await this.greetWait(0x67, nb);

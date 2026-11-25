@@ -11,7 +11,7 @@ import {
   ShipView,
   WorldModel,
 } from "./schema_views.ts";
-import { WorkDS } from "./flags.ts";
+import { GameConst, ShipSlotFlag, WorkDS } from "./flags.ts";
 
 export const WorldConst = {
   NORMAL_PORTS: 100,
@@ -238,10 +238,27 @@ export function writePersonNamePart(p: PersonView, isFamily: boolean, src: Uint8
 }
 
 /** 读取/写入 32 位金钱（与 GlobalsView.money 同步） */
-export function setHeroMoney(m: WorldModel, v: number): void {
-  const clamped = v > 600_000_000 ? 600_000_000 : v;
+export function setHeroMoney(m: WorldModel, v: number, maxCash = 600_000_000): void {
+  const clamped = v > maxCash ? maxCash : v;
   m.st.set16(DS.MONEY, clamped & 0xffff);
   m.st.set16(0x12b0, (clamped >>> 16) & 0xffff);
+}
+
+/** 收集可用作新船船长的人选：主角未任船长时列入主角，再加职务 > 2 的随行同伴 */
+export function collectAvailableCaptains(m: WorldModel, fixEmptySlotBug = false): number[] {
+  const heroId = m.globals.hero;
+  const list: number[] = [];
+  let i = 0;
+  for (; i < GameConst.FLEET_SHIPS; i++) {
+    if (fixEmptySlotBug && (heroShipSlot(m, i).flags & ShipSlotFlag.STATE_MASK) === 0) continue;
+    if (m.crewSlot(i).captain === heroId) break;
+  }
+  if (i === GameConst.FLEET_SHIPS) list.push(heroId);
+  for (let k = 0; k < GameConst.PARTY_SLOTS; k++) {
+    const n = m.partyCrew(k);
+    if (n !== GameConst.EMPTY_SLOT && m.person(n).role > 2) list.push(n);
+  }
+  return list;
 }
 
 /** 写入工作标志 / 章节字节（仅限原版状态区间） */
