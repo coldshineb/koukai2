@@ -4,9 +4,7 @@ import { WorldConst, fleetByAddr, fleetShipSlot } from "../model/world_helpers.t
 import { VIEW_W, VIEW_H } from "../core/screen.js";
 import { syncDomWorldHud } from "../ui/hud.ts";
 
-const TILE = 32; // 40×23 格 = 1280×736，无黑边铺满整个 16:9 画面
-const COLS = Math.ceil(VIEW_W / TILE) + 1;
-const ROWS = Math.ceil(VIEW_H / TILE) + 1;
+const TILE = 32; // 40×22.5 格 = 1280×720，无黑边铺满整个 16:9 画面
 const P_MAP_W = 0x60;
 
 // 4 枚主指令按钮 (右下悬浮)
@@ -199,56 +197,162 @@ function drawFloatingHud(scene: any, atSea: boolean) {
   syncDomWorldHud(scene, atSea);
 }
 
-/** 16:9 全屏港口渲染器 */
+const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);
+const wrapMod = (v: number, mod: number) => ((v % mod) + mod) % mod;
+const wrapSignedDelta = (delta: number, mod: number) => {
+  let d = delta % mod;
+  if (d < -mod / 2) d += mod;
+  else if (d > mod / 2) d -= mod;
+  return d;
+};
+const nowMs = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
+
+interface GridTween {
+  fromX: number;
+  fromY: number;
+  toX: number;
+  toY: number;
+  prevX: number;
+  prevY: number;
+  elapsed: number;
+  dur: number;
+}
+
+/** 更新基于离散网格的 60fps 线性平滑补间（单格/邻格连续匀速滑行，跨格传送或长暂停时瞬切） */
+function stepGridTween(
+  tw: GridTween | undefined,
+  logicX: number,
+  logicY: number,
+  dt: number,
+  dur: number,
+  reset: boolean,
+): GridTween {
+  if (!tw || reset || Math.max(Math.abs(logicX - tw.prevX), Math.abs(logicY - tw.prevY)) > 1) {
+    return { fromX: logicX, fromY: logicY, toX: logicX, toY: logicY, prevX: logicX, prevY: logicY, elapsed: dur, dur };
+  }
+  const t = tw.dur > 0 ? clamp(tw.elapsed / tw.dur, 0, 1) : 1;
+  let curX = tw.fromX + (tw.toX - tw.fromX) * t;
+  let curY = tw.fromY + (tw.toY - tw.fromY) * t;
+  if (logicX !== tw.prevX || logicY !== tw.prevY) {
+    return { fromX: curX, fromY: curY, toX: logicX, toY: logicY, prevX: logicX, prevY: logicY, elapsed: dt, dur };
+  }
+  tw.elapsed = Math.min(tw.dur, tw.elapsed + dt);
+  return tw;
+}
+
+function evalGridTween(tw: GridTween): [number, number] {
+  const t = tw.dur > 0 ? clamp(tw.elapsed / tw.dur, 0, 1) : 1;
+  return [tw.fromX + (tw.toX - tw.fromX) * t, tw.fromY + (tw.toY - tw.fromY) * t];
+}
+
+interface PortSmoothState {
+  scene: any;
+  portId: number;
+  lastMs: number;
+  hero?: GridTween;
+  npcs: (GridTween | undefined)[];
+  camX: number;
+  camY: number;
+}
+
+let portSmooth: PortSmoothState | null = null;
+
+/** 16:9 全屏港口渲染器（60fps 平滑角色/NPC 移动与平滑相机跟随） */
 export function renderWidePort(ctx: CanvasRenderingContext2D, scr: any, portScene: any) {
   const art = portScene.c.art;
   const M = portScene.map;
   if (!M || !art) return;
   const sheetName = portScene.chipSetName || "portchip_0";
 
-  // 以主角世界座标为中心计算 16:9 相机窗口 (夹限于 96×96 港口地图内)
   const heroWX = portScene.vx + portScene.hx;
   const heroWY = portScene.vy + portScene.hy;
-  const camX = Math.max(0, Math.min(P_MAP_W - Math.floor(VIEW_W / TILE), heroWX - Math.floor(VIEW_W / TILE / 2) + 1));
-  const camY = Math.max(0, Math.min(P_MAP_W - Math.floor(VIEW_H / TILE), heroWY - Math.floor(VIEW_H / TILE / 2) + 1));
+  const viewCols = VIEW_W / TILE;
+  const viewRows = VIEW_H / TILE;
+  const maxCamX = P_MAP_W - viewCols;
+  const maxCamY = P_MAP_W - viewRows;
+
+  const tNow = nowMs();
+  const portId = portScene.port ?? -1;
+  const gapReset = !portSmooth || portSmooth.scene !== portScene || portSmooth.portId !== portId || tNow - portSmooth.lastMs > 220;
+  const dt = gapReset ? 16 : Math.min(50, Math.max(0, tNow - portSmooth!.lastMs));
+
+  const baseTicks = (portScene.m?.globals?.options & 1) ? 8 : 4;
+  const speedScale = Math.max(0.25, portScene.c?.sys?.timeScale || 1);
+  const stepDur = Math.max(24, (baseTicks * 16.581) / speedScale);
+
+  const heroTw = stepGridTween(portSmooth?.hero, heroWX, heroWY, dt, stepDur, gapReset);
+  const [visHeroX, visHeroY] = evalGridTween(heroTw);
+  const targetCamX = clamp(visHeroX - (viewCols / 2 - 1), 0, maxCamX);
+  const targetCamY = clamp(visHeroY - (viewRows / 2 - 1), 0, maxCamY);
+
+  let camX = targetCamX;
+  let camY = targetCamY;
+  if (!gapReset && portSmooth && Math.hypot(targetCamX - portSmooth.camX, targetCamY - portSmooth.camY) < 4) {
+    const camAlpha = 1 - Math.exp((-12 * Math.max(1, speedScale) * dt) / 1000);
+    camX = clamp(portSmooth.camX + (targetCamX - portSmooth.camX) * camAlpha, 0, maxCamX);
+    camY = clamp(portSmooth.camY + (targetCamY - portSmooth.camY) * camAlpha, 0, maxCamY);
+  }
+
+  portSmooth = {
+    scene: portScene,
+    portId,
+    lastMs: tNow,
+    hero: heroTw,
+    npcs: gapReset ? Array(8).fill(undefined) : portSmooth!.npcs,
+    camX,
+    camY,
+  };
+
+  // 以整像素对齐相机，消除平滑卷动时的图块 1px 接缝
+  const camPxX = clamp(Math.round(camX * TILE), 0, Math.round(maxCamX * TILE));
+  const camPxY = clamp(Math.round(camY * TILE), 0, Math.round(maxCamY * TILE));
+  const startCol = Math.max(0, Math.floor(camPxX / TILE));
+  const endCol = Math.min(P_MAP_W - 1, Math.floor((camPxX + VIEW_W - 1) / TILE));
+  const startRow = Math.max(0, Math.floor(camPxY / TILE));
+  const endRow = Math.min(P_MAP_W - 1, Math.floor((camPxY + VIEW_H - 1) / TILE));
 
   ctx.fillStyle = "#081424";
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
   ctx.imageSmoothingEnabled = false;
 
-  for (let r = 0; r < ROWS; r++) {
-    const my = camY + r;
-    if (my < 0 || my >= P_MAP_W) continue;
+  for (let my = startRow; my <= endRow; my++) {
     const rowOff = my * P_MAP_W;
-    for (let c = 0; c < COLS; c++) {
-      const mx = camX + c;
-      if (mx < 0 || mx >= P_MAP_W) continue;
+    const dy = my * TILE - camPxY;
+    for (let mx = startCol; mx <= endCol; mx++) {
       const t = M[rowOff + mx];
-      drawSheetTileDirect(ctx, art, sheetName, t, c * TILE, r * TILE, TILE, TILE, scr, true);
+      drawSheetTileDirect(ctx, art, sheetName, t, mx * TILE - camPxX, dy, TILE, TILE, scr, true);
     }
   }
 
-  // 绘制白天行人与站立 NPC
+  // 绘制白天行人与站立 NPC（行人在格子间同样平滑移动）
   if (!portScene.night()) {
     for (let i = 0; i < 8; i++) {
       const n = portScene.npc(i);
-      if (n.x === 0xff || n.y === 0xff) continue;
-      const sx = (n.x - camX) * TILE;
-      const sy = (n.y - camY) * TILE;
+      if (n.x === 0xff || n.y === 0xff) {
+        portSmooth.npcs[i] = undefined;
+        continue;
+      }
+      const nTw = stepGridTween(portSmooth.npcs[i], n.x, n.y, dt, stepDur * 1.15, gapReset);
+      portSmooth.npcs[i] = nTw;
+      const [nx, ny] = evalGridTween(nTw);
+      const sx = Math.round(nx * TILE) - camPxX;
+      const sy = Math.round(ny * TILE) - camPxY;
       if (sx < -64 || sx > VIEW_W || sy < -64 || sy > VIEW_H) continue;
       const anim = i >= 4 ? (portScene._npcFrames?.[i - 4] ?? ((portScene.toggle ^ i) & 1)) : (((n.x + n.y) & 1) === 0 ? 1 : 0);
       const localIdx = i >= 4 ? (n.d + 12) * 2 + anim : ((i & 1) * 4 + n.d + 4) * 2 + anim;
       const globalIdx = 48 + Math.max(0, Math.min(23, localIdx - 8));
       drawSheetTileDirect(ctx, art, "chars", globalIdx, sx, sy, TILE * 2, TILE * 2, scr, false);
     }
+  } else {
+    portSmooth.npcs.fill(undefined);
   }
 
   // 绘制主角
   const hDir = portScene._lastDir ?? 2;
   const hPhase = portScene.phase ? 1 : 0;
   const heroSpriteIdx = portScene.m.globals.hero * 8 + hDir * 2 + hPhase;
-  const hxPx = (heroWX - camX) * TILE;
-  const hyPx = (heroWY - camY) * TILE;
+  const hxPx = Math.round(visHeroX * TILE) - camPxX;
+  const hyPx = Math.round(visHeroY * TILE) - camPxY;
   drawSheetTileDirect(ctx, art, "chars", heroSpriteIdx, hxPx, hyPx, TILE * 2, TILE * 2, scr, false);
 
   // 悬浮现代 HUD（所有日夜时段色调直接由原版 16 色调色盘呈现，无人工打灯覆层）
@@ -310,7 +414,43 @@ function getGlobalSeaTile(seaScene: any, wx: number, wy: number): number {
   return chunk[(wy % 24) * 24 + (gwx % 24)];
 }
 
-/** 16:9 全球无缝海面渲染器 */
+interface SeaSmoothState {
+  scene: any;
+  lastMs: number;
+  camWX: number;
+  camWY: number;
+  fleets: Map<number, { wx: number; wy: number }>;
+}
+
+let seaSmooth: SeaSmoothState | null = null;
+
+function exactFleetPos(seaScene: any, fl: any): [number, number] {
+  const s8 = (v: number) => (v << 24) >> 24;
+  const subX = clamp(s8(fl.subX) / 60, -0.99, 0.99);
+  const subY = clamp(s8(fl.subY) / 60, -0.99, 0.99);
+  const wx = wrapMod(seaScene.wx(fl.addr) + subX, SEA_WORLD_W);
+  const wy = clamp(seaScene.wy(fl.addr) + subY, 0, SEA_WORLD_H - 1);
+  return [wx, wy];
+}
+
+function stepSeaPos(
+  cur: { wx: number; wy: number } | undefined,
+  rawWX: number,
+  rawWY: number,
+  alpha: number,
+  reset: boolean,
+): { wx: number; wy: number } {
+  if (!cur || reset) return { wx: rawWX, wy: rawWY };
+  const dx = wrapSignedDelta(rawWX - cur.wx, SEA_WORLD_W);
+  const dy = rawWY - cur.wy;
+  if (Math.hypot(dx, dy) > 4) return { wx: rawWX, wy: rawWY };
+  return {
+    wx: wrapMod(cur.wx + dx * alpha, SEA_WORLD_W),
+    wy: clamp(cur.wy + dy * alpha, 0, SEA_WORLD_H - 1),
+  };
+}
+
+/** 16:9 全球无缝海面渲染器（结合 subX/subY 与 60fps 平滑船只移动及平滑相机） */
 export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene: any) {
   const art = seaScene.c.art;
   if (!art || !seaScene.wm) return;
@@ -325,25 +465,53 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
 
   const WORLD_W = SEA_WORLD_W;
   const F = seaScene.fleet;
-  const shipWX = ((seaScene.wx(F) % WORLD_W) + WORLD_W) % WORLD_W;
-  const shipWY = seaScene.wy(F);
-  const viewCols = Math.ceil(VIEW_W / TILE); // 40
-  const viewRows = Math.ceil(VIEW_H / TILE); // 23
-  const camWX = (((shipWX - Math.floor(viewCols / 2) + 1) % WORLD_W) + WORLD_W) % WORLD_W;
-  const camWY = Math.max(0, Math.min(SEA_WORLD_H - viewRows, shipWY - Math.floor(viewRows / 2) + 1));
+  const heroFl = fleetByAddr(m, F);
+  const [heroRawWX, heroRawWY] = exactFleetPos(seaScene, heroFl);
 
-  const wrapDeltaX = (wx: number) => {
-    let dx = wx - camWX;
-    if (dx < -WORLD_W / 2) dx += WORLD_W;
-    else if (dx > WORLD_W / 2) dx -= WORLD_W;
-    return dx;
-  };
+  const tNow = nowMs();
+  const gapReset = !seaSmooth || seaSmooth.scene !== seaScene || tNow - seaSmooth.lastMs > 220;
+  const dt = gapReset ? 16 : Math.min(50, Math.max(0, tNow - seaSmooth!.lastMs));
+  const speedScale = Math.max(0.25, seaScene.c?.sys?.timeScale || 1);
+  const shipAlpha = 1 - Math.exp((-24 * Math.max(1, speedScale) * dt) / 1000);
+  const camAlpha = 1 - Math.exp((-12 * Math.max(1, speedScale) * dt) / 1000);
+
+  const fleetsMap = gapReset ? new Map<number, { wx: number; wy: number }>() : seaSmooth!.fleets;
+  const heroSmooth = stepSeaPos(fleetsMap.get(F), heroRawWX, heroRawWY, shipAlpha, gapReset);
+  fleetsMap.set(F, heroSmooth);
+
+  const viewColsF = VIEW_W / TILE; // 40
+  const viewRowsF = VIEW_H / TILE; // 22.5
+  const maxCamWY = SEA_WORLD_H - viewRowsF;
+  const targetCamWX = wrapMod(heroSmooth.wx - (viewColsF / 2 - 1), WORLD_W);
+  const targetCamWY = clamp(heroSmooth.wy - (viewRowsF / 2 - 1), 0, maxCamWY);
+
+  let camWX = targetCamWX;
+  let camWY = targetCamWY;
+  if (!gapReset && seaSmooth) {
+    const cdx = wrapSignedDelta(targetCamWX - seaSmooth.camWX, WORLD_W);
+    const cdy = targetCamWY - seaSmooth.camWY;
+    if (Math.hypot(cdx, cdy) < 5) {
+      camWX = wrapMod(seaSmooth.camWX + cdx * camAlpha, WORLD_W);
+      camWY = clamp(seaSmooth.camWY + cdy * camAlpha, 0, maxCamWY);
+    }
+  }
+  seaSmooth = { scene: seaScene, lastMs: tNow, camWX, camWY, fleets: fleetsMap };
+
+  // 整像素对齐相机，消除平滑海面卷动接缝
+  const camPxX = wrapMod(Math.round(camWX * TILE), WORLD_W * TILE);
+  const camPxY = clamp(Math.round(camWY * TILE), 0, Math.round(maxCamWY * TILE));
+  const baseWX = Math.floor(camPxX / TILE);
+  const baseWY = Math.floor(camPxY / TILE);
+  const offPxX = camPxX - baseWX * TILE;
+  const offPxY = camPxY - baseWY * TILE;
+  const viewCols = Math.ceil((VIEW_W + offPxX) / TILE);
+  const viewRows = Math.ceil((VIEW_H + offPxY) / TILE);
 
   scr._wideSeaCam = {
-    camX: 0,
-    camY: 0,
-    baseWX: camWX,
-    baseWY: camWY,
+    camX: offPxX / TILE,
+    camY: offPxY / TILE,
+    baseWX,
+    baseWY,
     tile: TILE,
     vx1006: seaScene.vx1006,
     vy1008: seaScene.vy1008,
@@ -358,24 +526,33 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
   ctx.imageSmoothingEnabled = false;
 
   for (let r = 0; r < viewRows; r++) {
-    const wy = camWY + r;
+    const wy = baseWY + r;
     if (wy < 0 || wy >= SEA_WORLD_H) continue;
+    const dy = r * TILE - offPxY;
     for (let c = 0; c < viewCols; c++) {
-      const t = getGlobalSeaTile(seaScene, camWX + c, wy);
-      drawSheetTileDirect(ctx, art, "seachip", t, c * TILE, r * TILE, TILE, TILE, scr, true);
+      const t = getGlobalSeaTile(seaScene, baseWX + c, wy);
+      drawSheetTileDirect(ctx, art, "seachip", t, c * TILE - offPxX, dy, TILE, TILE, scr, true);
     }
   }
 
-  // 绘制可见舰队 (主角 + 海上其他舰队)
+  // 绘制可见舰队 (主角 + 海上其他舰队，均随 subX/subY 平滑插值)
   const w = m.globals.weather & 15;
   const Tdir = seaScene.SJ.tab.shipDir;
   const heroId = m.globals.hero;
   const drawOneFleet = (fl: any, k: number, isHero: boolean) => {
-    const fx = wrapDeltaX(seaScene.wx(fl.addr));
-    const fy = seaScene.wy(fl.addr) - camWY;
+    let pos: { wx: number; wy: number };
+    if (isHero) {
+      pos = heroSmooth;
+    } else {
+      const [rwx, rwy] = exactFleetPos(seaScene, fl);
+      pos = stepSeaPos(fleetsMap.get(fl.addr), rwx, rwy, shipAlpha, gapReset);
+      fleetsMap.set(fl.addr, pos);
+    }
+    const fx = wrapSignedDelta(pos.wx - baseWX, WORLD_W);
+    const fy = pos.wy - baseWY;
     if (fx < -2 || fx > viewCols + 1 || fy < -2 || fy > viewRows + 1) return;
-    const sx = fx * TILE;
-    const sy = fy * TILE;
+    const sx = Math.round(fx * TILE) - offPxX;
+    const sy = Math.round(fy * TILE) - offPxY;
     if (sx < -64 || sx > VIEW_W || sy < -64 || sy > VIEW_H) return;
     let si: number;
     if (isHero) {
@@ -403,7 +580,7 @@ export function renderWideSea(ctx: CanvasRenderingContext2D, scr: any, seaScene:
       drawOneFleet(fl, k, fl.addr === F);
     }
   } else {
-    drawOneFleet(fleetByAddr(m, F), 0, true);
+    drawOneFleet(heroFl, 0, true);
   }
 
   drawFloatingHud(seaScene, true);
