@@ -22,6 +22,7 @@ import { MainExit, mainEnding } from "./game/endgame.js";
 import { duelFromScenario } from "./scenes/duel.js";
 import { GameRuntime } from "./core/runtime.ts";
 import { ModernShell } from "./ui/shell.ts";
+import { toggleExpeditionWindow } from "./ui/expedition_window.ts";
 import { ModernGameUI } from "./core/presenter.ts";
 import { ModernScenarioHost } from "./core/scenario_host.ts";
 import { ArtRegistry } from "./core/art_registry.ts";
@@ -81,6 +82,8 @@ async function ensureSaveFile() {
 const runtime = new GameRuntime({ sys, bgm: ctx.bgm, sfx: ctx.sfx });
 const shell = new ModernShell({
   runtime,
+  expeditionEnabled: Boolean(prefs.expeditionConsole),
+  onToggleExpedition: () => toggleExpeditionWindow(ctx),
   saveBridge: {
     getSlots: async () => (await ensureSaveFile()).store?.bundle.slots ?? [],
     getAutoSave: async () => (await ensureSaveFile()).store?.bundle.autoSave ?? null,

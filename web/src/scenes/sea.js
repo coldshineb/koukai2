@@ -17,7 +17,9 @@ import { WorldMap } from "../decoders/worldmap.js";
 import { CellSelect } from "../ui/dos/cellsel.js";
 import { FleetAI } from "../game/fleetai.js";
 import { Land } from "./land.js";
+import { GameConst } from "../model/flags.ts";
 import {
+  WorldConst,
   appendTradeLog,
   discoverWorldCellIfUnseen,
   fleetByAddr,
@@ -277,6 +279,102 @@ export class SeaScene extends PortScene {
     return g(o) >= 0x34 || g(o + 1) >= 0x34 || g(o + 0x60) >= 0x34 || g(o + 0x61) >= 0x34 ? 1 : 0;
   }
 
+  /** 在 (tx, ty) 附近 2×2 可航海域格搜索最接近的停泊点（防止村落坐标落在内陆上卡船） */
+  findNearestSeaCoord(tx, ty) {
+    const wx = ((Math.round(tx) % 0x870) + 0x870) % 0x870;
+    const wy = Math.max(2, Math.min(1076, Math.round(ty)));
+    const item = Math.trunc(wx / 0x2d0) % 3;
+    const cx = Math.max(0, Math.min(0x1b, (Math.trunc(wx / 24) % 30) - 1));
+    const cy = Math.max(0, Math.min(0x2a, Math.trunc(wy / 24) - 1));
+    const tmp = new Uint8Array(0x2400);
+    this.wm.decode(this.m.st, item, 30 * cy + cx, tmp);
+    const ox0 = cx * 24, oy0 = cy * 24;
+    const isSea = (gx, gy) => {
+      const lx = (((gx % 0x870) + 0x870) % 0x870) - item * 0x2d0 - ox0;
+      const ly = gy - oy0;
+      if (lx < 0 || lx >= 70 || ly < 0 || ly >= 70) return false;
+      const o = ly * 0x60 + lx;
+      return tmp[o] < 0x34 && tmp[o + 1] < 0x34 && tmp[o + 0x60] < 0x34 && tmp[o + 0x61] < 0x34;
+    };
+    if (isSea(wx, wy)) return [wx, wy];
+    for (let r = 1; r <= 12; r++) {
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
+          const sx = (wx + dx + 0x870) % 0x870, sy = Math.max(2, Math.min(1076, wy + dy));
+          if (isSea(sx, sy)) return [sx, sy];
+        }
+      }
+    }
+    return [wx, wy];
+  }
+
+  /** 快速传送进指定港口 (0..129)，同步更新舰队世界座标、HUD 与港口场景 */
+  teleportToPort(portId) {
+    const pid = portId & 0xff;
+    if (pid >= WorldConst.TOTAL_PORTS) return false;
+    const m = this.m, g = m.globals, pv = m.port(pid), fl = heroFleet(m);
+    pv.region |= 0x50;
+    fl.x = pv.x; fl.y = pv.y; fl.dir = 8; fl.mission = 0; fl.routeFlags = 0;
+    g.seaFlags2 |= 0x20;
+    const fx = seaS16(pv.x), base = Math.trunc(fx / 0x2d0) * 0x2d0;
+    g.seaViewX = Math.max(base, Math.min(base + 0x2b8, fx - 11));
+    g.seaViewY = Math.max(0, Math.min(0x420, seaS16(pv.y) - 11));
+    if (g.port !== GameConst.EMPTY_SLOT) {
+      g.port = pid;
+      g.lastPort = GameConst.EMPTY_SLOT;
+      this.region = 0xffff;
+      this.loadZa();
+      this.loadPort();
+      const ex = this.door[6] < 0x60 ? this.door[6] : (this.door[0] < 0x60 ? this.door[0] : 24);
+      const ey = this.door[7] < 0x60 ? this.door[7] : (this.door[1] < 0x60 ? this.door[1] : 24);
+      this.vx = Math.max(0, Math.min(0x48, ex - 12));
+      this.vy = Math.max(0, Math.min(0x48, ey - 13));
+      this.hx = Math.max(0, Math.min(23, ex - this.vx));
+      this.hy = Math.max(0, Math.min(23, ey - this.vy + 1));
+      this.bdba = this.vy * 96 + this.vx;
+      this.initNpcs();
+      g.lastPort = pid;
+      this.talkCool = 10;
+      this.toggle = 0;
+      this.needle = 0xff;
+      this.c.palette.selectTimePalette(this.time, false, g.weather);
+      this.redraw();
+      this.panels();
+      this.portBgm();
+      this.c.scr.dirty = true;
+    } else {
+      this._pendingTeleportPort = pid;
+      this.a9c8 &= ~1;
+    }
+    return true;
+  }
+
+  /** 快速传送到指定世界座标附近海域（用于定位港口外海或未发现村落） */
+  teleportToSeaNear(tx, ty) {
+    const [sx, sy] = this.findNearestSeaCoord(tx, ty);
+    const m = this.m, g = m.globals, fl = heroFleet(m);
+    fl.x = sx; fl.y = sy; fl.dir = 8; fl.mission = 0; fl.routeFlags = 0;
+    g.seaFlags2 |= 0x20;
+    const base = Math.trunc(sx / 0x2d0) * 0x2d0;
+    g.seaViewX = Math.max(base, Math.min(base + 0x2b8, sx - 11));
+    g.seaViewY = Math.max(0, Math.min(0x420, sy - 11));
+    if (g.port === GameConst.EMPTY_SLOT) {
+      this.region = 0xffff;
+      this.item = Math.trunc(this.vx1006 / 0x2d0) & 0xff;
+      this.seaView();
+      this.drawMap();
+      this.drawShip();
+      this.seaPanel();
+      this.c.scr.dirty = true;
+    } else {
+      this._pendingTeleportSea = { x: sx, y: sy };
+      g.port = GameConst.EMPTY_SLOT;
+      g.lastPort = GameConst.EMPTY_SLOT;
+    }
+    return [sx, sy];
+  }
+
   // 8067 左侧面板: 状态条 (转向力/推进力/耐久度/吃水量/瞭望范围/水手/船舰状态)、货物 (水/粮食/资材/砲弹)、出港天数; 同时算出瞭望范围 [bdca]
   //   (各船的 +0a 总载重在这里重算写回); 只在海上画, 画两次
   seaPanel() {
@@ -429,6 +527,7 @@ export class SeaScene extends PortScene {
     if (key === 0x30 || key === 0x1b) this.a9c8 |= 1;
     if (this.a9c8 & 1) { key = 0; this.cursor = 0x2570; sys.setCursorShape(0x2570); await menu.waitRelease(); }
     for (;;) {
+      if (this._pendingTeleportPort !== undefined) return;
       if (this.pendingCmd !== undefined) {
         const cmd = this.pendingCmd; this.pendingCmd = undefined;
         await this.runSeaCmd(cmd);

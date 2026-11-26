@@ -141,6 +141,7 @@
       prefs.unlock1552 || prefs.unlockCashCap || prefs.fixItemShopNight || prefs.fixPalaceHeroCaptain || prefs.fixScoutSpeedArgs || prefs.unlockTradeLogCap,
       false);
     eq("default prefs experimental smooth toggles off", prefs.smoothMove || prefs.smoothCamera, false);
+    eq("default prefs expeditionConsole off", prefs.expeditionConsole, false);
     {
       const [mHdr, cHdr] = U.splitLordHeader("所持金     贡献度");
       eq("splitLordHeader money", mHdr, "所持金");

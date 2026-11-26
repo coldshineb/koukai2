@@ -3,10 +3,13 @@ import type { GameRuntime, GameSpeed } from "../core/runtime.ts";
 import { ModernSaveModal } from "./save_modal.ts";
 import type { SaveModalBridge } from "./save_modal.ts";
 import { openTutorialModal } from "./tutorial_modal.ts";
+import { closeExpeditionWindow } from "./expedition_window.ts";
 
 export interface ModernShellDeps {
   runtime: GameRuntime;
   saveBridge: Omit<SaveModalBridge, "onToast">;
+  expeditionEnabled?: boolean;
+  onToggleExpedition?: () => void;
 }
 
 export class ModernShell {
@@ -14,11 +17,16 @@ export class ModernShell {
   readonly saveModal: ModernSaveModal;
   readonly overlay: HTMLElement;
   private pauseBadge: HTMLElement;
+  private expeditionBtn: HTMLButtonElement | null = null;
+  private expeditionEnabled = false;
+  private onToggleExpedition: (() => void) | null = null;
   private toastTimer: number | null = null;
   private toastEl: HTMLElement | null = null;
 
   constructor(deps: ModernShellDeps) {
     this.runtime = deps.runtime;
+    this.expeditionEnabled = Boolean(deps.expeditionEnabled);
+    this.onToggleExpedition = deps.onToggleExpedition ?? null;
     this.overlay = document.getElementById("uw2-overlay") as HTMLElement;
     this.saveModal = new ModernSaveModal({
       ...deps.saveBridge,
@@ -93,6 +101,14 @@ export class ModernShell {
     tutBtn.textContent = "航海教程";
     tutBtn.addEventListener("click", () => { void openTutorialModal(); });
 
+    const expBtn = document.createElement("button");
+    expBtn.className = "uw2-btn uw2-btn-exp";
+    expBtn.textContent = "航海统筹";
+    expBtn.title = "打开独立航海统筹浮窗 (F8)";
+    expBtn.style.display = this.expeditionEnabled ? "inline-flex" : "none";
+    expBtn.addEventListener("click", () => this.onToggleExpedition?.());
+    this.expeditionBtn = expBtn;
+
     const saveBtn = document.createElement("button");
     saveBtn.className = "uw2-btn uw2-btn-primary";
     saveBtn.textContent = "存档管理";
@@ -106,7 +122,7 @@ export class ModernShell {
       else document.exitFullscreen?.().catch(() => {});
     });
 
-    utilGroup.append(tutBtn, saveBtn, fsBtn);
+    utilGroup.append(expBtn, tutBtn, saveBtn, fsBtn);
     controls.append(speedGroup, bgmWrap, sfxWrap, utilGroup);
     bar.replaceChildren(brand, controls);
 
@@ -120,15 +136,29 @@ export class ModernShell {
     });
   }
 
+  syncExpeditionTool(enabled: boolean): void {
+    this.expeditionEnabled = enabled;
+    if (this.expeditionBtn) {
+      this.expeditionBtn.style.display = enabled ? "inline-flex" : "none";
+    }
+    if (!enabled) closeExpeditionWindow();
+  }
+
   private bindHotkeys(): void {
     window.addEventListener("keydown", e => {
+      if (e.key === "F8" && this.expeditionEnabled && document.body.dataset.uw2Modal !== "open") {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        this.onToggleExpedition?.();
+        return;
+      }
       if (document.body.dataset.uw2Modal === "open") return;
       if (!e.altKey) return;
       if (e.code === "KeyP") { e.preventDefault(); this.runtime.togglePause(); }
       else if (e.code === "Digit1") { e.preventDefault(); this.runtime.setSpeed(1); }
       else if (e.code === "Digit2") { e.preventDefault(); this.runtime.setSpeed(2); }
       else if (e.code === "Digit4") { e.preventDefault(); this.runtime.setSpeed(4); }
-    });
+    }, true);
   }
 
   showToast(msg: string, ms = 2400): void {

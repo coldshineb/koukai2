@@ -15,6 +15,7 @@ export interface UserPrefs {
   unlockTradeLogCap: boolean;
   smoothMove: boolean;
   smoothCamera: boolean;
+  expeditionConsole: boolean;
 }
 
 export const PREFS_STORAGE_KEY = "uw2.prefs.v1";
@@ -30,6 +31,7 @@ export const DEFAULT_PREFS: Readonly<UserPrefs> = Object.freeze({
   unlockTradeLogCap: false,
   smoothMove: false,
   smoothCamera: false,
+  expeditionConsole: false,
 });
 
 export function createDefaultPrefs(): UserPrefs {
@@ -53,6 +55,7 @@ export function loadPrefs(): UserPrefs {
     out.unlockTradeLogCap = Boolean(parsed.unlockTradeLogCap);
     out.smoothMove = Boolean(parsed.smoothMove);
     out.smoothCamera = Boolean(parsed.smoothCamera);
+    out.expeditionConsole = Boolean(parsed.expeditionConsole);
   } catch {
     // 忽略损坏的本地存储
   }
@@ -81,7 +84,7 @@ export function addCashClamped(curCash: number, delta: number, ctx: { prefs?: Pa
 }
 
 export interface RuleToggleMeta {
-  key: Exclude<keyof UserPrefs, "bgmPack" | "hdPortTextures">;
+  key: Exclude<keyof UserPrefs, "bgmPack" | "hdPortTextures" | "expeditionConsole">;
   label: string;
   hint: string;
 }

@@ -696,7 +696,7 @@ export class PortScene {
       }
       await sys.poll();
       while (sys.timer.get()) {
-        if (this.pendingCmd !== undefined || this.pmTarget !== undefined) break;
+        if (this.pendingCmd !== undefined || this.pmTarget !== undefined || this.port === GameConst.EMPTY_SLOT) break;
         if (!key && this.c.menu.source()) break;
         await sys.poll();
       }

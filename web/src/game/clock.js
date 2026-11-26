@@ -89,6 +89,14 @@ export class GameClock {
       const sea = this.portScene, sys = this.c.sys;
       await sea.seaInput();                                                          // 1fd9:13c1 = 21151
       if (this.abort()) return;
+      if (sea._pendingTeleportPort !== undefined) {
+        const pid = sea._pendingTeleportPort;
+        sea._pendingTeleportPort = undefined;
+        g.port = pid & 0xff;
+        g.lastPort = GameConst.EMPTY_SLOT;
+        await sea.enter();
+        return;
+      }
       sys.timer.set(1);                                                              // 16a8(1)
       await sea.fleetsMove();                                                        // 1afe8
       if (palette.ending) return;
@@ -101,6 +109,11 @@ export class GameClock {
     await palette.fadeToTarget();
     this.rt.time = (this.rt.time + await this.portScene.action()) & 0xff;            // 1bb07
     if (this.abort()) return;
+    if (this.portScene._pendingTeleportSea) {
+      this.portScene._pendingTeleportSea = undefined;
+      await this.portScene.enterSea();
+      return;
+    }
     if (g.port !== GameConst.EMPTY_SLOT) this.portScene.redraw();                    // 1b1a3
     if (g.dailyFlags & 0x80) this.rt.time = 0x48;
     else if (!palette.invert) {
@@ -171,6 +184,7 @@ export class GameClock {
   }
   // 17546 后半 (1721f) + 1623a 主循环
   async run() {
+    this.c.clock = this;
     const { sys, palette, bgm } = this.c, g = this.m.globals;
     this.c.portAssets ??= await loadPortAssets(this.c);
     this.portScene = new SeaScene(this.c, this.c.portAssets); this.portScene.clock = this;

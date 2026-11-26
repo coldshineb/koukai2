@@ -565,6 +565,7 @@ export function runDomSettingsModal(opts: {
   sliders: DomSettingsSlider[];
   ruleToggles?: DomSettingsToggle[];
   experimentalToggles?: DomSettingsToggle[];
+  assistToggles?: DomSettingsToggle[];
 }): Promise<void> {
   if (!hasDom()) return Promise.resolve();
 
@@ -726,6 +727,10 @@ export function runDomSettingsModal(opts: {
 
     if (opts.experimentalToggles?.length) {
       renderToggleSection("实验性选项（默认关）", opts.experimentalToggles, false);
+    }
+
+    if (opts.assistToggles?.length) {
+      renderToggleSection("辅助与便捷选项（默认关）", opts.assistToggles, false);
     }
 
     h.body.appendChild(wrap);
