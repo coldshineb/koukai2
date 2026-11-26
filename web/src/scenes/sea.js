@@ -1034,7 +1034,7 @@ export class SeaScene extends PortScene {
     return 0;
   }
   // 23a97(T, F, mode): 距离场建好后由舰队沿距离递减走 (最多 256 步, 每步取 8 邻格中最小的; 都不更小时往北), 第一步的方向一直延伸到不再同向的位置 → T
-  //   舰队与目标同一格时 T = 区域左上 (原版如此)。mode ≠ 0 的后半 (再尝试转向) 只有舰队 AI 使用, 尚未移植
+  //   舰队与目标同一格时 T = 区域左上 (原版如此)。mode ≠ 0 时在路线转弯处按原版逻辑先试 方向 ±1 再延伸
   pathStep(f, T, mode) {
     const F = this.asFleet(f), D = this.SJ.tab.path8;
     if (!this.pathField(F, T)) return 0;

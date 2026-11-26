@@ -748,7 +748,15 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats, water_
             # 行1 (t_id >= 16) 且位于 < p2 的多黑线大门下半格/深色屋檐瓦片归为立体建筑，但排除石板路面、台阶与纯地面墙影
             is_arch_walk = (t_id >= 16) and (t_id < p2) and (c0_cnt >= 85) and not np.any(is_water) and not is_ground_shadow_tile and not is_road_curb
             is_walk = (t_id < p2) and not is_arch_walk
-            is_tree_tile = (t_id >= p2) and (int(np.sum((tile_idx == 13) | (tile_idx == 14))) >= 120) and not np.any(is_water) and (c0_cnt >= 8)
+            is_tree_tile = (
+                (t_id >= p2)
+                and not np.any(is_water)
+                and (c0_cnt >= 8)
+                and (
+                    int(np.sum((tile_idx == 13) | (tile_idx == 14))) >= 120
+                    or (set_idx == 3 and t_id in (215, 216, 217, 227, 228))
+                )
+            )
             is_shore_tile = (t_id >= p2) and np.any(is_water) and (int(np.sum((tile_idx == 13) | (tile_idx == 14))) >= 18)
             water_px = int(np.sum(is_water))
             is_flat_beach = (t_id >= p2) and (
@@ -797,13 +805,15 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats, water_
                 sem[is_sand] = 2
                 sem[is_grass] = 3
             elif is_tree_tile:
-                # 仅把与图块外缘草坪 (13/14) 不连通的内部树冠与树干保留为遮挡实体，外围草地归入草坪 sem=3
+                # 仅把与图块外缘草坪 (13/14) 不连通的内部树冠与树干保留为遮挡实体，外围草地/沙地归入对应地表 sem
                 grass_mask = (tile_idx == 13) | (tile_idx == 14)
                 lbl_g, _ = label(grass_mask, structure=np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]], dtype=np.int32))
                 border_ids = set(lbl_g[0, :].tolist()) | set(lbl_g[-1, :].tolist()) | set(lbl_g[:, 0].tolist()) | set(lbl_g[:, -1].tolist())
                 border_ids.discard(0)
-                outer_grass = np.isin(lbl_g, list(border_ids))
-                outer_bg = outer_grass
+                outer_grass = outer_grass | np.isin(lbl_g, list(border_ids))
+                outer_bg = outer_grass | outer_sand
+                if np.any(outer_sand):
+                    sem[outer_sand] = 2
                 sem[outer_grass] = 3
             else:
                 if is_flat_beach:

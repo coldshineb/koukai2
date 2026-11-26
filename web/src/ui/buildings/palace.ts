@@ -63,6 +63,7 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
 
   let tab = 0; // 0: 晋见国王, 1: 势力状况, 2: 许可与归化, 3: 王室援助
   let selRegion = 0;
+  let permConfirm: null | "taxFree" | "naturalize" = null;
   let aidNamingOpen = false;
   let aidShipName = "";
   let notice = initGreet;
@@ -101,7 +102,7 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
           btn.className = `uw2-btn uw2-tab-btn ${tab === idx ? "active" : ""}`;
           btn.disabled = tb.disabled;
           btn.textContent = tb.label;
-          btn.addEventListener("click", () => { tab = idx; aidNamingOpen = false; render(); });
+          btn.addEventListener("click", () => { tab = idx; permConfirm = null; aidNamingOpen = false; render(); });
           shell.toolbar.appendChild(btn);
         });
 
@@ -239,6 +240,7 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
           lomBtn.className = "uw2-row-card";
           lomBtn.textContent = UI_STR.palaceActions.letterOfMarque;
           lomBtn.addEventListener("click", () => {
+            permConfirm = null;
             const target = (palace.nation + 0x1d) & 0xff;
             const slot = palace.invSlot(target);
             if (slot === -1) { notice = capMsg(c, 0x360); render(); return; }
@@ -262,16 +264,15 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
           tfBtn.disabled = !palace.same();
           tfBtn.textContent = UI_STR.palaceActions.taxFree;
           tfBtn.addEventListener("click", () => {
+            permConfirm = null;
             const slot = palace.invSlot(tfTarget);
             if (slot === -1) { notice = capMsg(c, 0x368); render(); return; }
             if (slot === -2) { notice = capMsg(c, 0x361); render(); return; }
-            if (tfCostW > 0) {
-              if (plS16(Math.trunc(palace.money / 10000)) < tfCostW) { notice = capMsg(c, 0x36e); render(); return; }
-              palace.money = (palace.money + Math.imul(tfCostW, -10000)) | 0;
-            }
-            m.setInventory(slot, tfTarget);
-            b.p.panels();
-            notice = capMsg(c, 0x367);
+            permConfirm = "taxFree";
+            const parts = [capMsg(c, 0x369)];
+            if (c.rt.month % 6 < 3) parts.push(capMsg(c, 0x36a));
+            parts.push(tfCostW > 0 ? capMsg(c, 0x36d, tfCostW) : capMsg(c, 0x36b));
+            notice = parts.join("\n");
             render();
           });
 
@@ -281,23 +282,73 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
           natBtn.disabled = !canNaturalize;
           natBtn.textContent = UI_STR.palaceActions.naturalize;
           natBtn.addEventListener("click", () => {
-            const hero = m.heroPerson();
-            const oldNat = hero.face & 7, newNat = palace.nation;
-            hero.face = (hero.face & 0xf0) | newNat;
-            m.fleet(hero.fleet).homePort = b.port;
-            const country = m.country(newNat);
-            const ce = getCountryExtra(country);
-            if (ce.rival === 7) ce.rival = 6;
-            country.aidMoneyK = 0; ce.clearAidExtra(); country.aidShipType = 0;
-            const oldVal = hd.getCountryStanding(oldNat);
-            if (oldVal >= 30) hd.setCountryStanding(oldNat, (oldVal - 30) & 0xff);
-            hd.setCountryStanding(newNat, plUmax(100, plUmin(hd.getCountryStanding(newNat) + 10, 200)));
-            b.p.panels();
-            notice = capMsg(c, 0x1cc);
+            permConfirm = "naturalize";
+            notice = capMsg(c, 0x1ca, palace.heroName());
             render();
           });
 
           box.append(lomBtn, tfBtn, natBtn);
+
+          if (permConfirm) {
+            const cCard = document.createElement("div");
+            cCard.className = "uw2-action-box";
+            cCard.style.cssText = "margin-top:6px;padding:12px;border-radius:8px;background:rgba(255,252,242,0.85);border:1px solid rgba(154,119,56,0.34);";
+            const actRow = document.createElement("div");
+            actRow.style.cssText = "display:flex;gap:8px;justify-content:flex-end;";
+
+            const noBtn = document.createElement("button");
+            noBtn.type = "button";
+            noBtn.className = "uw2-btn";
+            noBtn.textContent = "否";
+            noBtn.addEventListener("click", () => {
+              const kind = permConfirm;
+              permConfirm = null;
+              notice = kind === "naturalize" ? capMsg(c, 0x1cb) : initGreet;
+              render();
+            });
+
+            const yesBtn = document.createElement("button");
+            yesBtn.type = "button";
+            yesBtn.className = "uw2-btn uw2-btn-primary";
+            yesBtn.textContent = "是";
+            yesBtn.addEventListener("click", () => {
+              const kind = permConfirm;
+              permConfirm = null;
+              if (kind === "taxFree") {
+                const slot = palace.invSlot(tfTarget);
+                if (slot === -1) { notice = capMsg(c, 0x368); render(); return; }
+                if (slot === -2) { notice = capMsg(c, 0x361); render(); return; }
+                if (tfCostW > 0) {
+                  if (plS16(Math.trunc(palace.money / 10000)) < tfCostW) { notice = capMsg(c, 0x36e); render(); return; }
+                  palace.money = (palace.money + Math.imul(tfCostW, -10000)) | 0;
+                }
+                m.setInventory(slot, tfTarget);
+                b.p.panels();
+                notice = capMsg(c, 0x367);
+                render();
+                return;
+              }
+              const hero = m.heroPerson();
+              const oldNat = hero.face & 7, newNat = palace.nation;
+              hero.face = (hero.face & 0xf0) | newNat;
+              m.fleet(hero.fleet).homePort = b.port;
+              const country = m.country(newNat);
+              const ce = getCountryExtra(country);
+              if (ce.rival === 7) ce.rival = 6;
+              country.aidMoneyK = 0; ce.clearAidExtra(); country.aidShipType = 0;
+              const oldVal = hd.getCountryStanding(oldNat);
+              if (oldVal >= 30) hd.setCountryStanding(oldNat, (oldVal - 30) & 0xff);
+              hd.setCountryStanding(newNat, plUmax(100, plUmin(hd.getCountryStanding(newNat) + 10, 200)));
+              b.p.panels();
+              notice = capMsg(c, 0x1cc);
+              render();
+            });
+
+            actRow.append(noBtn, yesBtn);
+            cCard.appendChild(actRow);
+            box.appendChild(cCard);
+          }
+
           right.appendChild(box);
         } else {
           const rt = document.createElement("div");
@@ -400,7 +451,7 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
               if (trimmed) {
                 const enc = encodeTextForFont(c.font, trimmed);
                 if (!enc) {
-                  notice = "船名包含无法编码的字符，请重新输入。";
+                  notice = capMsg(c, 0x22b);
                   render();
                   return;
                 }

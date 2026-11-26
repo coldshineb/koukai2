@@ -399,6 +399,7 @@ class ShipyardMixin {
     si.maxGuns = T.maxGuns; si.type = t;
     si.flags = tmpl.flags; si.maxCrew = tmpl.maxCrew;
     si.maxCargo = (T.capacity - si.maxGuns - si.maxCrew) & 0xffff;
+    writeShipName(si, tmpl.nameBytes);
     const d = Math.trunc(9 * T.durability / 10) & 0xffff;
     S.maxDurability = (d - Math.trunc((d & 0xff) / 15)) & 0xff; S.durability = S.maxDurability;
     S.turn = T.turn; S.propulsion = T.propulsion;
@@ -411,12 +412,10 @@ class ShipyardMixin {
     M.loadTotal = 0; M.figurehead = 0;
     for (let k = 0; k < GameConst.CARGO_SLOTS; k++) { M.setCargoGoods(k, GameConst.EMPTY_SLOT); M.setCargoAmts(k, 0); }
     this.greet(0xc7);
+    const oldName = si.nameBytes.slice();
     const ni = this.nameInput();
-    for (;;) {
-      ni.prompt(2, 7);
-      if ((await ni.run(si.addr, 7)) === 1) break;
-      await win.close();
-    }
+    ni.prompt(2, 7);
+    if ((await ni.run(si.addr, 7)) !== 1) writeShipName(si, oldName);
     await win.close();
   }
   // 2b2f2 船员栏第一个职务 ≥ 3 的人 → b2f7

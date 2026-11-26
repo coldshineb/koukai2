@@ -28,6 +28,7 @@ import {
   personRawBytes,
   shipSlotByAddr,
   toggleSpritePhase,
+  writeShipName,
 } from "../model/world_helpers.ts";
 import { hasDom, runDomStoryCard } from "../ui/modals.ts";
 import { BATTLE_VIEWPORT, renderWideBattle, hideDomBattleHud, runDomBattleFleetModal, runDomBattlePersonModal, runDomBattleCrewModal, runDomBattleShipModal, runDomBattleOrdersModal, runDomBattleSignal, runDomBattleShipOrders } from "../ui/battle_hud.ts";
@@ -2336,6 +2337,7 @@ export class NavalBattle {
     D.ship = n; D.flags = S.flags;
     N.maxGuns = R.maxGuns; N.type = R.type; N.flags = R.flags;
     N.maxCrew = R.maxCrew; N.maxCargo = R.maxCargo;
+    writeShipName(N, R.nameBytes);
     if (M) {
       M.water = 0; M.food = 0; M.material = 0; M.ammo = 0;
       M.navRatio = 0x19; M.lookRatio = 0x32; M.captain = capt; M.morale = 0x3c;
@@ -2345,8 +2347,10 @@ export class NavalBattle {
     m.person(capt).role = 2;
     if (this.c.scr.wideRenderer) b.beginWideTalk(null); else await this.scWin(0);
     this.c.message(0x22d);
+    const oldName = N.nameBytes.slice();
     const ni = b.nameInput();
-    for (;;) { ni.prompt(2, 7); if ((await ni.run(N.addr, 7)) === 1) break; await b.closeTalk(); }   // 2e09:29a0 / 26a5
+    ni.prompt(2, 7);
+    if ((await ni.run(N.addr, 7)) !== 1) writeShipName(N, oldName);
     await b.closeTalk();
   }
   // 10984 声望 ([9bfb] 为奇数时不做)

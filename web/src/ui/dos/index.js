@@ -6,6 +6,7 @@ import { MenuSystem } from "./menu.js";
 import { Graph } from "./graph.js";
 import { cprintf } from "./printf.js";
 import { Kao } from "../../decoders/kao.js";
+import { toSimp } from "../t2s.ts";
 
 export async function createUI(ctx) {
   const gfx = new Uint8Array(0x4000);
@@ -33,7 +34,7 @@ export async function createUI(ctx) {
   const message = (n, ...args) => {
     cprintf(encodeMessage(n), args, ch => con.putc(ch));
   };
-  const messageText = n => (msgText[n] ?? "").replace(/\{[0-9A-F]{2}\}/g, "");
+  const messageText = n => toSimp((msgText[n] ?? "").replace(/\{[0-9A-F]{2}\}/g, "").replace(/\uE2BE/g, "十"));
   const printf = (fmt, ...args) => cprintf(typeof fmt === "string" ? ctx.font.encode(fmt + "\0") : fmt, args, ch => con.putc(ch));
   // 2e09:57aa 读 MENU.DAT 第 n 条: {宽}{项数} + 各项字符串 → 字节数组 (各含结尾 0)
   // 开头 2 bytes = {宽}{项数}; 宽为 0x0A 时 menu.json 写成 "\n" 而不是 "{0A}"
