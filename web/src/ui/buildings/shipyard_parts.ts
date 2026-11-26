@@ -1,7 +1,7 @@
 // ui/buildings/shipyard_parts.ts — 造船厂工作台共用子组件与剩余货物分配弹窗（从 shipyard.ts 拆分）
 import { GameConst, ShipSlotFlag, SkillFlag } from "../../model/flags.ts";
 import { heroOrDockSlot, heroShipSlot } from "../../model/world_helpers.ts";
-import { createDomModal, preserveScroll } from "../modals.ts";
+import { createDomModal, preserveScroll, runDomYesNo } from "../modals.ts";
 import { decodeCleanCstr, toSimp } from "../text_util.ts";
 import { capMsg } from "./shared.ts";
 
@@ -268,11 +268,11 @@ export function mountNegotiateAndNameBox(opts: {
   opts.box.appendChild(priceWrap);
 }
 
-/** 买旧船 / 交船折抵旧船后，将超出新船容量的货物分配到舰队其余船只 */
+/** 将待分配的补给或货物装入舰队各船只（供粮食掠夺、战利品分配及折抵余货共用） */
 export async function runDomLeftoversModal(b: any, lg: number[], la: number[]): Promise<void> {
   const m = b.m, codec = b.c.codec;
   const dec = (bts: Uint8Array) => toSimp(decodeCleanCstr(codec, bts));
-  const supNames = ["水", "食物", "资材", "炮弹"];
+  const supNames = ["水", "粮食", "资材", "炮弹"];
   const goodsNames: Uint8Array[] = b.LO?.goods ?? [];
   let selLeft = 0;
 
@@ -297,11 +297,11 @@ export async function runDomLeftoversModal(b: any, lg: number[], la: number[]): 
     }
     return out;
   };
-  const putIntoShip = (leftItem: { idx: number; code: number; name: string; amt: number }, shipSlot: number) => {
+  const putIntoShip = (leftItem: { idx: number; code: number; name: string; amt: number }, shipSlot: number): number => {
     const S = heroOrDockSlot(m, shipSlot), ship = m.ship(S.ship);
     const free = Math.max(0, ship.maxCargo - b.cargoUsed(shipSlot));
-    if (free <= 0) return;
-    const move = Math.min(leftItem.amt, free);
+    if (free <= 0 || la[leftItem.idx] <= 0) return 0;
+    const move = Math.min(la[leftItem.idx], free);
     const M = m.crewSlot(shipSlot), g = leftItem.code;
     if (g & 0x80) {
       const k = g & 0x7f;
@@ -317,67 +317,122 @@ export async function runDomLeftoversModal(b: any, lg: number[], la: number[]): 
         if (cg === g) { j = k; break; }
         if (cg === GameConst.EMPTY_SLOT && j < 0) j = k;
       }
-      if (j < 0) return;
+      if (j < 0) return 0;
       M.setCargoGoods(j, g);
       M.setCargoAmts(j, M.getCargoAmts(j) + move);
     }
     la[leftItem.idx] -= move;
     if (la[leftItem.idx] <= 0) lg[leftItem.idx] = 0xff;
-    b.loadTotal(shipSlot);
+    M.loadTotal = b.loadTotal(shipSlot);
+    return move;
+  };
+  const autoFillAll = () => {
+    let movedTotal = 0;
+    for (const item of getLefts()) {
+      for (const sh of getShips()) {
+        if (la[item.idx] <= 0) break;
+        movedTotal += putIntoShip(item, sh.slot);
+      }
+    }
+    return movedTotal;
   };
 
-  await new Promise<void>(resolve => {
-    const h = createDomModal({
-      title: "剩余货物分配",
-      size: "wide",
-      cancelable: true,
-      closeLabel: "完成",
-      onCancel: () => resolve(),
+  for (;;) {
+    const exitReason = await new Promise<"done" | "cancel">(resolve => {
+      let settled = false;
+      const done = (r: "done" | "cancel") => {
+        if (settled) return;
+        settled = true;
+        resolve(r);
+      };
+      const h = createDomModal({
+        title: "物资与货物分配",
+        size: "wide",
+        cancelable: true,
+        closeLabel: "完成",
+        onCancel: () => done("cancel"),
+      });
+      const render = () => {
+        preserveScroll(h.body, () => {
+          h.body.innerHTML = "";
+          const lefts = getLefts();
+          const ships = getShips();
+          if (!lefts.length) { h.close(); done("done"); return; }
+          if (selLeft >= lefts.length) selLeft = 0;
+
+          const topBar = document.createElement("div");
+          topBar.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap;";
+          const hint = document.createElement("div");
+          hint.style.cssText = "font-size:13px;color:var(--uw2-muted,#5d4628);";
+          const anyFree = ships.some(s => s.free > 0);
+          hint.textContent = anyFree
+            ? "选择左侧待分配物资，点击右侧船只装入，或点击「一键装入舰队」。"
+            : "当前全舰队船舱已满（空余 0），无法继续装载，点击「完成」可放弃剩余物资。";
+          const autoBtn = document.createElement("button");
+          autoBtn.type = "button";
+          autoBtn.className = "uw2-btn uw2-btn-primary";
+          autoBtn.textContent = "一键装入舰队";
+          autoBtn.disabled = !anyFree;
+          autoBtn.addEventListener("click", () => {
+            const moved = autoFillAll();
+            if (moved > 0) b.c.shell?.showToast?.(`已自动装入 ${moved} 单位物资到舰队`);
+            render();
+          });
+          topBar.append(hint, autoBtn);
+          h.body.appendChild(topBar);
+
+          const split = document.createElement("div");
+          split.className = "uw2-split";
+
+          const lCol = document.createElement("div");
+          lCol.className = "uw2-pane";
+          lCol.innerHTML = `<div class="uw2-pane-title">待分配物资</div>`;
+          const lList = document.createElement("div");
+          lList.className = "uw2-list-col";
+          lefts.forEach((it, i) => {
+            const btn = document.createElement("button");
+            btn.className = `uw2-row-card ${i === selLeft ? "selected" : ""}`;
+            btn.innerHTML = `<span style="font-weight:700;">${it.name}</span><strong>${it.amt}</strong>`;
+            btn.addEventListener("click", () => { selLeft = i; render(); });
+            lList.appendChild(btn);
+          });
+          lCol.appendChild(lList);
+
+          const rCol = document.createElement("div");
+          rCol.className = "uw2-pane";
+          rCol.innerHTML = `<div class="uw2-pane-title">点击目标舰船装入「${lefts[selLeft].name}」</div>`;
+          const rList = document.createElement("div");
+          rList.className = "uw2-list-col";
+          ships.forEach(s => {
+            const btn = document.createElement("button");
+            btn.className = "uw2-row-card";
+            btn.disabled = s.free <= 0;
+            btn.innerHTML = `<span style="font-weight:700;">${s.name}</span><span>空余 ${s.free} (${s.used}/${s.max})</span>`;
+            btn.addEventListener("click", () => {
+              const moved = putIntoShip(lefts[selLeft], s.slot);
+              if (moved > 0) b.c.shell?.showToast?.(`${s.name} 已装入 ${lefts[selLeft].name} ×${moved}`);
+              render();
+            });
+            rList.appendChild(btn);
+          });
+          rCol.appendChild(rList);
+
+          split.append(lCol, rCol);
+          h.body.appendChild(split);
+        }, true);
+      };
+      render();
     });
-    const render = () => {
-      preserveScroll(h.body, () => {
-        h.body.innerHTML = "";
-        const lefts = getLefts();
-        const ships = getShips();
-        if (!lefts.length) { h.close(); resolve(); return; }
-        if (selLeft >= lefts.length) selLeft = 0;
 
-        const split = document.createElement("div");
-        split.className = "uw2-split";
-
-        const lCol = document.createElement("div");
-        lCol.className = "uw2-pane";
-        lCol.innerHTML = `<div class="uw2-pane-title">未装载货物</div>`;
-        const lList = document.createElement("div");
-        lList.className = "uw2-list-col";
-        lefts.forEach((it, i) => {
-          const btn = document.createElement("button");
-          btn.className = `uw2-row-card ${i === selLeft ? "selected" : ""}`;
-          btn.innerHTML = `<span style="font-weight:700;">${it.name}</span><strong>${it.amt}</strong>`;
-          btn.addEventListener("click", () => { selLeft = i; render(); });
-          lList.appendChild(btn);
-        });
-        lCol.appendChild(lList);
-
-        const rCol = document.createElement("div");
-        rCol.className = "uw2-pane";
-        rCol.innerHTML = `<div class="uw2-pane-title">点击目标舰船装入「${lefts[selLeft].name}」</div>`;
-        const rList = document.createElement("div");
-        rList.className = "uw2-list-col";
-        ships.forEach(s => {
-          const btn = document.createElement("button");
-          btn.className = "uw2-row-card";
-          btn.disabled = s.free <= 0;
-          btn.innerHTML = `<span style="font-weight:700;">${s.name}</span><span>空余 ${s.free} (${s.used}/${s.max})</span>`;
-          btn.addEventListener("click", () => { putIntoShip(lefts[selLeft], s.slot); render(); });
-          rList.appendChild(btn);
-        });
-        rCol.appendChild(rList);
-
-        split.append(lCol, rCol);
-        h.body.appendChild(split);
-      }, true);
-    };
-    render();
-  });
+    if (exitReason === "done" || !getLefts().length) break;
+    const discard = await runDomYesNo(
+      "尚有未装船的物资，未装入部分将被放弃。\n确定放弃剩余物资并继续吗？",
+      "放弃剩余",
+      "返回分配",
+    );
+    if (discard) {
+      b.c.shell?.showToast?.("已放弃剩余未装载物资");
+      break;
+    }
+  }
 }

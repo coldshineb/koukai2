@@ -209,6 +209,7 @@ class ShipyardMixin {
   }
   // 1e628 舰队表 (不保存背景)
   fleetTable() {
+    if (this.c.scr.wideRenderer && hasDom()) return;
     const m = this.m, { win, con, printf } = this.c, F = this.LO.fmt;
     let n = 0;
     for (let i = 0; i < GameConst.FLEET_SHIPS; i++) if ((heroShipSlot(m, i).flags & ShipSlotFlag.STATE_MASK) === ShipSlotFlag.ACTIVE) n++;
@@ -339,6 +340,10 @@ class ShipyardMixin {
   }
   // 1fcf7 (0fea:fe57) 剩余货物分配: 选舰队的船 → 装卸; Esc → 确认 (还有剩 0xd3 / 全部装完 0xdb)
   async distribute(lg, la) {
+    if (this.c.scr.wideRenderer && hasDom() && this.c.codec) {
+      await runDomLeftoversModal(this, lg, la);
+      return;
+    }
     const { win, menu, con, message } = this.c, R = menu.rects;
     win.shadowedSaved(0x3a, 0x40, 0x14, 0xd0, 1);
     this.leftList(lg, la);

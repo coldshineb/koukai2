@@ -363,9 +363,7 @@ export class SeaScene extends PortScene {
       this.region = 0xffff;
       this.item = Math.trunc(this.vx1006 / 0x2d0) & 0xff;
       this.seaView();
-      this.drawMap();
-      this.drawShip();
-      this.seaPanel();
+      if (!this.c.scr.wideRenderer) this.drawFleet(fl, 0, true);
       this.c.scr.dirty = true;
     } else {
       this._pendingTeleportSea = { x: sx, y: sy };
@@ -1739,11 +1737,15 @@ export class SeaScene extends PortScene {
       scr.dirty = true;
       sys.mouseShow();
       let res = 0xff;
+      let lastVx = sys.mouse?.vx ?? -1, lastVy = sys.mouse?.vy ?? -1;
       try {
         for (;;) {
           const vx = sys.mouse?.vx ?? -1, vy = sys.mouse?.vy ?? -1;
-          const hov = hitIdx(vx, vy);
-          if (hov >= 0 && hov !== menu.cur) { menu.cur = hov; scr.dirty = true; }
+          if (vx !== lastVx || vy !== lastVy) {
+            lastVx = vx; lastVy = vy;
+            const hov = hitIdx(vx, vy);
+            if (hov >= 0 && hov !== menu.cur) { menu.cur = hov; scr.dirty = true; }
+          }
           const k = menu.readEvent();
           if (k === 0x1b || k === 0x30) { res = 0xff; break; }
           if (k === 0x0d) {
