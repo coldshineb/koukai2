@@ -472,7 +472,7 @@ export function mountCargoShipEditor(opts: CargoEditorOptions): { syncInPlace: (
     if (!lefts.length) {
       const okPill = document.createElement("span");
       okPill.style.cssText = "font-size:12px;font-weight:700;color:#226b3f;background:rgba(45,138,82,0.14);padding:2px 8px;border-radius:999px;";
-      okPill.textContent = opts.poolEmptyText ?? "暂存区为空（减下本船物资可移入此处，切换其他船只即可装入）";
+      okPill.textContent = opts.poolEmptyText ?? "空";
       poolWrap.appendChild(okPill);
     } else {
       for (const it of lefts) {
@@ -489,7 +489,7 @@ export function mountCargoShipEditor(opts: CargoEditorOptions): { syncInPlace: (
     const shipMax = shipObj.maxCargo;
     const shipUsed = b.cargoUsed(shipSlot);
     const shipFree = Math.max(0, shipMax - shipUsed);
-    rTitle.textContent = `调配「${shipName}」船舱（空余 ${shipFree} · 已用 ${shipUsed}/${shipMax}，可加装或减回暂存区）`;
+    rTitle.textContent = `${shipName} · 空余 ${shipFree} (${shipUsed}/${shipMax})`;
 
     let cargoKinds = 0;
     for (let k = 0; k < GameConst.CARGO_SLOTS; k++) {
@@ -654,7 +654,7 @@ export async function runDomLeftoversModal(b: any, lg: number[], la: number[]): 
 
           const lCol = document.createElement("div");
           lCol.className = "uw2-pane";
-          lCol.innerHTML = `<div class="uw2-pane-title">1. 选择舰队船只（可多船分装）</div>`;
+          lCol.innerHTML = `<div class="uw2-pane-title">舰队船只</div>`;
           const lList = document.createElement("div");
           lList.className = "uw2-list-col";
 
@@ -692,8 +692,8 @@ export async function runDomLeftoversModal(b: any, lg: number[], la: number[]): 
             shipSlot: curShip.slot,
             shipName: curShip.name,
             container: rCol,
-            poolPrefix: "待分配物资：",
-            poolEmptyText: "已全部装船（可继续跨船微调，点「完成」确认）",
+            poolPrefix: "待分配：",
+            poolEmptyText: "已全部装船",
             autoBtnLabel: "一键装入舰队",
             onAutoFillDone: (_moved, rem) => {
               if (rem === 0) { h.close(); done("done"); return true; }

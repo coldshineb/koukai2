@@ -168,6 +168,44 @@ export function runDomFleetHub(cmd: any): Promise<void> {
 
       preserveScroll(h.body, () => {
       h.body.innerHTML = "";
+      if (activeTab === 2) {
+        const posts = scanPosts();
+        const grid = document.createElement("div");
+        grid.className = "uw2-pers-grid";
+        for (let k = 0; k < 3; k++) {
+          const pid = posts[k];
+          const card = document.createElement("button");
+          card.className = "uw2-pers-card";
+          const roleEl = document.createElement("div");
+          roleEl.style.cssText = "font-weight:700;color:#8a5d17;font-size:16px;";
+          roleEl.textContent = roleLabels[k];
+          const img = document.createElement("img");
+          img.className = "uw2-portrait-img";
+          img.style.width = "84px";
+          img.style.height = "105px";
+          const nameEl = document.createElement("div");
+          nameEl.style.cssText = "font-weight:700;font-size:15px;color:var(--uw2-ink);";
+          if (pid !== GameConst.EMPTY_SLOT) {
+            const p = m.person(pid);
+            nameEl.textContent = dec(p.givenNameBytes);
+            void getPersonPortraitSrc(art, personRawBytes(p)).then(src => { if (src) img.src = src; });
+          } else {
+            nameEl.textContent = "----";
+          }
+          card.append(roleEl, img, nameEl);
+          card.addEventListener("click", async () => {
+            if (!b.crewCount()) { toastMsg = cmd.cap(() => c.message(0xe5)); render(); return; }
+            toastMsg = "";
+            cmd.posts = scanPosts();
+            await cmd.setPost(k);
+            render();
+          });
+          grid.appendChild(card);
+        }
+        h.body.appendChild(grid);
+        return;
+      }
+
       const split = document.createElement("div");
       split.className = "uw2-split narrow-left";
 
@@ -298,39 +336,6 @@ export function runDomFleetHub(cmd: any): Promise<void> {
           rBox.appendChild(card);
         }
         right.append(sBox, rBox);
-      } else if (activeTab === 2) {
-        const posts = scanPosts();
-        const grid = document.createElement("div");
-        grid.className = "uw2-pers-grid";
-        for (let k = 0; k < 3; k++) {
-          const pid = posts[k];
-          const card = document.createElement("button");
-          card.className = "uw2-pers-card";
-          const roleEl = document.createElement("div");
-          roleEl.style.cssText = "font-weight:700;color:#8a5d17;font-size:15px;";
-          roleEl.textContent = roleLabels[k];
-          const img = document.createElement("img");
-          img.className = "uw2-portrait-img";
-          img.style.width = "84px";
-          img.style.height = "105px";
-          const nameEl = document.createElement("div");
-          nameEl.style.cssText = "font-weight:700;font-size:15px;color:var(--uw2-ink);";
-          if (pid !== GameConst.EMPTY_SLOT) {
-            const p = m.person(pid);
-            nameEl.textContent = dec(p.givenNameBytes);
-            void getPersonPortraitSrc(art, personRawBytes(p)).then(src => { if (src) img.src = src; });
-          } else {
-            nameEl.textContent = "----";
-          }
-          card.append(roleEl, img, nameEl);
-          card.addEventListener("click", async () => {
-            cmd.posts = scanPosts();
-            await cmd.setPost(k);
-            render();
-          });
-          grid.appendChild(card);
-        }
-        right.appendChild(grid);
       } else if (activeTab === 3 && curShip) {
         mountCargoShipEditor({
           b,
@@ -340,7 +345,7 @@ export function runDomFleetHub(cmd: any): Promise<void> {
           shipName: curShip.name,
           container: right,
           poolPrefix: "暂存区：",
-          poolEmptyText: "暂存区为空（从某船减下水/粮/资材/炮弹/货物移入暂存区，再切船装入）",
+          poolEmptyText: "空",
           autoBtnLabel: "一键装回舰队",
           onAutoFillDone: () => {
             render();
