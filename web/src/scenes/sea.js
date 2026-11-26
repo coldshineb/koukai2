@@ -457,6 +457,8 @@ export class SeaScene extends PortScene {
     this.c.menu.wideAnchorCmd = cmd;
     try {
       await [() => cm.info(), () => cm.manage(), () => cm.order(), () => cm.nav()][cmd]();
+    } catch (err) {
+      console.error("runSeaCmd error:", err);
     } finally {
       this.c.menu.wideAnchorCmd = -1;
       sys.mouseShow();
@@ -1648,6 +1650,7 @@ export class SeaScene extends PortScene {
       n++;
     }
     menu.count = n;                                                    // [a158]
+    if (!n) return;
     const sel = await this.pickRect();                                 // 0fea:37d1
     if (sel === 0xff) return;
     const x = Math.trunc(seaS16(Pn[2 * sel] - 0x60) / 16), y = Math.trunc(seaS16(Pn[2 * sel + 1] - 8) / 16);
@@ -1674,11 +1677,20 @@ export class SeaScene extends PortScene {
   // 0fea:37d1 = 13671 以点击区选择 (数字键 4 / 6 循环, Enter 确定, Esc / '0' 取消 → 0xff); [a160] 不重设 (超出时才归 0)
   async pickRect() {
     const { sys, menu, scr } = this.c;
-    if (scr.wideRenderer && scr._wideSeaCam) {
+    if (scr.wideRenderer) {
       await menu.waitRelease();
+      if (sys.mouse) sys.mouse.lastClick = null;
       if (menu.count <= menu.cur) menu.cur = 0;
+      const getCam = () => {
+        if (scr._wideSeaCam) return scr._wideSeaCam;
+        const vw = scr.viewW || 1280, vh = scr.viewH || 760, tile = 48;
+        const F = this.fleet;
+        const baseWX = ((this.wx(F) - Math.floor(vw / tile / 2 - 1)) % 0x870 + 0x870) % 0x870;
+        const baseWY = Math.max(0, Math.min(1080 - vh / tile, this.wy(F) - Math.floor(vh / tile / 2 - 1)));
+        return { camX: 0, camY: 0, baseWX, baseWY, tile, viewW: vw, viewH: vh, vx1006: this.vx1006, vy1008: this.vy1008, worldW: 0x870 };
+      };
       const toBox = i => {
-        const cam = scr._wideSeaCam;
+        const cam = getCam();
         const r = menu.rects[i];
         const col = Math.trunc((r.x0 - 0x60) / 16);
         const row = Math.trunc((r.y0 - 8) / 16);
@@ -1733,6 +1745,13 @@ export class SeaScene extends PortScene {
         }
         return -1;
       };
+      let rightCancelled = false;
+      const onContext = e => {
+        if (document.body?.dataset.uw2Modal === "open") return;
+        e.preventDefault();
+        rightCancelled = true;
+      };
+      if (typeof window !== "undefined") window.addEventListener("contextmenu", onContext, true);
       scr.wideOverlays.push(drawFn);
       scr.dirty = true;
       sys.mouseShow();
@@ -1740,11 +1759,20 @@ export class SeaScene extends PortScene {
       let lastVx = sys.mouse?.vx ?? -1, lastVy = sys.mouse?.vy ?? -1;
       try {
         for (;;) {
+          if (rightCancelled) { res = 0xff; break; }
           const vx = sys.mouse?.vx ?? -1, vy = sys.mouse?.vy ?? -1;
+          const hov = hitIdx(vx, vy);
           if (vx !== lastVx || vy !== lastVy) {
             lastVx = vx; lastVy = vy;
-            const hov = hitIdx(vx, vy);
             if (hov >= 0 && hov !== menu.cur) { menu.cur = hov; scr.dirty = true; }
+          }
+          if (sys.mouse?.lastClick) {
+            const lc = sys.mouse.lastClick;
+            sys.mouse.lastClick = null;
+            const hit = hitIdx(lc.vx, lc.vy);
+            if (hit >= 0) { menu.cur = hit; res = hit; }
+            else { res = 0xff; }
+            break;
           }
           const k = menu.readEvent();
           if (k === 0x1b || k === 0x30) { res = 0xff; break; }
@@ -1761,6 +1789,8 @@ export class SeaScene extends PortScene {
           await sys.poll();
         }
       } finally {
+        if (typeof window !== "undefined") window.removeEventListener("contextmenu", onContext, true);
+        if (sys.mouse) sys.mouse.lastClick = null;
         const idx = scr.wideOverlays.indexOf(drawFn);
         if (idx >= 0) scr.wideOverlays.splice(idx, 1);
         scr.dirty = true;
