@@ -2030,7 +2030,7 @@ export async function openDomSettings(ctx) {
     assistToggles: [
       {
         label: "航海统筹面板",
-        hint: "开启后可通过顶部栏「航海统筹」或按 F8 打开独立浮窗：快速传送港口、查验未发现村落、编辑角色数值/金币/航海家信息",
+        hint: "开启后可通过顶部栏「航海统筹」或按 F8 打开独立浮窗：快速传送港口、查验未发现村落、编辑角色数值/金币/航海家/船舰信息",
         onText: "开",
         offText: "关",
         get: () => Boolean(prefs.expeditionConsole),

@@ -6,18 +6,22 @@ import {
   WorldConst,
   fleetShipSlot,
   heroFleet,
+  heroOrDockSlot,
   personRawBytes,
   toS16,
+  writeShipName,
 } from "../model/world_helpers.ts";
+import { calcCargoUsed, calcShipLoadTotal } from "../domain/fleet.ts";
 import { getCashCap } from "../core/prefs.ts";
 import { ListSelect } from "./dos/listsel.js";
 import { getPersonPortraitSrc, hasDom } from "./modals.ts";
 import { decodeCleanCstr, toSimp } from "./text_util.ts";
 
-type TabId = "ports" | "villages" | "hero" | "navigators";
+type TabId = "ports" | "villages" | "hero" | "navigators" | "ships";
 type PortFilter = "all" | "normal" | "supply" | "found" | "unfound";
 type VillageFilter = "unfound_active" | "sea_found" | "known_unrep" | "supply_unfound" | "all_disc";
 type NavFilter = "party" | "free" | "admirals" | "all";
+type ShipFilter = "fleet" | "dock" | "all_slots";
 
 interface WinState {
   root: HTMLElement | null;
@@ -32,6 +36,9 @@ interface WinState {
   navSearch: string;
   navFilter: NavFilter;
   selectedPersonId: number;
+  shipFilter: ShipFilter;
+  selectedShipSlot: number;
+  newShipType: number;
   colonyFallback: string[] | null;
   loadingColony: boolean;
   posX: number | null;
@@ -51,6 +58,9 @@ const state: WinState = {
   navSearch: "",
   navFilter: "party",
   selectedPersonId: 0,
+  shipFilter: "fleet",
+  selectedShipSlot: 0,
+  newShipType: 0,
   colonyFallback: null,
   loadingColony: false,
   posX: null,
@@ -333,6 +343,7 @@ function renderContents(): void {
     ["villages", "未发现村落"],
     ["hero", "主角与金币"],
     ["navigators", "航海家与舰队"],
+    ["ships", "船舰与积载"],
   ];
   for (const [id, label] of tabDefs) {
     const b = document.createElement("button");
@@ -350,7 +361,8 @@ function renderContents(): void {
   if (state.activeTab === "ports") renderPortsTab(body, ctx);
   else if (state.activeTab === "villages") renderVillagesTab(body, ctx);
   else if (state.activeTab === "hero") renderHeroTab(body, ctx);
-  else renderNavigatorsTab(body, ctx);
+  else if (state.activeTab === "navigators") renderNavigatorsTab(body, ctx);
+  else renderShipsTab(body, ctx);
 
   win.replaceChildren(head, tabs, body);
   body.scrollTop = oldScroll;
@@ -1194,6 +1206,584 @@ function renderNavigatorsTab(root: HTMLElement, ctx: any): void {
     }
     statBox.append(statFields, skillsRow);
     right.append(headBox, metaBox, statBox);
+  }
+
+  split.append(left, right);
+  root.append(ctrl, split);
+}
+
+function expHexBytes(s: string): Uint8Array {
+  const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16)));
+  const o = new Uint8Array(b.length + 1);
+  o.set(b);
+  return o;
+}
+
+function getShipHelperNames(ctx: any): {
+  cannons: string[];
+  figureheads: string[];
+  goods: string[];
+  gunWeight: number[];
+} {
+  const data = ctx?.portAssets?.data;
+  const cannonsRaw: string[] = data?.build?.cannons ?? [];
+  const figRaw: string[] = data?.build?.figureheads ?? [];
+  const goodsRaw: string[] = data?.goods ?? [];
+  const gunWeight: number[] = data?.leftover?.gunWeight ?? [0, 20, 13, 10, 15, 11, 4, 15];
+  const cannons = Array.from({ length: 8 }, (_, i) =>
+    (cannonsRaw[i] ? decText(ctx, expHexBytes(cannonsRaw[i])) : "") || (i === 0 ? "无武装" : `火炮 #${i}`),
+  );
+  const figureheads = Array.from({ length: 11 }, (_, i) =>
+    i === 0
+      ? "无船首像"
+      : (figRaw[i - 1] ? decText(ctx, expHexBytes(figRaw[i - 1])) : "") || `船首像 #${i}`,
+  );
+  const goods = Array.from({ length: 46 }, (_, i) =>
+    (goodsRaw[i] ? decText(ctx, expHexBytes(goodsRaw[i])) : "") || `商品 #${i}`,
+  );
+  return { cannons, figureheads, goods, gunWeight };
+}
+
+function computeSlotCargoUsed(m: any, slotIdx: number): number {
+  const cs = m.crewSlot(slotIdx);
+  const goods: number[] = [];
+  const amts: number[] = [];
+  for (let k = 0; k < GameConst.CARGO_SLOTS; k++) {
+    goods.push(cs.getCargoGoods(k));
+    amts.push(cs.getCargoAmts(k));
+  }
+  return calcCargoUsed(cs.water, cs.food, cs.material, cs.ammo, goods, amts);
+}
+
+function recalcShipSlotLoad(m: any, slotIdx: number, gunWeight: number[]): void {
+  const slot = heroOrDockSlot(m, slotIdx);
+  const cs = m.crewSlot(slotIdx);
+  const used = computeSlotCargoUsed(m, slotIdx);
+  cs.loadTotal = calcShipLoadTotal(used, gunWeight[slot.flags & 7] ?? 0, slot.guns, slot.crew);
+}
+
+function spawnShipIntoSlot(ctx: any, targetSlot: number, shipTypeId: number, gunWeight: number[]): boolean {
+  const m = ctx.state.model;
+  let shipRecIdx = -1;
+  for (let i = 0; i < 40; i++) {
+    if (m.ship(i).type === GameConst.EMPTY_SLOT) {
+      shipRecIdx = i;
+      break;
+    }
+  }
+  if (shipRecIdx < 0) return false;
+  const t = Math.max(0, Math.min(24, shipTypeId));
+  const tmpl = m.ship(40 + t);
+  const stype = m.shipType(t);
+  const rec = m.ship(shipRecIdx);
+  rec.type = t;
+  rec.flags = tmpl.flags;
+  rec.maxGuns = tmpl.maxGuns;
+  rec.maxCrew = tmpl.maxCrew;
+  rec.maxCargo = Math.max(0, stype.capacity - rec.maxGuns - rec.maxCrew);
+  writeShipName(rec, tmpl.nameBytes);
+
+  const d0 = Math.trunc((9 * stype.durability) / 10);
+  const dur = Math.max(10, d0 - Math.trunc((d0 & 0xff) / 15));
+  const slot = heroOrDockSlot(m, targetSlot);
+  slot.ship = shipRecIdx;
+  slot.flags = targetSlot < 10 ? ShipSlotFlag.ACTIVE : ShipSlotFlag.BUILDING;
+  slot.maxDurability = dur & 0xff;
+  slot.durability = dur & 0xff;
+  slot.turn = stype.turn;
+  slot.propulsion = stype.propulsion;
+  slot.guns = 0;
+  slot.crew = 0;
+
+  let capId = m.globals.hero;
+  if (targetSlot < 10) {
+    const usedCaps = new Set<number>();
+    for (let i = 0; i < GameConst.FLEET_SHIPS; i++) {
+      if (i === targetSlot) continue;
+      const ss = heroOrDockSlot(m, i);
+      if ((ss.flags & ShipSlotFlag.STATE_MASK) === ShipSlotFlag.ACTIVE) usedCaps.add(m.crewSlot(i).captain);
+    }
+    if (usedCaps.has(capId)) {
+      for (let i = 0; i < GameConst.PARTY_SLOTS; i++) {
+        const p = m.partyCrew(i);
+        if (p !== GameConst.EMPTY_SLOT && !usedCaps.has(p)) {
+          capId = p;
+          break;
+        }
+      }
+    }
+  } else {
+    capId = 0x80;
+  }
+
+  const cs = m.crewSlot(targetSlot);
+  cs.water = 0;
+  cs.food = 0;
+  cs.material = 0;
+  cs.ammo = 0;
+  cs.navRatio = 25;
+  cs.lookRatio = 50;
+  cs.morale = 100;
+  cs.figurehead = 0;
+  cs.captain = capId;
+  for (let k = 0; k < GameConst.CARGO_SLOTS; k++) {
+    cs.setCargoGoods(k, GameConst.EMPTY_SLOT);
+    cs.setCargoAmts(k, 0);
+  }
+  recalcShipSlotLoad(m, targetSlot, gunWeight);
+  return true;
+}
+
+function renderShipsTab(root: HTMLElement, ctx: any): void {
+  const m = ctx.state.model;
+  const g = m.globals;
+  const { cannons, figureheads, goods, gunWeight } = getShipHelperNames(ctx);
+
+  let activeCount = 0;
+  for (let i = 0; i < GameConst.FLEET_SHIPS; i++) {
+    if ((heroOrDockSlot(m, i).flags & ShipSlotFlag.STATE_MASK) === ShipSlotFlag.ACTIVE) activeCount++;
+  }
+  const dockList: number[] = [];
+  for (let i = 10; i < 40; i++) {
+    if ((heroOrDockSlot(m, i).flags & ShipSlotFlag.STATE_MASK) !== 0) dockList.push(i);
+  }
+
+  const ctrl = document.createElement("div");
+  ctrl.className = "uw2-exp-ctrl";
+  const chips = makeChipRow<ShipFilter>(
+    [
+      ["fleet", `我方现役 (${activeCount})`],
+      ["dock", `船坞/建造 (${dockList.length})`],
+      ["all_slots", "舰队全船位 (10)"],
+    ],
+    state.shipFilter,
+    v => { state.shipFilter = v; renderContents(); },
+  );
+
+  // 新增舰船快捷栏
+  const addBar = document.createElement("div");
+  addBar.className = "uw2-group";
+  const typeSel = document.createElement("select");
+  typeSel.className = "uw2-input";
+  for (let t = 0; t < 25; t++) {
+    const o = document.createElement("option");
+    o.value = String(t);
+    o.textContent = `${t}: ${decText(ctx, m.ship(40 + t).nameBytes) || `船型 #${t}`}`;
+    if (state.newShipType === t) o.selected = true;
+    typeSel.appendChild(o);
+  }
+  typeSel.addEventListener("change", () => { state.newShipType = Number(typeSel.value) || 0; });
+
+  const addBtn = document.createElement("button");
+  addBtn.type = "button";
+  addBtn.className = "uw2-btn uw2-btn-primary";
+  addBtn.textContent = "新建加入舰队";
+  addBtn.addEventListener("click", () => {
+    let freeSlot = -1;
+    for (let i = 0; i < GameConst.FLEET_SHIPS; i++) {
+      if ((heroOrDockSlot(m, i).flags & ShipSlotFlag.STATE_MASK) === 0) {
+        freeSlot = i;
+        break;
+      }
+    }
+    if (freeSlot < 0) {
+      syncGameVisuals(ctx, "舰队 10 个船位已满，请先移除或清空一个船位");
+      return;
+    }
+    if (!spawnShipIntoSlot(ctx, freeSlot, state.newShipType, gunWeight)) {
+      syncGameVisuals(ctx, "全局船只记录池 (40 艘) 已满");
+      return;
+    }
+    state.selectedShipSlot = freeSlot;
+    if (state.shipFilter === "dock") state.shipFilter = "fleet";
+    syncGameVisuals(ctx, `已在船位 #${freeSlot + 1} 新建舰船`);
+    renderContents();
+  });
+  addBar.append(typeSel, addBtn);
+  ctrl.append(chips, addBar);
+
+  const visibleSlots: number[] = [];
+  if (state.shipFilter === "fleet") {
+    for (let i = 0; i < GameConst.FLEET_SHIPS; i++) {
+      if ((heroOrDockSlot(m, i).flags & ShipSlotFlag.STATE_MASK) === ShipSlotFlag.ACTIVE) visibleSlots.push(i);
+    }
+  } else if (state.shipFilter === "dock") {
+    visibleSlots.push(...dockList);
+  } else {
+    for (let i = 0; i < GameConst.FLEET_SHIPS; i++) visibleSlots.push(i);
+  }
+  if (!visibleSlots.includes(state.selectedShipSlot) && visibleSlots.length) {
+    state.selectedShipSlot = visibleSlots[0];
+  }
+
+  const split = document.createElement("div");
+  split.className = "uw2-split narrow-left";
+  const left = document.createElement("div");
+  left.className = "uw2-list-col uw2-exp-list";
+  for (const sIdx of visibleSlots) {
+    const slotView = heroOrDockSlot(m, sIdx);
+    const hasShip = (slotView.flags & ShipSlotFlag.STATE_MASK) !== 0 && slotView.ship < 40;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = `uw2-row-card ${sIdx === state.selectedShipSlot ? "selected" : ""}`;
+    if (hasShip) {
+      const rec = m.ship(slotView.ship);
+      const sName = decText(ctx, rec.nameBytes) || `船只 #${slotView.ship}`;
+      const tName = decText(ctx, m.ship(40 + rec.type).nameBytes);
+      const cs = m.crewSlot(sIdx);
+      const capName = cs.captain < WorldConst.TOTAL_PERSONS ? decText(ctx, m.person(cs.captain).givenNameBytes) : "保管中";
+      btn.innerHTML = `<span style="font-weight:700;">#${sIdx + 1} ${sName}</span>`
+        + `<span class="uw2-slot-sub">${tName} · 耐久${slotView.durability}/${slotView.maxDurability} · 水手${slotView.crew}/${rec.maxCrew} · ${capName}</span>`;
+    } else {
+      btn.innerHTML = `<span style="font-weight:700;">#${sIdx + 1}（空船位）</span><span class="uw2-slot-sub">可在此新增舰船</span>`;
+    }
+    btn.addEventListener("click", () => { state.selectedShipSlot = sIdx; renderContents(); });
+    left.appendChild(btn);
+  }
+  if (!visibleSlots.length) {
+    const empty = document.createElement("div");
+    empty.className = "uw2-tut-empty";
+    empty.textContent = "当前筛选下无舰船（可上方选择船型并点击「新建加入舰队」）";
+    left.appendChild(empty);
+  }
+
+  const right = document.createElement("div");
+  right.className = "uw2-pane";
+  const sIdx = state.selectedShipSlot;
+  const slotView = heroOrDockSlot(m, sIdx);
+  const isOccupied = (slotView.flags & ShipSlotFlag.STATE_MASK) !== 0 && slotView.ship < 40;
+
+  if (!visibleSlots.includes(sIdx)) {
+    const emptyR = document.createElement("div");
+    emptyR.className = "uw2-tut-empty";
+    emptyR.textContent = "暂无选中船只";
+    right.appendChild(emptyR);
+  } else if (!isOccupied) {
+    const box = document.createElement("div");
+    box.className = "uw2-action-box";
+    const info = document.createElement("div");
+    info.className = "uw2-exp-sub";
+    info.textContent = `船位 #${sIdx + 1} 当前为空，可使用上方所选船型直接配置一艘新船。`;
+    const mkBtn = document.createElement("button");
+    mkBtn.type = "button";
+    mkBtn.className = "uw2-btn uw2-btn-primary";
+    mkBtn.textContent = `在船位 #${sIdx + 1} 新建舰船`;
+    mkBtn.addEventListener("click", () => {
+      if (spawnShipIntoSlot(ctx, sIdx, state.newShipType, gunWeight)) {
+        syncGameVisuals(ctx, `已在船位 #${sIdx + 1} 新建舰船`);
+        renderContents();
+      }
+    });
+    box.append(info, mkBtn);
+    right.appendChild(box);
+  } else {
+    const rec = m.ship(slotView.ship);
+    const cs = m.crewSlot(sIdx);
+    const curShipName = decText(ctx, rec.nameBytes);
+
+    // 1. 头部：船图、改名与快捷操作
+    const headBox = document.createElement("div");
+    headBox.className = "uw2-action-box";
+    headBox.style.cssText = "flex-direction:row;align-items:center;gap:12px;";
+    const shipImgUrl = ctx.art?.shipUrl?.(rec.type);
+    if (shipImgUrl) {
+      const img = document.createElement("img");
+      img.src = shipImgUrl;
+      img.style.cssText = "width:96px;height:72px;object-fit:contain;border-radius:8px;background:#102036;border:1px solid rgba(154,119,56,0.45);padding:4px;";
+      headBox.appendChild(img);
+    }
+    const hRight = document.createElement("div");
+    hRight.style.cssText = "flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;";
+    const nameRow = document.createElement("div");
+    nameRow.className = "uw2-group";
+    const nameInp = document.createElement("input");
+    nameInp.type = "text";
+    nameInp.className = "uw2-input";
+    nameInp.maxLength = 14;
+    nameInp.value = curShipName;
+    nameInp.style.maxWidth = "180px";
+    const renameBtn = document.createElement("button");
+    renameBtn.type = "button";
+    renameBtn.className = "uw2-btn";
+    renameBtn.textContent = "改名";
+    renameBtn.addEventListener("click", () => {
+      const txt = nameInp.value.trim();
+      if (!txt || !ctx.font) return;
+      try {
+        writeShipName(rec, ctx.font.encode(txt));
+        syncGameVisuals(ctx, `已改名为 ${txt}`);
+        renderContents();
+      } catch {
+        syncGameVisuals(ctx, "船名含字库未收录字符，未能改名");
+      }
+    });
+    nameRow.append(nameInp, renameBtn);
+
+    const actRow = document.createElement("div");
+    actRow.className = "uw2-group";
+    const fullBtn = document.createElement("button");
+    fullBtn.type = "button";
+    fullBtn.className = "uw2-btn uw2-btn-primary";
+    fullBtn.textContent = "一键满状态";
+    fullBtn.addEventListener("click", () => {
+      slotView.durability = slotView.maxDurability;
+      slotView.crew = rec.maxCrew;
+      slotView.guns = rec.maxGuns;
+      cs.morale = 100;
+      const room = Math.max(0, rec.maxCargo - computeSlotCargoUsed(m, sIdx));
+      if (room >= 20) {
+        const share = Math.min(200, Math.floor(room / 3));
+        cs.water += share * 10;
+        cs.food += share * 10;
+        cs.material += Math.min(40, room - share * 2);
+      }
+      recalcShipSlotLoad(m, sIdx, gunWeight);
+      syncGameVisuals(ctx, `${curShipName || "舰船"} 已补满耐久、水手与武装`);
+      renderContents();
+    });
+
+    const resetBtn = document.createElement("button");
+    resetBtn.type = "button";
+    resetBtn.className = "uw2-btn";
+    resetBtn.textContent = "按船型重置上限";
+    resetBtn.addEventListener("click", () => {
+      const t = Math.max(0, Math.min(24, rec.type));
+      const tmpl = m.ship(40 + t);
+      const stype = m.shipType(t);
+      rec.flags = tmpl.flags;
+      rec.maxGuns = tmpl.maxGuns;
+      rec.maxCrew = tmpl.maxCrew;
+      rec.maxCargo = Math.max(0, stype.capacity - rec.maxGuns - rec.maxCrew);
+      const d0 = Math.trunc((9 * stype.durability) / 10);
+      const dur = Math.max(10, d0 - Math.trunc((d0 & 0xff) / 15));
+      slotView.maxDurability = dur & 0xff;
+      slotView.durability = dur & 0xff;
+      slotView.turn = stype.turn;
+      slotView.propulsion = stype.propulsion;
+      recalcShipSlotLoad(m, sIdx, gunWeight);
+      syncGameVisuals(ctx, "已按当前船型规格刷新上限与基准性能");
+      renderContents();
+    });
+
+    const delBtn = document.createElement("button");
+    delBtn.type = "button";
+    delBtn.className = "uw2-btn";
+    delBtn.textContent = "移除此船";
+    delBtn.addEventListener("click", () => {
+      rec.type = GameConst.EMPTY_SLOT;
+      slotView.flags = 0;
+      slotView.ship = GameConst.EMPTY_SLOT;
+      slotView.crew = 0;
+      slotView.guns = 0;
+      cs.loadTotal = 0;
+      syncGameVisuals(ctx, `已清空船位 #${sIdx + 1}`);
+      renderContents();
+    });
+
+    actRow.append(fullBtn, resetBtn, delBtn);
+    hRight.append(nameRow, actRow);
+    headBox.appendChild(hRight);
+
+    // 2. 船型、船长、武装与性能属性
+    const specBox = document.createElement("div");
+    specBox.className = "uw2-action-box";
+    const specTitle = document.createElement("div");
+    specTitle.className = "uw2-pane-title";
+    specTitle.textContent = `船位 #${sIdx + 1} · 船体、武装与船员参数`;
+    const specFields = document.createElement("div");
+    specFields.className = "uw2-exp-fields";
+
+    const shipTypeField = document.createElement("div");
+    shipTypeField.className = "uw2-exp-field";
+    const stl = document.createElement("label"); stl.textContent = "船种";
+    const stSel = document.createElement("select"); stSel.className = "uw2-input";
+    for (let t = 0; t < 25; t++) {
+      const o = document.createElement("option");
+      o.value = String(t);
+      o.textContent = decText(ctx, m.ship(40 + t).nameBytes) || `船型 #${t}`;
+      if (rec.type === t) o.selected = true;
+      stSel.appendChild(o);
+    }
+    stSel.addEventListener("change", () => {
+      rec.type = Number(stSel.value) & 0xff;
+      syncGameVisuals(ctx);
+      renderContents();
+    });
+    shipTypeField.append(stl, stSel);
+
+    // 船长选项：主角 + 在队成员 + 当前船长
+    const capCandidates = new Set<number>([g.hero]);
+    for (let i = 0; i < GameConst.PARTY_SLOTS; i++) {
+      const pid = m.partyCrew(i);
+      if (pid !== GameConst.EMPTY_SLOT) capCandidates.add(pid);
+    }
+    if (cs.captain < WorldConst.TOTAL_PERSONS) capCandidates.add(cs.captain);
+    const capField = document.createElement("div");
+    capField.className = "uw2-exp-field";
+    const capLbl = document.createElement("label"); capLbl.textContent = "船长";
+    const capSel = document.createElement("select"); capSel.className = "uw2-input";
+    if (cs.captain >= WorldConst.TOTAL_PERSONS) {
+      const o = document.createElement("option");
+      o.value = String(cs.captain);
+      o.textContent = `保管/建造 (${cs.captain})`;
+      o.selected = true;
+      capSel.appendChild(o);
+    }
+    for (const pid of capCandidates) {
+      const pv = m.person(pid);
+      const o = document.createElement("option");
+      o.value = String(pid);
+      o.textContent = `#${pid} ${decText(ctx, pv.givenNameBytes)}`;
+      if (cs.captain === pid) o.selected = true;
+      capSel.appendChild(o);
+    }
+    capSel.addEventListener("change", () => {
+      cs.captain = Number(capSel.value) & 0xff;
+      syncGameVisuals(ctx);
+    });
+    capField.append(capLbl, capSel);
+
+    const gunField = document.createElement("div");
+    gunField.className = "uw2-exp-field";
+    const gunLbl = document.createElement("label"); gunLbl.textContent = "炮种";
+    const gunSel = document.createElement("select"); gunSel.className = "uw2-input";
+    cannons.forEach((cn, idx) => {
+      const o = document.createElement("option");
+      o.value = String(idx);
+      o.textContent = cn;
+      if ((slotView.flags & ShipSlotFlag.CANNON_MASK) === idx) o.selected = true;
+      gunSel.appendChild(o);
+    });
+    gunSel.addEventListener("change", () => {
+      slotView.flags = (slotView.flags & ~ShipSlotFlag.CANNON_MASK) | (Number(gunSel.value) & ShipSlotFlag.CANNON_MASK);
+      recalcShipSlotLoad(m, sIdx, gunWeight);
+      syncGameVisuals(ctx);
+      renderContents();
+    });
+    gunField.append(gunLbl, gunSel);
+
+    const figField = document.createElement("div");
+    figField.className = "uw2-exp-field";
+    const figLbl = document.createElement("label"); figLbl.textContent = "船首像";
+    const figSel = document.createElement("select"); figSel.className = "uw2-input";
+    figureheads.forEach((fn, idx) => {
+      const o = document.createElement("option");
+      o.value = String(idx);
+      o.textContent = fn;
+      if (cs.figurehead === idx) o.selected = true;
+      figSel.appendChild(o);
+    });
+    figSel.addEventListener("change", () => {
+      cs.figurehead = Number(figSel.value) & 0xff;
+      syncGameVisuals(ctx);
+    });
+    figField.append(figLbl, figSel);
+
+    specFields.append(
+      shipTypeField,
+      capField,
+      gunField,
+      figField,
+      makeNumEditor("当前耐久", slotView.durability, 0, 255, v => { slotView.durability = v; syncGameVisuals(ctx); }),
+      makeNumEditor("最大耐久", slotView.maxDurability, 1, 255, v => { slotView.maxDurability = v; syncGameVisuals(ctx); }),
+      makeNumEditor("转向力", slotView.turn, 0, 255, v => { slotView.turn = v; syncGameVisuals(ctx); }),
+      makeNumEditor("推进力", slotView.propulsion, 0, 255, v => { slotView.propulsion = v; syncGameVisuals(ctx); }),
+      makeNumEditor("当前水手", slotView.crew, 0, 9999, v => {
+        slotView.crew = v;
+        recalcShipSlotLoad(m, sIdx, gunWeight);
+        syncGameVisuals(ctx);
+      }),
+      makeNumEditor("水手上限", rec.maxCrew, 1, 9999, v => { rec.maxCrew = v; syncGameVisuals(ctx); }),
+      makeNumEditor("当前火炮", slotView.guns, 0, 255, v => {
+        slotView.guns = v;
+        recalcShipSlotLoad(m, sIdx, gunWeight);
+        syncGameVisuals(ctx);
+      }),
+      makeNumEditor("火炮上限", rec.maxGuns, 0, 255, v => { rec.maxGuns = v; syncGameVisuals(ctx); }),
+      makeNumEditor("货舱上限", rec.maxCargo, 0, 9999, v => { rec.maxCargo = v; syncGameVisuals(ctx); }),
+      makeNumEditor("船体材质标志", rec.flags, 0, 255, v => { rec.flags = v; syncGameVisuals(ctx); }),
+      makeNumEditor("水手士气", cs.morale, 0, 100, v => { cs.morale = v; syncGameVisuals(ctx); }),
+      makeNumEditor("驾驶比例 %", cs.navRatio, 0, 100, v => { cs.navRatio = v; syncGameVisuals(ctx); }),
+      makeNumEditor("瞭望比例 %", cs.lookRatio, 0, 100, v => { cs.lookRatio = v; syncGameVisuals(ctx); }),
+    );
+    specBox.append(specTitle, specFields);
+
+    // 3. 补给与 5 格货舱
+    const cargoBox = document.createElement("div");
+    cargoBox.className = "uw2-action-box";
+    const usedCargo = computeSlotCargoUsed(m, sIdx);
+    const cargoTitle = document.createElement("div");
+    cargoTitle.className = "uw2-pane-title";
+    cargoTitle.textContent = `补给与货舱积载（已用 ${usedCargo} / ${rec.maxCargo} · 总载重 ${cs.loadTotal}）`;
+
+    const supFields = document.createElement("div");
+    supFields.className = "uw2-exp-fields";
+    const updateSup = (fn: () => void) => {
+      fn();
+      recalcShipSlotLoad(m, sIdx, gunWeight);
+      syncGameVisuals(ctx);
+      renderContents();
+    };
+    supFields.append(
+      makeNumEditor("水 (桶)", Math.floor(cs.water / 10), 0, 5000, v => updateSup(() => { cs.water = v * 10; })),
+      makeNumEditor("粮食 (桶)", Math.floor(cs.food / 10), 0, 5000, v => updateSup(() => { cs.food = v * 10; })),
+      makeNumEditor("资材", cs.material, 0, 5000, v => updateSup(() => { cs.material = v; })),
+      makeNumEditor("炮弹", cs.ammo, 0, 5000, v => updateSup(() => { cs.ammo = v; })),
+    );
+
+    const holdWrap = document.createElement("div");
+    holdWrap.style.cssText = "display:flex;flex-direction:column;gap:6px;margin-top:4px;";
+    for (let k = 0; k < GameConst.CARGO_SLOTS; k++) {
+      const row = document.createElement("div");
+      row.className = "uw2-group";
+      const lbl = document.createElement("span");
+      lbl.style.cssText = "min-width:54px;font-size:12px;font-weight:700;";
+      lbl.textContent = `货格 ${k + 1}`;
+      const gSel = document.createElement("select");
+      gSel.className = "uw2-input";
+      const emptyOpt = document.createElement("option");
+      emptyOpt.value = String(GameConst.EMPTY_SLOT);
+      emptyOpt.textContent = "（空）";
+      if (cs.getCargoGoods(k) === GameConst.EMPTY_SLOT) emptyOpt.selected = true;
+      gSel.appendChild(emptyOpt);
+      goods.forEach((gn, gi) => {
+        const o = document.createElement("option");
+        o.value = String(gi);
+        o.textContent = gn;
+        if (cs.getCargoGoods(k) === gi) o.selected = true;
+        gSel.appendChild(o);
+      });
+      const amtInp = document.createElement("input");
+      amtInp.type = "number";
+      amtInp.min = "0";
+      amtInp.max = "9999";
+      amtInp.className = "uw2-input";
+      amtInp.style.maxWidth = "96px";
+      amtInp.value = String(cs.getCargoAmts(k));
+
+      gSel.addEventListener("change", () => {
+        const gv = Number(gSel.value) & 0xff;
+        cs.setCargoGoods(k, gv);
+        if (gv === GameConst.EMPTY_SLOT) cs.setCargoAmts(k, 0);
+        else if (cs.getCargoAmts(k) <= 0) cs.setCargoAmts(k, 10);
+        recalcShipSlotLoad(m, sIdx, gunWeight);
+        syncGameVisuals(ctx);
+        renderContents();
+      });
+      amtInp.addEventListener("change", () => {
+        const av = Math.max(0, Math.min(9999, Math.round(Number(amtInp.value) || 0)));
+        cs.setCargoAmts(k, av);
+        if (av === 0) cs.setCargoGoods(k, GameConst.EMPTY_SLOT);
+        recalcShipSlotLoad(m, sIdx, gunWeight);
+        syncGameVisuals(ctx);
+        renderContents();
+      });
+      row.append(lbl, gSel, amtInp);
+      holdWrap.appendChild(row);
+    }
+
+    cargoBox.append(cargoTitle, supFields, holdWrap);
+    right.append(headBox, specBox, cargoBox);
   }
 
   split.append(left, right);
