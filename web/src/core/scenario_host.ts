@@ -3,7 +3,7 @@
 import type { IScenarioHost, ScenarioWindowDef } from "../ui/dos/protocol.ts";
 import { GameConst } from "../model/flags.ts";
 import { stripEscBytes, toSimp } from "../ui/text_util.ts";
-import { runDomMenu, runDomYesNo, waitDomContinue } from "../ui/modals.ts";
+import { waitDomContinue } from "../ui/modals.ts";
 
 export interface ModernScenarioDeps {
   runDuel: (scenario: any, person: number) => Promise<void>;
@@ -22,7 +22,6 @@ export class ModernScenarioHost implements IScenarioHost {
   private buffer = "";
   private activePictureWin = false;
   private readonly windowFaces = new Map<ScenarioWindowDef, number | null>();
-  private curFaceId: number | null = null;
 
   constructor(ctx: any, root: HTMLElement, getScene: () => any, deps: ModernScenarioDeps) {
     this.c = ctx;
@@ -68,12 +67,10 @@ export class ModernScenarioHost implements IScenarioHost {
     this.textEl = null;
     this.portraitImg = null;
     this.buffer = "";
-    this.curFaceId = null;
     this.windowFaces.clear();
   }
 
   private syncPortrait(faceId: number | null): void {
-    this.curFaceId = faceId;
     const img = this.portraitImg;
     if (!img) return;
     if (faceId !== null && faceId >= 0 && faceId < 128) {
@@ -83,6 +80,12 @@ export class ModernScenarioHost implements IScenarioHost {
         img.style.display = "block";
         return;
       }
+    }
+    const fallbackUrl = this.c?.scenarioFallbackArtUrl;
+    if (fallbackUrl) {
+      img.src = fallbackUrl;
+      img.style.display = "block";
+      return;
     }
     img.removeAttribute("src");
     img.style.display = "none";
@@ -152,29 +155,104 @@ export class ModernScenarioHost implements IScenarioHost {
 
   async selectMenu(items: Uint8Array[]): Promise<number> {
     const labels = items.map(it => this.decodeBytes(it).replace(/[\s\u3000]+/g, ""));
-    const card = this.cardEl;
-    if (card) card.style.display = "none";
-    try {
-      return await runDomMenu(labels, 0, false, "请选择", this.buffer, {
-        art: this.c.art,
-        portraitId: this.curFaceId,
+    if (labels.length === 0) return 0;
+    this.ensureCard();
+    const body = this.textEl?.parentElement;
+    if (!body) return 0;
+    return await new Promise<number>(resolve => {
+      let settled = false;
+      let cursor = 0;
+      const row = document.createElement("div");
+      row.className = "uw2-scenario-menu";
+      const btns: HTMLButtonElement[] = [];
+      const finish = (idx: number) => {
+        if (settled) return;
+        settled = true;
+        window.removeEventListener("keydown", onKey, true);
+        row.remove();
+        resolve(idx);
+      };
+      labels.forEach((lbl, i) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = `uw2-btn ${i === 0 ? "uw2-btn-primary" : ""}`;
+        btn.textContent = lbl;
+        btn.addEventListener("click", () => finish(i));
+        btns.push(btn);
+        row.appendChild(btn);
       });
-    } finally {
-      if (card) card.style.display = "";
-    }
+      const focusAt = (next: number) => {
+        cursor = (next + btns.length) % btns.length;
+        btns.forEach((b, i) => { b.className = `uw2-btn ${i === cursor ? "uw2-btn-primary" : ""}`; });
+        btns[cursor]?.focus();
+      };
+      const onKey = (e: KeyboardEvent) => {
+        if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+          e.preventDefault(); e.stopImmediatePropagation(); focusAt(cursor - 1);
+        } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+          e.preventDefault(); e.stopImmediatePropagation(); focusAt(cursor + 1);
+        } else if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault(); e.stopImmediatePropagation(); finish(cursor);
+        }
+      };
+      window.addEventListener("keydown", onKey, true);
+      body.appendChild(row);
+      btns[0]?.focus();
+    });
   }
 
   async confirmYesNo(): Promise<boolean> {
+    this.ensureCard();
     const card = this.cardEl;
-    if (card) card.style.display = "none";
-    try {
-      return !!(await runDomYesNo(this.buffer, "是", "否", {
-        art: this.c.art,
-        portraitId: this.curFaceId,
-      }));
-    } finally {
-      if (card) card.style.display = "";
-    }
+    if (!card) return false;
+    return await new Promise<boolean>(resolve => {
+      let settled = false;
+      const row = document.createElement("div");
+      row.className = "uw2-dialog-actions";
+      const finish = (ans: boolean) => {
+        if (settled) return;
+        settled = true;
+        window.removeEventListener("keydown", onKey, true);
+        window.removeEventListener("contextmenu", onContext, true);
+        row.remove();
+        resolve(ans);
+      };
+      const noBtn = document.createElement("button");
+      noBtn.type = "button";
+      noBtn.className = "uw2-step-btn";
+      noBtn.style.padding = "8px 20px";
+      noBtn.textContent = "否";
+      noBtn.addEventListener("click", e => { e.stopPropagation(); finish(false); });
+
+      const yesBtn = document.createElement("button");
+      yesBtn.type = "button";
+      yesBtn.className = "uw2-btn uw2-btn-primary";
+      yesBtn.style.padding = "8px 22px";
+      yesBtn.textContent = "是";
+      yesBtn.addEventListener("click", e => { e.stopPropagation(); finish(true); });
+
+      const onKey = (e: KeyboardEvent) => {
+        if (e.key === "Escape" || e.key === "n" || e.key === "N") {
+          e.preventDefault(); e.stopImmediatePropagation(); finish(false);
+        } else if (e.key === "y" || e.key === "Y") {
+          e.preventDefault(); e.stopImmediatePropagation(); finish(true);
+        } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+          e.preventDefault(); e.stopImmediatePropagation();
+          (document.activeElement === noBtn ? yesBtn : noBtn).focus();
+        } else if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault(); e.stopImmediatePropagation();
+          finish(document.activeElement !== noBtn);
+        }
+      };
+      const onContext = (e: MouseEvent) => {
+        e.preventDefault(); e.stopImmediatePropagation(); finish(false);
+      };
+      window.addEventListener("keydown", onKey, true);
+      window.addEventListener("contextmenu", onContext, true);
+      row.append(noBtn, yesBtn);
+      card.appendChild(row);
+      yesBtn.focus();
+    });
   }
 
   playMusic(song: number): void {

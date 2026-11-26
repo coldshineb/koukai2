@@ -4,7 +4,7 @@
 import { Scenario, ENV_COMMON } from "../game/scenario.js";
 import { GameConst, TreatyFlag } from "../model/flags.ts";
 import { getCountryExtra, getWorkState } from "../model/world_helpers.ts";
-import { hasDom } from "../ui/modals.ts";
+import { getBuildingArtUrl, hasDom } from "../ui/modals.ts";
 import { runDomOfficeWorkbench } from "../ui/buildings/office.ts";
 
 const ofHex = s => { const b = Uint8Array.from((s.match(/../g) || []).map(h => parseInt(h, 16))), o = new Uint8Array(b.length + 1); o.set(b); return o; };
@@ -41,7 +41,12 @@ export class Office {
     if (this.c.noEvents) return 0;
     const sc = (this.c.events ??= new Scenario(this.c)); sc.scene = this.b.p;
     if (!(await sc.check(ENV_COMMON, this.b.port, building))) return 0;
-    await sc.run(ENV_COMMON);
+    this.c.scenarioFallbackArtUrl = hasDom() ? getBuildingArtUrl(this.c, building, this.b.p) : null;
+    try {
+      await sc.run(ENV_COMMON);
+    } finally {
+      this.c.scenarioFallbackArtUrl = null;
+    }
     return 1;
   }
   // 2ce01 工作介绍

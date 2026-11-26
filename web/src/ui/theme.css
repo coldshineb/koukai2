@@ -174,21 +174,22 @@ html, body {
 }
 
 .uw2-scenario-card {
-  width: min(92%, 720px);
+  width: min(92%, 780px);
   min-height: 92px;
   padding: 14px 18px;
   display: flex;
   gap: 14px;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 56px;
   position: relative;
   z-index: 45;
 }
 
 .uw2-portrait-canvas {
-  width: 64px;
-  height: 80px;
-  flex: 0 0 64px;
+  width: 68px;
+  height: 85px;
+  flex: 0 0 68px;
+  object-fit: cover;
   border: 2px solid var(--uw2-gold);
   border-radius: 6px;
   background: #141c2b;
@@ -202,6 +203,20 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.uw2-scenario-card .uw2-dialog-actions {
+  margin-top: 0;
+  margin-left: 8px;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.uw2-scenario-menu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
 }
 
 #uw2-stage canvas#screen {
