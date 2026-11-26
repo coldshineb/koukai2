@@ -378,6 +378,7 @@ def compute_portmap_context(meta: dict):
     tilesets = meta["tilesets"]
     water_adj = [set() for _ in range(len(tilesets))]
     open_edges = [{} for _ in range(len(tilesets))]
+    door_voids = [set() for _ in range(len(tilesets))]
 
     for s, bounds in enumerate(tilesets):
         _, p1, p2, _ = bounds
@@ -400,6 +401,8 @@ def compute_portmap_context(meta: dict):
                 continue
             if u.issubset({13, 14}):
                 walk_kind[tid] = ("grass", {13, 14})
+            elif u.issubset({10, 13, 14}) and 14 in u and int(np.sum(t == 14)) >= 60:
+                walk_kind[tid] = ("grass10", {10, 13, 14})
             elif u.issubset({10, 11, 15, 7}):
                 walk_kind[tid] = ("sand", {10, 11, 15})
             elif u.issubset({8, 11, 15}) and 11 in u:
@@ -410,6 +413,7 @@ def compute_portmap_context(meta: dict):
                 walk_kind[tid] = ("mixed", {10, 11, 13, 14, 15})
 
         adj_pairs = []  # (tid, ei, nb_tid)
+        below_nbs: dict[int, set[int]] = {}
         for pid, cs in enumerate(chipno):
             if cs != s or pid >= len(pm["ports"]):
                 continue
@@ -417,6 +421,8 @@ def compute_portmap_context(meta: dict):
             for r in range(96):
                 for c in range(96):
                     tid = grid[r * 96 + c]
+                    if r + 1 < 96:
+                        below_nbs.setdefault(tid, set()).add(grid[(r + 1) * 96 + c])
                     if tid < p1:
                         continue
                     for ei, (dr, dc) in enumerate(((-1, 0), (0, 1), (1, 0), (0, -1))):
@@ -432,6 +438,8 @@ def compute_portmap_context(meta: dict):
                             nb_edge = set((nbt[15, :] if ei == 0 else (nbt[:, 0] if ei == 1 else (nbt[0, :] if ei == 2 else nbt[:, 15]))).tolist())
                             if k == "grass":
                                 allowed = {13, 14}
+                            elif k == "grass10":
+                                allowed = {10, 13, 14}
                             elif k == "sand":
                                 allowed = {10, 11, 15}
                             elif k == "dither_sand":
@@ -442,12 +450,22 @@ def compute_portmap_context(meta: dict):
                                 allowed = set()
                                 if {13, 14}.issubset(nb_edge):
                                     allowed |= {13, 14}
+                                elif 14 in nb_edge and 10 in nb_edge:
+                                    allowed |= {10, 13, 14}
                                 if {11, 15}.issubset(nb_edge):
                                     allowed |= {10, 11, 15}
                             if allowed:
                                 open_edges[s].setdefault(tid, {}).setdefault(ei, set()).update(allowed)
                         elif nb >= p2 and nb not in water_adj[s] and tid not in WALL_PLAQUE_SKIP_SAND.get(s, set()) and nb not in WALL_PLAQUE_SKIP_SAND.get(s, set()):
                             adj_pairs.append((tid, ei, nb))
+
+        for tid in range(p2, (idx.shape[0] // 16) * cols):
+            t = get_t(tid)
+            if int(np.sum(t == 0)) < 48:
+                continue
+            bot0 = int(np.sum(t[15, :] == 0))
+            if bot0 >= 10 or any(b < p2 for b in below_nbs.get(tid, ())):
+                door_voids[s].add(tid)
 
         # 多轮传播开放地面边界（例如旱坞船中间的桅杆格 103/115 虽不直接邻接 tile 4，但两侧与 102/104 开放沙地相通）
         unique_adj = set(adj_pairs)
@@ -472,7 +490,7 @@ def compute_portmap_context(meta: dict):
                         changed = True
             if not changed:
                 break
-    return water_adj, open_edges
+    return water_adj, open_edges, door_voids
 
 # 排除纯米白石膏墙体/招牌图块被误判为沙地（教堂顶十字架 s0:205/s1:53/s3:88 与清真寺尖塔 s2:155..178 均保留外围沙地剥离）
 WALL_PLAQUE_SKIP_SAND = {
@@ -591,10 +609,19 @@ def extract_outer_ground(tile_idx: np.ndarray, set_idx: int, t_id: int, p2: int,
                     q.append((ny, nx))
         return loc, all_a
 
-    # 1) 外围草坪 ({13, 14})：不会出现在纯棕瓦屋顶里（排除无14且10占比过高的棕瓦）
+    # 1) 外围草坪 ({13, 14} 与热带/印度 {10, 13, 14} 棋盘草地)：仅允许紧邻 14 且不紧邻黑边 0 的 10 参与连通，绝不侵蚀棕瓦墙体
     mg, ag = flood_group({13, 14})
     if int(np.sum(mg)) >= 12 and {13, 14}.issubset(ag) and int(np.sum(mg & (tile_idx == 14))) >= 3:
         outer_grass |= mg
+    if {10, 14}.issubset(ag):
+        p14 = np.pad((tile_idx == 14).astype(np.int32), ((1, 1), (1, 1)), mode="constant", constant_values=0)
+        s14 = p14[:-2, 1:-1] + p14[2:, 1:-1] + p14[1:-1, :-2] + p14[1:-1, 2:]
+        p0 = np.pad((tile_idx == 0).astype(np.int32), ((1, 1), (1, 1)), mode="constant", constant_values=0)
+        s0 = p0[:-2, 1:-1] + p0[2:, 1:-1] + p0[1:-1, :-2] + p0[1:-1, 2:]
+        g10_allow = (tile_idx == 10) & (s14 >= 1) & (s0 == 0)
+        mg10, _ = flood_group({13, 14}, allow_mask=g10_allow)
+        if int(np.sum(mg10)) >= 12 and int(np.sum(mg10 & (tile_idx == 14))) >= 6:
+            outer_grass |= mg10
 
     if t_id in WALL_PLAQUE_SKIP_SAND.get(set_idx, set()):
         return outer_sand, outer_grass
@@ -624,7 +651,7 @@ def extract_outer_ground(tile_idx: np.ndarray, set_idx: int, t_id: int, p2: int,
 
     return outer_sand, outer_grass
 
-def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats, water_adj_set: set, open_edge_map: dict):
+def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats, water_adj_set: set, open_edge_map: dict, door_void_set: set):
     src_path = os.path.join(ART_SHEETS, f"portchip_{set_idx}.png")
     rgba = np.array(Image.open(src_path).convert("RGBA"))
     idx_all = extract_indices(rgba, prefer_map=True)
@@ -638,6 +665,18 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats, water_
     ref_r, ref_c = divmod(ref_tid, cols)
     ref_tile_idx = idx_all[ref_r * tile_sz:(ref_r + 1) * tile_sz, ref_c * tile_sz:(ref_c + 1) * tile_sz]
     stone_ref = np.mean(MODERN_GROUND_PAL[ref_tile_idx], axis=(0, 1)).astype(np.float32)
+
+    # 每个图集自身的纯草坪基准色（如 set 2/6 热带草坪为 {10,14} 橄榄绿，其余为 {13,14} 翠绿）
+    grass_ref = (MODERN_GROUND_PAL[13] * 0.48 + MODERN_GROUND_PAL[14] * 0.52).astype(np.float32)
+    best_g14 = 0
+    for gtid in range(p1):
+        gr, gc = divmod(gtid, cols)
+        gt = idx_all[gr * tile_sz:(gr + 1) * tile_sz, gc * tile_sz:(gc + 1) * tile_sz]
+        gu = set(np.unique(gt).tolist())
+        g14 = int(np.sum(gt == 14))
+        if gu.issubset({10, 13, 14}) and g14 > best_g14:
+            best_g14 = g14
+            grass_ref = np.mean(MODERN_GROUND_PAL[gt], axis=(0, 1)).astype(np.float32)
 
     alb_out = np.zeros((rows * hd_tile, cols * hd_tile, 4), dtype=np.uint8)
     nrm_out = np.zeros((rows * hd_tile, cols * hd_tile, 4), dtype=np.uint8)
@@ -746,12 +785,14 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats, water_
                 # 原版建筑左侧投影格：保持平地高程 (elev=0)，避免突出墙体与二次阴影，同时保留与沙地影格 (9/11) 一致的柔和地面暗影
                 if is_grass_shadow_tile:
                     sem[:, :] = 3
-                    if 10 in uniq_idx:
-                        sem[tile_idx == 10] = 2
                 else:
                     sem[:, :] = 2
             elif is_walk and not is_road_curb:
-                is_grass = (tile_idx == 13) | (tile_idx == 14)
+                p14w = np.pad((tile_idx == 14).astype(np.int32), ((1, 1), (1, 1)), mode="wrap" if t_id < p1 else "edge")
+                s14w = p14w[:-2, 1:-1] + p14w[2:, 1:-1] + p14w[1:-1, :-2] + p14w[1:-1, 2:]
+                p0w = np.pad((tile_idx == 0).astype(np.int32), ((1, 1), (1, 1)), mode="wrap" if t_id < p1 else "edge")
+                s0w = p0w[:-2, 1:-1] + p0w[2:, 1:-1] + p0w[1:-1, :-2] + p0w[1:-1, 2:]
+                is_grass = (tile_idx == 13) | (tile_idx == 14) | ((tile_idx == 10) & (s14w >= 2) & (s0w == 0))
                 is_sand = ((tile_idx == 10) | (tile_idx == 11) | (tile_idx == 15) | (tile_idx == 8)) & ~is_water & ~is_grass
                 sem[is_sand] = 2
                 sem[is_grass] = 3
@@ -786,12 +827,16 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats, water_
             strict_pairs = None if (is_walk or is_shore_tile or is_flat_beach or is_tree_tile) else STRONG_ARCH_CHECKER_PAIRS
             if is_flat_beach:
                 pairs = pairs | {(8, 11), (11, 8), (8, 10), (10, 8)}
+            if is_walk and np.any((tile_idx == 14)) and np.any(sem == 3):
+                pairs = pairs | {(10, 14), (14, 10), (10, 13), (13, 10)}
             tile_pal = MODERN_GROUND_PAL if (is_walk or is_tree_tile or is_shore_tile or is_flat_beach or is_ground_stair) else MODERN_ARCH_PAL
             base_16 = dedither_tile_rgb(tile_idx, tile_pal, pairs, strict_pairs=strict_pairs, is_water=is_water, wrap_edges=(is_walk and t_id < p1 and not is_ground_shadow_tile and not is_road_curb))
             if is_flat_beach and set_idx == 1 and np.any((tile_idx == 8) & (sem == 2)):
                 base_16[(tile_idx == 8) & (sem == 2)] = stone_ref
             if not (is_walk or is_tree_tile or is_shore_tile or is_flat_beach) and np.any(outer_bg):
                 ext_pairs = GROUND_DITHER_PAIRS | {(8, 11), (11, 8), (8, 10), (10, 8)}
+                if np.any(outer_grass):
+                    ext_pairs = ext_pairs | {(10, 14), (14, 10), (10, 13), (13, 10)}
                 base_ext = dedither_tile_rgb(tile_idx, MODERN_GROUND_PAL, ext_pairs, is_water=is_water, wrap_edges=False)
                 if set_idx in (0, 2, 3, 4, 6) and np.any(outer_sand & (tile_idx == 8)):
                     # 清除旱坞船体 (set 0/2/3)、椰树等左侧原版 1993 {8,11} 灰格假影，由 WebGL2 实时光线统一投射斜影
@@ -803,9 +848,11 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats, water_
                 base_16 = np.where(outer_bg[:, :, None], base_ext, base_16)
             if is_ground_shadow_tile:
                 if is_grass_shadow_tile:
-                    sunlit_grass = MODERN_GROUND_PAL[13] * 0.48 + MODERN_GROUND_PAL[14] * 0.52
-                    fill_col = sunlit_grass * 0.56 + np.array([3.0, 8.0, 18.0], dtype=np.float32)
+                    fill_col = grass_ref * 0.62 + np.array([3.0, 6.0, 12.0], dtype=np.float32)
                     base_16[tile_idx == 0] = fill_col
+                    base_16[tile_idx == 13] = grass_ref * 0.85
+                    if 10 in uniq_idx:
+                        base_16[tile_idx == 10] = grass_ref * 0.72 + np.array([2.0, 4.0, 8.0], dtype=np.float32)
                 elif is_stone_shadow_tile:
                     # 将石砖暗影格 (set 1: 3/8/17, set 4: 11/16, set 5: 16/38/39/41/45) 的冷灰 {0, 8} 棋盘转为与对应图集石砖地面一致的柔和暗影
                     base_16[tile_idx == 0] = stone_ref * 0.66 + np.array([4.0, 7.0, 15.0], dtype=np.float32)
@@ -859,9 +906,9 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats, water_
                     num = gaussian_filter(up64[:, :, ch] * m, sigma=sigma, mode=mode)
                     final64[:, :, ch] = np.where(m > 0.5, up64[:, :, ch] * (1.0 - mix) + (num / denom) * mix, final64[:, :, ch])
 
-            # 门洞/船舱真实空腔 (void_64) 保持深邃暗影，其余建筑实体 (sem64 == 4 | sem64 == 0) 做双边保边绘面平滑
+            # 门洞/门廊真实空腔 (void_64) 保持深邃暗影，实体屋顶/檐角/塔楼暗面不挖空高程
             void_16 = np.zeros_like(tile_idx, dtype=bool)
-            if not is_ground_shadow_tile and not pure_water_ripple_tile and c0_cnt >= 48:
+            if t_id in door_void_set and not is_ground_shadow_tile and not pure_water_ripple_tile and c0_cnt >= 48:
                 lbl_v, n_v = label(tile_idx == 0)
                 for vid in range(1, n_v + 1):
                     vm = lbl_v == vid
@@ -950,6 +997,13 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats, water_
                 tile_elev = gaussian_filter(base_e.astype(np.float32), sigma=1.4, mode="nearest")
             else:
                 caster_raw = ((sem64 == 4) | (sem64 == 0)) & ~void_64
+                if np.any(caster_raw):
+                    min_island = 80 if t_id in door_void_set else 24
+                    lbl_c, n_c = label(caster_raw)
+                    for cid in range(1, n_c + 1):
+                        cm = lbl_c == cid
+                        if int(np.sum(cm)) < min_island:
+                            caster_raw[cm] = False
                 solid_m = edge_close(caster_raw, 4) & (sem64 != 1) & ~void_64
                 base_e = np.where(solid_m, 0.85, 0.0)
                 tile_elev = gaussian_filter(base_e.astype(np.float32), sigma=1.4, mode="nearest")
@@ -1043,11 +1097,11 @@ def process_chars_sheet():
 
 def main():
     meta = json.load(open(PORTCHIP_JSON, "r", encoding="utf-8"))
-    water_adj, open_edges = compute_portmap_context(meta)
+    water_adj, open_edges, door_voids = compute_portmap_context(meta)
     mats = make_tactile_materials(64)
     for s, bounds in enumerate(meta["tilesets"]):
         _, p1, p2, p3 = bounds
-        out_p = process_portchip_sheet(s, p1, p2, p3, mats, water_adj[s], open_edges[s])
+        out_p = process_portchip_sheet(s, p1, p2, p3, mats, water_adj[s], open_edges[s], door_voids[s])
         print(f"Generated PBR set for portchip_{s}: {os.path.relpath(out_p, ROOT)} (+ _nrm / _mat)")
     out_c = process_chars_sheet()
     print(f"Generated PBR set for chars: {os.path.relpath(out_c, ROOT)} (+ _nrm)")
