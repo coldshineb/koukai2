@@ -837,10 +837,14 @@ def process_portchip_sheet(set_idx: int, p1: int, p2: int, p3: int, mats, water_
             up64 = epx_2x_rgb(up32)
             sem64 = epx_2x_mask(sem32)
 
-            # 识别真石板广场 vs 自然沙滩/荒漠：仅在真铺砖地砖 (is_walk 且含 {8}) 或以砌石为底的图集 (Set 1/4/5 非海滩建筑外围) 才叠石板纹；纯沙/沙漠港 (Set 0/2/3/6) 的船只与屋周保持自然沙砾肌理
+            # 识别真石板广场 vs 自然沙滩/荒漠：仅以砌石为底的图集 (Set 1/4/5) 且排除海滩/岸边及沙地投影格 (s4:10/15, s5:11/12)，才叠石板纹；纯沙/沙漠港 (Set 0/2/3/6) 一律保持自然沙砾肌理
+            is_sand_only_shadow_in_stone_set = (set_idx == 4 and t_id in (10, 15)) or (set_idx == 5 and t_id in (11, 12))
             is_stone_plaza = (
-                (is_walk and (8 in uniq_idx) and not is_flat_beach and not is_shore_tile)
-                or ((not is_walk) and set_idx in (1, 4, 5) and not is_flat_beach and not is_shore_tile)
+                (set_idx in (1, 4, 5))
+                and not is_flat_beach
+                and not is_shore_tile
+                and not is_sand_only_shadow_in_stone_set
+                and ((not is_walk) or (8 in uniq_idx))
             )
 
             # 对地面/水域去高频网格，对建筑/屋檐/船只使用双边保边滤波将 1993 阶梯像素平滑为水彩绘本砖木质感
