@@ -22,7 +22,10 @@ import { decodeCleanCstr } from "../ui/text_util.ts";
 class WharfMixin {
   async wharf() {
     const m = this.m, g = m.globals, w = getWorkState(m), hero = m.heroPerson(), { menu } = this.c;
-    if (this.port >= 0x64 && this.port < 0x82) return this.supplyPort();     // 286ac
+    if (this.port >= 0x64 && this.port < 0x82) {
+      if (this.c.scr.wideRenderer && this.c.codec) return await runDomWharfWorkbench(this);
+      return this.supplyPort();     // 286ac
+    }
     this.guards();
     await this.crewDemands();
     const items = this.c.menuItems(9);

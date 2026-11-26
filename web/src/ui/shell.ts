@@ -146,13 +146,14 @@ export class ModernShell {
 
   private bindHotkeys(): void {
     window.addEventListener("keydown", e => {
-      if (e.key === "F8" && this.expeditionEnabled && document.body.dataset.uw2Modal !== "open") {
+      const blocked = document.body.dataset.uw2Modal === "open" || document.body.dataset.uw2DialogChoice === "open";
+      if (e.key === "F8" && this.expeditionEnabled && !blocked) {
         e.preventDefault();
         e.stopImmediatePropagation();
         this.onToggleExpedition?.();
         return;
       }
-      if (document.body.dataset.uw2Modal === "open") return;
+      if (blocked) return;
       if (!e.altKey) return;
       if (e.code === "KeyP") { e.preventDefault(); this.runtime.togglePause(); }
       else if (e.code === "Digit1") { e.preventDefault(); this.runtime.setSpeed(1); }

@@ -854,6 +854,7 @@ export function runDomControls(title: string, rows: {
 // ---------------- 9. 底部羊皮纸对话栏 (同步 wideDialog) ----------------
 let dialogEl: HTMLElement | null = null;
 let lastDialogKey = "";
+let floatingYesNo: { yesLabel: string; noLabel: string; onPick: (v: number) => void } | null = null;
 
 export function syncDomDialog(
   art: any,
@@ -868,7 +869,8 @@ export function syncDomDialog(
     return;
   }
   const pcKey = pc ? `${pc.type}_${pc.parts}` : "";
-  const key = `${d.portraitId ?? ""}|${pcKey}|${d.waiting ? 1 : 0}|${d.text}`;
+  const fyn = floatingYesNo;
+  const key = `${d.portraitId ?? ""}|${pcKey}|${d.waiting ? 1 : 0}|${fyn ? `${fyn.yesLabel}/${fyn.noLabel}` : ""}|${d.text}`;
   if (key === lastDialogKey && dialogEl) return;
   lastDialogKey = key;
 
@@ -877,6 +879,7 @@ export function syncDomDialog(
     dialogEl.className = "uw2-card uw2-dialog-floating";
     host.appendChild(dialogEl);
   }
+  dialogEl.classList.toggle("has-actions", !!fyn);
   dialogEl.innerHTML = "";
   if (pc) {
     const img = document.createElement("img");
@@ -905,12 +908,82 @@ export function syncDomDialog(
   txt.textContent = d.text;
   dialogEl.appendChild(txt);
 
-  if (d.waiting) {
+  if (fyn) {
+    const row = document.createElement("div");
+    row.className = "uw2-dialog-actions";
+    const noBtn = document.createElement("button");
+    noBtn.type = "button";
+    noBtn.className = "uw2-step-btn";
+    noBtn.style.padding = "8px 20px";
+    noBtn.textContent = fyn.noLabel;
+    noBtn.addEventListener("click", e => { e.stopPropagation(); fyn.onPick(0); });
+
+    const yesBtn = document.createElement("button");
+    yesBtn.type = "button";
+    yesBtn.className = "uw2-btn uw2-btn-primary";
+    yesBtn.style.padding = "8px 22px";
+    yesBtn.textContent = fyn.yesLabel;
+    yesBtn.addEventListener("click", e => { e.stopPropagation(); fyn.onPick(1); });
+
+    row.append(noBtn, yesBtn);
+    dialogEl.appendChild(row);
+    yesBtn.focus();
+  } else if (d.waiting) {
     const next = document.createElement("div");
     next.className = "uw2-dialog-next";
     next.textContent = "▼";
     dialogEl.appendChild(next);
   }
+}
+
+/** 直接在底部浮动对话栏内挂载统一「是 / 否」按钮（避免对话与屏中弹窗来回跳变） */
+export function runDomFloatingYesNo(scr: any, yesLabel = "是", noLabel = "否"): Promise<number> {
+  if (!hasDom()) return Promise.resolve(0);
+  return new Promise(resolve => {
+    let settled = false;
+    document.body.dataset.uw2DialogChoice = "open";
+    const cleanup = () => {
+      floatingYesNo = null;
+      delete document.body.dataset.uw2DialogChoice;
+      window.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("contextmenu", onContext, true);
+      lastDialogKey = "";
+      syncDomDialog(scr?.wideArt, scr?.wideDialog ?? null);
+    };
+    const finish = (v: number) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(v);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" || e.key === "n" || e.key === "N") {
+        e.preventDefault(); e.stopImmediatePropagation(); finish(0);
+      } else if (e.key === "y" || e.key === "Y") {
+        e.preventDefault(); e.stopImmediatePropagation(); finish(1);
+      } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        const btns = dialogEl?.querySelectorAll<HTMLButtonElement>(".uw2-dialog-actions button");
+        if (btns && btns.length === 2) {
+          e.preventDefault(); e.stopImmediatePropagation();
+          (document.activeElement === btns[0] ? btns[1] : btns[0]).focus();
+        }
+      } else if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault(); e.stopImmediatePropagation();
+        const btns = dialogEl?.querySelectorAll<HTMLButtonElement>(".uw2-dialog-actions button");
+        const pickNo = !!(btns && btns.length === 2 && document.activeElement === btns[0]);
+        finish(pickNo ? 0 : 1);
+      }
+    };
+    const onContext = (e: MouseEvent) => {
+      e.preventDefault(); e.stopImmediatePropagation();
+      finish(0);
+    };
+    window.addEventListener("keydown", onKey, true);
+    window.addEventListener("contextmenu", onContext, true);
+    floatingYesNo = { yesLabel, noLabel, onPick: finish };
+    lastDialogKey = "";
+    syncDomDialog(scr?.wideArt, scr?.wideDialog ?? null);
+  });
 }
 
 /** 通用底部对话提示（显示文本并等待玩家按键/点击） */

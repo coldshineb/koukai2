@@ -1,9 +1,10 @@
 // ui/buildings/wharf.ts — 码头一体化工作台
 import { GameConst, SeaFlag2, ShipSlotFlag } from "../../model/flags.ts";
-import { WorldConst, fleetByAddr, heroOrDockSlot, setDaysAtSea } from "../../model/world_helpers.ts";
+import { WorldConst, fleetByAddr, heroOrDockSlot, setDaysAtSea, writePortName } from "../../model/world_helpers.ts";
 import { domS16, domUmin16 } from "../../domain/economy.ts";
 import { marketTradeLog } from "../../scenes/market.js";
 import { decodeCleanCstr } from "../text_util.ts";
+import { encodeTextForFont } from "../t2s.ts";
 import { createDomModal, getBuildingArtUrl, mountBuildingBanner, preserveScroll } from "../modals.ts";
 import { UI_STR } from "../strings.ts";
 // ============================================================================
@@ -13,10 +14,12 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
   const c = b.c, st = b.st, m = st.model, codec = c.codec;
   const dec = (bts: Uint8Array) => decodeCleanCstr(codec, bts);
   const wharfTitle = UI_STR.wharfTitle;
-  const portName = dec(m.port(b.port).nameBytes);
+  const isSupplyPort = b.port >= 0x64 && b.port < 0x82;
+  let portName = dec(m.port(b.port).nameBytes);
   const wharfMenu = [UI_STR.wharfDepart, ...UI_STR.wharfTabs];
   const dockMenu = [...UI_STR.dockActions];
   const supNames = [...UI_STR.supplies];
+  const renameTabLabel = isSupplyPort ? dec(c.menuItems(57)?.[2] ?? new Uint8Array()).replace(/\s+/g, "") || "命名" : "";
 
   const unitPrice = (item: number) => {
     if (item === 0) return 0;
@@ -46,11 +49,12 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
 
   for (;;) {
     const action = await new Promise<{ type: "close" | "depart"; days?: number }>(resolve => {
-      let activeTab: 0 | 1 = 0; // 0 = 补给, 1 = 船坞
+      let activeTab: 0 | 1 = (isSupplyPort && b.fleetShips() === 0) ? 1 : 0; // 0 = 补给, 1 = 船坞 / 命名
       let toastMsg = b.captureMessage(0x38);
       let toastOk = true;
       let selFleetDockIdx = 0;
       let selDockShipIdx = 0;
+      let customPortName = portName;
 
       // 购物车暂存：每艘船的目标 4 项补给数（修改时随时可增可减，不提前扣款，确认时一次性结算）
       const draft = new Map<number, [number, number, number, number]>();
@@ -247,10 +251,15 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
         departBtn.disabled = n === 0;
 
         toolbar.innerHTML = "";
-        const tabs: [string, boolean][] = [
-          [wharfMenu[1] || "补给", n === 0],
-          [wharfMenu[2] || "船坞", !b.isCapital()],
-        ];
+        const tabs: [string, boolean][] = isSupplyPort
+          ? [
+              [wharfMenu[1] || "补给", n === 0],
+              [renameTabLabel || "命名", false],
+            ]
+          : [
+              [wharfMenu[1] || "补给", n === 0],
+              [wharfMenu[2] || "船坞", !b.isCapital()],
+            ];
         tabs.forEach(([lb, dis], i) => {
           const btn = document.createElement("button");
           btn.className = `uw2-btn uw2-tab-btn ${i === activeTab ? "active" : ""}`;
@@ -341,6 +350,57 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
               grid.appendChild(row);
             }
             h.body.appendChild(grid);
+          } else if (isSupplyPort) {
+            const box = document.createElement("div");
+            box.className = "uw2-action-box";
+            const row = document.createElement("div");
+            row.style.cssText = "display:flex;align-items:center;gap:10px;";
+            const inp = document.createElement("input");
+            inp.type = "text";
+            inp.maxLength = 8;
+            inp.value = customPortName;
+            inp.style.cssText = "flex:1;padding:8px 12px;font-size:15px;font-weight:700;border:1px solid var(--uw2-gold);border-radius:6px;background:#fffdf6;color:var(--uw2-ink);";
+            inp.addEventListener("input", () => { customPortName = inp.value; });
+
+            const saveBtn = document.createElement("button");
+            saveBtn.type = "button";
+            saveBtn.className = "uw2-btn uw2-btn-primary";
+            saveBtn.textContent = renameTabLabel || "命名";
+            saveBtn.addEventListener("click", () => {
+              const trimmed = customPortName.trim();
+              if (!trimmed) {
+                toastOk = false; toastMsg = b.captureMessage(0x39e) || "请输入名称"; render(false); return;
+              }
+              const bytes = encodeTextForFont(c.font, trimmed);
+              if (!bytes) {
+                toastOk = false; toastMsg = "含字库未收录字符"; render(false); return;
+              }
+              const portRec = m.port(b.port);
+              const old = portRec.nameBytes.slice();
+              writePortName(portRec, bytes);
+              const cur = portRec.nameBytes;
+              let dup = false;
+              for (let pn = 0; pn < WorldConst.TOTAL_PORTS && !dup; pn++) {
+                if (pn === b.port) continue;
+                const o = m.port(pn).nameBytes;
+                if (o.length === cur.length && o.every((v: number, idx: number) => v === cur[idx])) dup = true;
+              }
+              if (dup) {
+                writePortName(portRec, old);
+                toastOk = false; toastMsg = b.captureMessage(0x39f);
+                render(false);
+                return;
+              }
+              portName = dec(portRec.nameBytes);
+              customPortName = portName;
+              h.titleEl.textContent = `${portName} · ${wharfTitle}`;
+              b.p.panels();
+              toastOk = true; toastMsg = b.captureMessage(0x3a0, portRec.nameBytes);
+              render(false);
+            });
+            row.append(inp, saveBtn);
+            box.appendChild(row);
+            h.body.appendChild(box);
           } else {
             // ---- 船坞标签页（保管 / 配备 / 交换） ----
             // 先保存舰队槽位再呼 dockScan()（因 dockScan() 内部的 dockList() 会覆写 c.persons）

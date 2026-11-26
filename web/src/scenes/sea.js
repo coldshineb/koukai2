@@ -1747,7 +1747,7 @@ export class SeaScene extends PortScene {
       };
       let rightCancelled = false;
       const onContext = e => {
-        if (document.body?.dataset.uw2Modal === "open") return;
+        if (document.body?.dataset.uw2Modal === "open" || document.body?.dataset.uw2DialogChoice === "open") return;
         e.preventDefault();
         rightCancelled = true;
       };

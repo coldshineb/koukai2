@@ -13,8 +13,9 @@ function browserReserved(e) {
 }
 
 export function bindInput(canvas, sys, scr = null) {
+  const uiBusy = () => document.body?.dataset.uw2Modal === "open" || document.body?.dataset.uw2DialogChoice === "open";
   addEventListener("keydown", e => {
-    if (document.body?.dataset.uw2Modal === "open") return;
+    if (uiBusy()) return;
     const tag = e.target?.tagName;
     if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
     if (browserReserved(e)) return;
@@ -50,7 +51,7 @@ export function bindInput(canvas, sys, scr = null) {
   canvas.addEventListener("mousedown", e => {
     pos(e);
     sys.mouse.buttons |= e.button === 2 ? 2 : e.button === 0 ? 1 : 0;
-    if (e.button === 0 && document.body?.dataset.uw2Modal !== "open") {
+    if (e.button === 0 && !uiBusy()) {
       sys.mouse.lastClick = { vx: sys.mouse.vx, vy: sys.mouse.vy, t: performance.now() };
     }
     e.preventDefault();

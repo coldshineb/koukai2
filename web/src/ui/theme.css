@@ -231,6 +231,15 @@ html, body {
 #uw2-overlay > .uw2-dialog-floating {
   pointer-events: none;
 }
+#uw2-overlay > .uw2-dialog-floating.has-actions {
+  pointer-events: auto;
+  align-items: center;
+}
+.uw2-dialog-floating.has-actions .uw2-dialog-actions {
+  margin-top: 0;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
 
 /* 暂停角标 */
 .uw2-pause-badge {

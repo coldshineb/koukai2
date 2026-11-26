@@ -72,7 +72,7 @@ function ensureHudRoot(): HTMLElement | null {
     btn.addEventListener("pointerdown", e => { e.stopPropagation(); });
     btn.addEventListener("click", e => {
       e.stopPropagation();
-      if (document.body.dataset.uw2Modal === "open") return;
+      if (document.body.dataset.uw2Modal === "open" || document.body.dataset.uw2DialogChoice === "open") return;
       if (currentScene) currentScene.pendingCmd = idx;
     });
     brEl!.appendChild(btn);
@@ -81,7 +81,7 @@ function ensureHudRoot(): HTMLElement | null {
   if (!(window as any).__uw2CmdKeyHooked) {
     (window as any).__uw2CmdKeyHooked = true;
     window.addEventListener("keydown", e => {
-      if (document.body.dataset.uw2Modal === "open") return;
+      if (document.body.dataset.uw2Modal === "open" || document.body.dataset.uw2DialogChoice === "open") return;
       if (!hudRoot || hudRoot.style.display === "none") return;
       const idx = e.key === "F1" ? 0 : e.key === "F2" ? 1 : e.key === "F3" ? 2 : e.key === "F4" ? 3 : -1;
       if (idx < 0) return;
@@ -190,7 +190,7 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
     if (P >= WorldConst.TOTAL_PORTS) return;
     const portName = decodeCleanCstr(codec, m.port(P).nameBytes);
     const E = P < 100 ? m.portEconomy(P) : null;
-    const regionName = E ? toSimp(c.messageText(0x181 + E.priceRegion).trim()) : "";
+    const regionName = E ? toSimp(c.messageText(0x181 + E.priceRegion).trim()) : "补给港";
     let avgPrice = 100;
     const com = E ? (E.commerce << 16) >> 16 : 0;
     const ind = E ? (E.industry << 16) >> 16 : 0;
@@ -231,7 +231,7 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
       }
       const pmKey = `${P}|${rt.time}|${scene.hx},${scene.hy},${scene.vx},${scene.vy}|` + items.map(x => `${x.k}:${x.open ? 1 : 0}${x.ok ? 1 : 0}`).join(",");
       pmEl.style.display = items.length ? "grid" : "none";
-      pmEl.style.gridTemplateColumns = "";
+      pmEl.style.gridTemplateColumns = items.length === 1 ? "1fr" : "";
       pmEl.style.gap = "";
       if (pmKey !== lastPmKey) {
         lastPmKey = pmKey;
@@ -244,7 +244,7 @@ export function syncDomWorldHud(scene: any, atSea: boolean) {
           btn.addEventListener("pointerdown", e => e.stopPropagation());
           btn.addEventListener("click", e => {
             e.stopPropagation();
-            if (document.body.dataset.uw2Modal === "open") return;
+            if (document.body.dataset.uw2Modal === "open" || document.body.dataset.uw2DialogChoice === "open") return;
             if (!currentScene) return;
             currentScene.pmTarget = it.k;
             currentSys?.pushKey?.(0, 0);

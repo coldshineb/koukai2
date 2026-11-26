@@ -4,8 +4,10 @@
 //   匾↔区 (0x9D4A/0x9D4B)、缍↔缓 (0xA7C1/0xA7C2)
 // 保持底层 charmap.json 双向字节可逆性不变，所有显示出口自动呈现正确简体中文。
 import * as OpenCC from "opencc-js/t2cn";
+import * as OpenCC_CN2T from "opencc-js/cn2t";
 
 const converter: (s: string) => string = OpenCC.Converter({ from: "tw", to: "cn" });
+const toTradConverter: (s: string) => string = OpenCC_CN2T.Converter({ from: "cn", to: "tw" });
 const cache = new Map<string, string>();
 const MAX_CACHE = 4096;
 
@@ -44,4 +46,19 @@ export function toSimp(text: string): string {
   if (cache.size >= MAX_CACHE) cache.clear();
   cache.set(cleaned, out);
   return out;
+}
+
+/** 将玩家输入的简/繁体中文安全编码为原版字库字节（不收录字符返回 null） */
+export function encodeTextForFont(font: any, text: string): Uint8Array | null {
+  if (!text) return new Uint8Array([0]);
+  try {
+    const tw = toTradConverter(text).replace(/[速連散敢髯髮匾區綞緩]/g, ch => CHARMAP_SWAP[ch] ?? ch);
+    return font.encode(tw);
+  } catch {
+    try {
+      return font.encode(text);
+    } catch {
+      return null;
+    }
+  }
 }

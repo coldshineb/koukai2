@@ -14,7 +14,7 @@ const pmClamp = v => (v < 0 ? 0 : v > 0x48 ? 0x48 : v);
 export class PortMove {
   static enabled(ctx) { return !!ctx.portMove; }
   static label(ctx) { return ctx.font.encode("港內移動{00}"); }
-  static present(p, k) { const x = p.door[k * 2], y = p.door[k * 2 + 1]; return !(x === 0xff && y === 0xff) && x <= PM_LAST && y <= PM_LAST; }
+  static present(p, k) { const x = p.door[k * 2], y = p.door[k * 2 + 1]; return !(x === 0 && y === 0) && !(x === 0xff && y === 0xff) && x <= PM_LAST && y <= PM_LAST; }
   static walkable(p, x, y) { return x >= 0 && y >= 0 && x <= PM_LAST && y <= PM_LAST && !p.blockedAt((y + 1) * PM_W + x); }
   // 卫兵: 站立行人 4..7 中 6172 会返回 7 的 (种类 2); 夜间 6172 不判断碰撞 → 没有卫兵
   static guards(p) {
