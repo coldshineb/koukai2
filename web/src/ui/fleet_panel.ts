@@ -3,7 +3,8 @@ import { GameConst, ShipSlotFlag } from "../model/flags.ts";
 import { heroOrDockSlot, personRawBytes } from "../model/world_helpers.ts";
 import { domS16 } from "../domain/economy.ts";
 import { decodeCleanCstr } from "./text_util.ts";
-import { createDomModal, getPersonPortraitSrc, preserveScroll } from "./modals.ts";
+import { createDomModal, getPersonPortraitSrc, preserveScroll, runDomYesNo } from "./modals.ts";
+import { mountCargoShipEditor } from "./buildings/shipyard_parts.ts";
 import { UI_STR } from "./strings.ts";
 // ============================================================================
 // 3. 舰队经营一体化大面板（左选船、右切 船长与舰船 / 水手与比例 / 人事变更 / 积载）
@@ -22,14 +23,30 @@ export function runDomFleetHub(cmd: any): Promise<void> {
     let pool = 0;
     let poolMorale = 0;
     let toastMsg = "";
+    const tempLg = new Array<number>(9).fill(0xff);
+    const tempLa = new Array<number>(9).fill(0);
+    let closing = false;
+    const hasTempLeft = () => tempLg.some((g, i) => g !== 0xff && tempLa[i] > 0);
 
-    const tryClose = () => {
+    const tryClose = async () => {
+      if (closing) return;
       if (b.fleetShips() > 0) {
         let heroCap = false;
         for (let i = 0; i < GameConst.FLEET_SHIPS; i++) {
           if ((heroOrDockSlot(m, i).flags & ShipSlotFlag.STATE_MASK) === ShipSlotFlag.ACTIVE && m.crewSlot(i).captain === m.globals.hero) { heroCap = true; break; }
         }
         if (!heroCap) { toastMsg = cmd.cap(() => c.message(0xe2)); render(); return; }
+      }
+      if (hasTempLeft()) {
+        closing = true;
+        const discard = await runDomYesNo(
+          "积载暂存区尚有未装回船只的物资，未装入部分将被放弃。\n确定放弃剩余物资并关闭吗？",
+          "放弃剩余",
+          "返回分配",
+        );
+        closing = false;
+        if (!discard) { activeTab = 3; render(); return; }
+        c.shell?.showToast?.("已放弃暂存区剩余物资");
       }
       h.close();
       resolve();
@@ -156,12 +173,27 @@ export function runDomFleetHub(cmd: any): Promise<void> {
 
       const left = document.createElement("div");
       left.className = "uw2-list-col";
+      const leftCardMeta: { slot: number; el: HTMLElement }[] = [];
       ships.forEach((s, i) => {
         const row = document.createElement("button");
         row.className = `uw2-row-card ${i === selShipIdx ? "selected" : ""}`;
-        row.innerHTML = `<div><div class="uw2-slot-title">${s.name}</div><div class="uw2-slot-sub">${s.capName}</div></div><div style="text-align:right;"><div style="font-weight:700;font-size:13px;">水手 ${s.crew}/${s.maxCrew}</div><div class="uw2-slot-sub">速度 ${s.speed}kt</div></div>`;
+        const metaRight = document.createElement("div");
+        metaRight.style.textAlign = "right";
+        const renderShipMeta = (used: number, maxCargo: number) => {
+          if (activeTab === 3) {
+            const free = Math.max(0, maxCargo - used);
+            metaRight.innerHTML = `<div style="font-weight:700;font-size:13px;">空余 ${free}</div><div class="uw2-slot-sub">${used}/${maxCargo}</div>`;
+          } else {
+            metaRight.innerHTML = `<div style="font-weight:700;font-size:13px;">水手 ${s.crew}/${s.maxCrew}</div><div class="uw2-slot-sub">速度 ${s.speed}kt</div>`;
+          }
+        };
+        renderShipMeta(s.used, s.maxCargo);
+        const metaLeft = document.createElement("div");
+        metaLeft.innerHTML = `<div class="uw2-slot-title">${s.name}</div><div class="uw2-slot-sub">${s.capName}</div>`;
+        row.append(metaLeft, metaRight);
         row.addEventListener("click", () => { selShipIdx = i; render(); });
         left.appendChild(row);
+        leftCardMeta.push({ slot: s.slot, el: metaRight });
       });
 
       const right = document.createElement("div");
@@ -300,32 +332,30 @@ export function runDomFleetHub(cmd: any): Promise<void> {
         }
         right.appendChild(grid);
       } else if (activeTab === 3 && curShip) {
-        const cs = m.crewSlot(curShip.slot);
-        const supNames = b.LO.supplies.map(dec);
-        const supVals = [Math.trunc(domS16(cs.water) / 10), Math.trunc(domS16(cs.food) / 10), domS16(cs.material), domS16(cs.ammo)];
-        const supRow = document.createElement("div");
-        supRow.style.cssText = "display:grid;grid-template-columns:repeat(4,1fr);gap:8px;";
-        for (let k = 0; k < 4; k++) {
-          const box = document.createElement("div");
-          box.className = "uw2-slot-card";
-          box.style.flexDirection = "column";
-          box.innerHTML = `<span class="uw2-slot-sub">${supNames[k]}</span><span style="font-size:18px;font-weight:700;">${supVals[k]}</span>`;
-          supRow.appendChild(box);
-        }
-        right.appendChild(supRow);
-
-        const clist = document.createElement("div");
-        clist.className = "uw2-list-col";
-        for (let k = 0; k < GameConst.CARGO_SLOTS; k++) {
-          const g = cs.getCargoGoods(k);
-          const amt = domS16(cs.getCargoAmts(k));
-          if (g >= 46 || amt <= 0) continue;
-          const card = document.createElement("div");
-          card.className = "uw2-slot-card";
-          card.innerHTML = `<span class="uw2-slot-title">${dec(b.LO.goods[g])}</span><span style="font-weight:700;">×${amt}</span>`;
-          clist.appendChild(card);
-        }
-        right.appendChild(clist);
+        mountCargoShipEditor({
+          b,
+          lg: tempLg,
+          la: tempLa,
+          shipSlot: curShip.slot,
+          shipName: curShip.name,
+          container: right,
+          poolPrefix: "暂存区：",
+          poolEmptyText: "暂存区为空（从某船减下水/粮/资材/炮弹/货物移入暂存区，再切船装入）",
+          autoBtnLabel: "一键装回舰队",
+          onAutoFillDone: () => {
+            render();
+            return true;
+          },
+          onMutate: () => {
+            for (const lc of leftCardMeta) {
+              const sv = heroOrDockSlot(m, lc.slot);
+              const maxCargo = domS16(m.ship(sv.ship).maxCargo);
+              const used = domS16(b.cargoUsed(lc.slot));
+              const free = Math.max(0, maxCargo - used);
+              lc.el.innerHTML = `<div style="font-weight:700;font-size:13px;">空余 ${free}</div><div class="uw2-slot-sub">${used}/${maxCargo}</div>`;
+            }
+          },
+        });
       }
 
       split.append(left, right);
