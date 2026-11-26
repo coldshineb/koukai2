@@ -3,7 +3,7 @@
 import { Scenario, ENV_COMMON, ENV_HERO } from "../game/scenario.js";
 import { mainEnding } from "../game/endgame.js";
 import { GameConst, MenuId, OptionFlag, ShipSlotFlag } from "../model/flags.ts";
-import { collectAvailableCaptains, getCountryExtra, getWorkState, heroShipSlot, setPortBuildDays } from "../model/world_helpers.ts";
+import { collectAvailableCaptains, getCountryExtra, getWorkState, heroShipSlot, setPortBuildDays, writeShipName } from "../model/world_helpers.ts";
 import { getCashCap } from "../core/prefs.ts";
 import { captureConsoleText, decodeCleanCstr } from "../ui/text_util.ts";
 import { runDomInfoLines } from "../ui/modals.ts";
@@ -329,7 +329,10 @@ export class Palace {
       b.greet(0x22b);
       const ni = b.nameInput();
       ni.prompt(2, 7);                                                          // 2e09:29a0
-      while ((await ni.run(ship.addr, 7)) !== 1);                               // 2e09:26a5 (不重开提示窗口)
+      for (;;) {
+        const r = await ni.run(ship.addr, 7);                                   // 2e09:26a5
+        if (r === 1 || r === 2) break;
+      }
       await this.c.win.close();
       break;
     }
@@ -362,6 +365,8 @@ export class Palace {
     R.maxGuns = tmpl.maxGuns; R.type = t; R.flags = tmpl.flags;
     R.maxCrew = tmpl.maxCrew;
     R.maxCargo = (T.capacity - R.maxGuns - R.maxCrew) & 0xffff;
+    writeShipName(R, tmpl.nameBytes);
     setPortBuildDays(m.currentPortEconomy(), 0);                                 // [c2dc] +23
+    return n;
   }
 }

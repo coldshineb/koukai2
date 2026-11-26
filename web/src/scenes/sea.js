@@ -310,17 +310,45 @@ export class SeaScene extends PortScene {
     return [wx, wy];
   }
 
+  /** 查找港口 (tx, ty) 周围可停靠的 2×2 海域格，优先使用原版 12 个近海停泊偏置 */
+  findPortSeaCoord(tx, ty) {
+    const wx = ((Math.round(tx) % 0x870) + 0x870) % 0x870;
+    const wy = Math.max(2, Math.min(1076, Math.round(ty)));
+    const item = Math.trunc(wx / 0x2d0) % 3;
+    const cx = Math.max(0, Math.min(0x1b, (Math.trunc(wx / 24) % 30) - 1));
+    const cy = Math.max(0, Math.min(0x2a, Math.trunc(wy / 24) - 1));
+    const tmp = new Uint8Array(0x2400);
+    this.wm.decode(this.m.st, item, 30 * cy + cx, tmp);
+    const ox0 = cx * 24, oy0 = cy * 24;
+    const isSea = (gx, gy) => {
+      const lx = (((gx % 0x870) + 0x870) % 0x870) - item * 0x2d0 - ox0;
+      const ly = gy - oy0;
+      if (lx < 0 || lx >= 70 || ly < 0 || ly >= 70) return false;
+      const o = ly * 0x60 + lx;
+      return tmp[o] < 0x34 && tmp[o + 1] < 0x34 && tmp[o + 0x60] < 0x34 && tmp[o + 0x61] < 0x34;
+    };
+    const nearOffsets = [0, -2, 0, 2, 2, 0, -2, 0, -1, -2, 1, -2, 2, -1, 2, 1, -1, 2, 1, 2, -2, -1, -2, 1];
+    for (let i = 0; i < 12; i++) {
+      const sx = (wx + nearOffsets[2 * i] + 0x870) % 0x870;
+      const sy = Math.max(2, Math.min(1076, wy + nearOffsets[2 * i + 1]));
+      if (isSea(sx, sy)) return [sx, sy];
+    }
+    return this.findNearestSeaCoord(tx, ty);
+  }
+
   /** 快速传送进指定港口 (0..129)，同步更新舰队世界座标、HUD 与港口场景 */
   teleportToPort(portId) {
     const pid = portId & 0xff;
     if (pid >= WorldConst.TOTAL_PORTS) return false;
     const m = this.m, g = m.globals, pv = m.port(pid), fl = heroFleet(m);
+    const [sx, sy] = this.findPortSeaCoord(pv.x, pv.y);
     pv.region |= 0x50;
-    fl.x = pv.x; fl.y = pv.y; fl.dir = 8; fl.mission = 0; fl.routeFlags = 0;
+    fl.x = sx; fl.y = sy; fl.subX = 0; fl.subY = 0; fl.dir = 8; fl.mission = 0; fl.routeFlags = 0;
+    fl.flags = (fl.flags & ~0x10) | 1;
     g.seaFlags2 |= 0x20;
-    const fx = seaS16(pv.x), base = Math.trunc(fx / 0x2d0) * 0x2d0;
-    g.seaViewX = Math.max(base, Math.min(base + 0x2b8, fx - 11));
-    g.seaViewY = Math.max(0, Math.min(0x420, seaS16(pv.y) - 11));
+    const base = Math.trunc(sx / 0x2d0) * 0x2d0;
+    g.seaViewX = Math.max(base, Math.min(base + 0x2b8, sx - 11));
+    g.seaViewY = Math.max(0, Math.min(0x420, sy - 11));
     if (g.port !== GameConst.EMPTY_SLOT) {
       g.port = pid;
       g.lastPort = GameConst.EMPTY_SLOT;

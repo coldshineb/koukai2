@@ -1,10 +1,11 @@
 // ui/buildings/palace.ts — 王宫一体化工作台
-import { GameConst, OptionFlag } from "../../model/flags.ts";
+import { GameConst, OptionFlag, ShipSlotFlag } from "../../model/flags.ts";
 import { getCashCap } from "../../core/prefs.ts";
-import { getCountryExtra, getWorkState } from "../../model/world_helpers.ts";
+import { getCountryExtra, getWorkState, writeShipName } from "../../model/world_helpers.ts";
 import { ENV_COMMON, ENV_HERO } from "../../game/scenario.js";
 import { mainEnding } from "../../game/endgame.js";
 import { captureConsoleText, decodeCleanCstr, toSimp } from "../text_util.ts";
+import { encodeTextForFont } from "../t2s.ts";
 import { getBuildingArtUrl, preserveScroll } from "../modals.ts";
 import { UI_STR } from "../strings.ts";
 import { capMsg, createWorkbenchShell, fmtMoneyPill, plS16, plUmax, plUmin } from "./shared.ts";
@@ -62,10 +63,12 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
 
   let tab = 0; // 0: 晋见国王, 1: 势力状况, 2: 许可与归化, 3: 王室援助
   let selRegion = 0;
+  let aidNamingOpen = false;
+  let aidShipName = "";
   let notice = initGreet;
 
   for (;;) {
-    let pendingAction: null | "royal_event" | "ship_aid" = null;
+    let pendingAction: null | "royal_event" = null;
 
     await new Promise<void>(resolve => {
       let settled = false;
@@ -98,7 +101,7 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
           btn.className = `uw2-btn uw2-tab-btn ${tab === idx ? "active" : ""}`;
           btn.disabled = tb.disabled;
           btn.textContent = tb.label;
-          btn.addEventListener("click", () => { tab = idx; render(); });
+          btn.addEventListener("click", () => { tab = idx; aidNamingOpen = false; render(); });
           shell.toolbar.appendChild(btn);
         });
 
@@ -156,7 +159,7 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
           card.appendChild(head);
 
           const speech = document.createElement("div");
-          speech.style.cssText = "font-size:14px;line-height:1.65;color:var(--uw2-ink);padding:8px 10px;border-radius:6px;background:rgba(255,252,242,0.72);border:1px solid rgba(154,119,56,0.24);";
+          speech.style.cssText = "font-size:14px;line-height:1.65;white-space:pre-line;color:var(--uw2-ink);padding:8px 10px;border-radius:6px;background:rgba(255,252,242,0.72);border:1px solid rgba(154,119,56,0.24);";
           speech.textContent = notice;
           card.appendChild(speech);
           left.appendChild(card);
@@ -310,13 +313,14 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
           fundsBtn.className = "uw2-row-card";
           fundsBtn.textContent = UI_STR.palaceActions.funds;
           fundsBtn.addEventListener("click", () => {
+            aidNamingOpen = false;
             if (!country.aidMoneyK) { notice = capMsg(c, 0x1cd); render(); return; }
             if (palace.money + country.aidMoneyK * 1000 > getCashCap(c)) { notice = capMsg(c, 0x212); render(); return; }
             const amtK = country.aidMoneyK;
             palace.money = (palace.money + amtK * 1000) | 0;
             country.aidMoneyK = 0;
             b.p.panels();
-            notice = capMsg(c, 0x1ce, amtK);
+            notice = `${capMsg(c, 0x1ce, amtK)}\n${capMsg(c, 0x1cf)}`;
             render();
           });
 
@@ -325,11 +329,97 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
           shipBtn.textContent = UI_STR.palaceActions.shipAid;
           shipBtn.addEventListener("click", () => {
             if (!country.aidShipCount) { notice = capMsg(c, 0x1cd); render(); return; }
-            pendingAction = "ship_aid";
-            done();
+            b.freeSlots();
+            if (plS16(c.persons[0]) < 10 || b.fleetShips() >= GameConst.FLEET_SHIPS) {
+              notice = capMsg(c, 0x213);
+              render();
+              return;
+            }
+            if (!palace.mates()) {
+              notice = capMsg(c, 0x214);
+              render();
+              return;
+            }
+            const tag = b.port | 0x80;
+            for (let i = 0; i < 40; i++) {
+              if (m.crewSlot(i).captain === tag && b.slotState(i) === ShipSlotFlag.BUILDING) {
+                notice = capMsg(c, 0x1cd);
+                render();
+                return;
+              }
+            }
+            const tmpl = m.ship(country.aidShipType + 40);
+            aidShipName = decodeCleanCstr(codec, tmpl.nameBytes);
+            aidNamingOpen = true;
+            notice = `${capMsg(c, 0x1d0, tmpl.nameBytes)}\n${capMsg(c, 0x22b)}`;
+            render();
           });
 
           box.append(fundsBtn, shipBtn);
+
+          if (aidNamingOpen) {
+            const tmpl = m.ship(country.aidShipType + 40);
+            const shipTypeName = decodeCleanCstr(codec, tmpl.nameBytes);
+            const card = document.createElement("div");
+            card.className = "uw2-action-box";
+            card.style.cssText = "margin-top:6px;padding:12px;border-radius:8px;background:rgba(255,252,242,0.85);border:1px solid rgba(154,119,56,0.34);";
+
+            const hdr = document.createElement("div");
+            hdr.className = "uw2-detail-title";
+            hdr.style.fontSize = "14px";
+            hdr.textContent = `${shipTypeName} · 命名`;
+
+            const inp = document.createElement("input");
+            inp.type = "text";
+            inp.className = "uw2-amount-input";
+            inp.style.width = "100%";
+            inp.maxLength = 14;
+            inp.value = aidShipName;
+            inp.addEventListener("input", () => { aidShipName = inp.value; });
+
+            const actRow = document.createElement("div");
+            actRow.style.cssText = "display:flex;gap:8px;justify-content:flex-end;";
+
+            const cancelBtn = document.createElement("button");
+            cancelBtn.type = "button";
+            cancelBtn.className = "uw2-btn";
+            cancelBtn.textContent = "取消";
+            cancelBtn.addEventListener("click", () => {
+              aidNamingOpen = false;
+              notice = initGreet;
+              render();
+            });
+
+            const okBtn = document.createElement("button");
+            okBtn.type = "button";
+            okBtn.className = "uw2-btn uw2-btn-primary";
+            okBtn.textContent = "确认";
+            okBtn.addEventListener("click", () => {
+              const trimmed = inp.value.trim();
+              let nameBytes = tmpl.nameBytes;
+              if (trimmed) {
+                const enc = encodeTextForFont(c.font, trimmed);
+                if (!enc) {
+                  notice = "船名包含无法编码的字符，请重新输入。";
+                  render();
+                  return;
+                }
+                nameBytes = enc;
+              }
+              const shipIdx = palace.makeShip(country.aidShipType);
+              country.aidShipCount--;
+              if (typeof shipIdx === "number") writeShipName(m.ship(shipIdx), nameBytes);
+              b.p.panels();
+              aidNamingOpen = false;
+              notice = `${capMsg(c, 0x228)}\n${capMsg(c, 0x1cf)}`;
+              render();
+            });
+
+            actRow.append(cancelBtn, okBtn);
+            card.append(hdr, inp, actRow);
+            box.appendChild(card);
+          }
+
           right.appendChild(box);
         }
 
@@ -352,11 +442,6 @@ export async function runDomPalaceWorkbench(palace: any): Promise<void> {
         await mainEnding(b.p, 0x0f);
         return;
       }
-      b.after();
-      continue;
-    }
-    if (pendingAction === "ship_aid") {
-      await palace.shipAid();
       b.after();
       continue;
     }

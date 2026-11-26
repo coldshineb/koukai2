@@ -558,7 +558,17 @@ export async function runDomWharfWorkbench(b: any): Promise<number> {
       marketTradeLog(st, c.rt, 1, action.days, 0, 0, b.port);
       setDaysAtSea(m, 0);
       const sea = b.p;
-      fleetByAddr(m, sea.fleet).dir = 8;
+      const heroFl = fleetByAddr(m, sea.fleet);
+      const pv = m.port(b.port);
+      if (heroFl.x === pv.x && heroFl.y === pv.y && typeof sea.findPortSeaCoord === "function") {
+        const [sx, sy] = sea.findPortSeaCoord(pv.x, pv.y);
+        heroFl.x = sx;
+        heroFl.y = sy;
+        heroFl.subX = 0;
+        heroFl.subY = 0;
+      }
+      heroFl.dir = 8;
+      heroFl.flags = (heroFl.flags & ~0x10) | 1;
       c.sys.mickeys();
       m.globals.seaFlags2 &= ~SeaFlag2.STOPPED;
       sea.foodDaily();

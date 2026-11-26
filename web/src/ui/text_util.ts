@@ -25,10 +25,14 @@ export function stripEscBytes(bytes: Uint8Array): Uint8Array {
   return Uint8Array.from(out);
 }
 
+const cleanDecoded = (codec: any, bytes: number[] | Uint8Array): string => {
+  const s = codec.decode(Uint8Array.from(bytes)).replace(/\{[0-9A-F]{2}\}/g, "").replace(/\uE2BE/g, "十").trim();
+  return toSimp(s);
+};
+
 export function decodeCleanCstr(codec: any, bytes: Uint8Array): string {
   if (!codec || !bytes) return "";
-  const clean = stripEscBytes(bytes);
-  return toSimp(codec.decode(clean).replace(/\{[0-9A-F]{2}\}/g, "").trim());
+  return cleanDecoded(codec, stripEscBytes(bytes));
 }
 
 export function createEscStripper(onByte: (b: number) => void) {
@@ -58,5 +62,5 @@ export function captureConsoleText(ctx: any, fn: () => void): string {
   } finally {
     con.putc = saved;
   }
-  return codec ? toSimp(codec.decode(Uint8Array.from(raw)).replace(/\{[0-9A-F]{2}\}/g, "").trim()) : "";
+  return codec ? cleanDecoded(codec, raw) : "";
 }
