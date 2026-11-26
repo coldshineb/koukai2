@@ -2343,7 +2343,8 @@ export class NavalBattle {
       for (let k = 0; k < 5; k++) { M.setCargoGoods(k, 0xff); M.setCargoAmts(k, 0); }
     }
     m.person(capt).role = 2;
-    await this.scWin(0); this.c.message(0x22d);
+    if (this.c.scr.wideRenderer) b.beginWideTalk(null); else await this.scWin(0);
+    this.c.message(0x22d);
     const ni = b.nameInput();
     for (;;) { ni.prompt(2, 7); if ((await ni.run(N.addr, 7)) === 1) break; await b.closeTalk(); }   // 2e09:29a0 / 26a5
     await b.closeTalk();

@@ -425,9 +425,9 @@ export class MenuSystem {
     if (hasDom()) {
       const r = this.scr._battleHudActive
         ? await runDomBattleYesNo(this.scr._battleMsg?.() || this.scr.wideDialog?.text || "", "是", "否")
-        : this.scr.wideDialog?.text
+        : (this.scr.wideDialog?.text && document.body?.dataset.uw2Modal !== "open")
           ? await runDomFloatingYesNo(this.scr, "是", "否")
-          : await runDomYesNo("", "是", "否", {
+          : await runDomYesNo(this.scr.wideDialog?.text || "", "是", "否", {
               art: this.scr.wideArt,
               portraitId: this.scr.wideDialog?.portraitId ?? null,
               portraitComposed: this.scr.wideDialog?.portraitComposed ?? null,

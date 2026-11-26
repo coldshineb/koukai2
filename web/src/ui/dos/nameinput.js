@@ -10,6 +10,7 @@ const kbHex = s => Uint8Array.from(s.match(/../g).map(h => parseInt(h, 16)));
 const kbCstr = s => { const b = kbHex(s), o = new Uint8Array(b.length + 1); o.set(b); return o; };
 
 import { readCstrAtAddr, writeCstrAtAddr } from "../../model/world_helpers.ts";
+import { encodeTextForFont } from "../t2s.ts";
 
 // 2fdbc: 字码 → 字序; 无效码返回 0x2228 (这里只判断有效与否, 规则与 seg0:4554 略有不同: 0x91 首码视为有效)
 function tvalid(T) { return (T >= 0x30 && T <= 0x39) || (T >= 0x41 && T <= 0x5a) || (T >= 0x61 && T <= 0x7a) || (T >= 0x80 && T <= 0xfd); }
@@ -212,7 +213,11 @@ export class NameInput {
         title: titles[this._lastKind ?? 3] ?? "请输入名称",
         defaultValue: existing,
         maxBytes: max * 2,
-        encode: s => this.c.font.encode(s),
+        encode: s => {
+          const b = encodeTextForFont(this.c.font, s);
+          if (!b) throw new Error(s);
+          return b;
+        },
       });
       if (res.status === 1 && res.bytes) {
         writeCstrAtAddr(this.c.state.model, dest, res.bytes);

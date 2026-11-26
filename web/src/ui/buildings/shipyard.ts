@@ -3,6 +3,7 @@ import { GameConst, ShipSlotFlag } from "../../model/flags.ts";
 import { getPortEcoExtra, heroOrDockSlot, setPortBuildDays, writeShipName } from "../../model/world_helpers.ts";
 import { domS16 } from "../../domain/economy.ts";
 import { decodeCleanCstr } from "../text_util.ts";
+import { encodeTextForFont } from "../t2s.ts";
 import { getBuildingArtUrl, preserveScroll } from "../modals.ts";
 import { UI_STR } from "../strings.ts";
 import { capMsg, createWorkbenchShell, fmtMoneyPill, plUmin, renderUnifiedInvestPane } from "./shared.ts";
@@ -79,11 +80,7 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
   const encodeShipNameSafe = (txt: string, fallback: Uint8Array): Uint8Array => {
     const trimmed = txt.trim();
     if (!trimmed) return fallback;
-    try {
-      return c.font.encode(trimmed);
-    } catch {
-      return fallback;
-    }
+    return encodeTextForFont(c.font, trimmed) ?? fallback;
   };
 
   for (;;) {
@@ -816,12 +813,12 @@ export async function runDomShipyardWorkbench(b: any): Promise<void> {
             btn.addEventListener("click", () => {
               const nv = inp.value.trim();
               if (!nv) return;
-              try {
-                writeShipName(ship, c.font.encode(nv));
-                b.p.panels();
-                notice = nv;
-                render();
-              } catch { /* 字库未收录字符保留原名 */ }
+              const encoded = encodeTextForFont(c.font, nv);
+              if (!encoded) { notice = "含字库未收录字符"; render(); return; }
+              writeShipName(ship, encoded);
+              b.p.panels();
+              notice = nv;
+              render();
             });
             box.append(inp, btn);
           }

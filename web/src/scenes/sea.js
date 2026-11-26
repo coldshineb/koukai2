@@ -45,6 +45,7 @@ import {
 } from "../model/world_helpers.ts";
 import { renderWideSea, hitWideCommandButton } from "../renderer/world.ts";
 import { hasDom, runDomInfoLines, runDomStoryCard } from "../ui/modals.ts";
+import { runDomPersonInfo } from "../ui/fleet_panel.ts";
 import { runDomTreasureChartModal } from "../ui/sea_modals.ts";
 import { captureConsoleText, decodeCleanCstr, toSimp } from "../ui/text_util.ts";
 
@@ -1869,6 +1870,14 @@ export class SeaScene extends PortScene {
       const si = await this.b.listSel().select(3, n);
       await this.c.win.close();
       if (si === -1) return 0xff;
+      if (this.c.scr.wideRenderer && hasDom() && this.c.codec) {
+        const domData = this.commandsObj().personInfo(this.c.persons[si], 0x0f, 0);
+        if (domData) {
+          const ok = await runDomPersonInfo(this.c.art, domData.personBytes, domData.headerLines, domData.stats, domData.detailLines, ["取消", "开战"]);
+          if (ok) return this.c.persons[si];
+          continue;
+        }
+      }
       this.commandsObj().personInfo(this.c.persons[si], 0x0f, 0);
       if (await this.c.menu.yesNo()) return this.c.persons[si];
     }

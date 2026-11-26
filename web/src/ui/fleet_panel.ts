@@ -381,15 +381,18 @@ export async function runDomPersonInfo(
   headerLines: string[],
   stats: { label: string; val: number }[],
   detailLines: string[],
-): Promise<void> {
+  confirmLabels?: [string, string],
+): Promise<boolean> {
   const portraitSrc = await getPersonPortraitSrc(art, personBytes);
   return new Promise(resolve => {
+    let settled = false;
+    const finish = (v: boolean) => { if (settled) return; settled = true; h.close(); resolve(v); };
     const h = createDomModal({
       title: headerLines[0] || "",
       size: "wide",
       cancelable: true,
-      closeLabel: "关闭",
-      onCancel: () => resolve(),
+      closeLabel: confirmLabels ? undefined : "关闭",
+      onCancel: () => finish(false),
     });
 
     const top = document.createElement("div");
@@ -436,6 +439,23 @@ export async function runDomPersonInfo(
 
     split.append(sBox, dBox);
     h.body.append(top, split);
+    if (confirmLabels) {
+      const act = document.createElement("div");
+      act.className = "uw2-dialog-actions";
+      const noBtn = document.createElement("button");
+      noBtn.className = "uw2-step-btn";
+      noBtn.style.padding = "8px 22px";
+      noBtn.textContent = confirmLabels[0];
+      noBtn.addEventListener("click", () => finish(false));
+      const yesBtn = document.createElement("button");
+      yesBtn.className = "uw2-btn uw2-btn-primary";
+      yesBtn.style.padding = "8px 24px";
+      yesBtn.textContent = confirmLabels[1];
+      yesBtn.addEventListener("click", () => finish(true));
+      act.append(noBtn, yesBtn);
+      h.body.appendChild(act);
+      yesBtn.focus();
+    }
   });
 }
 

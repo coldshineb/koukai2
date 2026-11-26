@@ -986,8 +986,13 @@ export function runDomFloatingYesNo(scr: any, yesLabel = "是", noLabel = "否")
   });
 }
 
-/** 通用底部对话提示（显示文本并等待玩家按键/点击） */
+/** 通用底部对话提示（显示文本并等待玩家按键/点击；若当前已有居中弹窗打开，则直接在顶层弹窗提示避免被遮挡） */
 export async function showWideNotice(ctx: any, text: string, portraitId: number | null = null) {
+  if (hasDom() && document.body?.dataset.uw2Modal === "open") {
+    const imgUrl = portraitId !== null && portraitId >= 0 && portraitId < 128 ? (ctx.scr?.wideArt?.portraitUrl?.(portraitId) ?? null) : null;
+    await runDomInfoLines("提示", [text], ["确定"], imgUrl);
+    return;
+  }
   const { scr, menu } = ctx;
   const prev = scr.wideDialog;
   scr.wideDialog = { text, portraitId, waiting: false };
