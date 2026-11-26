@@ -11,7 +11,7 @@ import os
 from collections import deque
 from PIL import Image
 import numpy as np
-from scipy.ndimage import binary_closing, binary_fill_holes, gaussian_filter, label, sobel
+from scipy.ndimage import binary_closing, binary_dilation, binary_fill_holes, gaussian_filter, label, sobel
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ART_SHEETS = os.path.join(ROOT, "web", "assets", "art", "sheets")
@@ -998,12 +998,16 @@ def process_chars_sheet():
 
     yy, xx = np.mgrid[0:hd_tile, 0:hd_tile].astype(np.float32)
     cx_norm = (xx - hd_tile * 0.5) / (hd_tile * 0.5)
+    struct8 = np.ones((3, 3), dtype=bool)
 
     for r in range(rows):
         for c in range(cols):
             tile_idx = idx_all[r * tile_sz:(r + 1) * tile_sz, c * tile_sz:(c + 1) * tile_sz]
-            alpha32 = (tile_idx < 16).astype(np.float32)
-            base32 = dedither_tile_rgb(np.where(tile_idx < 16, tile_idx, 0), MODERN_SPRITE_PAL, SPRITE_DITHER_PAIRS)
+            body = (tile_idx > 0) & (tile_idx < 16)
+            # 剔除原版角色贴图左侧/脚底自带的黑色投影块，仅保留紧贴主体像素 (8 邻域) 的 1px 轮廓与五官描边，避免与实时光影重叠成黑块
+            keep_mask = body | ((tile_idx == 0) & binary_dilation(body, structure=struct8))
+            alpha32 = keep_mask.astype(np.float32)
+            base32 = dedither_tile_rgb(np.where(keep_mask, tile_idx, 0), MODERN_SPRITE_PAL, SPRITE_DITHER_PAIRS)
             base_rgba = np.dstack([base32, alpha32 * 255.0])
 
             # 保持清晰锐利的角色立体轮廓 (仅 4x EPX + 极轻量内抗锯齿)
